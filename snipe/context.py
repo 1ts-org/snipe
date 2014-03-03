@@ -28,6 +28,9 @@ class Window(object):
     def stop(self, k):
         self.fe.sigtstp(None, None)
 
+    def view(self):
+        return []
+
 class Messager(Window):
     def __init__(self, frontend):
         super(Messager, self).__init__(frontend)
@@ -42,8 +45,16 @@ class Editor(Window):
         for x in ['\n', '\t', '\j']:
             self.keymap['\n'] = self.self_insert_command
 
+        self.text = ''
+
     def self_insert_command(self, k):
-        self.fe.write(k)
+        self.text += k
+
+    def view(self):
+        return [
+            ((), self.text),
+            (('cursor',), ''),
+            ]
 
 
 class Context(object):

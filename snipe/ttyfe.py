@@ -5,6 +5,7 @@ import os
 import curses
 import locale
 import signal
+import logging
 
 from . import mux
 
@@ -17,7 +18,7 @@ class TTYRenderer(object):
         self.w = ui.stdscr.subwin(w, h, y, x)
         self.w.idlok(1)
         self.w.scrollok(1)
-
+        self.log = logging.getLogger('TTYRender.%x' % (id(self),))
 
     def write(self, s):
         self.w.addstr(s)
@@ -25,6 +26,20 @@ class TTYRenderer(object):
         self.w.refresh()
         ## self.ui.stdscr.move(*self.w.getyx())
         ## self.ui.stdscr.refresh()
+        pass #XXX put a warning here or a debug log or something
+
+    def redisplay(self):
+        self.w.erase()
+        off = 0, 0
+        cursor = 0, 0
+        self.w.move(*off)
+        for tags, chunk in self.window.view():
+            if 'cursor' in tags:
+                cursor = self.w.getyx()
+            self.w.addstr(chunk)
+        self.log.debug('cursor at %s', repr(cursor))
+        self.w.move(*cursor)
+        self.w.noutrefresh()
 
 
 class TTYFrontend(mux.Muxable):
@@ -76,8 +91,7 @@ class TTYFrontend(mux.Muxable):
         self.stdscr.refresh()
 
     def write(self, s):
-        if self.active:
-            self.active.write(s)
+        pass #XXX put a warning here or a debug log or something
 
     def doresize(self):
         self.maxy, self.maxx = self.stdscr.getmaxyx()
@@ -99,6 +113,14 @@ class TTYFrontend(mux.Muxable):
         k = self.getch()
         if self.active:
             self.active.window.input_char(k)
+        self.redisplay()
+
+    def redisplay(self):
+        for w in self.windows:
+            if w is not self.active:
+                w.redisplay()
+        self.active.redisplay()
+        curses.doupdate()
 
     def notify(self):
         if self.notify_silent:
