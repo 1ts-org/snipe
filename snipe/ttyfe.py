@@ -21,12 +21,7 @@ class TTYRenderer(object):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
 
     def write(self, s):
-        self.w.addstr(s)
-        self.w.move(*self.w.getyx())
-        self.w.refresh()
-        ## self.ui.stdscr.move(*self.w.getyx())
-        ## self.ui.stdscr.refresh()
-        pass #XXX put a warning here or a debug log or something
+        self.log.debug('someone used write(%s)', repr(s))
 
     def redisplay(self):
         self.w.erase()
