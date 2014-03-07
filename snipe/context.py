@@ -29,32 +29,28 @@ class Window(object):
         self.fe.sigtstp(None, None)
 
     def view(self):
-        return []
+        return ViewStub([])
+
+class ViewStub(object):
+    def __init__(self, content):
+        self.content = content
+
+    @property
+    def point(self):
+        return self.content
+
+    def forward(self):
+        return iter([])
+
+    def reverse(self):
+        return iter([])
+
 
 class Messager(Window):
     def __init__(self, frontend):
         super(Messager, self).__init__(frontend)
         #SPACE
         #n, p, ^n ^p ↓ ↑ j k
-
-class Editor(Window):
-    def __init__(self, frontend):
-        super(Editor, self).__init__(frontend)
-        for x in range(ord(' '), ord('~') + 1):
-            self.keymap[chr(x)] = self.self_insert_command
-        for x in ['\n', '\t', '\j']:
-            self.keymap['\n'] = self.self_insert_command
-
-        self.text = ''
-
-    def self_insert_command(self, k):
-        self.text += k
-
-    def view(self):
-        return [
-            ((), self.text),
-            (('cursor',), ''),
-            ]
 
 
 class Context(object):
@@ -67,4 +63,5 @@ class Context(object):
                 messages.StartupBackend(),
                 messages.SyntheticBackend(conf={'count': 100}),
                 ],)
-        self.ui.initial(Editor(self.ui))
+        from . import editor
+        self.ui.initial(editor.Editor(self.ui))

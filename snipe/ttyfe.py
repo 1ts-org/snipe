@@ -28,7 +28,8 @@ class TTYRenderer(object):
         off = 0, 0
         cursor = 0, 0
         self.w.move(*off)
-        for tags, chunk in self.window.view():
+        v = self.window.view()
+        for tags, chunk in v.point: #XXX
             if 'cursor' in tags:
                 cursor = self.w.getyx()
             self.w.addstr(chunk)
