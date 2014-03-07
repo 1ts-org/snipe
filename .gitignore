@@ -4,3 +4,6 @@
 .#*
 # python droppings
 *.pyc
+
+cover/
+.coverage
