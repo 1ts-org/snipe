@@ -24,16 +24,18 @@ class Mark(object):
         self.pos = self.editor.pointtopos(val)
 
 class Editor(context.Window):
-    def __init__(self, frontend):
+    def __init__(self, frontend, chunksize=CHUNKSIZE):
         super(Editor, self).__init__(frontend)
         for x in range(ord(' '), ord('~') + 1):
             self.keymap[chr(x)] = self.insert
         for x in ['\n', '\t', '\j']:
             self.keymap['\n'] = self.insert
 
+        self.chunksize = chunksize
+
         self.marks = set()
 
-        self.buf = self._array(CHUNKSIZE)
+        self.buf = self._array(self.chunksize)
         self.gapstart = 0
         self.gapend = len(self.buf)
 
@@ -61,9 +63,14 @@ class Editor(context.Window):
         return self.gapend - self.gapstart
 
     def pointtopos(self, point):
+        if point < 0:
+            return 0
         if point < self.gapstart:
             return point
-        return point + self.gaplength
+        if point < self.size:
+            return point + self.gaplength
+        return len(self.buf)
+
     def postopoint(self, pos):
         if pos > self.gapstart:
             return pos - self.gaplength
@@ -73,10 +80,16 @@ class Editor(context.Window):
         # convert marks to point coordinates
         for mark in self.marks:
             mark.pos = mark.point
+        point = self.postopoint(pos)
+
         # expand the gap if necessary
         if size > self.gaplength:
-            increase = ((size - self.gaplength) // CHUNKSIZE + 1) * CHUNKSIZE
+            increase = (
+                ((size - self.gaplength) // self.chunksize + 1) * self.chunksize)
             self.buf[self.gapstart:self.gapstart] = self._array(increase)
+            self.gapend += increase
+
+        pos = self.pointtopos(point)
         # okay, now we move the gap.
         if pos < self.gapstart:
             # If we're moving it towards the top of the buffer
