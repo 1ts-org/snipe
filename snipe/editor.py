@@ -9,10 +9,10 @@ CHUNKSIZE = 4096
 
 
 class Mark(object):
-    def __init__(self, editor, pos):
+    def __init__(self, editor, point):
         self.editor = editor
         self.editor.marks.add(self)
-        self.pos = self.editor.pointtopos(pos)
+        self.pos = self.editor.pointtopos(point)
 
     @property
     def point(self):
@@ -72,9 +72,12 @@ class Editor(context.Window):
         return len(self.buf)
 
     def postopoint(self, pos):
-        if pos > self.gapstart:
+        if pos < self.gapstart:
+            return pos
+        elif pos <= self.gapend:
+            return self.gapstart
+        else:
             return pos - self.gaplength
-        return pos
 
     def movegap(self, pos, size):
         # convert marks to point coordinates
@@ -116,6 +119,9 @@ class Editor(context.Window):
 
     def insert(self, s):
         self.replace(0, s)
+
+    def delete(self, count):
+        self.replace(count, '')
 
     def view(self):
         return context.ViewStub([
