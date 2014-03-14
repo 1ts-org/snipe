@@ -30,6 +30,8 @@ class Editor(context.Window):
             self.keymap[chr(x)] = self.insert
         for x in ['\n', '\t', '\j']:
             self.keymap['\n'] = self.insert
+        self.keymap[chr(ord('F') - ord('@'))] = lambda k: self.move(1)
+        self.keymap[chr(ord('B') - ord('@'))] = lambda k: self.move(-1)
 
         self.chunksize = chunksize
 
@@ -40,6 +42,15 @@ class Editor(context.Window):
         self.gapend = len(self.buf)
 
         self.cursor = Mark(self, 0)
+
+        import itertools
+        for i in xrange(256):
+            self.insert(''.join(itertools.islice(
+                itertools.cycle(
+                    [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
+                    [chr(x) for x in range(ord('0'), ord('9') + 1)]),
+                i,
+                i + 72)) + '\n')
 
     def set_content(self, s):
         self.cursor.point = 0
@@ -122,6 +133,11 @@ class Editor(context.Window):
 
     def delete(self, count):
         self.replace(count, '')
+
+    def move(self, delta, mark=None):
+        if mark is None:
+            mark = self.cursor
+        mark.point += delta # the setter does appropriate clamping
 
     def view(self):
         return context.ViewStub([

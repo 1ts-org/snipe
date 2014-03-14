@@ -13,6 +13,7 @@ def main():
         muxer = mux.Mux()
         context_ = context.Context(muxer, ui)
         muxer.add(ui)
+        ui.redisplay()
         muxer.wait_forever()
     logging.shutdown()
 

@@ -17,8 +17,9 @@ class TTYRenderer(object):
         self.window.renderer = self
         self.w = ui.stdscr.subwin(w, h, y, x)
         self.w.idlok(1)
-        self.w.scrollok(1)
+        #self.w.scrollok(1)
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
+        self.frame = None
 
     def write(self, s):
         self.log.debug('someone used write(%s)', repr(s))
@@ -26,17 +27,63 @@ class TTYRenderer(object):
     def redisplay(self):
         self.w.erase()
         off = 0, 0
-        cursor = 0, 0
+        cursor = None
         self.w.move(*off)
-        v = self.window.view()
-        for tags, chunk in v.point: #XXX
+        if self.frame is None:
+            self.reframe()
+        cursor = self.redisplay_internal()
+        if cursor is not None:
+            self.w.move(*cursor)
+            self.w.noutrefresh()
+            return
+        self.reframe()
+        cursor = self.redisplay_internal()
+        if cursor is not None:
+            self.w.noutrefresh()
+
+    @staticmethod
+    def doline(s, width):
+        '''string, window width -> iter([(displayline, width), ...])'''
+        # turns tabs into spaces at n*8 cell intervals
+        out = ''
+        col = 0
+        for c in s:
+            # XXX Unicode width, combining characters, etc.
+            if c == '\n':
+                yield out + '\n', col
+                out = ''
+                col = 0
+            elif ' ' <= c <= '~':
+                if col + 2 >= width:
+                    yield out, col
+                    out = ''
+                    col = 0
+                out += c
+                col += 1
+            elif c == '\t':
+                n = (8 - col % 8)
+                if col + n + 1 >= width:
+                    yield out, col
+                    out = ''
+                    col = 0
+                else:
+                    col += n
+                    out += ' ' * n
+            # non printing characters... don't for now
+        if out:
+            yield out, col
+
+    def redisplay_internal(self):
+        cursor = None
+        for tags, chunk in self.frame.point: #XXX
             if 'cursor' in tags:
                 cursor = self.w.getyx()
             self.w.addstr(chunk)
-        self.log.debug('cursor at %s', repr(cursor))
-        self.w.move(*cursor)
-        self.w.noutrefresh()
+        return cursor
 
+
+    def reframe(self):
+        self.frame = self.window.view()
 
 class TTYFrontend(mux.Muxable):
     reader = True
