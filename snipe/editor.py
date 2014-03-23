@@ -187,7 +187,6 @@ class Editor(context.Window):
 
     def Nview(self, origin, direction='forward'):
         m = Mark(self, origin)
-        c = Mark(self, self.cursor)
 
         if direction not in ('forward', 'backward'):
             raise ValueError('invalid direction', direction)
