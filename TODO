@@ -1,0 +1,5 @@
+* selective display means that markup presented to the frontend will
+  have to be nested
+
+* eventually buffers will have to be abstracted out from the Editor so
+  that multiple windows can be looking at the same content
