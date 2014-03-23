@@ -93,19 +93,29 @@ class TestEditor(unittest.TestCase):
     def testNview(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
-        for i in xrange(256):
-            e.insert(''.join(itertools.islice(
+        lines = [
+            ''.join(itertools.islice(
                 itertools.cycle(
                     [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
                     [chr(x) for x in range(ord('0'), ord('9') + 1)]),
                 i,
-                i + 72)) + '\n')
+                i + 72))+'\n'
+            for i in xrange(256)]
+        e.insert(''.join(lines))
         with self.assertRaises(ValueError):
             list(e.Nview(0, 'pants'))
+        c = e.cursor.point
         forward = [(int(m), l) for (m, l) in e.Nview(0, 'forward')]
+        self.assertEqual(e.cursor.point, c)
         backward = [(int(m), l) for (m, l) in e.Nview(e.size, 'backward')]
-        self.assertEquals(forward, list(reversed(backward[1:])))
+        self.assertEqual(e.cursor.point, c)
+        self.assertEquals(len(forward), 257)
+        self.assertEquals(forward, list(reversed(backward)))
         self.assertEquals(backward[0], (e.size, u''))
+        for (i, s) in enumerate(lines):
+            self.assertEquals(forward[i][1], lines[i])
+        self.assertEquals(len(forward), 257)
+
 
 if __name__ == '__main__':
     unittest.main()
