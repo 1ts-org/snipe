@@ -4,6 +4,7 @@ Unit tests for the Editor object
 
 import sys
 import unittest
+import itertools
 
 sys.path.append('..')
 import snipe.editor
@@ -11,6 +12,7 @@ import snipe.editor
 class TestEditor(unittest.TestCase):
     def testEditorSimple(self):
         e = snipe.editor.Editor(None)
+        e.set_content('')
         e.insert('flam')
         self.assertEqual(e.cursor.point, 4)
         e.cursor.point = 0
@@ -21,6 +23,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.text, 'flimflamblam')
     def testEditorExpansion(self):
         e = snipe.editor.Editor(None, chunksize=1)
+        e.set_content('')
         e.insert('flam')
         self.assertEqual(e.cursor.point, 4)
         e.cursor.point = 0
@@ -31,6 +34,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.text, 'flimflamblam')
     def testEditorMore(self):
         e = snipe.editor.Editor(None)
+        e.set_content('')
         e.insert('bar')
         self.assertEquals(e.text, 'bar')
         self.assertEquals(e.size, 3)
@@ -71,6 +75,37 @@ class TestEditor(unittest.TestCase):
         e.cursor.point=3
         e.delete(3)
         self.assertEquals(e.text, 'fooquuxbaz')
+    def testFindchar(self):
+        e = snipe.editor.Editor(None)
+        e.set_content('')
+        e.insert('abcdefghji')
+        e.cursor.point = 0
+        self.assertEquals(e.find_character('c'), 'c')
+        self.assertEquals(e.cursor.point, 2)
+        self.assertEquals(e.find_character('a', 1), '')
+        self.assertEquals(e.cursor.point, 10)
+        self.assertEquals(e.find_character('a', -1), 'a')
+        self.assertEquals(e.cursor.point, 0)
+        self.assertEquals(e.find_character('z', -1), '')
+        self.assertEquals(e.cursor.point, 0)
+        self.assertEquals(e.find_character('c'), 'c')
+        self.assertEquals(e.cursor.point, 2)
+    def testNview(self):
+        e = snipe.editor.Editor(None)
+        e.set_content('')
+        for i in xrange(256):
+            e.insert(''.join(itertools.islice(
+                itertools.cycle(
+                    [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
+                    [chr(x) for x in range(ord('0'), ord('9') + 1)]),
+                i,
+                i + 72)) + '\n')
+        with self.assertRaises(ValueError):
+            list(e.Nview(0, 'pants'))
+        forward = [(int(m), l) for (m, l) in e.Nview(0, 'forward')]
+        backward = [(int(m), l) for (m, l) in e.Nview(e.size, 'backward')]
+        self.assertEquals(forward, list(reversed(backward[1:])))
+        self.assertEquals(backward[0], (e.size, u''))
 
 if __name__ == '__main__':
     unittest.main()

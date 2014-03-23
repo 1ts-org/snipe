@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 import array
+import weakref
+import contextlib
 
 from . import context
 
@@ -23,7 +25,21 @@ class Mark(object):
     def point(self, val):
         self.pos = self.editor.pointtopos(val)
 
+    def __repr__(self):
+        return '<%s:%s %d (%d)>' % (
+            self.__class__.__name__,
+            repr(self.editor),
+            self.pos,
+            self.point,
+            )
+
+    def __int__(self):
+        return self.point
+
+
 class Editor(context.Window):
+    EOL = '\n'
+
     def __init__(self, frontend, chunksize=CHUNKSIZE):
         super(Editor, self).__init__(frontend)
         for x in range(ord(' '), ord('~') + 1):
@@ -35,7 +51,7 @@ class Editor(context.Window):
 
         self.chunksize = chunksize
 
-        self.marks = set()
+        self.marks = weakref.WeakSet()
 
         self.buf = self._array(self.chunksize)
         self.gapstart = 0
@@ -69,11 +85,22 @@ class Editor(context.Window):
             self.buf[:self.gapstart].tounicode()
             + self.buf[self.gapend:].tounicode())
 
+    def textrange(self, beg, end):
+        beg = int(beg)
+        end = int(end)
+        l = []
+        if beg <= self.gapstart:
+            l.append(self.buf[beg:min(self.gapstart, end)].tounicode())
+        if end > self.gapstart:
+            l.append(self.buf[self.gapend:self.pointtopos(end)].tounicode())
+        return ''.join(l)
+
     @property
     def gaplength(self):
         return self.gapend - self.gapstart
 
     def pointtopos(self, point):
+        point = int(point)
         if point < 0:
             return 0
         if point < self.gapstart:
@@ -135,12 +162,81 @@ class Editor(context.Window):
         self.replace(count, '')
 
     def move(self, delta, mark=None):
+        '''.move(delta, mark=None) -> actual distance moved
+        Move the specified mark or the cursor by delta.
+        '''
         if mark is None:
             mark = self.cursor
+        z = mark.point
         mark.point += delta # the setter does appropriate clamping
+        return mark.point - z
 
-    def view(self):
+    def view(self, origin=None, direction=None):
         return context.ViewStub([
             ((), self.text[:self.cursor.point]),
             (('cursor',), self.text[self.cursor.point:]),
             ])
+
+    def Nview(self, origin, direction='forward'):
+        m = Mark(self, origin)
+        c = Mark(self, self.cursor)
+
+        if direction == 'forward':
+            while True:
+                here = Mark(self, m)
+                with self.save_excursion(m):
+                    self.end_of_line()
+                    d = self.move(1)
+                    l = self.textrange(here, self.cursor)
+                    if not d:
+                        break
+                yield here, l
+        elif direction == 'backward':
+            while True:
+                with self.save_excursion(m):
+                    self.end_of_line()
+                    e = self.cursor.point
+                    self.beginning_of_line()
+                    here = Mark(self, self.cursor)
+                    l = self.textrange(self.cursor, e + 1)
+                    yield here, l
+                    d = self.move(-1)
+                    if not d:
+                        break
+        else:
+            raise ValueError('invalid direction', direction)
+
+
+    def character_at_point(self):
+        return self.textrange(self.cursor.point, self.cursor.point + 1)
+
+    def find_character(self, cs, delta=1):
+        while self.move(delta):
+            x = self.character_at_point()
+            if x and x in cs:
+                return x
+        return ''
+
+    def beginning_of_line(self):
+        if self.cursor.point == 0:
+            return
+        with self.save_excursion():
+            self.move(-1)
+            if self.character_at_point() == self.EOL:
+                return
+        if self.find_character(self.EOL, -1):
+            self.move(1)
+
+    def end_of_line(self):
+        if not self.character_at_point() == self.EOL:
+            self.find_character(self.EOL)
+
+    @contextlib.contextmanager
+    def save_excursion(self, mark=None):
+        cursor = Mark(self, self.cursor)
+        if mark is not None:
+            self.cursor.point = mark
+        yield
+        if mark is not None:
+            mark.point = self.cursor
+        self.cursor.point = cursor
