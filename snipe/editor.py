@@ -177,35 +177,33 @@ class Editor(context.Window):
             (('cursor',), self.text[self.cursor.point:]),
             ])
 
+    def extract_current_line(self):
+        with self.save_excursion():
+            self.beginning_of_line()
+            start=self.cursor.point
+            self.end_of_line()
+            self.move(1)
+            return start, self.textrange(start, self.cursor)
+
     def Nview(self, origin, direction='forward'):
         m = Mark(self, origin)
         c = Mark(self, self.cursor)
 
-        if direction == 'forward':
-            while True:
-                here = Mark(self, m)
-                with self.save_excursion(m):
-                    self.end_of_line()
-                    d = self.move(1)
-                    l = self.textrange(here, self.cursor)
-                    if not d:
-                        break
-                yield here, l
-        elif direction == 'backward':
-            while True:
-                with self.save_excursion(m):
-                    self.end_of_line()
-                    e = self.cursor.point
-                    self.beginning_of_line()
-                    here = Mark(self, self.cursor)
-                    l = self.textrange(self.cursor, e + 1)
-                    yield here, l
-                    d = self.move(-1)
-                    if not d:
-                        break
-        else:
+        if direction not in ('forward', 'backward'):
             raise ValueError('invalid direction', direction)
 
+        while True:
+            with self.save_excursion(m):
+                p, s = self.extract_current_line()
+                yield Mark(self, p), s
+                if direction == 'forward':
+                    if p == self.size:
+                        break
+                    self.cursor.point += len(s)
+                else:
+                    if p == 0:
+                        break
+                    self.cursor.point = p - 1
 
     def character_at_point(self):
         return self.textrange(self.cursor.point, self.cursor.point + 1)
