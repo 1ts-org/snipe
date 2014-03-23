@@ -76,7 +76,12 @@ class TTYRenderer(object):
     def redisplay_internal(self):
         cursor = None
         for tags, chunk in self.frame.point: #XXX
-            if 'cursor' in tags:
+            if 'cursor' in tags: #XXX conflating "cursor" with "visible area"
+                # sometimes the cursor won't be visible.
+                # Also, there are going to be situations where you might
+                # want to be able to see the header of the message and a chunk
+                # later in the message.
+                # You must think carefully on this
                 cursor = self.w.getyx()
             self.w.addstr(chunk)
         return cursor
