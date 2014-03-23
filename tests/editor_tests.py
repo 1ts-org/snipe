@@ -115,6 +115,17 @@ class TestEditor(unittest.TestCase):
         for (i, s) in enumerate(lines):
             self.assertEquals(forward[i][1], lines[i])
         self.assertEquals(len(forward), 257)
+        c = e.cursor.point
+        it = iter(e.Nview(0, 'forward'))
+        it.next()
+        self.assertEquals(e.cursor.point, c)
+        it.next()
+        self.assertEquals(e.cursor.point, c)
+        it = iter(e.Nview(e.size, 'backward'))
+        it.next()
+        self.assertEquals(e.cursor.point, c)
+        it.next()
+        self.assertEquals(e.cursor.point, c)
 
 
 if __name__ == '__main__':

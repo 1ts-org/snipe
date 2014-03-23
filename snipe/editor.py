@@ -194,15 +194,15 @@ class Editor(context.Window):
         while True:
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
-                yield Mark(self, p), s
-                if direction == 'forward':
-                    if p == self.size:
-                        break
-                    self.cursor.point += len(s)
-                else:
-                    if p == 0:
-                        break
-                    self.cursor.point = p - 1
+            yield Mark(self, p), s
+            if direction == 'forward':
+                if p == self.size:
+                    break
+                m.point += len(s)
+            else:
+                if p == 0:
+                    break
+                m.point = p - 1
 
     def character_at_point(self):
         return self.textrange(self.cursor.point, self.cursor.point + 1)
