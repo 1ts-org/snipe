@@ -3,6 +3,7 @@
 import array
 import weakref
 import contextlib
+import logging
 
 from . import context
 
@@ -49,6 +50,8 @@ class Editor(context.Window):
         self.keymap[chr(ord('F') - ord('@'))] = lambda k: self.move(1)
         self.keymap[chr(ord('B') - ord('@'))] = lambda k: self.move(-1)
 
+        self.keymap[chr(ord('T') - ord('@'))] = self.insert_test_content
+
         self.chunksize = chunksize
 
         self.marks = weakref.WeakSet()
@@ -58,9 +61,11 @@ class Editor(context.Window):
         self.gapend = len(self.buf)
 
         self.cursor = Mark(self, 0)
+        self.log = logging.getLogger('TTYRender.%x' % (id(self),))
 
+    def insert_test_content(self, k):
         import itertools
-        for i in xrange(256):
+        for i in xrange(32):
             self.insert(''.join(itertools.islice(
                 itertools.cycle(
                     [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
@@ -171,7 +176,7 @@ class Editor(context.Window):
         mark.point += delta # the setter does appropriate clamping
         return mark.point - z
 
-    def view(self, origin=None, direction=None):
+    def Oview(self, origin=None, direction=None):
         return context.ViewStub([
             ((), self.text[:self.cursor.point]),
             (('cursor',), self.text[self.cursor.point:]),
@@ -185,7 +190,9 @@ class Editor(context.Window):
             self.move(1)
             return start, self.textrange(start, self.cursor)
 
-    def Nview(self, origin, direction='forward'):
+    def view(self, origin, direction='forward'):
+        # this is the right place to do special processing of
+        # e.g. control characters
         m = Mark(self, origin)
 
         if direction not in ('forward', 'backward'):
@@ -194,11 +201,21 @@ class Editor(context.Window):
         while True:
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
-            yield Mark(self, p), s
+            l = len(s)
+            if (p <= self.cursor.point < p + l) or (self.cursor.point == p + l == self.size):
+                yield (
+                    Mark(self, p),
+                    [
+                        (), s[:self.cursor.point - p],
+                        ('cursor', 'visible'), s[self.cursor.point - p:],
+                        ],
+                    )
+            else:
+                yield Mark(self, p), [(), s]
             if direction == 'forward':
-                if p == self.size:
+                if p == self.size or s[-1] != '\n':
                     break
-                m.point += len(s)
+                m.point += l
             else:
                 if p == 0:
                     break

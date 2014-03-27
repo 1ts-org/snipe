@@ -6,6 +6,7 @@ import curses
 import locale
 import signal
 import logging
+import itertools
 
 from . import mux
 
@@ -21,25 +22,21 @@ class TTYRenderer(object):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.frame = None
 
+    @property
+    def active(self):
+        return self.ui.active == self
+
     def write(self, s):
         self.log.debug('someone used write(%s)', repr(s))
 
     def redisplay(self):
-        self.w.erase()
-        off = 0, 0
-        cursor = None
-        self.w.move(*off)
         if self.frame is None:
             self.reframe()
-        cursor = self.redisplay_internal()
-        if cursor is not None:
-            self.w.move(*cursor)
-            self.w.noutrefresh()
-            return
-        self.reframe()
-        cursor = self.redisplay_internal()
-        if cursor is not None:
-            self.w.noutrefresh()
+        visible = self.redisplay_internal()
+        if not visible:
+            self.reframe()
+            self.redisplay_internal()
+        self.w.noutrefresh()
 
     @staticmethod
     def doline(s, width):
@@ -74,21 +71,38 @@ class TTYRenderer(object):
             yield out, col
 
     def redisplay_internal(self):
+        self.w.erase()
+        self.w.move(0,0)
+        visible=False
         cursor = None
-        for tags, chunk in self.frame.point: #XXX
-            if 'cursor' in tags: #XXX conflating "cursor" with "visible area"
-                # sometimes the cursor won't be visible.
-                # Also, there are going to be situations where you might
-                # want to be able to see the header of the message and a chunk
-                # later in the message.
-                # You must think carefully on this
-                cursor = self.w.getyx()
-            self.w.addstr(chunk)
-        return cursor
+        self.log.debug('in redisplay_internal: %s', repr(self.window.text))
+        for mark, chunk in self.window.view(self.frame):
+            self.log.debug('redisplay_internal outer loop, chunk=%s', repr(chunk))
+            for tags, text in zip(chunk[::2], chunk[1::2]):
+                self.log.debug(
+                    'redisplay_internal inner loop, tags=%s, chunk=%s',
+                    repr(tags),
+                    repr(text))
+                if 'cursor' in tags:
+                    cursor = self.w.getyx()
+                if 'visible' in tags:
+                    visible = True
+                self.w.addstr(text)
+        if cursor is not None and self.active:
+            self.w.leaveok(0)
+            self.w.move(*cursor)
+        else:
+            self.w.leaveok(1)
+        self.log.debug(
+            'redisplay internal exiting, cursor=%s, visible=%s',
+            repr(cursor),
+            repr(visible),
+            )
+        return visible
 
 
     def reframe(self):
-        self.frame = self.window.view()
+        self.frame = 0
 
 class TTYFrontend(mux.Muxable):
     reader = True

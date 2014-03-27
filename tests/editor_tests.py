@@ -90,7 +90,7 @@ class TestEditor(unittest.TestCase):
         self.assertEquals(e.cursor.point, 0)
         self.assertEquals(e.find_character('c'), 'c')
         self.assertEquals(e.cursor.point, 2)
-    def testNview(self):
+    def testview(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
         lines = [
@@ -103,29 +103,36 @@ class TestEditor(unittest.TestCase):
             for i in xrange(256)]
         e.insert(''.join(lines))
         with self.assertRaises(ValueError):
-            list(e.Nview(0, 'pants'))
+            list(e.view(0, 'pants'))
         c = e.cursor.point
-        forward = [(int(m), l) for (m, l) in e.Nview(0, 'forward')]
+        forward = [(int(m), l) for (m, l) in e.view(0, 'forward')]
         self.assertEqual(e.cursor.point, c)
-        backward = [(int(m), l) for (m, l) in e.Nview(e.size, 'backward')]
+        backward = [(int(m), l) for (m, l) in e.view(e.size, 'backward')]
         self.assertEqual(e.cursor.point, c)
         self.assertEquals(len(forward), 257)
         self.assertEquals(forward, list(reversed(backward)))
-        self.assertEquals(backward[0], (e.size, u''))
-        for (i, s) in enumerate(lines):
-            self.assertEquals(forward[i][1], lines[i])
+        self.assertEquals(
+            backward[0],
+            (e.size, [(), u'', ('cursor', 'visible'), u'']))
         self.assertEquals(len(forward), 257)
         c = e.cursor.point
-        it = iter(e.Nview(0, 'forward'))
+        it = iter(e.view(0, 'forward'))
         it.next()
         self.assertEquals(e.cursor.point, c)
         it.next()
         self.assertEquals(e.cursor.point, c)
-        it = iter(e.Nview(e.size, 'backward'))
+        it = iter(e.view(e.size, 'backward'))
         it.next()
         self.assertEquals(e.cursor.point, c)
         it.next()
         self.assertEquals(e.cursor.point, c)
+    def testviewedge(self):
+        e = snipe.editor.Editor(None)
+        e.set_content('')
+        e.insert('abc')
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [(), u'abc', ('cursor', 'visible'), u''])])
 
 
 if __name__ == '__main__':

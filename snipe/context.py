@@ -28,22 +28,8 @@ class Window(object):
     def stop(self, k):
         self.fe.sigtstp(None, None)
 
-    def view(self):
-        return ViewStub([])
-
-class ViewStub(object):
-    def __init__(self, content):
-        self.content = content
-
-    @property
-    def point(self):
-        return self.content
-
-    def forward(self):
-        return iter([])
-
-    def reverse(self):
-        return iter([])
+    def view(self, origin=None, direction=None):
+        yield 0, [('visible',), '']
 
 
 class Messager(Window):
