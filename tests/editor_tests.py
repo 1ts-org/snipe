@@ -9,6 +9,7 @@ import itertools
 sys.path.append('..')
 import snipe.editor
 
+
 class TestEditor(unittest.TestCase):
     def testEditorSimple(self):
         e = snipe.editor.Editor(None)
