@@ -51,7 +51,7 @@ class TTYRenderer(object):
                 out = ''
                 col = 0
             elif ' ' <= c <= '~':
-                if col + 2 >= width:
+                if col >= width:
                     yield out, col
                     out = ''
                     col = 0
@@ -59,7 +59,7 @@ class TTYRenderer(object):
                 col += 1
             elif c == '\t':
                 n = (8 - col % 8)
-                if col + n + 1 >= width:
+                if col + n >= width:
                     yield out, col
                     out = ''
                     col = 0
