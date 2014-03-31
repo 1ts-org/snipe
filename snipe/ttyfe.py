@@ -12,11 +12,11 @@ from . import mux
 
 
 class TTYRenderer(object):
-    def __init__(self, ui, y, x, w, h, window):
-        self.ui, self.y, self.x, self.w, self.h = ui, y, x, w, h
+    def __init__(self, ui, y, x, h, w, window):
+        self.ui, self.y, self.x, self.width, self.height = ui, y, x, w, h
         self.window = window
         self.window.renderer = self
-        self.w = ui.stdscr.subwin(w, h, y, x)
+        self.w = ui.stdscr.subwin(h, w, y, x)
         self.w.idlok(1)
         #self.w.scrollok(1)
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
@@ -50,7 +50,7 @@ class TTYRenderer(object):
         for c in s:
             # XXX Unicode width, combining characters, etc.
             if c == '\n':
-                yield out + '\n', -1
+                yield out, -1
                 out = ''
                 col = 0
             elif ' ' <= c <= '~': #XXX should look up unicode category
@@ -74,23 +74,53 @@ class TTYRenderer(object):
             yield out, width - col
 
     def redisplay_internal(self):
+        self.log.debug(
+            'in redisplay_internal: %s, w=%d, h=%d',
+            repr(self.window.text),
+            self.width,
+            self.height)
+
         self.w.erase()
         self.w.move(0,0)
-        visible=False
+
+        visible = False
         cursor = None
-        self.log.debug('in redisplay_internal: %s', repr(self.window.text))
+        screenlines = self.height
+        remaining = None
+
         for mark, chunk in self.window.view(self.frame):
             self.log.debug('redisplay_internal outer loop, chunk=%s', repr(chunk))
             for tags, text in zip(chunk[::2], chunk[1::2]):
+                if screenlines <= 0:
+                    break
                 self.log.debug(
-                    'redisplay_internal inner loop, tags=%s, chunk=%s',
+                    'redisplay_internal middle loop, tags=%s, chunk=%s',
                     repr(tags),
                     repr(text))
+                self.log.debug(
+                    ' screenlines = %d',
+                    screenlines)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
-                self.w.addstr(text)
+                for line, remaining in self.doline(text, self.w, remaining):
+                    self.log.debug(
+                        'redisplay_internal inner loop, line=%s, remaining=%s',
+                        line,
+                        remaining)
+                    self.log.debug(
+                        ' screenlines = %d',
+                        screenlines)
+                    self.w.addstr(line)
+                    if remaining <= 0:
+                        screenlines -= 1
+                    if screenlines <= 0:
+                        break
+                    if remaining == -1:
+                        self.w.addstr('\n')
+                    elif remaining == 0:
+                        self.w.move(self.height - screenlines, 0)
         if cursor is not None and self.active:
             self.w.leaveok(0)
             self.w.move(*cursor)

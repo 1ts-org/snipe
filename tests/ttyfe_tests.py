@@ -21,7 +21,7 @@ class TestTTYFE(unittest.TestCase):
             [('        abc', 69)])
         self.assertEqual(
             list(snipe.ttyfe.TTYRenderer.doline('abc\n', 80, 80)),
-            [('abc\n', -1)])
+            [('abc', -1)])
         self.assertEqual(
             list(snipe.ttyfe.TTYRenderer.doline('a\01bc', 80, 80)),
             [('abc', 77)])
