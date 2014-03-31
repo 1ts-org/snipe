@@ -39,20 +39,23 @@ class TTYRenderer(object):
         self.w.noutrefresh()
 
     @staticmethod
-    def doline(s, width):
-        '''string, window width -> iter([(displayline, width), ...])'''
+    def doline(s, width, remaining):
+        '''string, window width, remaining width ->
+        iter([(displayline, remaining), ...])'''
         # turns tabs into spaces at n*8 cell intervals
+        #XXX needs initial offset for tab stops
+        #and for width after newline
         out = ''
-        col = 0
+        col = 0 if remaining is None or remaining <= 0 else width - remaining
         for c in s:
             # XXX Unicode width, combining characters, etc.
             if c == '\n':
-                yield out + '\n', col
+                yield out + '\n', -1
                 out = ''
                 col = 0
-            elif ' ' <= c <= '~':
+            elif ' ' <= c <= '~': #XXX should look up unicode category
                 if col >= width:
-                    yield out, col
+                    yield out, 0
                     out = ''
                     col = 0
                 out += c
@@ -60,15 +63,15 @@ class TTYRenderer(object):
             elif c == '\t':
                 n = (8 - col % 8)
                 if col + n >= width:
-                    yield out, col
+                    yield out, 0
                     out = ''
                     col = 0
                 else:
                     col += n
                     out += ' ' * n
-            # non printing characters... don't for now
+            # non printing characters... don't
         if out:
-            yield out, col
+            yield out, width - col
 
     def redisplay_internal(self):
         self.w.erase()
