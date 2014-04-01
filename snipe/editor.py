@@ -112,7 +112,7 @@ class Editor(context.Window):
         point = int(point)
         if point < 0:
             return 0
-        if point < self.gapstart:
+        if point <= self.gapstart:
             return point
         if point < self.size:
             return point + self.gaplength
@@ -158,11 +158,13 @@ class Editor(context.Window):
             mark.point = mark.pos
 
     def replace(self, size, string):
-        self.movegap(self.cursor.pos, len(string) - size)
+        where = self.cursor.pos
+        self.movegap(where, len(string) - size)
         self.gapend += size
         newstart = self.gapstart + len(string)
         self.buf[self.gapstart:newstart] = array.array('u', unicode(string))
         self.gapstart = newstart
+        self.cursor.pos = where + len(string)
 
     def insert(self, s):
         self.replace(0, s)
