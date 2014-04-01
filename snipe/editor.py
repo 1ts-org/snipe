@@ -67,6 +67,8 @@ class Editor(context.Window):
         self.cursor = Mark(self, 0)
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
+        self.cache = {}
+
     def insert_test_content(self, k):
         import itertools
         for i in xrange(32):
@@ -165,6 +167,7 @@ class Editor(context.Window):
         self.buf[self.gapstart:newstart] = array.array('u', unicode(string))
         self.gapstart = newstart
         self.cursor.pos = where + len(string)
+        self.cache = {}
 
     def insert(self, s):
         self.replace(0, s)
@@ -199,12 +202,19 @@ class Editor(context.Window):
             ])
 
     def extract_current_line(self):
+        p = self.cursor.point
+        r = self.cache.setdefault('extract_current_line', {}).get(p)
+        if r is not None:
+            return r
+
         with self.save_excursion():
             self.beginning_of_line()
             start=self.cursor.point
             self.end_of_line()
             self.move(1)
-            return start, self.textrange(start, self.cursor)
+            result = (start, self.textrange(start, self.cursor))
+            self.cache['extract_current_line'][p] = result
+            return result
 
     def view(self, origin, direction='forward'):
         # this is the right place to do special processing of
