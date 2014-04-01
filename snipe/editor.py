@@ -224,12 +224,12 @@ class Editor(context.Window):
                 yield (
                     Mark(self, p),
                     [
-                        (), s[:self.cursor.point - p],
-                        ('cursor', 'visible'), s[self.cursor.point - p:],
+                        ((), s[:self.cursor.point - p]),
+                        (('cursor', 'visible'), s[self.cursor.point - p:]),
                         ],
                     )
             else:
-                yield Mark(self, p), [(), s]
+                yield Mark(self, p), [((), s)]
             if direction == 'forward':
                 if p == self.size or s[-1] != '\n':
                     break

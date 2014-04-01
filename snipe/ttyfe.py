@@ -96,7 +96,7 @@ class TTYRenderer(object):
 
         for mark, chunk in self.window.view(self.frame):
             self.log.debug('redisplay_internal outer loop, chunk=%s', repr(chunk))
-            for tags, text in zip(chunk[::2], chunk[1::2]):
+            for tags, text in chunk:
                 if screenlines <= 0:
                     break
                 self.log.debug(
@@ -146,7 +146,7 @@ class TTYRenderer(object):
         ## self.frame = mark
         ## chunk = itertools.takewhile(
         ##     lambda: 'visible' not in x[0],
-        ##     zip(chunk[::2], chunk[1::2]))
+        ##     chunk)
         ## chunklines = list(self.doline(''.join(c[1] for c in chunk)))
         ## # if len(chunklines) - 1 > self.height: *sob*
         self.log.debug('reframe, previous frame=%s', repr(self.frame))
@@ -156,7 +156,7 @@ class TTYRenderer(object):
             # this should only drop stuff off the first chunk...
             chunk = itertools.takewhile(
                 lambda x: 'visible' not in x[0],
-                zip(chunk[::2], chunk[1::2]))
+                chunk)
             chunklines = list(self.doline(''.join(c[1] for c in chunk), self.width, self.width))
             self.log.debug('reframe loop, chunklins=%s', repr(chunklines))
             screenlines -= len(chunklines)

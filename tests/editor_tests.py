@@ -114,7 +114,7 @@ class TestEditor(unittest.TestCase):
         self.assertEquals(forward, list(reversed(backward)))
         self.assertEquals(
             backward[0],
-            (e.size, [(), u'', ('cursor', 'visible'), u'']))
+            (e.size, [((), u''), (('cursor', 'visible'), u'')]))
         self.assertEquals(len(forward), 257)
         c = e.cursor.point
         it = iter(e.view(0, 'forward'))
@@ -133,7 +133,7 @@ class TestEditor(unittest.TestCase):
         e.insert('abc')
         self.assertEqual(
             [(int(m), l) for (m, l) in e.view(0, 'forward')],
-            [(0, [(), u'abc', ('cursor', 'visible'), u''])])
+            [(0, [((), u'abc'), (('cursor', 'visible'), u'')])])
 
 
 if __name__ == '__main__':
