@@ -65,7 +65,7 @@ class Editor(context.Window):
         self.gapend = len(self.buf)
 
         self.cursor = Mark(self, 0)
-        self.log = logging.getLogger('TTYRender.%x' % (id(self),))
+        self.log = logging.getLogger('Editor.%x' % (id(self),))
 
     def insert_test_content(self, k):
         import itertools
