@@ -31,11 +31,15 @@ class TTYRenderer(object):
 
     def redisplay(self):
         if self.frame is None:
+            self.log.debug('redisplay with no frame, firing reframe')
             self.reframe()
         visible = self.redisplay_internal()
         if not visible:
+            self.log.debug('redisplay, no visibility, firing reframe')
             self.reframe()
-            self.redisplay_internal()
+            visible = self.redisplay_internal()
+            if not visible:
+                self.log.debug('redisplay, no visibility after reframe')
         self.w.noutrefresh()
 
     @staticmethod
@@ -75,10 +79,12 @@ class TTYRenderer(object):
 
     def redisplay_internal(self):
         self.log.debug(
-            'in redisplay_internal: %s, w=%d, h=%d',
+            'in redisplay_internal: %s, w=%d, h=%d, frame=%s',
             repr(self.window.text),
             self.width,
-            self.height)
+            self.height,
+            repr(self.frame),
+            )
 
         self.w.erase()
         self.w.move(0,0)
@@ -104,7 +110,7 @@ class TTYRenderer(object):
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
-                for line, remaining in self.doline(text, self.w, remaining):
+                for line, remaining in self.doline(text, self.width, remaining):
                     self.log.debug(
                         'redisplay_internal inner loop, line=%s, remaining=%s',
                         line,
@@ -133,9 +139,29 @@ class TTYRenderer(object):
             )
         return visible
 
-
     def reframe(self):
-        self.frame = 0
+        screenlines = self.height / 2
+        ## view = iter(self.window.view(self.cursor, 'backward'))
+        ## mark, chunk = view.next()
+        ## self.frame = mark
+        ## chunk = itertools.takewhile(
+        ##     lambda: 'visible' not in x[0],
+        ##     zip(chunk[::2], chunk[1::2]))
+        ## chunklines = list(self.doline(''.join(c[1] for c in chunk)))
+        ## # if len(chunklines) - 1 > self.height: *sob*
+        self.log.debug('reframe, previous frame=%s', repr(self.frame))
+        for mark, chunk in self.window.view(self.window.cursor, 'backward'):
+            self.log.debug('reframe loop, screenlines=%d', screenlines)
+            self.frame = mark
+            # this should only drop stuff off the first chunk...
+            chunk = itertools.takewhile(
+                lambda x: 'visible' not in x[0],
+                zip(chunk[::2], chunk[1::2]))
+            chunklines = list(self.doline(''.join(c[1] for c in chunk), self.width, self.width))
+            self.log.debug('reframe loop, chunklins=%s', repr(chunklines))
+            screenlines -= len(chunklines)
+            if screenlines <= 0:
+                break
 
 class TTYFrontend(mux.Muxable):
     reader = True
