@@ -172,15 +172,13 @@ class Editor(context.Window):
     def delete(self, count):
         self.replace(count, '')
 
-    def move(self, delta, mark=None):
+    def move(self, delta):
         '''.move(delta, mark=None) -> actual distance moved
-        Move the specified mark or the cursor by delta.
+        Move the point by delta.
         '''
-        if mark is None:
-            mark = self.cursor
-        z = mark.point
-        mark.point += delta # the setter does appropriate clamping
-        return mark.point - z
+        z = self.cursor.point
+        self.cursor.point += delta # the setter does appropriate clamping
+        return self.cursor.point - z
 
     def line_move(self, delta):
         count = abs(delta)
