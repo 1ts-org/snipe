@@ -47,8 +47,12 @@ class Editor(context.Window):
             self.keymap[chr(x)] = self.insert
         for x in ['\n', '\t', '\j']:
             self.keymap['\n'] = self.insert
-        self.keymap[chr(ord('F') - ord('@'))] = lambda k: self.move(1)
+        self.keymap[chr(ord('A') - ord('@'))] = self.beginning_of_line
         self.keymap[chr(ord('B') - ord('@'))] = lambda k: self.move(-1)
+        self.keymap[chr(ord('E') - ord('@'))] = self.end_of_line
+        self.keymap[chr(ord('F') - ord('@'))] = lambda k: self.move(1)
+        self.keymap[chr(ord('N') - ord('@'))] = lambda k: self.line_move(1)
+        self.keymap[chr(ord('P') - ord('@'))] = lambda k: self.line_move(-1)
 
         self.keymap[chr(ord('T') - ord('@'))] = self.insert_test_content
 
@@ -176,6 +180,18 @@ class Editor(context.Window):
         mark.point += delta # the setter does appropriate clamping
         return mark.point - z
 
+    def line_move(self, delta):
+        count = abs(delta)
+        for _ in xrange(count):
+            if delta < 0:
+                self.beginning_of_line()
+                self.move(-1)
+                self.beginning_of_line()
+            elif delta > 0:
+                self.end_of_line()
+                if not self.move(1):
+                    self.beginning_of_line()
+
     def Oview(self, origin=None, direction=None):
         return context.ViewStub([
             ((), self.text[:self.cursor.point]),
@@ -231,7 +247,7 @@ class Editor(context.Window):
                 return x
         return ''
 
-    def beginning_of_line(self):
+    def beginning_of_line(self, k=None):
         if self.cursor.point == 0:
             return
         with self.save_excursion():
@@ -241,7 +257,7 @@ class Editor(context.Window):
         if self.find_character(self.EOL, -1):
             self.move(1)
 
-    def end_of_line(self):
+    def end_of_line(self, k=None):
         if not self.character_at_point() == self.EOL:
             self.find_character(self.EOL)
 
