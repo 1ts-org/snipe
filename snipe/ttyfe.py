@@ -95,29 +95,14 @@ class TTYRenderer(object):
         remaining = None
 
         for mark, chunk in self.window.view(self.frame):
-            self.log.debug('redisplay_internal outer loop, chunk=%s', repr(chunk))
             for tags, text in chunk:
                 if screenlines <= 0:
                     break
-                self.log.debug(
-                    'redisplay_internal middle loop, tags=%s, chunk=%s',
-                    repr(tags),
-                    repr(text))
-                self.log.debug(
-                    ' screenlines = %d',
-                    screenlines)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
                 for line, remaining in self.doline(text, self.width, remaining):
-                    self.log.debug(
-                        'redisplay_internal inner loop, line=%s, remaining=%s',
-                        line,
-                        remaining)
-                    self.log.debug(
-                        ' screenlines = %d',
-                        screenlines)
                     self.w.addstr(line)
                     if remaining <= 0:
                         screenlines -= 1
@@ -151,14 +136,12 @@ class TTYRenderer(object):
         ## # if len(chunklines) - 1 > self.height: *sob*
         self.log.debug('reframe, previous frame=%s', repr(self.frame))
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
-            self.log.debug('reframe loop, screenlines=%d', screenlines)
             self.frame = mark
             # this should only drop stuff off the first chunk...
             chunk = itertools.takewhile(
                 lambda x: 'visible' not in x[0],
                 chunk)
             chunklines = list(self.doline(''.join(c[1] for c in chunk), self.width, self.width))
-            self.log.debug('reframe loop, chunklins=%s', repr(chunklines))
             screenlines -= len(chunklines)
             if screenlines <= 0:
                 break
