@@ -24,6 +24,7 @@ class TestEditor(unittest.TestCase):
         e.cursor.point += 4
         e.insert('blam')
         self.assertEqual(e.text, 'flimflamblam')
+
     def testEditorExpansion(self):
         e = snipe.editor.Editor(None, chunksize=1)
         e.set_content('')
@@ -35,6 +36,7 @@ class TestEditor(unittest.TestCase):
         e.cursor.point += 4
         e.insert('blam')
         self.assertEqual(e.text, 'flimflamblam')
+
     def testEditorMore(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
@@ -78,6 +80,7 @@ class TestEditor(unittest.TestCase):
         e.cursor.point=3
         e.delete(3)
         self.assertEquals(e.text, 'fooquuxbaz')
+
     def testFindchar(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
@@ -93,6 +96,7 @@ class TestEditor(unittest.TestCase):
         self.assertEquals(e.cursor.point, 0)
         self.assertEquals(e.find_character('c'), 'c')
         self.assertEquals(e.cursor.point, 2)
+
     def testview(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
@@ -129,6 +133,7 @@ class TestEditor(unittest.TestCase):
         self.assertEquals(e.cursor.point, c)
         it.next()
         self.assertEquals(e.cursor.point, c)
+
     def testviewedge(self):
         e = snipe.editor.Editor(None)
         e.set_content('')
@@ -136,6 +141,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(
             [(int(m), l) for (m, l) in e.view(0, 'forward')],
             [(0, [((), u'abc'), (('cursor', 'visible'), u'')])])
+
     def testfuzz(
         self,
         iterations=10000,
