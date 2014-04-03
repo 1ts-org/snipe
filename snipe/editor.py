@@ -45,6 +45,9 @@ class Editor(context.Window):
         super(Editor, self).__init__(frontend)
         for x in range(ord(' '), ord('~') + 1):
             self.keymap[chr(x)] = self.insert
+        import curses
+        for x in [s[4:] for s in dir(curses) if s.startswith('KEY_')]:
+            self.keymap[x] = self.insert
         for x in ['\n', '\t', '\j']:
             self.keymap['\n'] = self.insert
         self.keymap[chr(ord('A') - ord('@'))] = self.beginning_of_line
