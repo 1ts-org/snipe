@@ -146,6 +146,16 @@ class TTYRenderer(object):
             if screenlines <= 0:
                 break
 
+unkey = dict(
+    (getattr(curses, k), k[len('KEY_'):])
+    for k in dir(curses)
+    if k.startswith('KEY_'))
+key = dict(
+    (k[len('KEY_'):], getattr(curses, k))
+    for k in dir(curses)
+    if k.startswith('KEY_'))
+
+
 class TTYFrontend(mux.Muxable):
     reader = True
     handle = 0 # stdin
@@ -153,10 +163,6 @@ class TTYFrontend(mux.Muxable):
     def __init__(self):
         self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
         self.windows = []
-        self.unkey = dict(
-            (getattr(curses, k), k[len('KEY_'):])
-            for k in dir(curses)
-            if k.startswith('KEY_'))
         self.notify_silent = True
 
     def __enter__(self):
@@ -209,8 +215,8 @@ class TTYFrontend(mux.Muxable):
             ## self.write('(%d, %d)\n' % (self.maxy, self.maxx))
         if -1 < c < 256:
             return chr(c)
-        if c in self.unkey:
-            return self.unkey[c]
+        if c in unkey:
+            return unkey[c]
         return c
 
     def readable(self):
