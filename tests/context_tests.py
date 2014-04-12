@@ -71,4 +71,9 @@ class TestKeymap(unittest.TestCase):
         k['c'] = 2
         with self.assertRaises(KeyError):
             k['c d'] = 3
+        k['\n'] = 4
+        self.assertEqual(k['\n'], 4)
+        del k['\n']
+        with self.assertRaises(KeyError):
+            k['\n']
 

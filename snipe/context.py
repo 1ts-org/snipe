@@ -163,6 +163,9 @@ class Keymap(dict):
         if not hasattr(keyseqspec, 'lower'):
             return keyseqspec, None
 
+        if len(keyseqspec) == 1:
+            return keyseqspec, None
+
         match = Keymap.keyseq_re.match(keyseqspec)
 
         if not match:
