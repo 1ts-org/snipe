@@ -66,6 +66,71 @@ def ignores(*exceptions):
 
 
 class Keymap(dict):
+    def __init__(self, d={}):
+        super(Keymap, self).__init__()
+        self.update(d)
+
+    def update(self, d):
+        for k, v in d.items():
+            if hasattr(v, 'items'):
+                self[k] = Keymap(v)
+            else:
+                self[k] = v
+
+    def __repr__(self):
+        return (
+            self.__class__.__name__
+            + '('
+            + super(Keymap, self).__repr__()
+            + ')'
+            )
+
+    def __getitem__(self, key):
+        if not hasattr(key, 'lower'):
+            return super(Keymap, self).__getitem__(key)
+        else:
+            key, rest = self.split(key)
+            v = super(Keymap, self).__getitem__(key)
+            if key is None:
+                return None # default?
+            if rest:
+                return v[rest]
+            return v
+
+    def __setitem__(self, key, value):
+        if not hasattr(key, 'lower'):
+            return super(Keymap, self).__setitem__(key, value)
+        else:
+            key, rest = self.split(key)
+            if key is None:
+                return
+            if rest is None:
+                super(Keymap, self).__setitem__(key, value)
+            else:
+                try:
+                    v = super(Keymap, self).__getitem__(key)
+                except KeyError:
+                    v = None
+                if v is None:
+                    v = Keymap()
+                    super(Keymap, self).__setitem__(key, v)
+                if not hasattr(v, '__getitem__'):
+                    raise KeyError(repr(key) + 'is not a keymap')
+                v[rest] = value
+
+    def __delitem__(self, key):
+        if not hasattr(key, 'lower'):
+            return super(Keymap, self).__delitem__(key)
+        else:
+            key, rest = self.split(key)
+            if rest is None:
+                super(Keymap, self).__delitem__(key)
+            else:
+                v = super(Keymap, self).__getitem__(key)
+                if not hasattr(v, '__getitem__'):
+                    raise KeyError(repr(key) + 'is not a keymap')
+                del v[rest]
+
     modifier_aliases = {
         'ctl': 'control',
         'alt': 'meta',
@@ -101,7 +166,7 @@ class Keymap(dict):
         match = Keymap.keyseq_re.match(keyseqspec)
 
         if not match:
-            raise KeyError('Invalid Key Sequence Specification')
+            raise TypeError('Invalid Key Sequence Specification')
 
         d = match.groupdict()
 
@@ -127,7 +192,7 @@ class Keymap(dict):
                 key = ttyfe.key.get(name.upper())
 
         if key is None:
-            raise KeyError('unknown name: %s' % name)
+            raise TypeError('unknown name: %s' % name)
 
         if 'hyper' in modifiers or 'super' in modifiers:
             return None, None #valid but untypable

@@ -26,13 +26,14 @@ class TestKeymap(unittest.TestCase):
                 'name': 'LATIN CAPITAL LETTER A',
                 'rest': None,
                 })
+
     def testsplit(self):
         split = snipe.context.Keymap.split
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(TypeError):
             split('frob')
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(TypeError):
             split('[IPHONE 5C WITH DECORATIVE CASE]')
 
         self.assertEquals(split('Hyper-[latin capital letter a]'), (None, None))
@@ -55,4 +56,19 @@ class TestKeymap(unittest.TestCase):
             split('Control-C Control-D oogledyboo'),
             ('\x03', 'Control-D oogledyboo'))
         self.assertEquals(split(-5), (-5, None))
+
+    def testdict(self):
+        k = snipe.context.Keymap()
+        k['a b'] = 1
+        self.assertEqual(k['a b'], 1)
+        l = snipe.context.Keymap(k)
+        self.assertEqual(k['a b'], 1)
+        self.assertIsNot(k, l)
+        self.assertIsNot(k['a'], l['a'])
+        del k['a b']
+        with self.assertRaises(KeyError):
+            k['c']
+        k['c'] = 2
+        with self.assertRaises(KeyError):
+            k['c d'] = 3
 
