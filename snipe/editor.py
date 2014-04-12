@@ -43,21 +43,23 @@ class Editor(context.Window):
 
     def __init__(self, frontend, chunksize=CHUNKSIZE):
         super(Editor, self).__init__(frontend)
+
         for x in range(ord(' '), ord('~') + 1):
             self.keymap[chr(x)] = self.insert
-        import curses
-        for x in [s[4:] for s in dir(curses) if s.startswith('KEY_')]:
-            self.keymap[x] = self.insert
-        for x in ['\n', '\t', '\j']:
-            self.keymap['\n'] = self.insert
-        self.keymap[chr(ord('A') - ord('@'))] = self.beginning_of_line
-        self.keymap[chr(ord('B') - ord('@'))] = lambda k: self.move(-1)
-        self.keymap[chr(ord('E') - ord('@'))] = self.end_of_line
-        self.keymap[chr(ord('F') - ord('@'))] = lambda k: self.move(1)
-        self.keymap[chr(ord('N') - ord('@'))] = lambda k: self.line_move(1)
-        self.keymap[chr(ord('P') - ord('@'))] = lambda k: self.line_move(-1)
 
-        self.keymap[chr(ord('T') - ord('@'))] = self.insert_test_content
+        self.keymap.update({
+            '[carriage return]': self.insert,
+            '[tab]': self.insert,
+            '[linefeed]': self.insert,
+            'Control-A': self.beginning_of_line,
+            'Control-B': lambda k: self.move(-1),
+            'Control-E': self.end_of_line,
+            'Control-F': lambda k: self.move(1),
+            'Control-N': lambda k: self.line_move(1),
+            'Control-P': lambda k: self.line_move(-1),
+
+            'Control-T': self.insert_test_content,
+            })
 
         self.chunksize = chunksize
 

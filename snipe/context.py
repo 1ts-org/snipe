@@ -13,9 +13,10 @@ class Window(object):
         self.fe = frontend
         self.keymap = {}
         self.renderer = None
-
-        self.keymap[chr(ord('Q') - ord('@'))] = self.quit
-        self.keymap[chr(ord('Z') - ord('@'))] = self.stop
+        self.keymap = Keymap({
+            'Control-Q': self.quit,
+            'Control-Z': self.stop,
+            })
 
     def input_char(self, k):
         if k in self.keymap:
@@ -154,6 +155,7 @@ class Keymap(dict):
         'line feed': '\x0a',
         'carriage return': '\x0d',
         'return': '\x0d',
+        'tab': '\x09',
         }
 
     unother_keys = {v: k for (k, v) in other_keys.items()}
