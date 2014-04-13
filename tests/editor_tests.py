@@ -107,7 +107,7 @@ class TestEditor(unittest.TestCase):
                     [chr(x) for x in range(ord('0'), ord('9') + 1)]),
                 i,
                 i + 72))+'\n'
-            for i in xrange(256)]
+            for i in range(256)]
         e.insert(''.join(lines))
         with self.assertRaises(ValueError):
             list(e.view(0, 'pants'))
@@ -124,14 +124,14 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(len(forward), 257)
         c = e.cursor.point
         it = iter(e.view(0, 'forward'))
-        it.next()
+        next(it)
         self.assertEqual(e.cursor.point, c)
-        it.next()
+        next(it)
         self.assertEqual(e.cursor.point, c)
         it = iter(e.view(e.size, 'backward'))
-        it.next()
+        next(it)
         self.assertEqual(e.cursor.point, c)
-        it.next()
+        next(it)
         self.assertEqual(e.cursor.point, c)
 
     def testviewedge(self):
@@ -191,7 +191,7 @@ class TestEditor(unittest.TestCase):
                     for i in range(howmany):
                         a.insert(pos, char)
             self.assertEqual(a.tounicode(), g.text)
-            print g.text
+            print (g.text)
 
 
 if __name__ == '__main__':

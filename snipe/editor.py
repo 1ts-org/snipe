@@ -76,7 +76,7 @@ class Editor(context.Window):
 
     def insert_test_content(self, k):
         import itertools
-        for i in xrange(32):
+        for i in range(32):
             self.insert(''.join(itertools.islice(
                 itertools.cycle(
                     [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
@@ -190,7 +190,7 @@ class Editor(context.Window):
 
     def line_move(self, delta):
         count = abs(delta)
-        for _ in xrange(count):
+        for _ in range(count):
             if delta < 0:
                 self.beginning_of_line()
                 self.move(-1)
@@ -285,3 +285,7 @@ class Editor(context.Window):
         if mark is not None:
             mark.point = self.cursor
         self.cursor.point = cursor
+
+
+if not hasattr(__builtins__, 'unicode'):
+    unicode = lambda x: x # glue for python 3

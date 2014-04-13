@@ -137,7 +137,7 @@ class Keymap(dict):
         'alt': 'meta',
         }
     modifiers = ['control', 'shift', 'meta', 'hyper', 'super']
-    all_modifiers = modifiers + modifier_aliases.keys()
+    all_modifiers = modifiers + list(modifier_aliases.keys())
 
     keyseq_re = re.compile(
         '^(?P<modifiers>((' + '|'.join(all_modifiers) + ')-)*)'
@@ -246,3 +246,7 @@ class Keymap(dict):
         assert bool(modifiers) == False
 
         return key, rest
+
+
+if not hasattr(__builtins__, 'unicode'):
+    unicode = lambda x: x # glue for python 3
