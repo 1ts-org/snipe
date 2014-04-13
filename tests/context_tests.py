@@ -36,26 +36,26 @@ class TestKeymap(unittest.TestCase):
         with self.assertRaises(TypeError):
             split('[IPHONE 5C WITH DECORATIVE CASE]')
 
-        self.assertEquals(split('Hyper-[latin capital letter a]'), (None, None))
-        self.assertEquals(split('Meta-[escape]'), ('\x1b', '[ESCAPE]'))
-        self.assertEquals(split('Control-C Control-D'), ('\x03', 'Control-D'))
-        self.assertEquals(split('[latin capital letter a]'), ('A', None))
-        self.assertEquals(split('Shift-a'), ('A', None))
-        self.assertEquals(split('[F1]'), (curses.KEY_F1, None))
-        self.assertEquals(split('Control-[F1]'), (None, None)) #XXX
-        self.assertEquals(split('Shift-[F1]'), (None, None)) #XXX
-        self.assertEquals(split('Control-?'), ('\x7f', None))
-        self.assertEquals(split('Control-$'), (None, None))
-        self.assertEquals(
+        self.assertEqual(split('Hyper-[latin capital letter a]'), (None, None))
+        self.assertEqual(split('Meta-[escape]'), ('\x1b', '[ESCAPE]'))
+        self.assertEqual(split('Control-C Control-D'), ('\x03', 'Control-D'))
+        self.assertEqual(split('[latin capital letter a]'), ('A', None))
+        self.assertEqual(split('Shift-a'), ('A', None))
+        self.assertEqual(split('[F1]'), (curses.KEY_F1, None))
+        self.assertEqual(split('Control-[F1]'), (None, None)) #XXX
+        self.assertEqual(split('Shift-[F1]'), (None, None)) #XXX
+        self.assertEqual(split('Control-?'), ('\x7f', None))
+        self.assertEqual(split('Control-$'), (None, None))
+        self.assertEqual(
             split('Meta-Control-x'),
             ('\x1b', 'Control-[LATIN CAPITAL LETTER X]'))
-        self.assertEquals(
+        self.assertEqual(
             split('Meta-[escape] oogledyboo'),
             ('\x1b', '[ESCAPE] oogledyboo'))
-        self.assertEquals(
+        self.assertEqual(
             split('Control-C Control-D oogledyboo'),
             ('\x03', 'Control-D oogledyboo'))
-        self.assertEquals(split(-5), (-5, None))
+        self.assertEqual(split(-5), (-5, None))
 
     def testdict(self):
         k = snipe.context.Keymap()
@@ -77,3 +77,6 @@ class TestKeymap(unittest.TestCase):
         with self.assertRaises(KeyError):
             k['\n']
 
+
+if __name__ == '__main__':
+    unittest.main()
