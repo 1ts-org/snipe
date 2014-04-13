@@ -147,18 +147,21 @@ class Keymap(dict):
         re.IGNORECASE
         )
 
-    other_keys = {
-        'escape': '\x1b',
-        'esc': '\x1b',
-        'delete': '\x7f',
-        'linefeed': '\x0a',
-        'line feed': '\x0a',
-        'carriage return': '\x0d',
-        'return': '\x0d',
-        'tab': '\x09',
-        }
+    other_keys_spec = [
+        (('escape','esc'), '\x1b'),
+        (('delete', 'del'), '\x7f'),
+        (('line feed', 'linefeed'), '\x0a'),
+        (('carriage return', 'return'), '\x0d'),
+        (('tab',), '\x09'),
+        ]
 
-    unother_keys = {v: k for (k, v) in other_keys.items()}
+    other_keys = {}
+    for (names, value) in other_keys_spec:
+        for name in names:
+            other_keys[name] = value
+
+    unother_keys = {
+        value: names[0] for (names, value) in other_keys_spec}
 
     @staticmethod
     def split(keyseqspec):
