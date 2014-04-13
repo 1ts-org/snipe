@@ -3,6 +3,7 @@
 import unicodedata
 import contextlib
 import re
+import logging
 
 from . import messages
 from . import ttyfe
@@ -14,15 +15,24 @@ class Window(object):
         self.keymap = {}
         self.renderer = None
         self.keymap = Keymap({
-            'Control-Q': self.quit,
+            'Control-X Control-C': self.quit,
             'Control-Z': self.stop,
             })
+        self.active_keymap = self.keymap
+        self.log = logging.getLogger('%s.%x' % (self.__class__.__name__, id(self),))
 
     def input_char(self, k):
-        if k in self.keymap:
-            self.keymap[k](k)
-        else:
+        try:
+            v = self.active_keymap[k]
+            if not callable(v):
+                self.active_keymap = v
+            else:
+                self.active_keymap = self.keymap
+                v(k)
+        except Exception as e:
+            self.log.exception('executing command from keymap')
             self.whine(k)
+            self.active_keymap = self.keymap
 
     def quit(self, k):
         exit()
