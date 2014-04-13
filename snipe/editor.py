@@ -286,6 +286,7 @@ class Editor(context.Window):
             mark.point = self.cursor
         self.cursor.point = cursor
 
-
-if not hasattr(__builtins__, 'unicode'):
+try:
+    unicode('foo')
+except NameError:
     unicode = lambda x: x # glue for python 3

@@ -248,5 +248,7 @@ class Keymap(dict):
         return key, rest
 
 
-if not hasattr(__builtins__, 'unicode'):
+try:
+    unicode('foo')
+except NameError:
     unicode = lambda x: x # glue for python 3
