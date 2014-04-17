@@ -21,6 +21,7 @@ class TTYRenderer(object):
         #self.w.scrollok(1)
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.frame = None
+        self.context = None
 
     @property
     def active(self):
@@ -79,8 +80,7 @@ class TTYRenderer(object):
 
     def redisplay_internal(self):
         self.log.debug(
-            'in redisplay_internal: %s, w=%d, h=%d, frame=%s',
-            repr(self.window.text),
+            'in redisplay_internal: w=%d, h=%d, frame=%s',
             self.width,
             self.height,
             repr(self.frame),

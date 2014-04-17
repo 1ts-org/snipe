@@ -20,6 +20,7 @@ class Window(object):
             })
         self.active_keymap = self.keymap
         self.log = logging.getLogger('%s.%x' % (self.__class__.__name__, id(self),))
+        self.cursor = None
 
     def input_char(self, k):
         try:
@@ -44,7 +45,7 @@ class Window(object):
         self.fe.sigtstp(None, None)
 
     def view(self, origin=None, direction=None):
-        yield 0, [('visible',), '']
+        yield 0, [(('visible',), '')]
 
 
 class Messager(Window):
@@ -52,6 +53,28 @@ class Messager(Window):
         super(Messager, self).__init__(frontend)
         #SPACE
         #n, p, ^n ^p ↓ ↑ j k
+        self.keymap.update({
+            'n': self.next_message,
+            'p': self.prev_message,
+            })
+        self.cursor = next(self.fe.context.backends.walk(0))
+
+    def view(self, origin, direction='forward'):
+        for x in self.fe.context.backends.walk(origin, direction == 'forward'):
+            s = str(x)
+            if s and s[-1] != '\n':
+                s += '\n'
+            yield x, [(() if x is not self.cursor else ('cursor',), s)]
+
+    def next_message(self, k):
+        it = iter(self.fe.context.backends.walk(self.cursor))
+        it.next()
+        self.cursor = it.next()
+
+    def prev_message(self, k):
+        it = iter(self.fe.context.backends.walk(self.cursor, False))
+        it.next()
+        self.cursor = it.next()
 
 
 class Context(object):
@@ -59,13 +82,14 @@ class Context(object):
     def __init__(self, mux, ui):
         self.mux = mux
         self.ui = ui
+        self.ui.context = self
         self.backends = messages.AggregatorBackend(
             backends = [
                 messages.StartupBackend(),
                 messages.SyntheticBackend(conf={'count': 100}),
                 ],)
         from . import editor
-        self.ui.initial(editor.Editor(self.ui))
+        self.ui.initial(Messager(self.ui))
 
 
 @contextlib.contextmanager
