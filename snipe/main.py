@@ -2,19 +2,19 @@
 
 import logging
 
+import twisted.internet.reactor
+
 from . import ttyfe
-from . import mux
 from . import context
 
 
 def main():
     logging.basicConfig(filename='/tmp/snipe.log', level=logging.DEBUG)
     with ttyfe.TTYFrontend() as ui:
-        muxer = mux.Mux()
-        context_ = context.Context(muxer, ui)
-        muxer.add(ui)
+        context_ = context.Context(ui)
+        twisted.internet.reactor.addReader(ui)
         ui.redisplay()
-        muxer.wait_forever()
+        twisted.internet.reactor.run()
     logging.shutdown()
 
 

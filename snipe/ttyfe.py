@@ -8,8 +8,6 @@ import signal
 import logging
 import itertools
 
-from . import mux
-
 
 class TTYRenderer(object):
     def __init__(self, ui, y, x, h, w, window):
@@ -156,14 +154,15 @@ key = dict(
     if k.startswith('KEY_'))
 
 
-class TTYFrontend(mux.Muxable):
-    reader = True
-    handle = 0 # stdin
-
+class TTYFrontend(object):
     def __init__(self):
         self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
         self.windows = []
         self.notify_silent = True
+        self.log = logging.getLogger('%s.%x' % (
+            self.__class__.__name__,
+            id(self),
+            ))
 
     def __enter__(self):
         locale.setlocale(locale.LC_ALL, '')
@@ -219,11 +218,24 @@ class TTYFrontend(mux.Muxable):
             return unkey[c]
         return c
 
-    def readable(self):
+    def doRead(self):
         k = self.getch()
         if self.active:
             self.active.window.input_char(k)
         self.redisplay()
+
+    def fileno(self):
+        return 0 # stdin
+
+    def connectionLost(self, reason):
+        self.log.error('connectionLost: %s', reason)
+        reactor.stop()
+
+    def logPrefix(self):
+        return '%s.%x' % (
+            self.__class__.__name__,
+            id(self),
+            )
 
     def redisplay(self):
         for w in self.windows:

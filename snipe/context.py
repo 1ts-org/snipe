@@ -5,6 +5,8 @@ import contextlib
 import re
 import logging
 
+import twisted.internet
+
 from . import messages
 from . import ttyfe
 
@@ -36,7 +38,7 @@ class Window(object):
             self.active_keymap = self.keymap
 
     def quit(self, k):
-        exit()
+        twisted.internet.reactor.stop()
 
     def whine(self, k):
         self.fe.notify()
@@ -79,8 +81,7 @@ class Messager(Window):
 
 class Context(object):
     # per-session state and abstact control
-    def __init__(self, mux, ui):
-        self.mux = mux
+    def __init__(self, ui):
         self.ui = ui
         self.ui.context = self
         self.backends = messages.AggregatorBackend(
