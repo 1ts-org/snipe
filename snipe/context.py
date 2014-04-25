@@ -70,13 +70,13 @@ class Messager(Window):
 
     def next_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor))
-        it.next()
-        self.cursor = it.next()
+        next(it)
+        self.cursor = next(it)
 
     def prev_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor, False))
-        it.next()
-        self.cursor = it.next()
+        next(it)
+        self.cursor = next(it)
 
 
 class Context(object):

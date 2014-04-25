@@ -128,14 +128,14 @@ def merge(iterables, key=lambda x: x):
     for it in iterables:
         it = iter(it)
         try:
-            d[it] = it.next()
+            d[it] = next(it)
         except StopIteration:
             pass
 
     while d:
-        it, v = min(d.iteritems(), key=lambda x: key(x[1]))
+        it, v = min(d.items(), key=lambda x: key(x[1]))
         try:
-            d[it] = it.next()
+            d[it] = next(it)
         except StopIteration:
             del d[it]
         yield v
