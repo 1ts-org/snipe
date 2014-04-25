@@ -26,6 +26,7 @@ class Window(object):
 
     def input_char(self, k):
         try:
+            self.log.debug('got key %s', repr(k))
             v = self.active_keymap[k]
             if not callable(v):
                 self.active_keymap = v
@@ -66,7 +67,7 @@ class Messager(Window):
             s = str(x)
             if s and s[-1] != '\n':
                 s += '\n'
-            yield x, [(() if x is not self.cursor else ('cursor',), s)]
+            yield x, [(() if x is not self.cursor else ('cursor', 'visible'), s)]
 
     def next_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor))
