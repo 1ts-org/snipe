@@ -218,24 +218,11 @@ class TTYFrontend(object):
             return unkey[c]
         return c
 
-    def doRead(self):
+    def readable(self):
         k = self.getch()
         if self.active:
             self.active.window.input_char(k)
         self.redisplay()
-
-    def fileno(self):
-        return 0 # stdin
-
-    def connectionLost(self, reason):
-        self.log.error('connectionLost: %s', reason)
-        reactor.stop()
-
-    def logPrefix(self):
-        return '%s.%x' % (
-            self.__class__.__name__,
-            id(self),
-            )
 
     def redisplay(self):
         for w in self.windows:

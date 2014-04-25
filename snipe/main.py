@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+import asyncio
 import logging
-
-import twisted.internet.reactor
 
 from . import ttyfe
 from . import context
@@ -12,9 +11,10 @@ def main():
     logging.basicConfig(filename='/tmp/snipe.log', level=logging.DEBUG)
     with ttyfe.TTYFrontend() as ui:
         context_ = context.Context(ui)
-        twisted.internet.reactor.addReader(ui)
+        loop = asyncio.get_event_loop()
+        loop.add_reader(0, ui.readable)
         ui.redisplay()
-        twisted.internet.reactor.run()
+        loop.run_forever()
     logging.shutdown()
 
 

@@ -5,7 +5,7 @@ import contextlib
 import re
 import logging
 
-import twisted.internet
+import asyncio
 
 from . import messages
 from . import ttyfe
@@ -38,7 +38,7 @@ class Window(object):
             self.active_keymap = self.keymap
 
     def quit(self, k):
-        twisted.internet.reactor.stop()
+        asyncio.get_event_loop().stop()
 
     def whine(self, k):
         self.fe.notify()
