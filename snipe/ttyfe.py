@@ -46,7 +46,6 @@ class TTYRenderer(object):
         self.w.idlok(1)
         #self.w.scrollok(1)
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
-        self.frame = None
         self.context = None
 
     @property
@@ -57,7 +56,7 @@ class TTYRenderer(object):
         self.log.debug('someone used write(%s)', repr(s))
 
     def redisplay(self):
-        if self.frame is None:
+        if self.window.frame is None:
             self.log.debug('redisplay with no frame, firing reframe')
             self.reframe()
         visible = self.redisplay_internal()
@@ -109,7 +108,7 @@ class TTYRenderer(object):
             'in redisplay_internal: w=%d, h=%d, frame=%s',
             self.width,
             self.height,
-            repr(self.frame),
+            repr(self.window.frame),
             )
 
         self.w.erase()
@@ -120,7 +119,7 @@ class TTYRenderer(object):
         screenlines = self.height
         remaining = None
 
-        for mark, chunk in self.window.view(self.frame):
+        for mark, chunk in self.window.view(self.window.frame):
             for tags, text in chunk:
                 if screenlines <= 0:
                     break
@@ -154,15 +153,15 @@ class TTYRenderer(object):
         screenlines = self.height / 2
         ## view = iter(self.window.view(self.cursor, 'backward'))
         ## mark, chunk = view.next()
-        ## self.frame = mark
+        ## self.window.frame = mark
         ## chunk = itertools.takewhile(
         ##     lambda: 'visible' not in x[0],
         ##     chunk)
         ## chunklines = list(self.doline(''.join(c[1] for c in chunk)))
         ## # if len(chunklines) - 1 > self.height: *sob*
-        self.log.debug('reframe, previous frame=%s', repr(self.frame))
+        self.log.debug('reframe, previous frame=%s', repr(self.window.frame))
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
-            self.frame = mark
+            self.window.frame = mark
             # this should only drop stuff off the first chunk...
             chunk = itertools.takewhile(
                 lambda x: 'visible' not in x[0],

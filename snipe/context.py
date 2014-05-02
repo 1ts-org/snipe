@@ -32,6 +32,7 @@ import unicodedata
 import contextlib
 import re
 import logging
+import time
 
 import asyncio
 
@@ -51,6 +52,7 @@ class Window(object):
         self.active_keymap = self.keymap
         self.log = logging.getLogger('%s.%x' % (self.__class__.__name__, id(self),))
         self.cursor = None
+        self.frame = None
 
     def input_char(self, k):
         try:
@@ -88,7 +90,8 @@ class Messager(Window):
             'n': self.next_message,
             'p': self.prev_message,
             })
-        self.cursor = next(self.fe.context.backends.walk(0))
+        self.cursor = next(self.fe.context.backends.walk(time.time(), False))
+        self.frame = self.cursor
 
     def view(self, origin, direction='forward'):
         for x in self.fe.context.backends.walk(origin, direction == 'forward'):
