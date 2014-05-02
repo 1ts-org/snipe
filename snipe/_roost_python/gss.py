@@ -22,13 +22,13 @@
 import ctypes
 import functools
 
-import gss_ctypes
+from . import gss_ctypes
 
 def _display_status(status_value, status_type):
     ret = []
     status_string = gss_ctypes.gss_buffer_desc()
     message_context = gss_ctypes.OM_uint32()
-    for _ in xrange(8):
+    for _ in range(8):
         gss_display_status(status_value, status_type,
                            None, message_context, status_string)
         try:
@@ -75,11 +75,9 @@ gss_release_buffer = check_error(gss_ctypes.gss_release_buffer)
 gss_canonicalize_name = check_error(gss_ctypes.gss_canonicalize_name)
 
 def to_str(obj):
-    if isinstance(obj, str):
-        return obj
-    if isinstance(obj, unicode):
+    if not isinstance(obj, bytes):
         return obj.encode('utf-8')
-    raise TypeError('Expected string')
+    return obj
 
 __all__ = [
     'C_NT_HOSTBASED_SERVICE',

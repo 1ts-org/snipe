@@ -22,7 +22,7 @@ import base64
 import ctypes
 import functools
 
-import krb5_ctypes
+from . import krb5_ctypes
 
 __all__ = ['Context']
 
@@ -67,12 +67,10 @@ def krb5_decode_ticket(*args):
         raise Error(krb5_ctypes.krb5_context(), ret)
     return ret
 
-def to_str(obj):
-    if isinstance(obj, str):
-        return obj
-    if isinstance(obj, unicode):
-        return obj.encode('utf-8')
-    raise TypeError('Expected string')
+def to_str(s):
+    if isinstance(s, str):
+        return s.encode('utf-8')
+    return s
 
 class Context(object):
     def __init__(self):
@@ -194,17 +192,17 @@ class Credentials(object):
         # API. But whatever.
         ret = { }
         client_data = self._handle.contents.client.contents
-        ret['crealm'] = client_data.realm.as_str()
+        ret['crealm'] = client_data.realm.as_str().decode('utf-8')
         ret['cname'] = {
             'nameType': client_data.type,
-            'nameString': [client_data.data[i].as_str()
-                           for i in xrange(client_data.length)],
+            'nameString': [client_data.data[i].as_str().decode('utf-8')
+                           for i in range(client_data.length)],
             }
         ret['ticket'] = self.decode_ticket().to_dict()
         keyblock = self._handle.contents.keyblock
         ret['key'] = {
             'keytype': keyblock.enctype,
-            'keyvalue': base64.b64encode(keyblock.contents_as_str())
+            'keyvalue': base64.b64encode(keyblock.contents_as_str()).decode('ascii')
         }
         flags = self._handle.contents.ticket_flags
         ret['flags'] = [(1 if (flags & (1 << (31 - i))) else 0)
@@ -217,11 +215,11 @@ class Credentials(object):
         if self._handle.contents.times.renew_till:
             ret['renewTill'] = self._handle.contents.times.renew_till * 1000
         server_data = self._handle.contents.server.contents
-        ret['srealm'] = server_data.realm.as_str()
+        ret['srealm'] = server_data.realm.as_str().decode('utf-8')
         ret['sname'] = {
             'nameType': server_data.type,
-            'nameString': [server_data.data[i].as_str()
-                           for i in xrange(server_data.length)],
+            'nameString': [server_data.data[i].as_str().decode('utf-8')
+                           for i in range(server_data.length)],
             }
         addrs = []
         i = 0
@@ -250,16 +248,16 @@ class Ticket(object):
         ret = { }
         ret['tktVno'] = 5
         server_data = self._handle.contents.server.contents
-        ret['realm'] = server_data.realm.as_str()
+        ret['realm'] = server_data.realm.as_str().decode('utf-8')
         ret['sname'] = {
             'nameType': server_data.type,
-            'nameString': [server_data.data[i].as_str()
-                           for i in xrange(server_data.length)],
+            'nameString': [server_data.data[i].as_str().decode('utf-8')
+                           for i in range(server_data.length)],
             }
         ret['encPart'] = {
             'kvno': self._handle.contents.enc_part.kvno,
             'etype': self._handle.contents.enc_part.enctype,
             'cipher': base64.b64encode(
-                self._handle.contents.enc_part.ciphertext.as_str()),
+                self._handle.contents.enc_part.ciphertext.as_str()).decode('ascii'),
         }
         return ret
