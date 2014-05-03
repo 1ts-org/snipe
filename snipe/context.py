@@ -33,11 +33,11 @@ import contextlib
 import re
 import logging
 import time
-
 import asyncio
 
 from . import messages
 from . import ttyfe
+from . import roost
 
 
 class Window(object):
@@ -120,6 +120,8 @@ class Context(object):
             backends = [
                 messages.StartupBackend(),
                 messages.SyntheticBackend(conf={'count': 100}),
+                roost.Roost(conf={'context': self}), # XXX figure out a better
+                                                     # way to communicate this
                 ],)
         from . import editor
         self.ui.initial(Messager(self.ui))

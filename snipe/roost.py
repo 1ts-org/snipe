@@ -47,7 +47,9 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def new_message(self, m):
         self.messages.append(RoostMessage(self, m))
-        self.conf['context'].ui.redisplay()
+        self.conf['context'].ui.redisplay() # XXX figure out how to inform the
+                                            # redisplay of which messages need
+                                            # refreshing
 
 
 class RoostMessage(messages.SnipeMessage):
