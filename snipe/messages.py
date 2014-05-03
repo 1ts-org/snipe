@@ -31,6 +31,7 @@
 
 import itertools
 import time
+import logging
 
 
 class SnipeAddress(object):
@@ -91,6 +92,8 @@ class SnipeBackend(object):
 
     def __init__(self, conf = {}):
         self.conf = conf
+        self.log = logging.getLogger(
+            '%s.%x' % (self.__class__.__name__, id(self),))
 
     def walk(self, start, forward=True, filter=None):
         if start is None:

@@ -30,6 +30,9 @@
 
 
 import asyncio
+import collections
+import itertools
+import time
 
 from . import messages
 from . import _rooster
@@ -40,20 +43,113 @@ class Roost(messages.SnipeBackend):
 
     def __init__(self, conf = {}):
         super().__init__(conf)
+        self.messages = collections.deque()
         self.r = _rooster.Rooster(
             'https://ordinator.1ts.org', 'daemon@ordinator.1ts.org')
         asyncio.Task(self.r.newmessages(self.new_message))
+        self.chunksize = 128
+        self.loaded = False
+        #self.backfill(None)
 
-    @asyncio.coroutine
-    def new_message(self, m):
-        self.messages.append(RoostMessage(self, m))
+    def redisplay(self, message):
         self.conf['context'].ui.redisplay() # XXX figure out how to inform the
                                             # redisplay of which messages need
                                             # refreshing
 
+    @asyncio.coroutine
+    def new_message(self, m):
+        msg = RoostMessage(self, m)
+        self.messages.append(msg)
+        self.redisplay(msg)
+
+    def backfill(self, start):
+        asyncio.Task(self.do_backfill(start))
+
+    @asyncio.coroutine
+    def do_backfill(self, start):
+        if self.loaded:
+            return
+        chunk = yield from self.r.messages(start, self.chunksize)
+        if chunk['isDone']:
+            self.log.debug('IT IS DONE.')
+            self.loaded = True
+        ms = [RoostMessage(self, m) for m in chunk['messages']]
+        for m in ms:
+            self.messages.appendleft(m)
+        self.log.debug('now %d messages', len(self.messages))
+        self.redisplay(ms[0]) # XXX should actually be a time range, or a pair
+                              # of messages
+
+    def backfill_trigger(self, iterable):
+        yield from iterable
+        if not self.loaded:
+            if self.messages:
+                self.backfill(self.messages[0].data['id'])
+            else:
+                self.backfill(None)
+            yield messages.SnipeMessage(self, 'Loading from roost')
+
+    def walk(self, start, forward=True, filter=None):
+        #XXX nearly a straight copy of the superclass
+        if start is None:
+            pred = lambda x: False
+        elif getattr(start, 'backend', None) is self:
+            # it's a message object that belongs to us
+            pred = lambda x: x != start
+        else:
+            if hasattr(start, 'time'):
+                start = start.time
+            # it's a time
+            if forward:
+                pred = lambda x: x.time < start
+            else:
+                pred = lambda x: x.time > start
+        l = self.messages
+        if not forward:
+            l = iter(reversed(l))
+            l = self.backfill_trigger(l)
+        if start:
+            l = itertools.dropwhile(pred, l)
+        if filter is not None:
+            l = (m for m in l if filter(m))
+        return l
 
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
-        import pprint
-        super().__init__(backend, pprint.pformat(m), m['time'])
         self.data = m
+        self._sender = RoostPrincipal(backend, m['sender'])
+        super().__init__(backend, m['message'], m['time'] / 1000)
+
+    def __str__(self):
+        return (
+            'To: Class: {class_} Instance: {instance} Recipient: {recipient}'
+            '{opcode}\n'
+            'From: {signature} <{sender}> at {date}\n'
+            '{body}').format(
+            class_=self.data['class'],
+            instance=self.data['instance'],
+            recipient=self.data['recipient'],
+            opcode=(
+                ''
+                if not self.data['opcode']
+                else ' [{}]'.format(self.data['opcode'])),
+            signature=self.data['signature'],
+            sender=self.sender,
+            date=time.ctime(self.time),
+            body=self.body,
+            )
+
+class RoostPrincipal(messages.SnipeAddress):
+    def __init__(self, backend, principal):
+        self.principal = principal
+        super().__init__(backend, [principal])
+
+    def __str__(self):
+        return self.principal
+
+class RoostTriplet(messages.SnipeAddress):
+    def __init__(self, backend, class_, instance, recipient):
+        self.class_ = class_
+        self.instance = instance
+        self.recipient = recipient
+        super().__init__(backend, [class_, instance, recipient])

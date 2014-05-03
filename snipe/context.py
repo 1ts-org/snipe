@@ -50,7 +50,8 @@ class Window(object):
             'Control-Z': self.stop,
             })
         self.active_keymap = self.keymap
-        self.log = logging.getLogger('%s.%x' % (self.__class__.__name__, id(self),))
+        self.log = logging.getLogger(
+            '%s.%x' % (self.__class__.__name__, id(self),))
         self.cursor = None
         self.frame = None
 
@@ -128,7 +129,7 @@ class Context(object):
         self.backends = messages.AggregatorBackend(
             backends = [
                 messages.StartupBackend(),
-                messages.SyntheticBackend(conf={'count': 100}),
+#                messages.SyntheticBackend(conf={'count': 100}),
                 roost.Roost(conf={'context': self}), # XXX figure out a better
                                                      # way to communicate this
                 ],)
@@ -252,7 +253,8 @@ class Keymap(dict):
         match = Keymap.keyseq_re.match(keyseqspec)
 
         if not match:
-            raise TypeError('Invalid Key Sequence Specification')
+            raise TypeError(
+                'Invalid Key Sequence Specification', repr(keyseqspec))
 
         d = match.groupdict()
 

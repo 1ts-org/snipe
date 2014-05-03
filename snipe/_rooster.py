@@ -165,7 +165,7 @@ class Rooster:
             ))
 
     @asyncio.coroutine
-    def messages(self, offset, limit, reverse=True, inclusive=True):
+    def messages(self, offset, limit, reverse=True, inclusive=False):
         yield from self.ensure_auth()
 
         if not offset:
@@ -174,8 +174,8 @@ class Rooster:
         return (yield from self.http(
             '/v1/messages',
             params = {
-                'reverse': reverse,
-                'inclusive': inclusive,
+                'reverse': 1 if reverse else 0,
+                'inclusive': 1 if inclusive else 0,
                 'offset': offset,
                 'count': limit,
                 },
