@@ -38,18 +38,27 @@
 import asyncio
 import json
 import urllib.parse
+import base64
+import logging
 
+import aiohttp
+import aiohttp.websocket
+
+from . import _websocket
 from ._roost_python import krb5
 from ._roost_python import gss
 
 class Rooster:
-    def __init__(self, url):
+    def __init__(self, url, service):
         self.token = None
         self.expires = None
         self.url = url
+        self.service = service
         self.principal = None
         self.ctx = None
         self.ccache = None
+        self.tailid = 0
+        self.log = logging.getLogger('Rooster.%x' % (id(self),))
 
     @asyncio.coroutine
     def auth(self, create_user=False):
@@ -59,7 +68,7 @@ class Rooster:
         princ_str = self.principal.unparse_name()
 
         client_name = gss.import_name(princ_str, gss.KRB5_NT_PRINCIPAL_NAME)
-        target_name = gss.import_name(ROOST_SERVICE, gss.C_NT_HOSTBASED_SERVICE)
+        target_name = gss.import_name(self.service, gss.C_NT_HOSTBASED_SERVICE)
         cred = gss.acquire_cred(client_name, initiate=True)
 
         gss_ctx = gss.create_initiator(
@@ -173,6 +182,96 @@ class Rooster:
             ))
 
     @asyncio.coroutine
+    def _pinger(self, writer, pingfrequency):
+        while True:
+            yield from asyncio.sleep(pingfrequency)
+            self.log.debug('ping')
+            writer.send(json.dumps({
+                'type': 'ping',
+                }))
+
+    @asyncio.coroutine
+    def newmessages(self, coro, pingfrequency=30):
+        # will coincidentally ensure_auth
+        ms = yield from self.messages(None, 1, reverse=1, inclusive=0)
+        if ms['messages']:
+            startid = ms['messages'][0]['id']
+        else:
+            startid = None
+
+        self.log.debug('startid=%s', startid)
+
+        pingtask = None
+
+        reader, writer, response = (
+            yield from _websocket.websocket(self.url + '/v1/socket/websocket'))
+
+        try:
+            writer.send(json.dumps({
+                'type': 'auth',
+                'token': self.token,
+                }))
+
+            state = 'start'
+            msgcount = 1
+            tailid = self.tailid
+            self.tailid += 1
+
+            while True:
+                msg = yield from reader.read()
+
+                if msg.tp == aiohttp.websocket.MSG_PING:
+                    writer.pong()
+                    # Eventually, 99% of Internet traffic will be
+                    # keepalive packets of some sort
+                elif msg.tp == aiohttp.websocket.MSG_CLOSE:
+                    break
+                elif msg.tp == aiohttp.websocket.MSG_TEXT:
+                    m = json.loads(msg.data)
+                    assert 'type' in m
+                    if state == 'start':
+                        assert m['type'] == 'ready'
+                        self.log.debug('authed, starting tail %d', tailid)
+                        writer.send(json.dumps({
+                            'type': 'new-tail',
+                            'id': tailid,
+                            'start': startid,
+                            'inclusive': False,
+                            }))
+                        writer.send(json.dumps({
+                            'type': 'extend-tail',
+                            'id': tailid,
+                            'count': msgcount,
+                            }))
+                        state = 'go'
+                        pingtask = asyncio.Task(
+                            self._pinger(writer, pingfrequency))
+                    elif state == 'go':
+                        if m['type'] == 'pong':
+                            self.log.debug('pong')
+                        elif m['type'] == 'messages':
+                            msgcount += 1
+                            writer.send(json.dumps({
+                                'type': 'extend-tail',
+                                'id': tailid,
+                                'count': msgcount,
+                                }))
+                            ## if m['id'] != tailid:
+                            ##     continue
+                            for msg in m['messages']:
+                                yield from coro(msg)
+                        else:
+                            self.log.debug('unknown message type: %s', repr(m))
+
+        except aiohttp.EofStream:
+            pass
+
+        finally:
+            if pingtask is not None:
+                pingtask.cancel()
+            response.close()
+
+    @asyncio.coroutine
     def http(self, url, data=None, params=None):
         method = 'GET' if data is None else 'POST'
 
@@ -184,9 +283,6 @@ class Rooster:
             headers['Content-Type'] = 'application/json'
         if self.token is not None:
             headers['Authorization'] = 'Bearer ' + self.token
-
-        if params:
-            print(urllib.parse.urlencode(params))
 
         response = yield from aiohttp.request(
             method,
@@ -207,10 +303,6 @@ class Rooster:
 
         result = b''.join(result)
         result = result.decode('utf-8')
-        try:
-            result = json.loads(result)
-        except:
-            print (result)
-            raise
+        result = json.loads(result)
 
         return result
