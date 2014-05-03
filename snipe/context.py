@@ -57,7 +57,10 @@ class Window(object):
     def input_char(self, k):
         try:
             self.log.debug('got key %s', repr(k))
-            v = self.active_keymap[k]
+            try:
+                v = self.active_keymap[k]
+            except KeyError:
+                v = None
             if not callable(v):
                 self.active_keymap = v
             else:
@@ -102,13 +105,19 @@ class Messager(Window):
 
     def next_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor))
-        next(it)
-        self.cursor = next(it)
+        try:
+            next(it)
+            self.cursor = next(it)
+        except StopIteration:
+            self.whine('No more messages')
 
     def prev_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor, False))
-        next(it)
-        self.cursor = next(it)
+        try:
+            next(it)
+            self.cursor = next(it)
+        except StopIteration:
+            self.whine('No more messages')
 
 
 class Context(object):
