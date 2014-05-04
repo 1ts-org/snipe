@@ -128,7 +128,12 @@ class TTYRenderer(object):
                 if 'visible' in tags:
                     visible = True
                 for line, remaining in self.doline(text, self.width, remaining):
-                    self.w.addstr(line)
+                    try:
+                        self.w.addstr(line)
+                    except:
+                        self.log.exception(
+                            'in addstr; line=%s, remaining=%d, screenlines=%d',
+                            line, remaining, screenlines)
                     if remaining <= 0:
                         screenlines -= 1
                     if screenlines <= 0:
