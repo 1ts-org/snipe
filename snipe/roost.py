@@ -46,10 +46,11 @@ class Roost(messages.SnipeBackend):
         self.messages = collections.deque()
         self.r = _rooster.Rooster(
             'https://ordinator.1ts.org', 'daemon@ordinator.1ts.org')
-        asyncio.Task(self.r.newmessages(self.new_message))
         self.chunksize = 128
         self.loaded = False
-        #self.backfill(None)
+        self.backfilling = False
+        asyncio.Task(self.r.newmessages(self.new_message))
+
 
     def redisplay(self, message):
         self.conf['context'].ui.redisplay() # XXX figure out how to inform the
@@ -62,32 +63,35 @@ class Roost(messages.SnipeBackend):
         self.messages.append(msg)
         self.redisplay(msg)
 
-    def backfill(self, start):
-        asyncio.Task(self.do_backfill(start))
-
     @asyncio.coroutine
     def do_backfill(self, start):
-        if self.loaded:
-            return
-        chunk = yield from self.r.messages(start, self.chunksize)
-        if chunk['isDone']:
-            self.log.debug('IT IS DONE.')
-            self.loaded = True
-        ms = [RoostMessage(self, m) for m in chunk['messages']]
-        for m in ms:
-            self.messages.appendleft(m)
-        self.log.debug('now %d messages', len(self.messages))
-        self.redisplay(ms[0]) # XXX should actually be a time range, or a pair
-                              # of messages
+        if not self.backfilling:
+            self.backfilling = True
+            self.log.debug('backfilling')
+            if self.loaded:
+                return
+            chunk = yield from self.r.messages(start, self.chunksize)
+            import pprint
+            self.log.debug('%s', pprint.pformat(chunk))
+            if chunk['isDone']:
+                self.log.debug('IT IS DONE.')
+                self.loaded = True
+            ms = [RoostMessage(self, m) for m in chunk['messages']]
+            for m in ms:
+                self.messages.appendleft(m)
+            self.log.debug('now %d messages', len(self.messages))
+            self.redisplay(ms[0]) # XXX should actually be a time range, or a
+                                  # pair of messages
+            self.log.debug('done backfilling')
+            self.backfilling = False
+        else:
+            self.log.debug('already backfilling')
 
     def backfill_trigger(self, iterable):
         yield from iterable
         if not self.loaded:
-            if self.messages:
-                self.backfill(self.messages[0].data['id'])
-            else:
-                self.backfill(None)
-            yield messages.SnipeMessage(self, 'Loading from roost')
+            msgid = self.messages[0].data['id'] if self.messages else None
+            asyncio.Task(self.do_backfill(msgid))
 
     def walk(self, start, forward=True, filter=None):
         #XXX nearly a straight copy of the superclass
