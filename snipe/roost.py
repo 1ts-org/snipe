@@ -121,8 +121,8 @@ class Roost(messages.SnipeBackend):
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
         self.data = m
-        self._sender = RoostPrincipal(backend, m['sender'])
         super().__init__(backend, m['message'], m['time'] / 1000)
+        self._sender = RoostPrincipal(backend, m['sender'])
 
     def __str__(self):
         return (
