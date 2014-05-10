@@ -126,10 +126,10 @@ class RoostMessage(messages.SnipeMessage):
 
     def __str__(self):
         return (
-            'To: Class: {class_} Instance: {instance} Recipient: {recipient}'
+            'Class: {class_} Instance: {instance} Recipient: {recipient}'
             '{opcode}\n'
             'From: {signature} <{sender}> at {date}\n'
-            '{body}').format(
+            '{body}\n').format(
             class_=self.data['class'],
             instance=self.data['instance'],
             recipient=self.data['recipient'],
@@ -140,7 +140,7 @@ class RoostMessage(messages.SnipeMessage):
             signature=self.data['signature'],
             sender=self.sender,
             date=time.ctime(self.time),
-            body=self.body,
+            body=self.body + ('' if self.body[-1] == '\n' else '\n'),
             )
 
 class RoostPrincipal(messages.SnipeAddress):
