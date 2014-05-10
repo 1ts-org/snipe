@@ -39,13 +39,14 @@ import itertools
 
 class TTYRenderer(object):
     def __init__(self, ui, y, x, h, w, window):
+        self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.ui, self.y, self.x, self.width, self.height = ui, y, x, w, h
         self.window = window
         self.window.renderer = self
+        self.log.debug('subwin(%d, %d, %d, %d)', h, w, y, x)
         self.w = ui.stdscr.subwin(h, w, y, x)
         self.w.idlok(1)
         #self.w.scrollok(1)
-        self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.context = None
 
     @property
@@ -280,8 +281,8 @@ class TTYFrontend(object):
         del r.w
         self.log.debug('1 windows = %s:%d', repr(self.windows), self.active)
         self.windows[self.active:self.active + 1] = [
-            TTYRenderer(self, r.y, r.x, r.width, nh, r.window),
-            TTYRenderer(self, r,y + nh, r.x, r.width, r.height - nh, new),
+            TTYRenderer(self, r.y, r.x, nh, r.width, r.window),
+            TTYRenderer(self, r.y + nh, r.x, r.height - nh, r.width, new),
             ]
         self.log.debug('2 windows = %s:%d', repr(self.windows), self.active)
 
