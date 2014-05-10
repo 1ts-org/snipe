@@ -50,7 +50,7 @@ class TTYRenderer(object):
 
     @property
     def active(self):
-        return self.ui.active == self
+        return self.ui.windows[self.ui.active] == self
 
     def write(self, s):
         self.log.debug('someone used write(%s)', repr(s))
@@ -208,11 +208,11 @@ class TTYFrontend(object):
         return self
 
     def initial(self, win):
-        if self.windows or self.active:
+        if self.windows or self.active is not None:
             raise ValueError
-        self.active = TTYRenderer(self, 0, 0, self.maxy, self.maxx, win)
-        self.windows = [self.active]
-        self.active.w.refresh()
+        self.active = 0
+        self.windows = [TTYRenderer(self, 0, 0, self.maxy, self.maxx, win)]
+        self.windows[self.active].w.refresh()
         self.stdscr.refresh()
 
     def __exit__(self, type, value, tb):
@@ -252,15 +252,20 @@ class TTYFrontend(object):
 
     def readable(self):
         k = self.getch()
-        if self.active:
-            self.active.window.input_char(k)
+        if self.active is not None:
+            self.windows[self.active].window.input_char(k)
         self.redisplay()
 
     def redisplay(self):
-        for w in self.windows:
-            if w is not self.active:
+        self.log.debug('windows = %s:%d', repr(self.windows), self.active)
+        active = None
+        for i, w in enumerate(self.windows):
+            if i == self.active:
+                active = w
+            else:
                 w.redisplay()
-        self.active.redisplay()
+        if active is not None:
+            active.redisplay()
         curses.doupdate()
 
     def notify(self):
@@ -268,3 +273,17 @@ class TTYFrontend(object):
             curses.flash()
         else:
             curses.beep()
+
+    def split_window(self, new):
+        r = self.windows[self.active]
+        nh = r.height // 2
+        del r.w
+        self.log.debug('1 windows = %s:%d', repr(self.windows), self.active)
+        self.windows[self.active:self.active + 1] = [
+            TTYRenderer(self, r.y, r.x, r.width, nh, r.window),
+            TTYRenderer(self, r,y + nh, r.x, r.width, r.height - nh, new),
+            ]
+        self.log.debug('2 windows = %s:%d', repr(self.windows), self.active)
+
+    def switch_window(self, adj):
+        self.active = (self.active + adj) % len(self.windows)

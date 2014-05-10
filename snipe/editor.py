@@ -69,8 +69,8 @@ class Mark(object):
 class Editor(context.Window):
     EOL = '\n'
 
-    def __init__(self, frontend, chunksize=CHUNKSIZE):
-        super(Editor, self).__init__(frontend)
+    def __init__(self, frontend, prototype=None, chunksize=CHUNKSIZE):
+        super(Editor, self).__init__(frontend, None) #XXX need share buffer
 
         for x in range(ord(' '), ord('~') + 1):
             self.keymap[chr(x)] = self.insert

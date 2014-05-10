@@ -41,19 +41,25 @@ from . import roost
 
 
 class Window(object):
-    def __init__(self, frontend):
+    def __init__(self, frontend, prototype=None):
         self.fe = frontend
         self.keymap = {}
         self.renderer = None
         self.keymap = Keymap({
             'Control-X Control-C': self.quit,
+            'Control-X 2': self.split_window,
+            'Control-X o': self.other_window,
             'Control-Z': self.stop,
             })
         self.active_keymap = self.keymap
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
-        self.cursor = None
-        self.frame = None
+        if prototype is None:
+            self.cursor = None
+            self.frame = None
+        else:
+            self.cursor = prototype.cursor
+            self.frame = prototype.frame
 
     def input_char(self, k):
         try:
@@ -84,10 +90,16 @@ class Window(object):
     def view(self, origin=None, direction=None):
         yield 0, [(('visible',), '')]
 
+    def split_window(self, k):
+        self.fe.split_window(self.__class__(self.fe, self))
+
+    def other_window(self, k):
+        self.fe.switch_window(1)
+
 
 class Messager(Window):
-    def __init__(self, frontend):
-        super(Messager, self).__init__(frontend)
+    def __init__(self, frontend, prototype=None):
+        super(Messager, self).__init__(frontend, prototype=prototype)
         #SPACE
         #n, p, ^n ^p ↓ ↑ j k
         self.keymap.update({
