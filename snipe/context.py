@@ -40,17 +40,23 @@ from . import ttyfe
 from . import roost
 
 
+def bind(*seqs):
+    def decorate(f):
+        f.snipe_seqs = seqs
+        return f
+    return decorate
+
+
 class Window(object):
     def __init__(self, frontend, prototype=None):
         self.fe = frontend
         self.keymap = {}
         self.renderer = None
-        self.keymap = Keymap({
-            'Control-X Control-C': self.quit,
-            'Control-X 2': self.split_window,
-            'Control-X o': self.other_window,
-            'Control-Z': self.stop,
-            })
+        self.keymap = Keymap()
+        for f in (getattr(self, name) for name in dir(self)):
+            if hasattr(f, 'snipe_seqs'):
+                for seq in f.snipe_seqs:
+                    self.keymap[seq] = f
         self.active_keymap = self.keymap
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
@@ -78,34 +84,39 @@ class Window(object):
             self.whine(k)
             self.active_keymap = self.keymap
 
+    @bind('Control-X Control-C')
     def quit(self, k):
         asyncio.get_event_loop().stop()
 
     def whine(self, k):
         self.fe.notify()
 
+    @bind('Control-Z')
     def stop(self, k):
         self.fe.sigtstp(None, None)
 
     def view(self, origin=None, direction=None):
         yield 0, [(('visible',), '')]
 
+    @bind('Control-X 2')
     def split_window(self, k):
-        self.fe.split_window(self.__class__(self.fe, self))
+        self.fe.split_window(self.__class__(self.fe, prototype=self))
 
+    @bind('Control-X o')
     def other_window(self, k):
         self.fe.switch_window(1)
+
+    @bind('Control-X e')
+    def split_to_editor(self, k):
+        from .editor import Editor
+        self.fe.split_window(Editor(self.fe))
 
 
 class Messager(Window):
     def __init__(self, frontend, prototype=None):
         super(Messager, self).__init__(frontend, prototype=prototype)
         #SPACE
-        #n, p, ^n ^p ↓ ↑ j k
-        self.keymap.update({
-            'n': self.next_message,
-            'p': self.prev_message,
-            })
+        #^n ^p ↓ ↑ j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
 
@@ -116,6 +127,7 @@ class Messager(Window):
                 s += '\n'
             yield x, [(() if x is not self.cursor else ('cursor', 'visible'), s)]
 
+    @bind('n')
     def next_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor))
         try:
@@ -124,6 +136,7 @@ class Messager(Window):
         except StopIteration:
             self.whine('No more messages')
 
+    @bind('p')
     def prev_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor, False))
         try:
@@ -146,6 +159,7 @@ class Context(object):
                                                      # way to communicate this
                 ],)
         self.ui.initial(Messager(self.ui))
+
 
 
 @contextlib.contextmanager

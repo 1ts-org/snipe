@@ -70,25 +70,6 @@ class Editor(context.Window):
     EOL = '\n'
 
     def __init__(self, frontend, prototype=None, chunksize=CHUNKSIZE):
-        super(Editor, self).__init__(frontend, None) #XXX need share buffer
-
-        for x in range(ord(' '), ord('~') + 1):
-            self.keymap[chr(x)] = self.insert
-
-        self.keymap.update({
-            '[carriage return]': self.insert,
-            '[tab]': self.insert,
-            '[linefeed]': self.insert,
-            'Control-A': self.beginning_of_line,
-            'Control-B': lambda k: self.move(-1),
-            'Control-E': self.end_of_line,
-            'Control-F': lambda k: self.move(1),
-            'Control-N': lambda k: self.line_move(1),
-            'Control-P': lambda k: self.line_move(-1),
-
-            'Control-T': self.insert_test_content,
-            })
-
         self.chunksize = chunksize
 
         self.marks = weakref.WeakSet()
@@ -97,11 +78,16 @@ class Editor(context.Window):
         self.gapstart = 0
         self.gapend = len(self.buf)
 
-        self.cursor = Mark(self, 0)
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
         self.cache = {}
 
+        super(Editor, self).__init__(frontend, None) #XXX need share buffer
+
+        self.cursor = Mark(self, 0)
+
+
+    @context.bind('Control-T')
     def insert_test_content(self, k):
         import itertools
         for i in range(32):
@@ -202,11 +188,22 @@ class Editor(context.Window):
         self.cursor.pos = where + len(string)
         self.cache = {}
 
+    @context.bind(
+        '[carriage return]', '[tab]', '[linefeed]',
+        *(chr(x) for x in range(ord(' '), ord('~') + 1)))
     def insert(self, s):
         self.replace(0, s)
 
     def delete(self, count):
         self.replace(count, '')
+
+    @context.bind('Control-F')
+    def move_forward(self, k):
+        self.move(1)
+
+    @context.bind('Control-B')
+    def move_backward(self, k):
+        self.move(-1)
 
     def move(self, delta):
         '''.move(delta, mark=None) -> actual distance moved
@@ -215,6 +212,14 @@ class Editor(context.Window):
         z = self.cursor.point
         self.cursor.point += delta # the setter does appropriate clamping
         return self.cursor.point - z
+
+    @context.bind('Control-N')
+    def line_next(self, k):
+        self.line_move(1)
+
+    @context.bind('Control-P')
+    def line_previous(self, k):
+        self.line_move(-1)
 
     def line_move(self, delta):
         count = abs(delta)
@@ -284,6 +289,7 @@ class Editor(context.Window):
                 return x
         return ''
 
+    @context.bind('Control-A')
     def beginning_of_line(self, k=None):
         if self.cursor.point == 0:
             return
@@ -294,6 +300,7 @@ class Editor(context.Window):
         if self.find_character(self.EOL, -1):
             self.move(1)
 
+    @context.bind('Control-E')
     def end_of_line(self, k=None):
         if not self.character_at_point() == self.EOL:
             self.find_character(self.EOL)
