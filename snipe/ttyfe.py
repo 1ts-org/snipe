@@ -140,7 +140,17 @@ class TTYRenderer(object):
                     if screenlines <= 0:
                         break
                     if remaining == -1:
-                        self.w.addstr('\n')
+                        if screenlines > 0:
+                            try:
+                                self.w.addstr('\n')
+                            except:
+                                self.log.exception(
+                                    'adding newline,'
+                                    ' screenlines=%d, remaining=%d',
+                                    screenlines,
+                                    remaining)
+                        else:
+                            break
                     elif remaining == 0:
                         self.w.move(self.height - screenlines, 0)
         if cursor is not None and self.active:
