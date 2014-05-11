@@ -140,7 +140,7 @@ class RoostMessage(messages.SnipeMessage):
             signature=self.data['signature'],
             sender=self.sender,
             date=time.ctime(self.time),
-            body=self.body + ('' if self.body[-1] == '\n' else '\n'),
+            body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
 class RoostPrincipal(messages.SnipeAddress):
