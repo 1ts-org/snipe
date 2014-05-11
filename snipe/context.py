@@ -145,7 +145,6 @@ class Context(object):
                 roost.Roost(conf={'context': self}), # XXX figure out a better
                                                      # way to communicate this
                 ],)
-        from . import editor
         self.ui.initial(Messager(self.ui))
 
 

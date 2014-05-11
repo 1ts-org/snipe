@@ -228,12 +228,6 @@ class Editor(context.Window):
                 if not self.move(1):
                     self.beginning_of_line()
 
-    def Oview(self, origin=None, direction=None):
-        return context.ViewStub([
-            ((), self.text[:self.cursor.point]),
-            (('cursor',), self.text[self.cursor.point:]),
-            ])
-
     def extract_current_line(self):
         p = self.cursor.point
         r = self.cache.setdefault('extract_current_line', {}).get(p)
