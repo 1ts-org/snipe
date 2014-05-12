@@ -290,13 +290,34 @@ class TTYFrontend(object):
     def split_window(self, new):
         r = self.windows[self.active]
         nh = r.height // 2
-        del r.w
-        self.log.debug('1 windows = %s:%d', repr(self.windows), self.active)
+
+        if nh == 0:
+            raise Exception('too small to split')
+
         self.windows[self.active:self.active + 1] = [
             TTYRenderer(self, r.y, r.x, nh, r.width, r.window),
             TTYRenderer(self, r.y + nh, r.x, r.height - nh, r.width, new),
             ]
-        self.log.debug('2 windows = %s:%d', repr(self.windows), self.active)
+
+    def delete_window(self, n):
+        if len(self.windows) == 1:
+            raise Exception('attempt to delete only window')
+
+        victim = self.windows[n]
+        del self.windows[n]
+        if n == 0:
+            u = self.windows[0]
+            self.windows[0] = TTYRenderer(
+                self, 0, 0, victim.height + u.height, u.width, u.window)
+        else:
+            u = self.windows[n-1]
+            self.windows[n-1] = TTYRenderer(
+                self, u.y, u.x, victim.height + u.height, u.width, u.window)
+            if self.active == n:
+                self.active -= 1
+
+    def delete_current_window(self):
+        self.delete_window(self.active)
 
     def switch_window(self, adj):
         self.active = (self.active + adj) % len(self.windows)

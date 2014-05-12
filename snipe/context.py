@@ -104,6 +104,10 @@ class Window(object):
     def split_window(self, k):
         self.fe.split_window(self.__class__(self.fe, prototype=self))
 
+    @bind('Control-X 0')
+    def delete_window(self, k):
+        self.fe.delete_current_window()
+
     @bind('Control-X o')
     def other_window(self, k):
         self.fe.switch_window(1)
