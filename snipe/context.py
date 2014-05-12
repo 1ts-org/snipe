@@ -53,6 +53,8 @@ class Window(object):
         self.keymap = {}
         self.renderer = None
         self.keymap = Keymap()
+        #XXX should really be walking the inheritance tree so the stuff
+        #lower in the tree wins
         for f in (getattr(self, name) for name in dir(self)):
             if hasattr(f, 'snipe_seqs'):
                 for seq in f.snipe_seqs:
