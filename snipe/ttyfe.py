@@ -38,13 +38,16 @@ import itertools
 
 
 class TTYRenderer(object):
-    def __init__(self, ui, y, x, h, w, window):
+    def __init__(self, ui, y, h, window):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
-        self.ui, self.y, self.x, self.width, self.height = ui, y, x, w, h
+        self.ui, self.y, self.height = ui, y, h
+        self.x = 0
+        self.width = ui.maxx
         self.window = window
         self.window.renderer = self
-        self.log.debug('subwin(%d, %d, %d, %d)', h, w, y, x)
-        self.w = ui.stdscr.subwin(h, w, y, x)
+        self.log.debug(
+            'subwin(%d, %d, %d, %d)', self.height, self.width, self.y, self.x)
+        self.w = ui.stdscr.subwin(self.height, self.width, self.y, self.x)
         self.w.idlok(1)
         #self.w.scrollok(1)
         self.context = None
@@ -224,7 +227,7 @@ class TTYFrontend(object):
         if self.windows or self.active is not None:
             raise ValueError
         self.active = 0
-        self.windows = [TTYRenderer(self, 0, 0, self.maxy, self.maxx, win)]
+        self.windows = [TTYRenderer(self, 0, self.maxy, win)]
         self.windows[self.active].w.refresh()
         self.stdscr.refresh()
 
@@ -295,8 +298,8 @@ class TTYFrontend(object):
             raise Exception('too small to split')
 
         self.windows[self.active:self.active + 1] = [
-            TTYRenderer(self, r.y, r.x, nh, r.width, r.window),
-            TTYRenderer(self, r.y + nh, r.x, r.height - nh, r.width, new),
+            TTYRenderer(self, r.y, nh, r.window),
+            TTYRenderer(self, r.y + nh, r.height - nh, new),
             ]
 
     def delete_window(self, n):
@@ -308,11 +311,11 @@ class TTYFrontend(object):
         if n == 0:
             u = self.windows[0]
             self.windows[0] = TTYRenderer(
-                self, 0, 0, victim.height + u.height, u.width, u.window)
+                self, 0, victim.height + u.height, u.window)
         else:
             u = self.windows[n-1]
             self.windows[n-1] = TTYRenderer(
-                self, u.y, u.x, victim.height + u.height, u.width, u.window)
+                self, u.y, victim.height + u.height, u.window)
             if self.active == n:
                 self.active -= 1
 
