@@ -211,6 +211,7 @@ class TTYFrontend(object):
             self.__class__.__name__,
             id(self),
             ))
+        self.popstack = []
 
     def __enter__(self):
         locale.setlocale(locale.LC_ALL, '')
@@ -321,6 +322,44 @@ class TTYFrontend(object):
 
     def delete_current_window(self):
         self.delete_window(self.active)
+
+    def popup_window(self, new, height=1):
+        r = self.windows[-1]
+
+        if r.height <= height and r.window != self.popstack[-1][0]:
+            self.popstack.append((r.window, r.height))
+
+        if self.popstack and r.window == self.popstack[-1][0]:
+            # update the height
+            self.popstack[-1] = (r.window, r.height)
+            self.windows[-1] = TTYRenderer(
+                self, r.y, r.height, new)
+        else:
+            # shrink bottom window
+            self.windows[-1] = TTYRenderer(
+                self, r.y, r.height - height, r.window)
+            # add; should be in the rotation right active active
+            self.windows.append(TTYRenderer(
+                self, r.y + r.height - height, height, new))
+
+        self.popstack.append((new, height))
+
+    def popdown_window(self):
+        victim_window, _ = self.popstack.pop()
+        victim = self.windows.pop()
+        adj = self.windows[-1]
+        if self.popstack:
+            new_window, new_height = self.popstack[-1]
+            dheight = new_height - victim.height
+            self.windows[-1:] = [
+                TTYRenderer(self, adj.y, adj.height - dheight, adj.window),
+                TTYRenderer(self, victim.y - dheight, new_height, new_window),
+                ]
+        else:
+            self.windows[-1] = TTYRenderer(
+                self, adj.y, adj.height + victim.height, adj.window)
+        if self.active >= len(self.windows):
+            self.active = len(self.windows) - 1
 
     def switch_window(self, adj):
         self.active = (self.active + adj) % len(self.windows)

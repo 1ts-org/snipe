@@ -108,15 +108,23 @@ class Window(object):
     def delete_window(self, k):
         self.fe.delete_current_window()
 
+    @bind('Control-X 1')
+    def popdown(self, k):
+        self.fe.popdown_window()
+
     @bind('Control-X o')
     def other_window(self, k):
         self.fe.switch_window(1)
 
-    @bind('Control-X e')
+    @bind('Control-X e')#XXX
     def split_to_editor(self, k):
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
+    @bind('Control-X t')#XXX
+    def test_ui(self, k):
+        from .editor import Editor
+        self.fe.popup_window(Editor(self.fe))
 
 class Messager(Window):
     def __init__(self, frontend, prototype=None):
