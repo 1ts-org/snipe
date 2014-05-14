@@ -315,7 +315,3 @@ class Editor(context.Window):
             mark.point = self.cursor
         self.cursor.point = cursor
 
-try:
-    unicode('foo')
-except NameError:
-    unicode = lambda x: x # glue for python 3
