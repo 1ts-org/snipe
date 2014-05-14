@@ -1,8 +1,8 @@
 all:
-	nosetests
+	nosetests3
 
 coverage:
-	nosetests --with-coverage
+	nosetests3 --with-coverage
 	python-coverage html
 
 clean:
