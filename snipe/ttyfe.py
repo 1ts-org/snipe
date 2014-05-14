@@ -309,6 +309,9 @@ class TTYFrontend(object):
 
         victim = self.windows[n]
         del self.windows[n]
+        if self.popstack and self.popstack[-1][0] is victim.window:
+            self.popstack.pop()
+        victim.window.destroy()
         if n == 0:
             u = self.windows[0]
             self.windows[0] = TTYRenderer(
@@ -323,7 +326,7 @@ class TTYFrontend(object):
     def delete_current_window(self):
         self.delete_window(self.active)
 
-    def popup_window(self, new, height=1):
+    def popup_window(self, new, height=1, select=True):
         r = self.windows[-1]
 
         if r.height <= height and r.window != self.popstack[-1][0]:
@@ -343,9 +346,12 @@ class TTYFrontend(object):
                 self, r.y + r.height - height, height, new))
 
         self.popstack.append((new, height))
+        if select:
+            self.active = len(self.windows) - 1
 
     def popdown_window(self):
         victim_window, _ = self.popstack.pop()
+        victim_window.destroy()
         victim = self.windows.pop()
         adj = self.windows[-1]
         if self.popstack:

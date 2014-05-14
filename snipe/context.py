@@ -80,11 +80,38 @@ class Window(object):
                 self.active_keymap = v
             else:
                 self.active_keymap = self.keymap
-                v(k)
+                ret = v(k)
+                if asyncio.iscoroutine(ret):
+                    t = asyncio.Task(ret)
+                    #t.add_done_callback(reap_exception)
+
         except Exception as e:
             self.log.exception('executing command from keymap')
             self.whine(k)
             self.active_keymap = self.keymap
+
+    def destroy(self):
+        pass
+
+    def read_string(self, prompt, content=None):
+        f = asyncio.Future()
+
+        def callback(result):
+            self.fe.popdown_window()#XXX might not always be the right one
+            f.set_result(result)
+
+        from .editor import ShortPrompt
+        self.fe.popup_window(ShortPrompt(
+            self.fe,
+            prompt=prompt,
+            content=content,
+            callback=callback,
+            ))
+        self.fe.redisplay()
+
+        yield from f
+
+        return f.result()
 
     @bind('Control-X Control-C')
     def quit(self, k):
@@ -123,8 +150,11 @@ class Window(object):
 
     @bind('Control-X t')#XXX
     def test_ui(self, k):
-        from .editor import Editor
-        self.fe.popup_window(Editor(self.fe))
+        streeng = yield from self.read_string('floop> ', content='zoge')
+        self.log.debug(
+            'AAAA %s',
+            ''.join(reversed(streeng)),
+            )
 
 class Messager(Window):
     def __init__(self, frontend, prototype=None):

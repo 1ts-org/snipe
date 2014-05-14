@@ -69,8 +69,16 @@ class Mark(object):
 class Editor(context.Window):
     EOL = '\n'
 
-    def __init__(self, frontend, prototype=None, chunksize=CHUNKSIZE):
+    def __init__(
+        self,
+        frontend,
+        prototype=None,
+        chunksize=CHUNKSIZE,
+        prompt=None,
+        content=None,
+        ):
         self.chunksize = chunksize
+        self.prompt = prompt
 
         self.marks = weakref.WeakSet()
 
@@ -82,9 +90,12 @@ class Editor(context.Window):
 
         self.cache = {}
 
-        super(Editor, self).__init__(frontend, None) #XXX need share buffer
+        super().__init__(frontend, None) #XXX need share buffer
 
         self.cursor = Mark(self, 0)
+
+        if content is not None:
+            self.insert(content)
 
 
     @context.bind('Control-T')
@@ -183,7 +194,7 @@ class Editor(context.Window):
         self.movegap(where, len(string) - size)
         self.gapend += size
         newstart = self.gapstart + len(string)
-        self.buf[self.gapstart:newstart] = array.array('u', unicode(string))
+        self.buf[self.gapstart:newstart] = array.array('u', string)
         self.gapstart = newstart
         self.cursor.pos = where + len(string)
         self.cache = {}
@@ -260,16 +271,21 @@ class Editor(context.Window):
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
             l = len(s)
-            if (p <= self.cursor.point < p + l) or (self.cursor.point == p + l == self.size):
+            if p == 0 and self.prompt: # first line  "this could be a callback"
+                prefix = [((), self.prompt)]
+            else:
+                prefix = []
+            if ((p <= self.cursor.point < p + l)
+                or (self.cursor.point == p + l == self.size)):
                 yield (
                     Mark(self, p),
-                    [
+                    prefix + [
                         ((), s[:self.cursor.point - p]),
                         (('cursor', 'visible'), s[self.cursor.point - p:]),
                         ],
                     )
             else:
-                yield Mark(self, p), [((), s)]
+                yield Mark(self, p), prefix + [((), s)]
             if direction == 'forward':
                 if p == self.size or s[-1] != '\n':
                     break
@@ -315,3 +331,20 @@ class Editor(context.Window):
             mark.point = self.cursor
         self.cursor.point = cursor
 
+class ShortPrompt(Editor):
+    def __init__(
+        self,
+        frontend,
+        prototype=None,
+        prompt=None,
+        content=None,
+        callback=None,
+        ):
+        super().__init__(
+            frontend, prototype=prototype, prompt=prompt, content=content)
+        self.callback = callback
+        self.keymap['[carriage return]'] = self.runcallback
+
+    @context.bind('Control-J')
+    def runcallback(self, k):
+        self.callback(self.text)
