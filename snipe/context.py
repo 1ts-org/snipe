@@ -83,8 +83,14 @@ class Window(object):
                 self.active_keymap = self.keymap
                 ret = v(k)
                 if asyncio.iscoroutine(ret):
-                    t = asyncio.Task(ret)
-                    #t.add_done_callback(reap_exception)
+                    def catch_and_log(coro):
+                        try:
+                            yield from coro
+                        except:
+                            self.log.exception('Executing complex command')
+                            self.whine(k)
+
+                    t = asyncio.Task(catch_and_log(ret))
 
         except Exception as e:
             self.log.exception('executing command from keymap')
@@ -94,16 +100,21 @@ class Window(object):
     def read_string(self, prompt, content=None):
         f = asyncio.Future()
 
-        def callback(result):
-            self.fe.popdown_window()#XXX might not always be the right one
+        def done_callback(result):
             f.set_result(result)
+            self.fe.popdown_window()#XXX might not always be the right one
+
+        def destroy_callback():
+            if not f.done():
+                f.set_exception(Exception('Operation Aborted'))
 
         from .editor import ShortPrompt
         self.fe.popup_window(ShortPrompt(
             self.fe,
             prompt=prompt,
             content=content,
-            callback=callback,
+            callback=done_callback,
+            destroy=destroy_callback,
             ))
         self.fe.redisplay()
 

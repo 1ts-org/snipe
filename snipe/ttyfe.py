@@ -351,7 +351,10 @@ class TTYFrontend(object):
 
     def popdown_window(self):
         victim_window, _ = self.popstack.pop()
-        victim_window.destroy()
+        try:
+            victim_window.destroy()
+        except:
+            self.log.exception('attempting window destroy callback')
         victim = self.windows.pop()
         adj = self.windows[-1]
         if self.popstack:
