@@ -207,6 +207,15 @@ class Editor(context.Window):
     def delete(self, count):
         self.replace(count, '')
 
+    @context.bind('Control-D')
+    def delete_forward(self, k):
+        self.delete(1)
+
+    @context.bind('Control-H', 'Control-?')
+    def delete_backward(self, k):
+        if self.move(-1):
+            self.delete(1)
+
     @context.bind('Control-F')
     def move_forward(self, k):
         self.move(1)
