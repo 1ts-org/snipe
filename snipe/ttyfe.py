@@ -217,6 +217,7 @@ class TTYFrontend(object):
         locale.setlocale(locale.LC_ALL, '')
         self.stdscr = curses.initscr()
         curses.noecho()
+        curses.nonl()
         curses.raw()
         self.stdscr.keypad(1)
         curses.start_color()
@@ -236,6 +237,7 @@ class TTYFrontend(object):
         # go to last line of screen, maybe cause scrolling?
         self.stdscr.keypad(0)
         curses.noraw()
+        curses.nl()
         curses.echo()
         curses.endwin()
         signal.signal(signal.SIGTSTP, self.orig_sigtstp)

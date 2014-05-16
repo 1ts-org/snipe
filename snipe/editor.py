@@ -195,10 +195,14 @@ class Editor(context.Window):
         self.cache = {}
 
     @context.bind(
-        '[carriage return]', '[tab]', '[linefeed]',
+        '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))
     def insert(self, s):
         self.replace(0, s)
+
+    @context.bind('[carriage return]', 'Control-J')
+    def insert_newline(self, k):
+        self.insert('\n')
 
     def delete(self, count):
         self.replace(count, '')
@@ -331,7 +335,7 @@ class ShortPrompt(Editor):
         super().__init__(*args, **kw)
         self.callback = callback
         self.keymap['[carriage return]'] = self.runcallback
+        self.keymap['Control-J'] = self.runcallback
 
-    @context.bind('Control-J')
     def runcallback(self, k):
         self.callback(self.text)

@@ -307,7 +307,7 @@ class Keymap(dict):
     other_keys_spec = [
         (('escape','esc'), '\x1b'),
         (('delete', 'del'), '\x7f'),
-        (('line feed', 'linefeed'), '\x0a'),
+        (('line feed', 'linefeed', 'newline'), '\x0a'),
         (('carriage return', 'return'), '\x0d'),
         (('tab',), '\x09'),
         ]
