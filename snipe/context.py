@@ -48,7 +48,7 @@ def bind(*seqs):
 
 
 class Window(object):
-    def __init__(self, frontend, prototype=None):
+    def __init__(self, frontend, prototype=None, destroy=lambda: None):
         self.fe = frontend
         self.keymap = {}
         self.renderer = None
@@ -68,6 +68,7 @@ class Window(object):
         else:
             self.cursor = prototype.cursor
             self.frame = prototype.frame
+        self.destroy = destroy
 
     def input_char(self, k):
         try:
@@ -89,9 +90,6 @@ class Window(object):
             self.log.exception('executing command from keymap')
             self.whine(k)
             self.active_keymap = self.keymap
-
-    def destroy(self):
-        pass
 
     def read_string(self, prompt, content=None):
         f = asyncio.Future()
@@ -157,8 +155,8 @@ class Window(object):
             )
 
 class Messager(Window):
-    def __init__(self, frontend, prototype=None):
-        super(Messager, self).__init__(frontend, prototype=prototype)
+    def __init__(self, *args, **kw):
+        super(Messager, self).__init__(*args, **kw)
         #SPACE
         #^n ^p ↓ ↑ j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))

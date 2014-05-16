@@ -70,13 +70,8 @@ class Editor(context.Window):
     EOL = '\n'
 
     def __init__(
-        self,
-        frontend,
-        prototype=None,
-        chunksize=CHUNKSIZE,
-        prompt=None,
-        content=None,
-        ):
+        self, *args, chunksize=CHUNKSIZE, prompt=None, content=None, **kw):
+
         self.chunksize = chunksize
         self.prompt = prompt
 
@@ -90,7 +85,7 @@ class Editor(context.Window):
 
         self.cache = {}
 
-        super().__init__(frontend, None) #XXX need share buffer
+        super().__init__(*args, **kw) #XXX need share buffer?
 
         self.cursor = Mark(self, 0)
 
@@ -332,16 +327,8 @@ class Editor(context.Window):
         self.cursor.point = cursor
 
 class ShortPrompt(Editor):
-    def __init__(
-        self,
-        frontend,
-        prototype=None,
-        prompt=None,
-        content=None,
-        callback=None,
-        ):
-        super().__init__(
-            frontend, prototype=prototype, prompt=prompt, content=content)
+    def __init__(self, *args, callback=lambda x: None, **kw):
+        super().__init__(*args, **kw)
         self.callback = callback
         self.keymap['[carriage return]'] = self.runcallback
 
