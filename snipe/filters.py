@@ -136,6 +136,7 @@ class lexer(object):
         'LPAREN',
         'RPAREN',
         'PYTHON',
+        'FILTER',
         )
 
     def t_NUMBER(self, t):
@@ -154,16 +155,17 @@ class lexer(object):
         t.value = self.lexer.lexmatch.group('content').replace(r'\/','/')
         return t
 
-    def t_FIELD(self, t):
+    def t_ID(self, t):
         r'[a-zA-Z_][a-zA-Z_0-9]*'
         word = {
             'and': 'AND',
             'or': 'OR',
             'xor': 'XOR',
             'not': 'NOT',
+            'filter': 'FILTER',
             }
 
-        t.type = word.get(t.value, 'FIELD')
+        t.type = word.get(t.value, 'ID')
         return t
 
     t_EQ = '='
