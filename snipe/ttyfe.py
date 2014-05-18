@@ -127,13 +127,27 @@ class TTYRenderer(object):
             for tags, text in chunk:
                 if screenlines <= 0:
                     break
+                #A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
+                attrs = {
+                    'bold': curses.A_BOLD,
+                    'standout': (
+                        curses.A_REVERSE | (curses.A_BOLD if self.active else 0)
+                        ),
+                    'reverse': curses.A_REVERSE,
+                    }
+                attr = 0
+                for t in tags:
+                    attr |= attrs.get(t, 0)
+                self.attrset(attr)
+                self.bkgdset(attr)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
+                self.log.debug('cursor %s visible %s attr %s', cursor, visible, attr)
                 for line, remaining in self.doline(text, self.width, remaining):
                     try:
-                        self.w.addstr(line)
+                        self.addstr(line)
                     except:
                         self.log.exception(
                             'in addstr; line=%s, remaining=%d, screenlines=%d',
@@ -145,7 +159,7 @@ class TTYRenderer(object):
                     if remaining == -1:
                         if screenlines > 0:
                             try:
-                                self.w.addstr('\n')
+                                self.addstr('\n')
                             except:
                                 self.log.exception(
                                     'adding newline,'
@@ -153,14 +167,15 @@ class TTYRenderer(object):
                                     screenlines,
                                     remaining)
                         else:
+                            self.chgat(attr | curses.A_UNDERLINE)
                             break
                     elif remaining == 0:
-                        self.w.move(self.height - screenlines, 0)
+                        self.move(self.height - screenlines, 0)
         if self.y + self.height < self.ui.maxy:
-            self.w.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
+            self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
         if cursor is not None and self.active:
             self.w.leaveok(0)
-            self.w.move(*cursor)
+            self.move(*cursor)
         else:
             self.w.leaveok(1)
         self.log.debug(
@@ -169,6 +184,21 @@ class TTYRenderer(object):
             repr(visible),
             )
         return visible
+
+    def makefunc(name):
+        def _(self, *args):
+            import inspect
+            self.log.debug(
+                '%d:%s%s',
+                inspect.currentframe().f_back.f_lineno,
+                name,
+                repr(args))
+            getattr(self.w, name)(*args)
+        return _
+    for func in 'addstr', 'move', 'chgat', 'attrset', 'bkgdset':
+        locals()[func] = makefunc(func)
+
+    del func, makefunc
 
     def reframe(self):
         screenlines = self.height / 2
