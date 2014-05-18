@@ -178,7 +178,14 @@ class Messager(Window):
             s = str(x)
             if s and s[-1] != '\n':
                 s += '\n'
-            yield x, [(() if x is not self.cursor else ('cursor', 'visible'), s)]
+            if x is self.cursor:
+                lines = s.splitlines()
+                yield x, [
+                    (('visible', 'standout'), lines[0] + '\n'),
+                    ((), '\n'.join(lines[1:]) + '\n'),
+                    ]
+            else:
+                yield x, [((), s)]
 
     @bind('n')
     def next_message(self, k):
