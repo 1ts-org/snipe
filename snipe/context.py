@@ -97,7 +97,7 @@ class Window(object):
             self.whine(k)
             self.active_keymap = self.keymap
 
-    def read_string(self, prompt, content=None):
+    def read_string(self, prompt, content=None, height=1):
         f = asyncio.Future()
 
         def done_callback(result):
@@ -108,14 +108,21 @@ class Window(object):
             if not f.done():
                 f.set_exception(Exception('Operation Aborted'))
 
-        from .editor import ShortPrompt
-        self.fe.popup_window(ShortPrompt(
-            self.fe,
-            prompt=prompt,
-            content=content,
-            callback=done_callback,
-            destroy=destroy_callback,
-            ))
+        from .editor import ShortPrompt, LongPrompt
+        if height > 2:
+            window = LongPrompt
+        else:
+            window = ShortPrompt
+        self.fe.popup_window(
+            window(
+                self.fe,
+                prompt=prompt,
+                content=content,
+                callback=done_callback,
+                destroy=destroy_callback,
+                ),
+            height=height,
+            )
         self.fe.redisplay()
 
         yield from f
@@ -205,18 +212,29 @@ class Messager(Window):
         except StopIteration:
             self.whine('No more messages')
 
+    @bind('s')
+    def send(self, k):
+        message = yield from self.read_string(
+            '[roost] send --> ',
+            height=10,
+            )
+        params, body = message.split('\n', 1)
+        yield from self.fe.context.roost.send(params, body)
 
 class Context(object):
     # per-session state and abstact control
     def __init__(self, ui):
         self.ui = ui
         self.ui.context = self
+        #XXX kludge so the kludged sending can find the roost backend
+        self.roost = roost.Roost(
+            conf={'context': self}) # XXX figure out a better
+                                    # way to communicate this
         self.backends = messages.AggregatorBackend(
             backends = [
                 messages.StartupBackend(),
 #                messages.SyntheticBackend(conf={'count': 100}),
-                roost.Roost(conf={'context': self}), # XXX figure out a better
-                                                     # way to communicate this
+                self.roost,
                 ],)
         self.ui.initial(Messager(self.ui))
 

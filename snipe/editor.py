@@ -339,12 +339,17 @@ class Editor(context.Window):
             mark.point = self.cursor
         self.cursor.point = cursor
 
-class ShortPrompt(Editor):
+class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
         super().__init__(*args, **kw)
         self.callback = callback
-        self.keymap['[carriage return]'] = self.runcallback
         self.keymap['Control-J'] = self.runcallback
+        self.keymap['Control-C Control-C'] = self.runcallback
 
     def runcallback(self, k):
         self.callback(self.text)
+
+class ShortPrompt(LongPrompt):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.keymap['[carriage return]'] = self.runcallback

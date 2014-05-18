@@ -58,6 +58,38 @@ class Roost(messages.SnipeBackend):
                                             # refreshing
 
     @asyncio.coroutine
+    def send(self, paramstr, body):
+        import shlex
+        import getopt
+        import pwd
+        import os
+
+        self.log.debug('send paramstr=%s', paramstr)
+
+        flags, recipients = getopt.getopt(shlex.split(paramstr), 'c:i:O:')
+
+        flags = dict(flags)
+        self.log.debug('send flags=%s', repr(flags))
+
+        if not recipients:
+            recipients=['']
+
+        for recipient in recipients:
+            message = {
+                'class': flags.get('-c', 'MESSAGE'),
+                'instance': flags.get('-i', 'PERSONAL'),
+                'recipient': recipient,
+                'opcode': flags.get('-O', ''),
+                'signature': pwd.getpwuid(os.getuid()).pw_gecos.split(',')[0],#XXX
+                'message': body,
+                }
+
+            self.log.debug('sending %s', repr(message))
+
+            result = yield from self.r.send(message)
+            self.log.info('sent to %s: %s', recipient, repr(result))
+
+    @asyncio.coroutine
     def new_message(self, m):
         msg = RoostMessage(self, m)
         self.messages.append(msg)
