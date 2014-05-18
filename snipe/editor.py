@@ -280,7 +280,7 @@ class Editor(context.Window):
                 p, s = self.extract_current_line()
             l = len(s)
             if p == 0 and self.prompt: # first line  "this could be a callback"
-                prefix = [((), self.prompt)]
+                prefix = [(('bold',), self.prompt)]
             else:
                 prefix = []
             if ((p <= self.cursor.point < p + l)
