@@ -303,6 +303,10 @@ class Rooster:
 
         result = b''.join(result)
         result = result.decode('utf-8')
-        result = json.loads(result)
+        try:
+            result = json.loads(result)
+        except:
+            self.log.exception('de-jsoning response: %s', result)
+            raise
 
         return result
