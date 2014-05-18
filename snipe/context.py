@@ -213,13 +213,22 @@ class Messager(Window):
             self.whine('No more messages')
 
     @bind('s')
-    def send(self, k):
+    def send(self, k, recipient=''):
         message = yield from self.read_string(
             '[roost] send --> ',
             height=10,
+            content=recipient + '\n' if recipient else '',
             )
         params, body = message.split('\n', 1)
         yield from self.fe.context.roost.send(params, body)
+
+    @bind('f')
+    def followup(self, k):
+        yield from self.send(k, self.cursor.followupstr())
+
+    @bind('r')
+    def reply(self, k):
+        yield from self.send(k, self.cursor.replystr())
 
 class Context(object):
     # per-session state and abstact control

@@ -33,6 +33,7 @@ import asyncio
 import collections
 import itertools
 import time
+import shlex
 
 from . import messages
 from . import _rooster
@@ -59,7 +60,6 @@ class Roost(messages.SnipeBackend):
 
     @asyncio.coroutine
     def send(self, paramstr, body):
-        import shlex
         import getopt
         import pwd
         import os
@@ -174,6 +174,27 @@ class RoostMessage(messages.SnipeMessage):
             date=time.ctime(self.time),
             body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
+
+    def replystr(self):
+        l = []
+        if self.data['recipient']:
+            if self.data['class'].upper() != 'MESSAGE':
+                l += ['-c', self.data['class']]
+            if self.data['instance'].upper() != 'PERSONAL':
+                l += ['-i', self.data['instance']]
+        l.append(str(self.sender))
+
+        return ' '.join(shlex.quote(s) for s in l)
+
+    def followupstr(self):
+        l = []
+        if self.data['recipient']:
+            return self.replystr()
+        if self.data['class'].upper() != 'MESSAGE':
+            l += ['-c', self.data['class']]
+        if self.data['instance'].upper() != 'PERSONAL':
+            l += ['-i', self.data['instance']]
+        return ' '.join(shlex.quote(s) for s in l)
 
 class RoostPrincipal(messages.SnipeAddress):
     def __init__(self, backend, principal):
