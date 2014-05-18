@@ -127,7 +127,7 @@ class StartupBackend(SnipeBackend):
 
     def __init__(self, conf = {}):
         super(StartupBackend, self).__init__(conf)
-        self.messages = [SnipeMessage(self, 'Welcome to snipe.')]
+        self.messages = [SnipeMessage(self, 'Welcome to snipe.\n\n')]
 
 
 class SyntheticBackend(SnipeBackend):
