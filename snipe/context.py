@@ -76,7 +76,10 @@ class Window(object):
             try:
                 v = self.active_keymap[k]
             except KeyError:
-                v = None
+                self.log.error('no such key in map')
+                self.whine(k)
+                return
+
             if not callable(v):
                 self.active_keymap = v
             else:

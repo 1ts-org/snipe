@@ -287,21 +287,12 @@ class TTYFrontend(object):
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         # rearrange windows as appropriate and trigger redisplays
 
-    def getch(self):
-        c = self.stdscr.getch()
-        #XXX do something clever with UTF-8 (IFF we are in a UTF-8 locale)
-        if c == curses.KEY_RESIZE:
-            self.doresize()
-            ## self.write('(%d, %d)\n' % (self.maxy, self.maxx))
-        if -1 < c < 256:
-            return chr(c)
-        if c in unkey:
-            return unkey[c]
-        return c
-
     def readable(self):
-        k = self.getch()
-        if self.active is not None:
+        k = self.stdscr.get_wch()
+        if k == curses.KEY_RESIZE:
+            self.doresize()
+            self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
+        elif self.active is not None:
             self.windows[self.active].window.input_char(k)
         self.redisplay()
 
