@@ -34,6 +34,8 @@ import collections
 import itertools
 import time
 import shlex
+import os
+import urllib.parse
 
 from . import messages
 from . import _rooster
@@ -45,8 +47,14 @@ class Roost(messages.SnipeBackend):
     def __init__(self, conf = {}):
         super().__init__(conf)
         self.messages = collections.deque()
-        self.r = _rooster.Rooster(
-            'https://ordinator.1ts.org', 'daemon@ordinator.1ts.org')
+        url = os.environ['ROOST_API'] #XXX should provide a default? maybe?
+        # the configuration monster strikes again
+        service_names = {
+            'ordinator.1ts.org': 'daemon',
+            }
+        hostname = urllib.parse.urlparse(url).hostname
+        service = service_names.get(hostname, 'HTTP') + '@' + hostname
+        self.r = _rooster.Rooster(url, service)
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
