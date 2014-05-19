@@ -16,3 +16,6 @@ for this.
 
 It is known that there are bugs and missing features everywhere.  
 If it breaks you get to keep both pieces.
+
+(Currently, also, the debug log goes to /tmp/snipe.log, which is
+world-readable-by default, and is probably a terribly security leak)
