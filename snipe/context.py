@@ -179,7 +179,7 @@ class Messager(Window):
     def __init__(self, *args, **kw):
         super(Messager, self).__init__(*args, **kw)
         #SPACE
-        #^n ^p ↓ ↑ j k NEXT PREV
+        #^n ^p j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
 
@@ -197,7 +197,7 @@ class Messager(Window):
             else:
                 yield x, [((), s)]
 
-    @bind('n')
+    @bind('n', '[down]')
     def next_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor))
         try:
@@ -206,7 +206,7 @@ class Messager(Window):
         except StopIteration:
             self.whine('No more messages')
 
-    @bind('p')
+    @bind('p', '[up]')
     def prev_message(self, k):
         it = iter(self.fe.context.backends.walk(self.cursor, False))
         try:
