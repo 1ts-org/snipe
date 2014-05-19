@@ -207,20 +207,20 @@ class Editor(context.Window):
     def delete(self, count):
         self.replace(count, '')
 
-    @context.bind('Control-D')
+    @context.bind('Control-D', '[dc]')
     def delete_forward(self, k):
         self.delete(1)
 
-    @context.bind('Control-H', 'Control-?')
+    @context.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, k):
         if self.move(-1):
             self.delete(1)
 
-    @context.bind('Control-F')
+    @context.bind('Control-F', '[right]')
     def move_forward(self, k):
         self.move(1)
 
-    @context.bind('Control-B')
+    @context.bind('Control-B', '[left]')
     def move_backward(self, k):
         self.move(-1)
 
@@ -232,11 +232,11 @@ class Editor(context.Window):
         self.cursor.point += delta # the setter does appropriate clamping
         return self.cursor.point - z
 
-    @context.bind('Control-N')
+    @context.bind('Control-N', '[down]')
     def line_next(self, k):
         self.line_move(1)
 
-    @context.bind('Control-P')
+    @context.bind('Control-P', '[up]')
     def line_previous(self, k):
         self.line_move(-1)
 
@@ -313,7 +313,7 @@ class Editor(context.Window):
                 return x
         return ''
 
-    @context.bind('Control-A')
+    @context.bind('Control-A', '[home]')
     def beginning_of_line(self, k=None):
         if self.cursor.point == 0:
             return
@@ -324,7 +324,7 @@ class Editor(context.Window):
         if self.find_character(self.EOL, -1):
             self.move(1)
 
-    @context.bind('Control-E')
+    @context.bind('Control-E', '[end]')
     def end_of_line(self, k=None):
         if not self.character_at_point() == self.EOL:
             self.find_character(self.EOL)

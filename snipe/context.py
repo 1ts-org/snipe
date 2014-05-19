@@ -384,15 +384,15 @@ class Keymap(dict):
         name = d['name']
         if key is None:
             with ignores(KeyError):
-                key = unicodedata.lookup(name.upper())
-
-        if key is None:
-            with ignores(KeyError):
                 key = Keymap.other_keys.get(name.lower())
 
         if key is None:
             with ignores(KeyError):
                 key = ttyfe.key.get(name.upper())
+
+        if key is None:
+            with ignores(KeyError):
+                key = unicodedata.lookup(name.upper())
 
         if key is None:
             raise TypeError('unknown name: %s' % name)
