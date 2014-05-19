@@ -51,15 +51,15 @@ r        | reply (privately) to the current message
 ### "Editor" windows
 key      | binding
 ---------|----------------
-^F | forward character
-^B | backward character
-^N | next line
-^P | previous line
-^A | beginning of line
-^E | end of line
+^F, → | forward character
+^B, ← | backward character
+^N, ↓ | next line
+^P, ↑ | previous line
+^A, ⇱ | beginning of line
+^E, ⇲ | end of line
 ^T | insert test text
-^D | delete character forward
-^H, ^? | delete character barckward
+^D, ⌦ | delete character forward
+^H, ^?, ⌫ | delete character barckward
 
 ### "Sender" windows are like "Editor" windows except
 key      | binding
