@@ -101,7 +101,7 @@ class Window(object):
             self.whine(k)
             self.active_keymap = self.keymap
 
-    def read_string(self, prompt, content=None, height=1):
+    def read_string(self, prompt, content=None, height=1, window=None):
         f = asyncio.Future()
 
         def done_callback(result):
@@ -112,11 +112,12 @@ class Window(object):
             if not f.done():
                 f.set_exception(Exception('Operation Aborted'))
 
-        from .editor import ShortPrompt, LongPrompt
-        if height > 2:
-            window = LongPrompt
-        else:
-            window = ShortPrompt
+        if window is None:
+            from .editor import ShortPrompt, LongPrompt
+            if height > 2:
+                window = LongPrompt
+            else:
+                window = ShortPrompt
         self.fe.popup_window(
             window(
                 self.fe,
@@ -175,6 +176,31 @@ class Window(object):
             'AAAA %s',
             ''.join(reversed(streeng)),
             )
+
+    @bind('Control-X :')
+    def replhack(self, k):
+        import traceback
+        from . import editor
+
+        self.log.debug('entering replhack')
+
+        out = ''
+        while True:
+            expr = yield from self.read_string(
+                out + ':>> ',
+                height = len(out.splitlines()) + 1,
+                window = editor.ShortPrompt,
+                )
+            self.log.debug('got expr %s', expr)
+            try:
+                ret = eval(expr, globals(), locals())
+                out = repr(ret)
+            except:
+                out = traceback.format_exc()
+            if out[:-1] != '\n':
+                out += '\n'
+            self.log.debug('result: %s', out)
+
 
 class Messager(Window):
     def __init__(self, *args, **kw):
