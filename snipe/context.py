@@ -209,8 +209,18 @@ class Messager(Window):
     def move(self, forward):
         it = iter(self.fe.context.backends.walk(self.cursor, forward))
         try:
-            next(it)
+            intermediate = next(it)
+            self.log.debug(
+                'move %s: intermediate: %s',
+                'forward' if forward else 'backward',
+                repr(intermediate),
+                )
             self.cursor = next(it)
+            self.log.debug(
+                'move %s: cursor: %s',
+                'forward' if forward else 'backward',
+                repr(self.cursor),
+                )
         except StopIteration:
             self.whine('No more messages')
 
