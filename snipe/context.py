@@ -200,16 +200,14 @@ class Messager(Window):
 
     @bind('n', '[down]')
     def next_message(self, k):
-        it = iter(self.fe.context.backends.walk(self.cursor))
-        try:
-            next(it)
-            self.cursor = next(it)
-        except StopIteration:
-            self.whine('No more messages')
+        self.move(True)
 
     @bind('p', '[up]')
     def prev_message(self, k):
-        it = iter(self.fe.context.backends.walk(self.cursor, False))
+        self.move(False)
+
+    def move(self, forward):
+        it = iter(self.fe.context.backends.walk(self.cursor, forward))
         try:
             next(it)
             self.cursor = next(it)
