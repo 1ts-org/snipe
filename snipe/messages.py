@@ -121,13 +121,19 @@ class SnipeBackend(object):
     def shutdown(self):
         pass
 
+class InfoMessage(SnipeMessage):
+    def __str__(self):
+        return self.body
 
 class StartupBackend(SnipeBackend):
     name = 'startup'
 
     def __init__(self, conf = {}):
         super(StartupBackend, self).__init__(conf)
-        self.messages = [SnipeMessage(self, 'Welcome to snipe.\n\n')]
+        self.messages = [
+            SnipeMessage(self, 'Welcome to snipe.\n\n'),
+            InfoMessage(self, '*', mtime=float('inf')),
+            ]
 
 
 class SyntheticBackend(SnipeBackend):
