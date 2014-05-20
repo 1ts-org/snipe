@@ -79,7 +79,7 @@ class SnipeMessage(object):
             '<' + self.__class__.__name__ + ' '
             + repr(self.time) + ' '
             + repr(self.sender) + ' '
-            + repr(self.body) + '>'
+            + str(len(self.body)) + ' chars>'
             )
 
 
