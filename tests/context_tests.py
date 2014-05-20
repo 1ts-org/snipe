@@ -78,8 +78,11 @@ class TestKeymap(unittest.TestCase):
         self.assertEqual(split('Control-?'), ('\x7f', None))
         self.assertEqual(split('Control-$'), (None, None))
         self.assertEqual(
+            split('Meta-:'),
+            ('\x1b', ':'))
+        self.assertEqual(
             split('Meta-Control-x'),
-            ('\x1b', 'Control-[LATIN CAPITAL LETTER X]'))
+            ('\x1b', 'Control-X'))
         self.assertEqual(
             split('Meta-[escape] oogledyboo'),
             ('\x1b', '[ESCAPE] oogledyboo'))

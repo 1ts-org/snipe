@@ -460,11 +460,7 @@ class Keymap(dict):
             if key in Keymap.unother_keys:
                 name = '[' + Keymap.unother_keys[key].upper() + ']'
             elif ord(key) < ord(' '):
-                name = (
-                    'Control-['
-                    + unicodedata.name(unicode(chr(ord(key) + ord('@'))))
-                    + ']'
-                    )
+                name = 'Control-' + chr(ord(key) + ord('@'))
             elif ord(key) < 127:
                 name = key
             else:
