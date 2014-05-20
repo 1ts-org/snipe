@@ -439,8 +439,10 @@ class Keymap(dict):
                     + unicodedata.name(unicode(chr(ord(key) + ord('@'))))
                     + ']'
                     )
+            elif ord(key) < 127:
+                name = key
             else:
-                name = '[' + unicodedata.name('key') + ']'
+                name = '[' + unicodedata.name(key) + ']'
             if rest:
                 name += ' ' + rest
             rest = name
