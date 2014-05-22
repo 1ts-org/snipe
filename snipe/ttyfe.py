@@ -192,7 +192,8 @@ class TTYRenderer(object):
     def makefunc(name):
         def _(self, *args):
             import inspect
-            self.log.debug(
+            #XXX make this configurable when we have configuration
+            if 0: self.log.debug(
                 '%d:%s%s',
                 inspect.currentframe().f_back.f_lineno,
                 name,
