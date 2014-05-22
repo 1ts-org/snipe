@@ -49,7 +49,6 @@ class TTYRenderer(object):
             'subwin(%d, %d, %d, %d)', self.height, self.width, self.y, self.x)
         self.w = ui.stdscr.subwin(self.height, self.width, self.y, self.x)
         self.w.idlok(1)
-        #self.w.scrollok(1)
         self.context = None
 
     @property
@@ -255,6 +254,7 @@ class TTYFrontend(object):
         curses.nonl()
         curses.raw()
         self.stdscr.keypad(1)
+        self.stdscr.nodelay(1)
         curses.start_color()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
@@ -293,13 +293,17 @@ class TTYFrontend(object):
         # rearrange windows as appropriate and trigger redisplays
 
     def readable(self):
-        k = self.stdscr.get_wch()
-        if k == curses.KEY_RESIZE:
-            self.doresize()
-            self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
-        elif self.active is not None:
-            self.windows[self.active].window.input_char(k)
-        self.redisplay()
+        while True: # make sure to consume all available input
+            try:
+                k = self.stdscr.get_wch()
+            except curses.error:
+                break
+            if k == curses.KEY_RESIZE:
+                self.doresize()
+                self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
+            elif self.active is not None:
+                self.windows[self.active].window.input_char(k)
+            self.redisplay()
 
     def redisplay(self):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
