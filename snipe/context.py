@@ -270,6 +270,14 @@ class Messager(Window):
     def reply(self, k):
         yield from self.send(k, self.cursor.replystr())
 
+    @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
+    def last(self, k):
+        self.cursor = next(self.fe.context.backends.walk(float('inf'), False))
+
+    @bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
+    def first(self, k):
+        self.cursor = next(self.fe.context.backends.walk(float('-inf'), True))
+
 class Context(object):
     # per-session state and abstact control
     def __init__(self, ui):
