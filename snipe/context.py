@@ -177,7 +177,7 @@ class Window(object):
             ''.join(reversed(streeng)),
             )
 
-    @bind('Control-X :')
+    @bind('Meta-[ESCAPE]', 'Meta-:')
     def replhack(self, k):
         import traceback
         from . import editor
@@ -191,6 +191,8 @@ class Window(object):
                 height = len(out.splitlines()) + 1,
                 window = editor.ShortPrompt,
                 )
+            if not expr.strip():
+                break
             self.log.debug('got expr %s', expr)
             try:
                 ret = eval(expr, globals(), locals())
