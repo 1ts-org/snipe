@@ -339,6 +339,20 @@ class Editor(context.Window):
             mark.point = self.cursor
         self.cursor.point = cursor
 
+    @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
+    def beginning_of_buffer(self, k):
+        self.cursor.point = 0
+
+    @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
+    def end_of_buffer(self, k):
+        self.cursor.point = self.size
+
+    def input_char(self, k):
+        self.log.debug('before command %s', self.cursor)
+        super().input_char(k)
+        self.log.debug('after command  %s', self.cursor)
+
+
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
         super().__init__(*args, **kw)
