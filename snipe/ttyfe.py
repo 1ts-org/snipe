@@ -176,8 +176,8 @@ class TTYRenderer(object):
             if cursor is not None:
                 self.w.leaveok(0)
                 curses.curs_set(1)
-                self.w.cursyncup()
                 self.move(*cursor)
+                self.w.cursyncup()
             else:
                 curses.curs_set(0)
         else:
