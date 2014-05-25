@@ -28,11 +28,19 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+import logging
+import operator
+
 import ply.lex
+import ply.yacc
 
 
 class Filter(object):
     name = None
+
+    def __init__(self):
+        self.log = logging.getLogger(
+            'filter.%s.%x' % (self.__class__.__name__, id(self),))
 
     def __call__(self, m):
         raise NotImplemented
@@ -44,25 +52,31 @@ class Filter(object):
         return self.__class__.__name__+'()'
 
     def parenthesize(self, p):
-        if isinstance(p, conjunction):
+        if isinstance(p, Conjunction):
             return '(' + str(p) + ')'
         else:
             return str(p)
 
     def gname(self):
-        return self.name or self.__class__.__name__
+        return self.name or self.__class__.__name__.lower()
 
 
-class yes(Filter):
+class Truth(Filter):
+    def __eq__(self, other):
+        return self.__class__ is other.__class__
+
+
+class Yes(Truth):
     def __call__(self, m):
         return True
 
 
-class no(Filter):
+class No(Truth):
     def __call__(self, m):
         return False
 
-class not_(Filter):
+
+class Not(Filter):
     name = 'not'
 
     def __init__(self, p):
@@ -75,11 +89,15 @@ class not_(Filter):
         return self.gname() + ' ' + self.parenthesize(self.p)
 
     def __repr__(self):
-        return self.__class.__name__ + '(' + repr(self.p) + ')'
+        return self.__class__.__name__ + '(' + repr(self.p) + ')'
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self.p == other.p
 
 
-class conjunction(Filter):
+class Conjunction(Filter):
     def __init__(self, *args):
+        super(Conjunction, self).__init__()
         self.operands = args
 
     def __str__(self):
@@ -88,11 +106,18 @@ class conjunction(Filter):
             )
 
     def __repr__(self):
-        return ' ' + self.gname() + '(' + ', '.join(
+        return self.__class__.__name__ + '(' + ', '.join(
             repr(p) for p in self.operands
             ) + ')'
 
-class and_(conjunction):
+    def __eq__(self, other):
+        return (
+            self.__class__ is other.__class__
+            and self.operands == other.operands
+            )
+
+
+class And(Conjunction):
     name = 'and'
 
     def __call__(self, m):
@@ -101,7 +126,8 @@ class and_(conjunction):
                 return False
         return True
 
-class or_(conjunction):
+
+class Or(Conjunction):
     name = 'or'
 
     def __call__(self, m):
@@ -110,22 +136,161 @@ class or_(conjunction):
                 return True
         return False
 
-class xor_(conjunction):
+
+class Xor(Conjunction):
     name = 'xor'
 
     def __call__(self, m):
         return len([True for p in self.operands if p(m)]) == 1
 
-class lexer(object):
+
+class Python(Filter):
+    def __init__(self, string):
+        super(Python, self).__init__()
+        self.string = string
+
+    def __repr__(self):
+        return '%s(%s)' % (
+            self.__class__.__name__,
+            repr(self.string),
+            )
+
+    def __call__(self, m):
+        try:
+            return eval(self.string, {}, {'m': m})
+        except:
+            self.log.exception(
+                'executing python filter %s on %s',
+                repr(self.string),
+                repr(m))
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self.string == other.string
+
+
+class FilterLookup(Filter):
+    def __init__(self, name):
+        super(FilterLookup, self).__init__()
+        self.name = name
+
+    def __repr__(self):
+        return '%s(%s)' % (
+            self.__class__.__name__,
+            repr(self.name),
+            )
+
+    def __call__(self, m):
+        return findfilter(self.name)(m) #XXX
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self.name == other.name
+
+
+class Comparison(Filter):
+    def __init__(self, op, field, value):
+        super(Comparison, self).__init__()
+        self.op, self.field, self.value = (
+            op, field, value)
+
+    def __repr__(self):
+        return '%s(%s, %s, %s)' % (
+            self.__class__.__name__,
+            repr(self.op),
+            repr(self.field),
+            repr(self.value),
+            )
+
+    def __call__(self, m):
+        return self.do(self.op, m.data[self.field], self.value)
+
+    def __eq__(self, other):
+        return (
+            self.__class__ is other.__class__
+            and self.op == other.op
+            and self.field == other.field
+            and self.value == other.value
+            )
+
+
+class Compare(Comparison):
+    @staticmethod
+    def do(op, left, right):
+        f = {
+            '=': operator.eq,
+            '==': operator.eq,
+            '!=': operator.ne,
+            '<': operator.lt,
+            '<=': operator.le,
+            '>': operator.gt,
+            '>=': operator.ge,
+            }[op]
+        try:
+            return f(left, right)
+        except:
+            #XXX log a snarky comment where the user will see?
+            self.log.exception('in filter')
+            return False
+
+    @staticmethod
+    def static(op, left, right):
+        result = Compare.do(op, left, right)
+        return Yes() if result else No()
+
+
+class RECompare(Filter):
+    def __init__(self, *args):
+        super(RECompare, self).__init__(*args)
+        try:
+            self.re = re.compile(self.value)
+        except:
+            self.log.exception('compiling regexp: %s', self.value)
+            self.re = None
+
+    @staticmethod
+    def do(op, re, value):
+        if re is None:
+            return False
+        result = bool(re.match(value))
+        if op[0] == '!':
+            result = not result
+        return result
+
+    @staticmethod
+    def static(op, regexp, value):
+        try:
+            re = rec.compile(regexp)
+        except:
+            self.log.exception('compiling regexp: %s', self.value)
+            return No()
+
+        result = self.do(op, re, value)
+        return Yes() if result else No()
+
+    def __call__(self, m):
+        return self.do(self.op, self.re, str(m.data[self.field]))
+
+
+class Lexeme(object):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + repr(self.value) + ')'
+
+
+class Identifier(Lexeme):
+    pass
+
+
+class Regexp(Lexeme):
+    pass
+
+
+class Lexer(object):
     tokens = (
-        'NUMBER',
-        'STRING',
-        'REGEXP',
-        'AND',
-        'OR',
-        'XOR',
-        'NOT',
-        'FIELD',
         'EQ',
         'EQEQ',
         'NE',
@@ -133,10 +298,20 @@ class lexer(object):
         'LTE',
         'GT',
         'GTE',
-        'LPAREN',
-        'RPAREN',
+        'NUMBER',
+        'STRING',
+        'REGEXP',
+        'ID',
         'PYTHON',
         'FILTER',
+        'YES',
+        'NO',
+        'LPAREN',
+        'RPAREN',
+        'AND',
+        'OR',
+        'XOR',
+        'NOT',
         )
 
     def t_NUMBER(self, t):
@@ -163,6 +338,8 @@ class lexer(object):
             'xor': 'XOR',
             'not': 'NOT',
             'filter': 'FILTER',
+            'yes': 'YES',
+            'no': 'NO',
             }
 
         t.type = word.get(t.value, 'ID')
@@ -191,6 +368,7 @@ class lexer(object):
 
     def build(self):
         self.lexer = ply.lex.lex(module=self)
+        return self.lexer
 
     def test(self, data):
         self.lexer.input(data)
@@ -198,5 +376,139 @@ class lexer(object):
             tok = self.lexer.token()
             if not tok:
                 break
-            print tok
+            yield tok
 
+
+class Parser(object):
+    tokens = Lexer.tokens
+
+    precedence = (
+        ('left', 'XOR', 'OR', 'AND'),
+        ('right', 'NOT'), #?
+    )
+
+    def p_exp_yes(self, p):
+        'exp : YES'
+        p[0] = Yes()
+
+    def p_exp_no(self, p):
+        'exp : NO'
+        p[0] = No()
+
+    def p_exp_python(self, p):
+        'exp : PYTHON'
+        print(repr(p))
+        print(repr(p[1]))
+        p[0] = Python(p[1])
+
+    def p_exp_filter(self, p):
+        'exp : FILTER ID'
+        p[0] = FilterLookup(p[1])
+
+    def p_exp_parens(self, p):
+        'exp : LPAREN exp RPAREN'
+        p[0] = p[2]
+
+    def p_exp_not(self, p):
+        'exp : NOT exp'
+        p[0] = Not(p[2])
+
+    def p_exp_and(self, p):
+        'exp : exp AND exp'
+        p[0] = And(p[1], p[3])
+
+    def p_exp_or(self, p):
+        'exp : exp OR exp'
+        p[0] = Or(p[1], p[3])
+
+    def p_exp_xor(self, p):
+        'exp : exp XOR exp'
+        p[0] = Xor(p[1], p[3])
+
+    def p_val(self, p):
+        '''
+        val : NUMBER
+            | STRING
+            | id
+        '''
+        p[0] = p[1]
+
+    def p_eqop(self, p):
+        '''
+        eop : EQ
+            | EQEQ
+            | NE
+        '''
+        p[0] = p[1]
+
+    def p_relop(self, p):
+        '''
+        rop : LT
+            | LTE
+            | GT
+            | GTE
+        '''
+        p[0] = p[1]
+
+    def p_op(self, p):
+        '''
+        op  : eop
+            | rop
+        '''
+        p[0] = p[1]
+
+    def p_id(self, p):
+        '''
+        id  : ID
+        '''
+        p[0] = Identifier(p[1])
+
+    def p_re(self, p):
+        '''
+        re  : REGEXP
+        '''
+
+    def p_exp_comparison(self, p):
+        '''
+        exp : val op val
+        '''
+        op = p[2]
+        if isinstance(p[1], Identifier):
+            left, right = str(p[1]), p[3]
+        elif isinstance(p[3], Identifier):
+            left, right = str(p[3]), p[1]
+            op = {
+                '=': '=', '==': '==', '!=': '!=',           #symmetric
+                '<': '>=', '<=': '>', '>': '<=', '>=': '<', #not
+                }[op]
+        else:
+            p[0] = Compare.static(op, p[1], p[3])
+            return
+        p[0] = Compare(op, left, right)
+
+    def p_exp_recompare(self, p):
+        '''
+        exp : val eop re
+            | re eop val
+        '''
+        if p[1].type == 'REGEXP':
+            regexp, val = p[1], p[3]
+        else:
+            regexp, val = p[3], p[1]
+        if not isinstance(val, Identifier):
+            p[0] = RECompare.static(regexp, val)
+        else:
+            p[0] = RECompare(op, val, regexp)
+
+    def p_error(self, p):
+        print('syntax error at', repr(p))
+
+    def build(self):
+        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=False)
+        return self.parser
+
+lexer = Lexer().build()
+parser = Parser().build()
+
+def filter_from_string(s):
+    return parser.parse(s, lexer=lexer)
