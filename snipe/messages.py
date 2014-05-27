@@ -125,6 +125,20 @@ class InfoMessage(SnipeMessage):
     def __str__(self):
         return self.body
 
+
+class TerminusBackend(SnipeBackend):
+    name = 'terminus'
+
+    def __init__(self, conf = {}):
+        super().__init__(conf)
+        self.messages = [
+            InfoMessage(self, '*', mtime=float('inf')),
+            ]
+
+    def walk(self, start, forward=True, filter=None):
+        return super().walk(start, forward, None) # ignore any filters
+
+
 class StartupBackend(SnipeBackend):
     name = 'startup'
 
@@ -132,7 +146,6 @@ class StartupBackend(SnipeBackend):
         super(StartupBackend, self).__init__(conf)
         self.messages = [
             SnipeMessage(self, 'Welcome to snipe.\n\n'),
-            InfoMessage(self, '*', mtime=float('inf')),
             ]
 
 
@@ -185,7 +198,7 @@ class AggregatorBackend(SnipeBackend):
 
     def __init__(self, backends = [], conf = {}):
         super(AggregatorBackend, self).__init__(conf)
-        self.backends = []
+        self.backends = [TerminusBackend()]
         for backend in backends:
             self.add(backend)
 
