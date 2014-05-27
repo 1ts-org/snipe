@@ -93,6 +93,7 @@ class Window(object):
                         except:
                             self.log.exception('Executing complex command')
                             self.whine(k)
+                        self.fe.redisplay()
 
                     t = asyncio.Task(catch_and_log(ret))
 
