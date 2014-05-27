@@ -417,6 +417,14 @@ class Parser(PlyShim):
         ('right', 'NOT'), #?
     )
 
+    def p_fil_exp(self, p):
+        'fil : exp'
+        p[0] = p[1]
+
+    def p_fil_empty(self, p):
+        'fil :'
+        p[0] = None
+
     def p_exp_yes(self, p):
         'exp : YES'
         p[0] = Yes()
