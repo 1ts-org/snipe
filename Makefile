@@ -3,7 +3,7 @@ all:
 
 coverage:
 	nosetests3 --with-coverage
-	python-coverage html
+	python3-coverage html
 
 clean:
 	$(RM) -r .coverage profiling htmlcov
