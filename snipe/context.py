@@ -38,6 +38,7 @@ import asyncio
 from . import messages
 from . import ttyfe
 from . import roost
+from . import filters
 
 
 def bind(*seqs):
@@ -212,9 +213,13 @@ class Messager(Window):
         #^n ^p j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
+        self.filter = None
+
+    def walk(self, origin, direction):
+        return self.fe.context.backends.walk(origin, direction, self.filter)
 
     def view(self, origin, direction='forward'):
-        for x in self.fe.context.backends.walk(origin, direction == 'forward'):
+        for x in self.walk(origin, direction == 'forward'):
             s = str(x)
             if s and s[-1] != '\n':
                 s += '\n'
@@ -236,7 +241,7 @@ class Messager(Window):
         self.move(False)
 
     def move(self, forward):
-        it = iter(self.fe.context.backends.walk(self.cursor, forward))
+        it = iter(self.walk(self.cursor, forward))
         try:
             intermediate = next(it)
             self.log.debug(
@@ -273,11 +278,26 @@ class Messager(Window):
 
     @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
     def last(self, k):
-        self.cursor = next(self.fe.context.backends.walk(float('inf'), False))
+        self.cursor = next(self.walk(float('inf'), False))
 
     @bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
     def first(self, k):
-        self.cursor = next(self.fe.context.backends.walk(float('-inf'), True))
+        self.cursor = next(self.walk(float('-inf'), True))
+
+    @bind('Meta-/ 0')
+    def filter_rest(self, k):
+        self.filter = None
+
+    @bind('Meta-/ =')
+    def filter_edit(self, k):
+        s = '' if self.filter is None else str(self.filter)
+
+        s = yield from self.read_string('Filter expression:\n', s, 5)
+
+        self.filter = filters.makefilter(s)
+
+        self.cursor = next(self.walk(self.cursor, True))
+
 
 class Context(object):
     # per-session state and abstact control

@@ -63,6 +63,7 @@ class SnipeMessage(object):
         self.backend = backend
         self.time = time.time() if mtime is None else mtime
         self.body = body
+        self.data = {}
 
     @property
     def sender(self):
@@ -81,6 +82,20 @@ class SnipeMessage(object):
             + repr(self.sender) + ' '
             + str(len(self.body)) + ' chars>'
             )
+
+    @staticmethod
+    def canon(field, value):
+        return value
+
+    def field(self, name, canon=True):
+        val = getattr(self, name, None)
+        if val is None:
+            val = self.data.get(name, None)
+        if canon and val is not None:
+            val = self.canon(name, val)
+        if val is None:
+            val = ''
+        return val
 
 
 class SnipeBackend(object):
@@ -120,6 +135,7 @@ class SnipeBackend(object):
 
     def shutdown(self):
         pass
+
 
 class InfoMessage(SnipeMessage):
     def __str__(self):
