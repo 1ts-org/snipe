@@ -30,9 +30,16 @@
 
 import logging
 import operator
+import re
 
 import ply.lex
 import ply.yacc
+
+from . import util
+
+
+class SnipeFilterError(util.SnipeException):
+    pass
 
 
 class Filter(object):
@@ -191,6 +198,7 @@ class Comparison(Filter):
         super(Comparison, self).__init__()
         self.op, self.field, self.value = (
             op, field, value)
+        self.canon = True if self.op != '==' else False
 
     def __repr__(self):
         return '%s(%s, %s, %s)' % (
@@ -201,7 +209,10 @@ class Comparison(Filter):
             )
 
     def __call__(self, m):
-        return self.do(self.op, m.data[self.field], self.value)
+        v = self.value
+        if isinstance(v, Identifier): #XXX grumpiness about abstraction leakage
+            v = m.field(str(v), self.canon)
+        return self.do(self.op, m.field(self.field, self.canon), v)
 
     def __eq__(self, other):
         return (
@@ -237,7 +248,7 @@ class Compare(Comparison):
         return Yes() if result else No()
 
 
-class RECompare(Filter):
+class RECompare(Comparison):
     def __init__(self, *args):
         super(RECompare, self).__init__(*args)
         try:
@@ -247,10 +258,10 @@ class RECompare(Filter):
             self.re = None
 
     @staticmethod
-    def do(op, re, value):
-        if re is None:
+    def do(op, regexp, value):
+        if regexp is None:
             return False
-        result = bool(re.match(value))
+        result = bool(regexp.match(value))
         if op[0] == '!':
             result = not result
         return result
@@ -258,16 +269,16 @@ class RECompare(Filter):
     @staticmethod
     def static(op, regexp, value):
         try:
-            re = rec.compile(regexp)
+            regexp = re.compile(regexp)
         except:
             self.log.exception('compiling regexp: %s', self.value)
             return No()
 
-        result = self.do(op, re, value)
+        result = RECompare.do(op, regexp, value)
         return Yes() if result else No()
 
     def __call__(self, m):
-        return self.do(self.op, self.re, str(m.data[self.field]))
+        return self.do(self.op, self.re, str(m.field(self.field, self.canon)))
 
 
 class Lexeme(object):
@@ -280,6 +291,9 @@ class Lexeme(object):
     def __repr__(self):
         return self.__class__.__name__ + '(' + repr(self.value) + ')'
 
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self.value == other.value
+
 
 class Identifier(Lexeme):
     pass
@@ -289,7 +303,21 @@ class Regexp(Lexeme):
     pass
 
 
-class Lexer(object):
+class PlyShim:
+    def __init__(self):
+        self.reset_errors()
+
+    def reset_errors(self):
+        self._errors = []
+
+    errors = property(lambda self: self._errors)
+
+
+class Lexer(PlyShim):
+    def __init__(self):
+        super().__init__()
+        self.lexer = ply.lex.lex(module=self)
+
     tokens = (
         'EQ',
         'EQEQ',
@@ -363,12 +391,8 @@ class Lexer(object):
     t_ignore = '\n\t '
 
     def t_error(self, t):
-        print '?', t.value[0]
+        self._errors.append(t)
         t.lexer.skip(1)
-
-    def build(self):
-        self.lexer = ply.lex.lex(module=self)
-        return self.lexer
 
     def test(self, data):
         self.lexer.input(data)
@@ -377,9 +401,15 @@ class Lexer(object):
             if not tok:
                 break
             yield tok
+        if self._errors:
+            raise SnipeFilterError(self._errors, [])
 
 
-class Parser(object):
+class Parser(PlyShim):
+    def __init__(self):
+        super().__init__()
+        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=False)
+
     tokens = Lexer.tokens
 
     precedence = (
@@ -397,8 +427,6 @@ class Parser(object):
 
     def p_exp_python(self, p):
         'exp : PYTHON'
-        print(repr(p))
-        print(repr(p[1]))
         p[0] = Python(p[1])
 
     def p_exp_filter(self, p):
@@ -467,6 +495,7 @@ class Parser(object):
         '''
         re  : REGEXP
         '''
+        p[0] = Regexp(p[1])
 
     def p_exp_comparison(self, p):
         '''
@@ -491,24 +520,25 @@ class Parser(object):
         exp : val eop re
             | re eop val
         '''
-        if p[1].type == 'REGEXP':
+        if isinstance(p[1], Regexp):
             regexp, val = p[1], p[3]
         else:
             regexp, val = p[3], p[1]
         if not isinstance(val, Identifier):
-            p[0] = RECompare.static(regexp, val)
+            p[0] = RECompare.static(p[2], str(regexp), str(val))
         else:
-            p[0] = RECompare(op, val, regexp)
+            p[0] = RECompare(p[2], str(val), str(regexp))
 
     def p_error(self, p):
-        print('syntax error at', repr(p))
+        self._errors.append(p)
 
-    def build(self):
-        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=False)
-        return self.parser
+parser = Parser()
+lexer = Lexer()
 
-lexer = Lexer().build()
-parser = Parser().build()
-
-def filter_from_string(s):
-    return parser.parse(s, lexer=lexer)
+def makefilter(s):
+    lexer.reset_errors()
+    parser.reset_errors()
+    result = parser.parser.parse(s, lexer=lexer.lexer)
+    if lexer.errors or parser.errors:
+        raise SnipeFilterError(lexer.errors, parser.errors)
+    return result
