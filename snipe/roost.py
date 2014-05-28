@@ -160,7 +160,7 @@ class Roost(messages.SnipeBackend):
 
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
-        super().__init__(backend, m['message'], m['time'] / 1000)
+        super().__init__(backend, m['message'], m['receiveTime'] / 1000)
         self.data = m
         self._sender = RoostPrincipal(backend, m['sender'])
 
@@ -179,7 +179,7 @@ class RoostMessage(messages.SnipeMessage):
                 else ' [{}]'.format(self.data['opcode'])),
             signature=self.data['signature'],
             sender=self.sender,
-            date=time.ctime(self.time),
+            date=time.ctime(self.data['time']),
             body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
