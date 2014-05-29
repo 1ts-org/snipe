@@ -351,6 +351,7 @@ class Lexer(PlyShim):
         r'"(?P<content>([^\\\n"]|(\\.))*)"'
         #r'(?P<quote>[' "'" r'"])(?P<content>.*)(?P=quote)'
         t.value = self.lexer.lexmatch.group('content')
+        t.value = '\\'.join(x.replace(r'\"', '"') for x in t.value.split('\\\\'))
         return t
 
     def t_REGEXP(self, t):
