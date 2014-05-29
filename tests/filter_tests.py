@@ -38,6 +38,7 @@ import sys
 
 sys.path.append('..')
 
+import snipe.filters
 from snipe.filters import *
 
 
@@ -63,7 +64,13 @@ class TestFilters(unittest.TestCase):
         self.assertRaises(
             SnipeFilterError,
             lambda: list(lexer.test("'foo'")))
+
+        self.assertEqual(
+            next(snipe.filters.lexer.test(r'"foo\\\"bar"')).value,
+            'foo\\"bar')
+
     def testParser(self):
+        snipe.filters.parser = Parser(debug = True)
         self.assertEqual(
             makefilter('yes'),
             Yes())
@@ -135,6 +142,13 @@ class TestFilters(unittest.TestCase):
                 foo='Bar',
                 Foo='bar',
                 )))
+
+        self.assertEqual(
+            str(makefilter('foo == "bar"')),
+            'foo == "bar"')
+        self.assertEqual(
+            str(makefilter('"bar" == foo')),
+            'foo == "bar"')
 
 class MockMsg:
     def __init__(self, **kw):

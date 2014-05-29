@@ -222,6 +222,21 @@ class Comparison(Filter):
             and self.value == other.value
             )
 
+    def __str__(self):
+        if isinstance(self.value, Identifier):
+            right = str(self.value)
+        elif isinstance(self.value, str):
+            right = '"%s"' % (
+                self.value.replace('\\', '\\\\').replace('"', '\\"'),
+                )
+        else:
+            right = repr(self.value)
+        return '%s %s %s' % (
+            self.field,
+            self.op,
+            right,
+            )
+
 
 class Compare(Comparison):
     @staticmethod
@@ -279,6 +294,13 @@ class RECompare(Comparison):
 
     def __call__(self, m):
         return self.do(self.op, self.re, str(m.field(self.field, self.canon)))
+
+    def __str__(self):
+        return '%s %s /%s/' % (
+            self.field,
+            self.op,
+            self.value.replace('/', r'\/'),
+            )
 
 
 class Lexeme(object):
