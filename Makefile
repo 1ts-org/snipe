@@ -6,7 +6,7 @@ coverage:
 	python3-coverage html
 
 clean:
-	$(RM) -r .coverage profiling htmlcov
+	$(RM) -r .coverage profiling htmlcov parser.out tests/parser.out
 
 install:
 
