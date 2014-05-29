@@ -406,9 +406,9 @@ class Lexer(PlyShim):
 
 
 class Parser(PlyShim):
-    def __init__(self):
+    def __init__(self, debug=False):
         super().__init__()
-        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=False)
+        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=debug)
 
     tokens = Lexer.tokens
 
