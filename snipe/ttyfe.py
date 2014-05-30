@@ -40,6 +40,7 @@ import itertools
 class TTYRenderer(object):
     def __init__(self, ui, y, h, window):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
+        self.curses_log = logging.getLogger('TTYRender.curses.%x' %  (id(self),))
         self.ui, self.y, self.height = ui, y, h
         self.x = 0
         self.width = ui.maxx
@@ -192,8 +193,7 @@ class TTYRenderer(object):
     def makefunc(name):
         def _(self, *args):
             import inspect
-            #XXX make this configurable when we have configuration
-            if 0: self.log.debug(
+            self.curses_log.debug(
                 '%d:%s%s',
                 inspect.currentframe().f_back.f_lineno,
                 name,
