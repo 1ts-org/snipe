@@ -224,6 +224,17 @@ class TestEditor(unittest.TestCase):
             self.assertEqual(a.tounicode(), g.text)
             print (g.text)
 
+    def test_character_at_point(self):
+        # really testing textrange
+        e = snipe.editor.Editor(None)
+        e.insert('one\ntwo\nthree\nfour\n')
+        e.line_previous(None)
+        e.line_previous(None)
+        self.assertEqual(e.character_at_point(), 't')
+        e.insert('x')
+        self.assertEqual(e.character_at_point(), 't')
+        e.move(10)
+        self.assertEqual(e.character_at_point(), '\n')
 
 if __name__ == '__main__':
     unittest.main()

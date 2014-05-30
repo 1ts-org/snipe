@@ -122,13 +122,13 @@ class Editor(context.Window):
             + self.buf[self.gapend:].tounicode())
 
     def textrange(self, beg, end):
-        beg = int(beg)
-        end = int(end)
+        beg = self.pointtopos(beg)
+        end = self.pointtopos(end)
         l = []
         if beg <= self.gapstart:
             l.append(self.buf[beg:min(self.gapstart, end)].tounicode())
         if end > self.gapstart:
-            l.append(self.buf[self.gapend:self.pointtopos(end)].tounicode())
+            l.append(self.buf[max(self.gapend, beg):end].tounicode())
         return ''.join(l)
 
     @property
