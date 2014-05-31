@@ -144,7 +144,6 @@ class TTYRenderer(object):
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
-                self.log.debug('cursor %s visible %s attr %s', cursor, visible, attr)
                 for line, remaining in self.doline(text, self.width, remaining):
                     try:
                         self.addstr(line)

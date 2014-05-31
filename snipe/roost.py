@@ -154,7 +154,7 @@ class Roost(messages.SnipeBackend):
             count += len([m for m in ms if mfilter(m)])
             ms.reverse()
             self.messages = ms + self.messages
-            self.log.debug('%d messages, total %d', count, len(self.messages))
+            self.log.warning('%d messages, total %d', count, len(self.messages))
             if count < 8 and ms and ms[0].time > (origin - 24 * 3600 * 7):
                 #XXX this should configurable
                 self.trigger_backfill(mfilter, count, origin)

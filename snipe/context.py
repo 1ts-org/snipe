@@ -308,11 +308,11 @@ class Context(object):
         self.log.warning('snipe starting')
         #XXX this should be configurable, of course
         self.log.setLevel(logging.INFO)
-        logging.getLogger('Rooster').setLevel(logging.INFO)
-        logging.getLogger('Roost').setLevel(logging.INFO)
-        logging.getLogger('TTYFrontend').setLevel(logging.INFO)
-        logging.getLogger('TTYRender').setLevel(logging.DEBUG)
-        logging.getLogger('TTYRender.curses').setLevel(logging.INFO)
+        logging.getLogger('Rooster').setLevel(logging.WARNING)
+        logging.getLogger('Roost').setLevel(logging.WARNING)
+        logging.getLogger('TTYFrontend').setLevel(logging.WARNING)
+        logging.getLogger('TTYRender').setLevel(logging.WARNING)
+        logging.getLogger('TTYRender.curses').setLevel(logging.WARNING)
         logging.getLogger('asyncio').setLevel(logging.WARNING)
         #XXX kludge so the kludged sending can find the roost backend
         self.roost = roost.Roost(
