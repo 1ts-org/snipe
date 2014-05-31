@@ -36,6 +36,7 @@ import time
 import shlex
 import os
 import urllib.parse
+import contextlib
 
 from . import messages
 from . import _rooster
@@ -104,34 +105,60 @@ class Roost(messages.SnipeBackend):
         self.redisplay(msg)
 
     @asyncio.coroutine
-    def do_backfill(self, start):
-        if not self.backfilling:
-            self.backfilling = True
-            self.log.debug('backfilling')
-            if self.loaded:
+    def do_backfill(self, start, mfilter, count=0):
+        yield from asyncio.sleep(.0001)
+
+        @contextlib.contextmanager
+        def backfillguard():
+            if self.backfilling:
+                yield True
+            else:
+                self.log.debug('entering guard')
+                self.backfilling = True
+                yield False
+                self.backfilling = False
+                self.log.debug('leaving guard')
+
+        with backfillguard() as already:
+            if already:
+                self.log.debug('already backfiling')
                 return
+
+            if mfilter is None:
+                mfilter = lambda m: True
+
+            if self.loaded:
+                self.log.debug('no more messages to backfill')
+                return
+            self.log.debug('backfilling')
             chunk = yield from self.r.messages(start, self.chunksize)
-            import pprint
-            self.log.debug('%s', pprint.pformat(chunk))
+
             if chunk['isDone']:
-                self.log.debug('IT IS DONE.')
+                self.log.info('IT IS DONE.')
                 self.loaded = True
             ms = [RoostMessage(self, m) for m in chunk['messages']]
+            if start is None and ms:
+                start = ms[0].time
             for m in ms:
                 self.messages.appendleft(m)
-            self.log.debug('now %d messages', len(self.messages))
+                if mfilter(m):
+                    count += 1
+            self.log.debug('%d messages, total %d', count, len(self.messages))
+            if count < 8: #XXX this should configurable
+                self.trigger_backfill(mfilter, count)
             self.redisplay(ms[0]) # XXX should actually be a time range, or a
                                   # pair of messages
             self.log.debug('done backfilling')
-            self.backfilling = False
-        else:
-            self.log.debug('already backfilling')
 
-    def backfill_trigger(self, iterable):
+    def backfill_trigger(self, iterable, filter):
         yield from iterable
+        self.trigger_backfill(filter)
+
+    def trigger_backfill(self, filter, count=0):
         if not self.loaded:
+            self.log.debug('triggering backfill')
             msgid = self.messages[0].data['id'] if self.messages else None
-            asyncio.Task(self.do_backfill(msgid))
+            asyncio.Task(self.do_backfill(msgid, filter, count))
 
     def walk(self, start, forward=True, filter=None):
         #XXX nearly a straight copy of the superclass
@@ -151,7 +178,7 @@ class Roost(messages.SnipeBackend):
         l = self.messages
         if not forward:
             l = iter(reversed(l))
-            l = self.backfill_trigger(l)
+            l = self.backfill_trigger(l, filter)
         if start:
             l = itertools.dropwhile(pred, l)
         if filter is not None:
