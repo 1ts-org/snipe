@@ -327,15 +327,6 @@ class Context(object):
         self.ui.initial(Messager(self.ui))
 
 
-
-@contextlib.contextmanager
-def ignores(*exceptions):
-    try:
-        yield
-    except exceptions:
-        pass
-
-
 class Keymap(dict):
     def __init__(self, d={}):
         super(Keymap, self).__init__()
@@ -459,15 +450,15 @@ class Keymap(dict):
 
         name = d['name']
         if key is None:
-            with ignores(KeyError):
+            with contextlib.suppress(KeyError):
                 key = Keymap.other_keys.get(name.lower())
 
         if key is None:
-            with ignores(KeyError):
+            with contextlib.suppress(KeyError):
                 key = ttyfe.key.get(name.upper())
 
         if key is None:
-            with ignores(KeyError):
+            with contextlib.suppress(KeyError):
                 key = unicodedata.lookup(name.upper())
 
         if key is None:
