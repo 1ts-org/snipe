@@ -206,7 +206,7 @@ class RoostMessage(messages.SnipeMessage):
                 else ' [{}]'.format(self.data['opcode'])),
             signature=self.data['signature'],
             sender=self.sender,
-            date=time.ctime(self.data['time']),
+            date=time.ctime(self.data['time'] / 1000),
             body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
