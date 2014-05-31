@@ -47,7 +47,7 @@ class Roost(messages.SnipeBackend):
 
     def __init__(self, conf = {}):
         super().__init__(conf)
-        self.messages = collections.deque()
+        self.messages = []
         url = os.environ['ROOST_API'] #XXX should provide a default? maybe?
         # the configuration monster strikes again
         service_names = {
@@ -104,8 +104,22 @@ class Roost(messages.SnipeBackend):
         self.messages.append(msg)
         self.redisplay(msg)
 
+    def backfill_trigger(self, iterable, filter):
+        yield from iterable
+        self.trigger_backfill(filter)
+
+    def trigger_backfill(self, filter, count=0, origin=None):
+        if not self.loaded:
+            self.log.debug('triggering backfill')
+            msgid = None
+            if self.messages:
+                msgid = self.messages[0].data['id']
+                if origin is None:
+                    origin = self.messages[0].time
+            asyncio.Task(self.do_backfill(msgid, filter, count, origin))
+
     @asyncio.coroutine
-    def do_backfill(self, start, mfilter, count=0):
+    def do_backfill(self, start, mfilter, count, origin):
         yield from asyncio.sleep(.0001)
 
         @contextlib.contextmanager
@@ -137,31 +151,20 @@ class Roost(messages.SnipeBackend):
                 self.log.info('IT IS DONE.')
                 self.loaded = True
             ms = [RoostMessage(self, m) for m in chunk['messages']]
-            if start is None and ms:
-                start = ms[0].time
-            for m in ms:
-                self.messages.appendleft(m)
-                if mfilter(m):
-                    count += 1
+            count += len([m for m in ms if mfilter(m)])
+            ms.reverse()
+            self.messages = ms + self.messages
             self.log.debug('%d messages, total %d', count, len(self.messages))
-            if count < 8: #XXX this should configurable
-                self.trigger_backfill(mfilter, count)
+            if count < 8 and ms and ms[0].time > (origin - 24 * 3600 * 7):
+                #XXX this should configurable
+                self.trigger_backfill(mfilter, count, origin)
             self.redisplay(ms[0]) # XXX should actually be a time range, or a
                                   # pair of messages
             self.log.debug('done backfilling')
 
-    def backfill_trigger(self, iterable, filter):
-        yield from iterable
-        self.trigger_backfill(filter)
-
-    def trigger_backfill(self, filter, count=0):
-        if not self.loaded:
-            self.log.debug('triggering backfill')
-            msgid = self.messages[0].data['id'] if self.messages else None
-            asyncio.Task(self.do_backfill(msgid, filter, count))
-
     def walk(self, start, forward=True, filter=None):
         #XXX nearly a straight copy of the superclass
+        self.log.debug('walk(%s, %s, %s)', start, forward, filter)
         if start is None:
             pred = lambda x: False
         elif getattr(start, 'backend', None) is self:
