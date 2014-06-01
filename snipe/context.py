@@ -313,6 +313,7 @@ class Context(object):
         logging.getLogger('TTYFrontend').setLevel(logging.WARNING)
         logging.getLogger('TTYRender').setLevel(logging.WARNING)
         logging.getLogger('TTYRender.curses').setLevel(logging.WARNING)
+        logging.getLogger('Messager').setLevel(logging.WARNING)
         logging.getLogger('asyncio').setLevel(logging.WARNING)
         #XXX kludge so the kludged sending can find the roost backend
         self.roost = roost.Roost(
