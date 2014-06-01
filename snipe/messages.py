@@ -32,6 +32,7 @@
 import itertools
 import time
 import logging
+import functools
 
 
 class SnipeAddress(object):
@@ -57,6 +58,7 @@ class SnipeAddress(object):
             )
 
 
+@functools.total_ordering
 class SnipeMessage(object):
     def __init__(self, backend, body='', mtime=None):
         self._sender = None
@@ -96,6 +98,22 @@ class SnipeMessage(object):
         if val is None:
             val = ''
         return val
+
+    def _coerce(self, other):
+        if hasattr(other, 'time'):
+            return other.time
+        elif hasattr(other, '__float__'):
+            return float(other)
+        elif hasattr(other, '__int__'):
+            return int(other)
+        else:
+            raise NotImplemented
+
+    def __eq__(self, other):
+        return self.time == self._coerce(other)
+
+    def __lt__(self, other):
+        return self.time < self._coerce(other)
 
 
 class SnipeBackend(object):
