@@ -32,6 +32,7 @@ import array
 import weakref
 import contextlib
 import logging
+import functools
 
 from . import context
 
@@ -39,6 +40,7 @@ from . import context
 CHUNKSIZE = 4096
 
 
+@functools.total_ordering
 class Mark(object):
     def __init__(self, editor, point):
         self.editor = editor
@@ -64,6 +66,16 @@ class Mark(object):
 
     def __int__(self):
         return self.point
+
+    def __eq__(self, other):
+        return self.point == int(other)
+
+    def __lt__(self, other):
+        return self.point < int(other)
+
+    def __hash__(self):
+        # this is technically a nono
+        return id(self)
 
 
 class Editor(context.Window):
