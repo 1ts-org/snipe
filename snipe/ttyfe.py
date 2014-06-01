@@ -65,11 +65,19 @@ class TTYRenderer(object):
             self.reframe()
         visible = self.redisplay_internal()
         if not visible:
-            self.log.debug('redisplay, no visibility, firing reframe')
-            self.reframe()
+            self.log.warning('redisplay, no visibility, firing reframe')
+            if self.window.cursor < self.window.frame:
+                self.reframe(0)
+            elif self.window.cursor > self.window.frame:
+                self.reframe(-1)
             visible = self.redisplay_internal()
             if not visible:
-                self.log.debug('redisplay, no visibility after reframe')
+                self.log.error('redisplay, no visibility after clever reframe')
+                self.reframe()
+            visible = self.redisplay_internal()
+            if not visible:
+                self.log.error('no visibilityafter hail-mary reframe, giving up')
+
         self.w.noutrefresh()
 
     @staticmethod
@@ -206,19 +214,20 @@ class TTYRenderer(object):
 
     del func, makefunc
 
-    def reframe(self):
-        screenlines = self.height / 2
-        ## view = iter(self.window.view(self.cursor, 'backward'))
-        ## mark, chunk = view.next()
-        ## self.window.frame = mark
-        ## chunk = itertools.takewhile(
-        ##     lambda: 'visible' not in x[0],
-        ##     chunk)
-        ## chunklines = list(self.doline(''.join(c[1] for c in chunk)))
-        ## # if len(chunklines) - 1 > self.height: *sob*
+    def reframe(self, target=None):
+        if target is None:
+            screenlines = self.height / 2
+        elif target >= 0:
+            screenlines = min(self.height - 1, target)
+        else: # target < 0
+            screenlines = max(self.height + target, 0)
+
         self.log.debug('reframe, previous frame=%s', repr(self.window.frame))
+        self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
+
+        self.window.frame, _ = next(self.window.view(self.window.cursor, 'backward'))
+
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
-            self.window.frame = mark
             # this should only drop stuff off the first chunk...
             chunk = itertools.takewhile(
                 lambda x: 'visible' not in x[0],
@@ -227,6 +236,9 @@ class TTYRenderer(object):
             screenlines -= len(chunklines)
             if screenlines <= 0:
                 break
+            self.window.frame = mark
+
+        self.log.debug('reframe, screenlines=%d', screenlines)
 
 unkey = dict(
     (getattr(curses, k), k[len('KEY_'):])
