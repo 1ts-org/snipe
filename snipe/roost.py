@@ -40,13 +40,23 @@ import contextlib
 
 from . import messages
 from . import _rooster
+from . import util
 
 
 class Roost(messages.SnipeBackend):
     name = 'roost'
 
+    backfill_count = util.Configurable(
+        'roost.backfill_count', 8,
+        'Keep backfilling until you have this many messages'
+        ' unless you hit the time limit')
+    backfill_length = util.Configurable(
+        'roost.backfill_length', 24 * 3600 * 7,
+        'only backfill this looking for roost.backfill_count messages ')
+
     def __init__(self, conf = {}):
         super().__init__(conf)
+        self.context = conf['context']
         self.messages = []
         url = os.environ['ROOST_API'] #XXX should provide a default? maybe?
         # the configuration monster strikes again
@@ -63,9 +73,9 @@ class Roost(messages.SnipeBackend):
 
 
     def redisplay(self, message):
-        self.conf['context'].ui.redisplay() # XXX figure out how to inform the
-                                            # redisplay of which messages need
-                                            # refreshing
+        self.context.ui.redisplay() # XXX figure out how to inform the
+                                    # redisplay of which messages need
+                                    # refreshing
 
     @asyncio.coroutine
     def send(self, paramstr, body):
@@ -155,8 +165,8 @@ class Roost(messages.SnipeBackend):
             ms.reverse()
             self.messages = ms + self.messages
             self.log.warning('%d messages, total %d', count, len(self.messages))
-            if count < 8 and ms and ms[0].time > (origin - 24 * 3600 * 7):
-                #XXX this should configurable
+            if (count < self.backfill_count
+                and ms and ms[0].time > (origin - self.backfill_length)):
                 self.trigger_backfill(mfilter, count, origin)
             self.redisplay(ms[0]) # XXX should actually be a time range, or a
                                   # pair of messages

@@ -39,6 +39,7 @@ from . import messages
 from . import ttyfe
 from . import roost
 from . import filters
+from . import util
 
 
 def bind(*seqs):
@@ -299,22 +300,16 @@ class Messager(Window):
         self.cursor = next(self.walk(self.cursor, True))
 
 
-class Context(object):
+class Context:
     # per-session state and abstact control
     def __init__(self, ui):
+        self.conf = {}
+        self.context = self
+        util.Configurable.immanentize(self)
         self.ui = ui
         self.ui.context = self
         self.log = logging.getLogger('Snipe')
         self.log.warning('snipe starting')
-        #XXX this should be configurable, of course
-        self.log.setLevel(logging.INFO)
-        logging.getLogger('Rooster').setLevel(logging.WARNING)
-        logging.getLogger('Roost').setLevel(logging.WARNING)
-        logging.getLogger('TTYFrontend').setLevel(logging.WARNING)
-        logging.getLogger('TTYRender').setLevel(logging.WARNING)
-        logging.getLogger('TTYRender.curses').setLevel(logging.WARNING)
-        logging.getLogger('Messager').setLevel(logging.WARNING)
-        logging.getLogger('asyncio').setLevel(logging.WARNING)
         #XXX kludge so the kludged sending can find the roost backend
         self.roost = roost.Roost(
             conf={'context': self}) # XXX figure out a better

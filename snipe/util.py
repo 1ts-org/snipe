@@ -33,5 +33,69 @@
 Assorted utility functions.
 '''
 
+
+import logging
+
+
 class SnipeException(Exception):
     pass
+
+
+class Configurable:
+    registry = {}
+    actions = {}
+
+    def __init__(self, key, default=None, doc=None, action=None):
+        self.key = key
+        self.default = default
+        self._action = action
+        self.doc = doc
+        self.registry[key] = self
+        if action:
+            self.actions = action
+
+    def __get__(self, instance, owner):
+        return instance.context.conf.get('set', {}).get(self.key, self.default)
+
+    def __set__(self, instance, value):
+        instance.context.conf.setdefault('set', {})[self.key] = value
+        self.action(instance, value)
+
+    def action(self, instance, value):
+        if self.key in self.actions:
+            self.actions[key](instance.context, value)
+
+    @classmethod
+    def immanentize(self, context):
+        for configurable in self.registry.values():
+            configurable.action(context, configurable.default)
+
+
+class Level(Configurable):
+    def __init__(self, key, logger, default=logging.WARNING, doc=None):
+        super().__init__(key, default, doc=doc)
+        self.logger = logger
+
+    def action(self, instance, value):
+        logging.getLogger(self.logger).setLevel(value)
+
+
+# these don't need to actually be properties anywhere
+logging_properties = [
+    Level(
+        userspace_name,
+        program_name,
+        {'log.context': logging.INFO}.get(userspace_name, logging.WARNING),
+        'logging for %s object' % (program_name,)
+        )
+    for userspace_name, program_name in [
+        ('log.context', 'Snipe'),
+        ('log.roost.engine', 'Rooster'),
+        ('log.roost', 'Roost'),
+        ('log.ttyfrontend', 'TTYFrontend'),
+        ('log.ttyrender', 'TTYRender'),
+        ('log.curses', 'TTYRender.curses'),
+        ('log.messager', 'Messager'),
+        ('log.editor', 'Editor'),
+        ('log.asyncio', 'asyncio'),
+        ]]
