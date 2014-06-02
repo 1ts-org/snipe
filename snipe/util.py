@@ -43,7 +43,6 @@ class SnipeException(Exception):
 
 class Configurable:
     registry = {}
-    actions = {}
 
     def __init__(self, key, default=None, doc=None, action=None):
         self.key = key
@@ -51,8 +50,6 @@ class Configurable:
         self._action = action
         self.doc = doc
         self.registry[key] = self
-        if action:
-            self.actions = action
 
     def __get__(self, instance, owner):
         return instance.context.conf.get('set', {}).get(self.key, self.default)
@@ -62,8 +59,8 @@ class Configurable:
         self.action(instance, value)
 
     def action(self, instance, value):
-        if self.key in self.actions:
-            self.actions[key](instance.context, value)
+        if self._action is not None:
+            self._action(instance.context, value)
 
     @classmethod
     def immanentize(self, context):
