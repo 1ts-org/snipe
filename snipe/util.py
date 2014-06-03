@@ -90,7 +90,7 @@ class Configurable:
     @classmethod
     def immanentize(self, context):
         for configurable in self.registry.values():
-            configurable.action(context, configurable.default)
+            configurable.action(context, configurable.__get__(context, self))
 
     @classmethod
     def set(self, instance, key, value):

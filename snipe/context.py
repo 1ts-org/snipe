@@ -28,12 +28,14 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+import os
 import unicodedata
 import contextlib
 import re
 import logging
 import time
 import asyncio
+import json
 
 from . import messages
 from . import ttyfe
@@ -215,6 +217,7 @@ class Window(object):
         key = yield from self.read_string('Key: ')
         value = yield from self.read_string('Value: ')
         util.Configurable.set(self, key, value)
+        self.context.conf_write()
 
 
 class Messager(Window):
@@ -315,7 +318,7 @@ class Context:
     def __init__(self, ui):
         self.conf = {}
         self.context = self
-        util.Configurable.immanentize(self)
+        self.conf_read()
         self.ui = ui
         self.ui.context = self
         self.log = logging.getLogger('Snipe')
@@ -331,6 +334,34 @@ class Context:
                 self.roost,
                 ],)
         self.ui.initial(Messager(self.ui))
+
+    def conf_read(self):
+        path = os.path.join(os.path.expanduser('~'), '.snipe', 'config')
+        try:
+            if os.path.exists(path):
+                self.conf = json.load(open(path))
+        finally:
+            util.Configurable.immanentize(self)
+
+    def conf_write(self):
+        directory = os.path.join(os.path.expanduser('~'), '.snipe')
+        name = 'config'
+        path = os.path.join(directory, name)
+        tmp = os.path.join(directory, ',' + name)
+        backup = os.path.join(directory, name + '~')
+
+        if not os.path.isdir(directory):
+            os.mkdir(directory)
+
+        fp = open(tmp, 'w')
+        json.dump(self.conf, fp)
+        fp.write('\n')
+        fp.close()
+        if os.path.exists(path):
+            with contextlib.suppress(OSError):
+                os.unlink(backup)
+            os.link(path, backup)
+        os.rename(tmp, path)
 
 
 class Keymap(dict):
