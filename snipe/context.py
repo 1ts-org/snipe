@@ -72,6 +72,10 @@ class Window(object):
             self.frame = prototype.frame
         self.destroy = destroy
 
+    @property
+    def context(self):
+        return self.fe.context
+
     def input_char(self, k):
         try:
             self.log.debug('got key %s', repr(k))
@@ -205,6 +209,12 @@ class Window(object):
             if out[:-1] != '\n':
                 out += '\n'
             self.log.debug('result: %s', out)
+
+    @bind('Meta-=')
+    def set_config(self, k):
+        key = yield from self.read_string('Key: ')
+        value = yield from self.read_string('Value: ')
+        util.Configurable.set(self, key, value)
 
 
 class Messager(Window):

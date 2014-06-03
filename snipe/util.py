@@ -44,17 +44,27 @@ class SnipeException(Exception):
 class Configurable:
     registry = {}
 
-    def __init__(self, key, default=None, doc=None, action=None):
+    def __init__(
+        self, key,
+        default=None, doc=None, action=None, coerce=None, validate=None,
+        string=None,
+        ):
         self.key = key
         self.default = default
         self._action = action
+        self._validate = validate
+        self._coerce = coerce
+        self._string = string
         self.doc = doc
         self.registry[key] = self
 
     def __get__(self, instance, owner):
         return instance.context.conf.get('set', {}).get(self.key, self.default)
 
-    def __set__(self, instance, value):
+    def __set__(self, instance, v):
+        value = self.coerce(v)
+        if not self.validate(value):
+            raise TypeError('%s invalid for %s' % (repr(v), self.key))
         instance.context.conf.setdefault('set', {})[self.key] = value
         self.action(instance, value)
 
@@ -62,10 +72,30 @@ class Configurable:
         if self._action is not None:
             self._action(instance.context, value)
 
+    def coerce(self, value):
+        if self._coerce is not None:
+            return self._coerce(value)
+        return value
+
+    def validate(self, value):
+        if self._validate is not None:
+            return self._validate(value)
+        return True
+
+    def string(self, value):
+        if self._string is not None:
+            return self._string(value)
+        return str(value)
+
     @classmethod
     def immanentize(self, context):
         for configurable in self.registry.values():
             configurable.action(context, configurable.default)
+
+    @classmethod
+    def set(self, instance, key, value):
+        obj = self.registry[key]
+        obj.__set__(instance, value)
 
 
 class Level(Configurable):
@@ -76,23 +106,38 @@ class Level(Configurable):
     def action(self, instance, value):
         logging.getLogger(self.logger).setLevel(value)
 
+    names = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
+
+    def coerce(self, value):
+        if hasattr(value, 'upper'): # stringish
+            v = value.strip().upper()
+            if v in self.names:
+                return getattr(logging, v)
+            try:
+                return int(value)
+            except ValueError:
+                pass
+        return value
+
+    def validate(self, value):
+        return isinstance(value, int) and value >= 0
+
 
 # these don't need to actually be properties anywhere
-logging_properties = [
+for userspace_name, program_name in [
+    ('log.context', 'Snipe'),
+    ('log.roost.engine', 'Rooster'),
+    ('log.roost', 'Roost'),
+    ('log.ttyfrontend', 'TTYFrontend'),
+    ('log.ttyrender', 'TTYRender'),
+    ('log.curses', 'TTYRender.curses'),
+    ('log.messager', 'Messager'),
+    ('log.editor', 'Editor'),
+    ('log.asyncio', 'asyncio'),
+    ]:
     Level(
         userspace_name,
         program_name,
         {'log.context': logging.INFO}.get(userspace_name, logging.WARNING),
         'logging for %s object' % (program_name,)
         )
-    for userspace_name, program_name in [
-        ('log.context', 'Snipe'),
-        ('log.roost.engine', 'Rooster'),
-        ('log.roost', 'Roost'),
-        ('log.ttyfrontend', 'TTYFrontend'),
-        ('log.ttyrender', 'TTYRender'),
-        ('log.curses', 'TTYRender.curses'),
-        ('log.messager', 'Messager'),
-        ('log.editor', 'Editor'),
-        ('log.asyncio', 'asyncio'),
-        ]]
