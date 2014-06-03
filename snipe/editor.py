@@ -93,11 +93,11 @@ class Editor(context.Window):
         self.gapstart = 0
         self.gapend = len(self.buf)
 
-        self.log = logging.getLogger('Editor.%x' % (id(self),))
-
         self.cache = {}
 
         super().__init__(*args, **kw) #XXX need share buffer?
+
+        self.log = logging.getLogger('Editor.%x' % (id(self),))
 
         self.cursor = Mark(self, 0)
 
