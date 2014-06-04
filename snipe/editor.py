@@ -33,6 +33,7 @@ import weakref
 import contextlib
 import logging
 import functools
+import unicodedata
 
 from . import context
 
@@ -364,6 +365,33 @@ class Editor(context.Window):
         super().input_char(k)
         self.log.debug('after command  %s', self.cursor)
 
+    def isword(self, delta=0):
+        with self.save_excursion():
+            if delta and not self.move(delta):
+                return None
+            c = self.character_at_point()
+            if not c:
+                return False
+            cat = unicodedata.category(c)
+            return cat[0] == 'L' or cat == 'Pc'
+
+    @context.bind('Meta-f')
+    def word_forward(self, k):
+        while not self.isword():
+            if not self.move(1):
+                return
+        while self.isword():
+            if not self.move(1):
+                return
+
+    @context.bind('Meta-b')
+    def word_backward(self, k):
+        while not self.isword(-1):
+            if not self.move(-1):
+                return
+        while self.isword(-1):
+            if not self.move(-1):
+                return
 
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
