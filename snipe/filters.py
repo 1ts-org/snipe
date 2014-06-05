@@ -36,6 +36,7 @@ import ply.lex
 import ply.yacc
 
 from . import util
+from . import messages
 
 
 class SnipeFilterError(util.SnipeException):
@@ -250,6 +251,10 @@ class Compare(Comparison):
             '>': operator.gt,
             '>=': operator.ge,
             }[op]
+        if isinstance(left, messages.SnipeAddress):
+            left = str(left)
+        if isinstance(right, messages.SnipeAddress):
+            left = str(right)
         try:
             return f(left, right)
         except:
@@ -276,6 +281,8 @@ class RECompare(Comparison):
     def do(op, regexp, value):
         if regexp is None:
             return False
+        if isinstance(value, messages.SnipeAddress):
+            value = str(left)
         result = bool(regexp.match(value))
         if op[0] == '!':
             result = not result
