@@ -76,6 +76,8 @@ class Window(object):
 
     @property
     def context(self):
+        if self.fe is None:
+            return None
         return self.fe.context
 
     def input_char(self, k):
