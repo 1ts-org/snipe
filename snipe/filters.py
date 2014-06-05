@@ -104,7 +104,7 @@ class Not(Filter):
 
 class Conjunction(Filter):
     def __init__(self, *args):
-        super(Conjunction, self).__init__()
+        super().__init__()
         self.operands = args
 
     def __str__(self):
@@ -303,7 +303,7 @@ class RECompare(Comparison):
             )
 
 
-class Lexeme(object):
+class Lexeme:
     def __init__(self, value):
         self.value = value
 

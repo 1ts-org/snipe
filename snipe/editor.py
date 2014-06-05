@@ -42,7 +42,7 @@ CHUNKSIZE = 4096
 
 
 @functools.total_ordering
-class Mark(object):
+class Mark:
     def __init__(self, editor, point):
         self.editor = editor
         self.editor.marks.add(self)

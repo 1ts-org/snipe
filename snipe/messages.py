@@ -35,7 +35,7 @@ import logging
 import functools
 
 
-class SnipeAddress(object):
+class SnipeAddress:
     backend = None
     path = []
 
@@ -59,7 +59,7 @@ class SnipeAddress(object):
 
 
 @functools.total_ordering
-class SnipeMessage(object):
+class SnipeMessage:
     def __init__(self, backend, body='', mtime=None):
         self._sender = None
         self.backend = backend
@@ -116,7 +116,7 @@ class SnipeMessage(object):
         return self.time < self._coerce(other)
 
 
-class SnipeBackend(object):
+class SnipeBackend:
     # name of concrete backend
     name = None
     # list of messages, sorted by message time
@@ -177,7 +177,7 @@ class StartupBackend(SnipeBackend):
     name = 'startup'
 
     def __init__(self, conf = {}):
-        super(StartupBackend, self).__init__(conf)
+        super().__init__(conf)
         self.messages = [
             SnipeMessage(self, 'Welcome to snipe.\n\n'),
             ]
@@ -187,7 +187,7 @@ class SyntheticBackend(SnipeBackend):
     name = 'synthetic'
 
     def __init__(self, conf = {}):
-        super(SyntheticBackend, self).__init__(conf)
+        super().__init__(conf)
         self.count = conf.get('count', 1)
         self.string = conf.get('string', '0123456789')
         self.width = conf.get('width', 72)
@@ -231,7 +231,7 @@ class AggregatorBackend(SnipeBackend):
     messages = None
 
     def __init__(self, backends = [], conf = {}):
-        super(AggregatorBackend, self).__init__(conf)
+        super().__init__(conf)
         self.backends = [TerminusBackend()]
         for backend in backends:
             self.add(backend)

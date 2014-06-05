@@ -37,7 +37,7 @@ import logging
 import itertools
 
 
-class TTYRenderer(object):
+class TTYRenderer:
     def __init__(self, ui, y, h, window):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.curses_log = logging.getLogger('TTYRender.curses.%x' %  (id(self),))
@@ -250,7 +250,7 @@ key = dict(
     if k.startswith('KEY_'))
 
 
-class TTYFrontend(object):
+class TTYFrontend:
     def __init__(self):
         self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
         self.windows = []

@@ -51,7 +51,7 @@ def bind(*seqs):
     return decorate
 
 
-class Window(object):
+class Window:
     def __init__(self, frontend, prototype=None, destroy=lambda: None):
         self.fe = frontend
         self.keymap = {}
@@ -224,7 +224,7 @@ class Window(object):
 
 class Messager(Window):
     def __init__(self, *args, **kw):
-        super(Messager, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
         #SPACE
         #^n ^p j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
@@ -368,7 +368,7 @@ class Context:
 
 class Keymap(dict):
     def __init__(self, d={}):
-        super(Keymap, self).__init__()
+        super().__init__()
         self.update(d)
 
     def update(self, d):
@@ -382,16 +382,16 @@ class Keymap(dict):
         return (
             self.__class__.__name__
             + '('
-            + super(Keymap, self).__repr__()
+            + super().__repr__()
             + ')'
             )
 
     def __getitem__(self, key):
         if not hasattr(key, 'lower'):
-            return super(Keymap, self).__getitem__(key)
+            return super().__getitem__(key)
         else:
             key, rest = self.split(key)
-            v = super(Keymap, self).__getitem__(key)
+            v = super().__getitem__(key)
             if key is None:
                 return None # default?
             if rest:
@@ -400,34 +400,34 @@ class Keymap(dict):
 
     def __setitem__(self, key, value):
         if not hasattr(key, 'lower'):
-            return super(Keymap, self).__setitem__(key, value)
+            return super().__setitem__(key, value)
         else:
             key, rest = self.split(key)
             if key is None:
                 return
             if rest is None:
-                super(Keymap, self).__setitem__(key, value)
+                super().__setitem__(key, value)
             else:
                 try:
-                    v = super(Keymap, self).__getitem__(key)
+                    v = super().__getitem__(key)
                 except KeyError:
                     v = None
                 if v is None:
                     v = Keymap()
-                    super(Keymap, self).__setitem__(key, v)
+                    super().__setitem__(key, v)
                 if not hasattr(v, '__getitem__'):
                     raise KeyError(repr(key) + 'is not a keymap')
                 v[rest] = value
 
     def __delitem__(self, key):
         if not hasattr(key, 'lower'):
-            return super(Keymap, self).__delitem__(key)
+            return super().__delitem__(key)
         else:
             key, rest = self.split(key)
             if rest is None:
-                super(Keymap, self).__delitem__(key)
+                super().__delitem__(key)
             else:
-                v = super(Keymap, self).__getitem__(key)
+                v = super().__getitem__(key)
                 if not hasattr(v, '__getitem__'):
                     raise KeyError(repr(key) + 'is not a keymap')
                 del v[rest]
