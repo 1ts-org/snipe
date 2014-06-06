@@ -123,7 +123,8 @@ class SnipeBackend:
     #  (not all backends will export this, it can be None)
     messages = []
 
-    def __init__(self, conf = {}):
+    def __init__(self, context,  conf = {}):
+        self.context = context
         self.conf = conf
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
@@ -163,8 +164,8 @@ class InfoMessage(SnipeMessage):
 class TerminusBackend(SnipeBackend):
     name = 'terminus'
 
-    def __init__(self, conf = {}):
-        super().__init__(conf)
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
         self.messages = [
             InfoMessage(self, '*', mtime=float('inf')),
             ]
@@ -176,8 +177,8 @@ class TerminusBackend(SnipeBackend):
 class StartupBackend(SnipeBackend):
     name = 'startup'
 
-    def __init__(self, conf = {}):
-        super().__init__(conf)
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
         self.messages = [
             SnipeMessage(self, 'Welcome to snipe.\n\n'),
             ]
@@ -186,7 +187,7 @@ class StartupBackend(SnipeBackend):
 class SyntheticBackend(SnipeBackend):
     name = 'synthetic'
 
-    def __init__(self, conf = {}):
+    def __init__(self, *args, **kw):
         super().__init__(conf)
         self.count = conf.get('count', 1)
         self.string = conf.get('string', '0123456789')
@@ -230,9 +231,9 @@ class AggregatorBackend(SnipeBackend):
     # no reason that it shouldn't expose the same API for now
     messages = None
 
-    def __init__(self, backends = [], conf = {}):
-        super().__init__(conf)
-        self.backends = [TerminusBackend()]
+    def __init__(self, context, backends = [], conf = {}):
+        super().__init__(context, conf)
+        self.backends = [TerminusBackend(self.context)]
         for backend in backends:
             self.add(backend)
 

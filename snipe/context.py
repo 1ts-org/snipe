@@ -326,13 +326,12 @@ class Context:
         self.log = logging.getLogger('Snipe')
         self.log.warning('snipe starting')
         #XXX kludge so the kludged sending can find the roost backend
-        self.roost = roost.Roost(
-            conf={'context': self}) # XXX figure out a better
-                                    # way to communicate this
+        self.roost = roost.Roost(self)
         self.backends = messages.AggregatorBackend(
+            self,
             backends = [
-                messages.StartupBackend(),
-#                messages.SyntheticBackend(conf={'count': 100}),
+                messages.StartupBackend(self),
+#                messages.SyntheticBackend(self, conf={'count': 100}),
                 self.roost,
                 ],)
         self.ui.initial(Messager(self.ui))

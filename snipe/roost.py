@@ -52,20 +52,17 @@ class Roost(messages.SnipeBackend):
         ' unless you hit the time limit')
     backfill_length = util.Configurable(
         'roost.backfill_length', 24 * 3600 * 7,
-        'only backfill this looking for roost.backfill_count messages ')
+        'only backfill this looking for roost.backfill_count messages')
+    url = util.Configurable(
+        'roost.url', 'https://roost-api.mit.edu')
+    service_name = util.Configurable(
+        'roost.servicename', 'HTTP',
+        "Kerberos servicename, you probably don't need to change this")
 
-    def __init__(self, conf = {}):
-        super().__init__(conf)
-        self.context = conf['context']
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
         self.messages = []
-        url = os.environ['ROOST_API'] #XXX should provide a default? maybe?
-        # the configuration monster strikes again
-        service_names = {
-            'ordinator.1ts.org': 'daemon',
-            }
-        hostname = urllib.parse.urlparse(url).hostname
-        service = service_names.get(hostname, 'HTTP') + '@' + hostname
-        self.r = _rooster.Rooster(url, service)
+        self.r = _rooster.Rooster(self.url, self.service_name)
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
