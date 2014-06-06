@@ -53,6 +53,9 @@ class Rooster:
         self.token = None
         self.expires = None
         self.url = url
+        if self.url[-1] == '/':
+            # strip _1_ trailing /
+            self.url = self.url[:-1]
         self.service = service
         self.principal = None
         self.ctx = None
