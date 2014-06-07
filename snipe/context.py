@@ -544,9 +544,3 @@ class Keymap(dict):
         assert bool(modifiers) == False
 
         return key, rest
-
-
-try:
-    unicode('foo')
-except NameError:
-    unicode = lambda x: x # glue for python 3
