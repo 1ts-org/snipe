@@ -35,6 +35,7 @@ import locale
 import signal
 import logging
 import itertools
+import contextlib
 
 from . import util
 
@@ -194,11 +195,13 @@ class TTYRenderer:
         if self.active:
             if cursor is not None:
                 self.w.leaveok(0)
-                curses.curs_set(1)
+                with contextlib.suppress(curses.error):
+                    curses.curs_set(1)
                 self.move(*cursor)
                 self.w.cursyncup()
             else:
-                curses.curs_set(0)
+                with contextlib.suppress(curses.error):
+                    curses.curs_set(0)
         else:
             self.w.leaveok(1)
         self.log.debug(
