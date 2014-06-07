@@ -180,6 +180,10 @@ class Window:
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
+    @bind('Control-X c')#XXX
+    def split_to_colordemo(self, k):
+        self.fe.split_window(ColorDemo(self.fe))
+
     @bind('Control-X t')#XXX
     def test_ui(self, k):
         streeng = yield from self.read_string('floop> ', content='zoge')
@@ -544,3 +548,10 @@ class Keymap(dict):
         assert bool(modifiers) == False
 
         return key, rest
+
+class ColorDemo(Window):
+    def __init__(self, *args, **kw):
+        self.cursor = 0
+        self.frame = 0
+    def view(self, origin=0, direction='Forward'):
+        yield 0, [(('visible', 'fg:green'), 'foo')]

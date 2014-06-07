@@ -36,6 +36,8 @@ import signal
 import logging
 import itertools
 
+from . import util
+
 
 class TTYRenderer:
     def __init__(self, ui, y, h, window):
@@ -146,8 +148,15 @@ class TTYRenderer:
                     'reverse': curses.A_REVERSE,
                     }
                 attr = 0
+                fg, bg = '', ''
                 for t in tags:
                     attr |= attrs.get(t, 0)
+                    if t.startswith('fg:'):
+                        fg = t[3:]
+                    if t.startswith('bg:'):
+                        bg = t[3:]
+                attr |= self.ui.color_assigner(fg, bg)
+                self.log.debug('attr is %d', attr)
                 self.attrset(attr)
                 self.bkgdset(attr)
                 if 'cursor' in tags:
@@ -270,6 +279,13 @@ class TTYFrontend:
         self.stdscr.keypad(1)
         self.stdscr.nodelay(1)
         curses.start_color()
+        self.color = curses.has_colors()
+        if not self.color:
+            self.color_assigner = NoColorAssigner()
+        else:
+            curses.use_default_colors()
+            self.color_assigner = StaticColorAssigner()
+        #self.colors_can_change = curses.can_change_color()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
         return self
@@ -321,6 +337,7 @@ class TTYFrontend:
 
     def redisplay(self):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
+        self.color_assigner.reset()
         active = None
         for i, w in enumerate(self.windows):
             if i == self.active:
@@ -418,3 +435,50 @@ class TTYFrontend:
 
     def switch_window(self, adj):
         self.active = (self.active + adj) % len(self.windows)
+
+
+class NoColorAssigner:
+    loglevel = util.Level('log.color', 'ColorAssigner')
+
+    def __init__(self):
+        self.reset()
+        self.log = logging.getLogger('ColorAssigner')
+
+    def __call__(self, foreground, background):
+        return 0
+
+    def reset(self):
+        pass
+
+
+class StaticColorAssigner(NoColorAssigner):
+    colors = {
+        x[6:].lower(): getattr(curses, x)
+        for x in dir(curses) if x.startswith('COLOR_')
+        }
+
+    def __call__(self, fgcolor, bgcolor):
+        fg = self.colors.get(fgcolor.lower(), -1)
+        bg = self.colors.get(bgcolor.lower(), -1)
+
+        self.log.debug('fg, bg = %d, %d', fg, bg)
+
+        if (fg, bg) in self.pairs:
+            pair = self.pairs[fg, bg]
+            self.log.debug('returning cached pair %d', pair)
+            return pair
+
+        if self.next >= curses.COLOR_PAIRS:
+            return 0
+
+        pair = self.next
+        self.next += 1
+        self.log.debug('initializing %d as %d, %d', pair, fg, bg)
+        curses.init_pair(pair, fg, bg)
+        colorpair = curses.color_pair(pair)
+        self.pairs[fg, bg] = colorpair
+        return colorpair
+
+    def reset(self):
+        self.pairs = {(-1, -1): 0}
+        self.next = 1
