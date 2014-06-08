@@ -307,6 +307,7 @@ class TTYFrontend:
 
     def __exit__(self, type, value, tb):
         # go to last line of screen, maybe cause scrolling?
+        self.color_assigner.close()
         self.stdscr.keypad(0)
         curses.noraw()
         curses.nl()
@@ -457,6 +458,9 @@ class NoColorAssigner:
     def reset(self):
         pass
 
+    def close(self):
+        pass
+
 
 class StaticColorAssigner(NoColorAssigner):
     colors = {
@@ -519,12 +523,19 @@ class DynamicColorAssigner(StaticColorAssigner):
 
         self.log.debug('read %d entries from %s', len(self.rgb), self.rgbtxt)
 
+        self.saved = [curses.color_content(i) for i in range(curses.COLORS)]
+
         self.reset()
+
+    def close(self):
+        super().close()
+        for (i, rgb) in enumerate(self.saved):
+            curses.init_color(i, *rgb)
 
     def reset(self):
         super().reset()
         self.colors = {}
-        self.nextcolor = 1
+        self.nextcolor = 0
 
     def strtorgb(self, name):
         if name in self.rgb:
