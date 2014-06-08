@@ -169,6 +169,7 @@ class TestFilters(unittest.TestCase):
 
         self.assertTrue(makefilter('foo')(MockMsg(foo=True)))
         self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
+        self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
 
 class MockMsg:
     def __init__(self, **kw):
@@ -177,7 +178,7 @@ class MockMsg:
     def field(self, name, canon=True):
         if canon and name.capitalize() in self.dict:
             return self.dict[name.capitalize()]
-        return self.dict[name]
+        return self.dict.get(name, '')
 
 if __name__ == '__main__':
     unittest.main()
