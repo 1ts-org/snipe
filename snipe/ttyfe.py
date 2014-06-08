@@ -287,8 +287,10 @@ class TTYFrontend:
             self.color_assigner = NoColorAssigner()
         else:
             curses.use_default_colors()
-            self.color_assigner = StaticColorAssigner()
-        #self.colors_can_change = curses.can_change_color()
+            if curses.can_change_color():
+                self.color_assigner = DynamicColorAssigner()
+            else:
+                self.color_assigner = StaticColorAssigner()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
         return self
@@ -461,10 +463,10 @@ class StaticColorAssigner(NoColorAssigner):
         }
 
     def __call__(self, fgcolor, bgcolor):
-        fg = self.colors.get(fgcolor.lower(), -1)
-        bg = self.colors.get(bgcolor.lower(), -1)
+        fg = self.getcolor(fgcolor)
+        bg = self.getcolor(bgcolor)
 
-        self.log.debug('fg, bg = %d, %d', fg, bg)
+        self.log.debug('fg, bg = %d:%s, %d:%s', fg, fgcolor, bg, bgcolor)
 
         if (fg, bg) in self.pairs:
             pair = self.pairs[fg, bg]
@@ -482,6 +484,65 @@ class StaticColorAssigner(NoColorAssigner):
         self.pairs[fg, bg] = colorpair
         return colorpair
 
+    def getcolor(self, name):
+        return self.colors.get(name.lower(), -1)
+
     def reset(self):
         self.pairs = {(-1, -1): 0}
         self.next = 1
+
+class DynamicColorAssigner(StaticColorAssigner):
+    rgbtxt = '/usr/share/X11/rgb.txt'
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.rgb = {}
+
+        with open(self.rgbtxt) as fp:
+            for line in fp:
+                if '!' in line:
+                    line = line[:line.find('!')]
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    items = line.split(maxsplit=3)
+                    r, g, b = [
+                        int(int(x) * (1000 / 255))
+                        for x in items[:3]]
+                    self.rgb[items[3].strip()] = (r, g, b)
+                except:
+                    self.log.exception('reading rgb.txt line')
+
+        self.log.debug('read %d entries from %s', len(self.rgb), self.rgbtxt)
+
+        self.reset()
+
+    def reset(self):
+        super().reset()
+        self.colors = {}
+        self.nextcolor = 1
+
+    def getcolor(self, name):
+        name = name.lower()
+        if name in self.colors:
+            self.log.debug('returning cached color %s', name)
+            return self.colors[name]
+
+        if name not in self.rgb:
+            self.log.debug('%s not in color db', repr(name))
+            return -1
+
+        if self.nextcolor >= curses.COLORS:
+            self.log.debug('no colors left')
+            return -1
+
+        color = self.nextcolor
+        self.nextcolor += 1
+
+        self.log.debug('initializing %d as %s', color, repr(self.rgb[name]))
+        curses.init_color(color, *self.rgb[name])
+
+        self.colors[name] = color
+        return color

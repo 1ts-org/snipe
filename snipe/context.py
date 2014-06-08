@@ -554,4 +554,9 @@ class ColorDemo(Window):
         self.cursor = 0
         self.frame = 0
     def view(self, origin=0, direction='Forward'):
-        yield 0, [(('visible', 'fg:green'), 'foo')]
+        yield 0, [
+            (('visible', 'fg:green'), 'green '),
+            (('fg:white', 'bg:blue'), 'blue'),
+            (('fg:cornflower blue',), ' cornflower'),
+            (('fg:bisque',), ' bisque'),
+            ]
