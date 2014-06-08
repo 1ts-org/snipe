@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 # Copyright © 2014 Karl Ramm
 # All rights reserved.
