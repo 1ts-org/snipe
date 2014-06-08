@@ -171,9 +171,16 @@ class TestFilters(unittest.TestCase):
         self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
         self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
 
+        self.assertIs(makefilter(''), None)
+
+        self.assertFalse(makefilter('filter foo')(MockMsg()))
+
 class MockMsg:
     def __init__(self, **kw):
         self.dict = kw
+        self.backend = self
+        self.context = self
+        self.conf = {}
 
     def field(self, name, canon=True):
         if canon and name.capitalize() in self.dict:

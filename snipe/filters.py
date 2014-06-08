@@ -212,7 +212,18 @@ class FilterLookup(Filter):
             )
 
     def __call__(self, m):
-        return findfilter(self.filtername)(m) #XXX
+        conf = m.backend.context.conf
+        text = conf.get('filter', {}).get(self.filtername)
+        if not text:
+            return False
+
+        try:
+            #XXX should probably cache this someday
+            #XXX should also probably prevent self-referential filters
+            return makefilter(text)(m)
+        except:
+            self.log.exception('in filter %s', self.filtername)
+            return False
 
     def __eq__(self, other):
         return (
