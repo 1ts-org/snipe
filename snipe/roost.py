@@ -201,6 +201,10 @@ class RoostMessage(messages.SnipeMessage):
         self.data = m
         self._sender = RoostPrincipal(backend, m['sender'])
 
+    @property
+    def personal(self):
+        return self.data['recipient'] and self.data['recipient'][0] != '@'
+
     def __str__(self):
         return (
             'Class: {class_} Instance: {instance} Recipient: {recipient}'
