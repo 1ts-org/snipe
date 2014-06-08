@@ -203,19 +203,21 @@ class Python(Filter):
 class FilterLookup(Filter):
     def __init__(self, name):
         super(FilterLookup, self).__init__()
-        self.name = name
+        self.filtername = name
 
     def __repr__(self):
         return '%s(%s)' % (
             self.__class__.__name__,
-            repr(self.name),
+            repr(self.filtername),
             )
 
     def __call__(self, m):
-        return findfilter(self.name)(m) #XXX
+        return findfilter(self.filtername)(m) #XXX
 
     def __eq__(self, other):
-        return self.__class__ is other.__class__ and self.name == other.name
+        return (
+            self.__class__ is other.__class__
+            and self.filtername == other.filtername)
 
 
 class Comparison(Filter):
