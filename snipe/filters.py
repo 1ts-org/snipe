@@ -70,17 +70,17 @@ class Filter(object):
         return self.name or self.__class__.__name__.lower()
 
 
-class Truth(Filter):
+class Certitude(Filter):
     def __eq__(self, other):
         return self.__class__ is other.__class__
 
 
-class Yes(Truth):
+class Yes(Certitude):
     def __call__(self, m):
         return True
 
 
-class No(Truth):
+class No(Certitude):
     def __call__(self, m):
         return False
 
@@ -102,6 +102,23 @@ class Not(Filter):
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self.p == other.p
+
+
+class Truth(Filter):
+    def __init__(self, field):
+        self.field = field
+
+    def __call__(self, m):
+        return bool(m.field(self.field))
+
+    def __str__(self):
+        return self.field
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + repr(self.field) + ')'
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__ and self.field == other.field
 
 
 class Conjunction(Filter):
@@ -573,6 +590,12 @@ class Parser(PlyShim):
             p[0] = RECompare.static(p[2], str(regexp), str(val))
         else:
             p[0] = RECompare(p[2], str(val), str(regexp))
+
+    def p_truth(self, p):
+        '''
+        exp : ID
+        '''
+        p[0] = Truth(p[1])
 
     def p_error(self, p):
         self._errors.append(p)

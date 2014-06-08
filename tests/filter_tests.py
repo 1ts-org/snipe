@@ -167,6 +167,9 @@ class TestFilters(unittest.TestCase):
             str(makefilter('yes and yes and no')),
             'yes and yes and no')
 
+        self.assertTrue(makefilter('foo')(MockMsg(foo=True)))
+        self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
+
 class MockMsg:
     def __init__(self, **kw):
         self.dict = kw
