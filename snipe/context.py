@@ -556,5 +556,6 @@ class ColorDemo(Window):
             (('visible', 'fg:green'), 'green '),
             (('fg:white', 'bg:blue'), 'blue'),
             (('fg:cornflower blue',), ' cornflower'),
-            (('fg:bisque',), ' bisque'),
+            (('fg:bisque',), ' bisque '),
+            (('bg:#f00',), '#f00'),
             ]

@@ -37,6 +37,7 @@ import signal
 import logging
 import itertools
 import contextlib
+import re
 
 from . import util
 
@@ -494,6 +495,8 @@ class StaticColorAssigner(NoColorAssigner):
 
 class DynamicColorAssigner(StaticColorAssigner):
     rgbtxt = '/usr/share/X11/rgb.txt'
+    hex_12bit = re.compile(r'^#' + 3*r'([0-9a-fA-F])' + '$')
+    hex_24bit = re.compile(r'^#' + 3*'([0-9a-fA-F][0-9a-fA-F])' + '$')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -509,9 +512,7 @@ class DynamicColorAssigner(StaticColorAssigner):
                     continue
                 try:
                     items = line.split(maxsplit=3)
-                    r, g, b = [
-                        int(int(x) * (1000 / 255))
-                        for x in items[:3]]
+                    r, g, b = [int(x) for x in items[:3]]
                     self.rgb[items[3].strip()] = (r, g, b)
                 except:
                     self.log.exception('reading rgb.txt line')
@@ -525,15 +526,35 @@ class DynamicColorAssigner(StaticColorAssigner):
         self.colors = {}
         self.nextcolor = 1
 
+    def strtorgb(self, name):
+        if name in self.rgb:
+            return self.rgb[name]
+
+        m = self.hex_12bit.match(name)
+        if m:
+            return tuple(int(2*x, 16) for x in m.groups())
+
+        m = self.hex_24bit.match(name)
+        if m:
+            return tuple(int(x, 16) for x in m.groups())
+
+        return None
+
     def getcolor(self, name):
         name = name.lower()
         if name in self.colors:
             self.log.debug('returning cached color %s', name)
             return self.colors[name]
 
-        if name not in self.rgb:
+        rgb = self.strtorgb(name)
+
+        if rgb is None:
             self.log.debug('%s not in color db', repr(name))
             return -1
+
+        if rgb in self.colors:
+            self.log.debug('returning cached triplet %s', rgb)
+            return self.colors[rgb]
 
         if self.nextcolor >= curses.COLORS:
             self.log.debug('no colors left')
@@ -542,8 +563,9 @@ class DynamicColorAssigner(StaticColorAssigner):
         color = self.nextcolor
         self.nextcolor += 1
 
-        self.log.debug('initializing %d as %s', color, repr(self.rgb[name]))
-        curses.init_color(color, *self.rgb[name])
+        self.log.debug('initializing %d as %s', color, repr(rgb))
+        curses.init_color(color, *[int(i * (1000 / 255)) for i in rgb])
 
+        self.colors[rgb] = color
         self.colors[name] = color
         return color
