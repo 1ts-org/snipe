@@ -107,7 +107,13 @@ class Not(Filter):
 class Conjunction(Filter):
     def __init__(self, *args):
         super().__init__()
-        self.operands = args
+        self.operands = []
+        for arg in args:
+            if not isinstance(arg, self.__class__):
+                self.operands.append(arg)
+            else:
+                self.operands += arg.operands
+
 
     def __str__(self):
         return (' ' + self.gname() + ' ').join(

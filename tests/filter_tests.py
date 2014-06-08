@@ -151,6 +151,22 @@ class TestFilters(unittest.TestCase):
             str(makefilter('"bar" == foo')),
             'foo == "bar"')
 
+        self.assertEqual(
+            str(makefilter('yes and yes and yes')),
+            'yes and yes and yes')
+
+        self.assertEqual(
+            str(makefilter('no and yes and yes')),
+            'no and yes and yes')
+
+        self.assertEqual(
+            str(makefilter('yes and no and yes')),
+            'yes and no and yes')
+
+        self.assertEqual(
+            str(makefilter('yes and yes and no')),
+            'yes and yes and no')
+
 class MockMsg:
     def __init__(self, **kw):
         self.dict = kw
