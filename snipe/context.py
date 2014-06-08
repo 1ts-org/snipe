@@ -551,9 +551,6 @@ class Keymap(dict):
         return key, rest
 
 class ColorDemo(Window):
-    def __init__(self, *args, **kw):
-        self.cursor = 0
-        self.frame = 0
     def view(self, origin=0, direction='Forward'):
         yield 0, [
             (('visible', 'fg:green'), 'green '),
