@@ -240,6 +240,8 @@ class RoostMessage(messages.SnipeMessage):
             chunk += [(tags + ('bold',), ' (personal)')]
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
+        if self.data['opcode']:
+            chunk += [(tags, ' [' + self.data['opcode'] + ']')]
         chunk += [(tags, ' at ' + time.ctime(self.data['time'] / 1000) + '\n')]
         chunk += [(tags, 'From:')]
         if self.data['signature'].strip():
