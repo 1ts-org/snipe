@@ -268,10 +268,15 @@ class RoostMessage(messages.SnipeMessage):
             if value[-atrealmlen:] == '@' + self.backend.realm:
                 return value[:-atrealmlen]
         elif field == 'class':
+            value = value.lower() #XXX do proper unicode thing
             x1, x2 = self.class_un.search(value).span()
             value = value[x2:]
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
+        elif field == 'instance':
+            value = value.lower() #XXX do proper unicode thing
+        elif field == 'opcode':
+            value = value.lower().strip()
         return value
 
     def replystr(self):
