@@ -37,6 +37,7 @@ import shlex
 import os
 import urllib.parse
 import contextlib
+import re
 
 from . import messages
 from . import _rooster
@@ -58,6 +59,9 @@ class Roost(messages.SnipeBackend):
     service_name = util.Configurable(
         'roost.servicename', 'HTTP',
         "Kerberos servicename, you probably don't need to change this")
+    realm = util.Configurable(
+        'roost.realm', 'ATHENA.MIT.EDU',
+        'Zephyr realm that roost is fronting for')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -223,6 +227,50 @@ class RoostMessage(messages.SnipeMessage):
             date=time.ctime(self.data['time'] / 1000),
             body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
+
+    def display(self, decoration):
+        tags = self.decotags(decoration)
+        chunk = [
+            (tags, 'Class: '),
+            (tags + ('bold',), self.data['class']),
+            (tags, ' Instance: '),
+            (tags + ('bold',), self.data['instance']),
+            ]
+        if self.personal:
+            chunk += [(tags + ('bold',), ' (personal)')]
+        if self.data['recipient'] and self.data['recipient'][0] == '@':
+            chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
+        chunk += [(tags, ' at ' + time.ctime(self.data['time'] / 1000) + '\n')]
+        chunk += [(tags, 'From:')]
+        if self.data['signature'].strip():
+            chunk += [(tags + ('bold',), ' ' + self.data['signature'].strip())]
+        chunk += [
+            (tags, ' <'),
+            (tags + ('bold',), self.field('sender')),
+            (tags, '>\n'),
+            ]
+        body = self.body
+        if body[-1] != '\n':
+            body += '\n'
+        body += '\n'
+        chunk += [(tags, body)]
+
+        return chunk
+
+    class_un = re.compile(r'^(un)*')
+    class_dotd = re.compile(r'(\.d)*$')
+    def canon(self, field, value):
+        if field == 'sender':
+            value = str(value)
+            atrealmlen = len(self.backend.realm) + 1
+            if value[-atrealmlen:] == '@' + self.backend.realm:
+                return value[:-atrealmlen]
+        elif field == 'class':
+            x1, x2 = self.class_un.search(value).span()
+            value = value[x2:]
+            x1, x2 = self.class_dotd.search(value).span()
+            value = value[:x1]
+        return value
 
     def replystr(self):
         l = []

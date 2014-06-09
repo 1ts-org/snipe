@@ -86,6 +86,21 @@ class SnipeMessage:
             )
 
     @staticmethod
+    def decotags(decoration):
+        tags = []
+        if 'foreground' in decoration:
+            tags.append('fg:' + decoration['foreground'])
+        if 'background' in decoration:
+            tags.append('bg:' + decoration['background'])
+        return tuple(tags)
+
+    def display(self, decoration):
+        s = str(self)
+        if s and s[-1] != '\n':
+            s += '\n'
+        return [(self.decotags(decoration), s)]
+
+    @staticmethod
     def canon(field, value):
         return value
 

@@ -248,17 +248,37 @@ class Messager(Window):
 
     def view(self, origin, direction='forward'):
         for x in self.walk(origin, direction == 'forward'):
-            s = str(x)
-            if s and s[-1] != '\n':
-                s += '\n'
+            decoration = {}
+            for filt, decor in self.rules:
+                if filt(x):
+                    decoration.update(decor)
+            chunk = x.display(decoration)
+
             if x is self.cursor:
-                lines = s.splitlines()
-                yield x, [
-                    (('visible', 'standout'), lines[0] + '\n'),
-                    ((), '\n'.join(lines[1:]) + '\n'),
-                    ]
+                if not chunk:
+                    yield x, [(('visible', 'standout'), '\n')]
+                    continue
+
+                # carve off the first line
+                first = []
+                while True:
+                    if not chunk:
+                        break
+                    tags, text = chunk[0]
+                    if '\n' not in text:
+                        first.append((tags, text))
+                        chunk = chunk[1:]
+                    else:
+                        line, rest = text.split('\n', 1)
+                        first.append((tags, line + '\n'))
+                        chunk = [(tags, rest)] + chunk[1:]
+                        break
+
+                first = [(first[0][0] + ('visible',), first[0][1])] + first[1:]
+                first = [(tags + ('standout',), text) for (tags, text) in first]
+                yield x, first + chunk
             else:
-                yield x, [((), s)]
+                yield x, chunk
 
     @bind('n', '[down]')
     def next_message(self, k):
