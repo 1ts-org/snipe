@@ -297,11 +297,11 @@ class Messager(Window):
     def reply(self, k):
         yield from self.send(k, self.cursor.replystr())
 
-    @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
+    @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self, k):
         self.cursor = next(self.walk(float('inf'), False))
 
-    @bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
+    @bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
     def first(self, k):
         self.cursor = next(self.walk(float('-inf'), True))
 
