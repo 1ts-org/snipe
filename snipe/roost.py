@@ -231,30 +231,38 @@ class RoostMessage(messages.SnipeMessage):
     def display(self, decoration):
         tags = self.decotags(decoration)
         chunk = [
-            (tags, 'Class: '),
-            (tags + ('bold',), self.data['class']),
-            (tags, ' Instance: '),
-            (tags + ('bold',), self.data['instance']),
+            (tags + ('bold',), self.field('sender')),
             ]
+        instance = self.data['instance']
+        instance = instance or "''"
         if self.personal:
             chunk += [(tags + ('bold',), ' (personal)')]
+        if not self.personal or self.data['class'].lower() != 'message':
+            chunk += [
+                (tags, ' -c '),
+                (tags + ('bold',), self.data['class']),
+                ]
+        if instance.lower() != 'personal':
+            chunk += [
+                (tags, ' -i '),
+                (tags + ('bold',), instance),
+                ]
+
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
+
         if self.data['opcode']:
             chunk += [(tags, ' [' + self.data['opcode'] + ']')]
-        chunk += [(tags, ' at ' + time.ctime(self.data['time'] / 1000) + '\n')]
-        chunk += [(tags, 'From:')]
+        chunk += [(tags, ' ' + time.ctime(self.data['time'] / 1000) + '\n')]
         if self.data['signature'].strip():
-            chunk += [(tags + ('bold',), ' ' + self.data['signature'].strip())]
-        chunk += [
-            (tags, ' <'),
-            (tags + ('bold',), self.field('sender')),
-            (tags, '>\n'),
-            ]
+            chunk += [
+                (tags, ' '),
+                (tags + ('bold',), self.data['signature'].strip()),
+                (tags, '\n'),
+                ]
         body = self.body
         if body[-1] != '\n':
             body += '\n'
-        body += '\n'
         chunk += [(tags, body)]
 
         return chunk
