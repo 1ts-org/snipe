@@ -261,7 +261,7 @@ class RoostMessage(messages.SnipeMessage):
                 (tags, '\n'),
                 ]
         body = self.body
-        if body[-1] != '\n':
+        if body[-1:] != '\n':
             body += '\n'
         chunk += [(tags, body)]
 
