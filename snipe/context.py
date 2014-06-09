@@ -263,6 +263,8 @@ class Messager(Window):
                 first = []
                 while True:
                     if not chunk:
+                        # we ran out of chunks without hitting a \n
+                        first[-1] = (first[-1][0], first[-1][1] + '\n')
                         break
                     tags, text = chunk[0]
                     if '\n' not in text:
