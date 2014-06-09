@@ -148,6 +148,15 @@ class Conjunction(Filter):
             and self.operands == other.operands
             )
 
+    def push(self, other):
+        self.operands.append(other)
+
+    def pop(self):
+        if len(self.operands) > 2:
+            self.operands.pop()
+            return self
+        else:
+            return self.operands[0]
 
 class And(Conjunction):
     name = 'and'

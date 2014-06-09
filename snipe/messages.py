@@ -184,6 +184,9 @@ class InfoMessage(SnipeMessage):
     def __str__(self):
         return self.body
 
+    def display(self, decoration):
+        return [(self.decotags(decoration) + ('bold',), str(self))]
+
 
 class TerminusBackend(SnipeBackend):
     name = 'terminus'

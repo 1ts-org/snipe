@@ -348,7 +348,7 @@ class Messager(Window):
 
         self.cursor = next(self.walk(self.cursor, True))
 
-    def filter_pop_decorate(self, decoration):
+    def filter_clear_decorate(self, decoration):
         self.rules = [
             (filt, decor) for (filt, decor) in self.rules if filt != self.filter]
         self.rules.append((self.filter, decoration))
@@ -365,17 +365,74 @@ class Messager(Window):
     def filter_foreground_background(self, k):
         fg = yield from self.read_string('Foreground: ')
         bg = yield from self.read_string('Background: ')
-        self.filter_pop_decorate({'foreground': fg, 'background': bg})
+        self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @bind('Meta-/ f')
     def filter_foreground(self, k):
         fg = yield from self.read_string('Foreground: ')
-        self.filter_pop_decorate({'foreground': fg})
+        self.filter_clear_decorate({'foreground': fg})
 
     @bind('Meta-/ b')
     def filter_background(self, k):
         bg = yield from self.read_string('Background: ')
-        self.filter_pop_decorate({'background': bg})
+        self.filter_clear_decorate({'background': bg})
+
+    def filter_push(self, filter):
+        if self.filter is None:
+            self.filter = filter
+        elif isinstance(self.filter, filters.And):
+            self.filter.push(filter)
+        else:
+            self.filter = filters.And(self.filter, filter)
+
+        self.cursor = next(self.walk(self.cursor, True))
+
+
+    @bind('Meta-/ c')
+    def filter_class(self, k):
+        class_ = yield from self.read_string(
+            'Class: ', self.cursor.field('class'))
+        self.filter_push(filters.Compare('=', 'class', class_))
+
+    @bind('Meta-/ C')
+    def filter_class_exactly(self, k):
+        class_ = yield from self.read_string(
+            'Class: ', self.cursor.field('class', False))
+        self.filter_push(filters.Compare('==', 'class', class_))
+
+    @bind('Meta-/ p')
+    def filter_personals(self, k):
+        self.filter_push(filters.Truth('personal'))
+
+    @bind('Meta-/ s')
+    def filter_sender(self, k):
+        sender = yield from self.read_string(
+            'Sender: ', self.cursor.field('sender'))
+        self.filter_push(filters.Compare('=', 'sender', sender))
+
+    @bind('Meta-/ /')
+    def filter_cleverly(self, k):
+        if self.cursor.personal:
+            self.filter_push(
+                filters.And(
+                    filters.Truth('personal'),
+                    filters.Compare('=', 'sender', self.cursor.field('sender'))))
+        elif self.cursor.field('class'):
+            self.filter_push(
+                filters.Compare('=', 'class', self.cursor.field('class')))
+        else:
+            self.whine("Can't deduce what to filter on")
+
+    @bind("Meta-/ Meta-/")
+    def filter_pop(self, k):
+        if self.filter is None:
+            return
+
+        if isinstance(self.filter, filters.And):
+            self.filter = self.filter.pop()
+            self.cursor = next(self.walk(self.cursor, True))
+        else:
+            self.filter = None
 
 class Context:
     # per-session state and abstact control
