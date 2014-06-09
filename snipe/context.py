@@ -74,6 +74,13 @@ class Window:
             self.cursor = prototype.cursor
             self.frame = prototype.frame
         self.destroy = destroy
+        self.rules = []
+        for (filt, decor) in self.context.conf['rules']:
+            try:
+                self.rules.append((filters.makefilter(filt), decor))
+            except:
+                self.log.exception(
+                    'error in filter %s for decor %s', filt, decor)
 
     @property
     def context(self):
@@ -319,6 +326,34 @@ class Messager(Window):
 
         self.cursor = next(self.walk(self.cursor, True))
 
+    def filter_pop_decorate(self, decoration):
+        self.rules = [
+            (filt, decor) for (filt, decor) in self.rules if filt != self.filter]
+        self.rules.append((self.filter, decoration))
+        self.context.conf['rules'] = [
+            (filts, decor)
+            for (filts, decor) in self.context.conf.get('rules', [])
+            if filts != str(self.filter)
+            ]
+        self.context.conf['rules'].append((str(self.filter), decoration))
+        self.context.conf_write()
+        self.filter = None
+
+    @bind('Meta-/ g')
+    def filter_foreground_background(self, k):
+        fg = yield from self.read_string('Foreground: ')
+        bg = yield from self.read_string('Background: ')
+        self.filter_pop_decorate({'foreground': fg, 'background': bg})
+
+    @bind('Meta-/ f')
+    def filter_foreground(self, k):
+        fg = yield from self.read_string('Foreground: ')
+        self.filter_pop_decorate({'foreground': fg})
+
+    @bind('Meta-/ b')
+    def filter_background(self, k):
+        bg = yield from self.read_string('Background: ')
+        self.filter_pop_decorate({'background': bg})
 
 class Context:
     # per-session state and abstact control
