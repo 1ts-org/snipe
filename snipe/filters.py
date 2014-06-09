@@ -288,10 +288,6 @@ class Compare(Comparison):
             '>': operator.gt,
             '>=': operator.ge,
             }[op]
-        if isinstance(left, messages.SnipeAddress):
-            left = str(left)
-        if isinstance(right, messages.SnipeAddress):
-            left = str(right)
         try:
             return f(left, right)
         except:

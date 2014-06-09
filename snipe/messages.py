@@ -108,6 +108,12 @@ class SnipeMessage:
         val = getattr(self, name, None)
         if val is None:
             val = self.data.get(name, None)
+
+        if hasattr(val, '__int__'):
+            val = int(val)
+        elif val is not True and val is not False and val is not None:
+            val = str(val)
+
         if canon and val is not None:
             val = self.canon(name, val)
         if val is None:
@@ -169,6 +175,9 @@ class SnipeBackend:
 
     def shutdown(self):
         pass
+
+    def __str__(self):
+        return self.name
 
 
 class InfoMessage(SnipeMessage):
