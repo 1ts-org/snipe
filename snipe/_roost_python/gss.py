@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright (c) 2013 Massachusetts Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
