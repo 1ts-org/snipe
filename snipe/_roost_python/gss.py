@@ -32,7 +32,7 @@ def _display_status(status_value, status_type):
         gss_display_status(status_value, status_type,
                            None, message_context, status_string)
         try:
-            ret.append(status_string.as_str())
+            ret.append(status_string.as_str().decode())
         finally:
             gss_release_buffer(status_string)
         if message_context.value == 0:
