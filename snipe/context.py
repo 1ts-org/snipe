@@ -75,7 +75,7 @@ class Window:
             self.frame = prototype.frame
         self.destroy = destroy
         self.rules = []
-        for (filt, decor) in self.context.conf['rules']:
+        for (filt, decor) in self.context.conf.get('rules', []):
             try:
                 self.rules.append((filters.makefilter(filt), decor))
             except:
