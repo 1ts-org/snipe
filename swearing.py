@@ -17,22 +17,50 @@ def main():
     stdscr.keypad(1)
     stdscr.scrollok(1)
 
+    maxy, maxx = stdscr.getmaxyx()
+
     stdscr.addstr(
         'COLORS=%d COLOR_PAIRS=%d has_colors()=%s can_change_color()=%s\n' % (
             curses.COLORS, curses.COLOR_PAIRS, colors, curses.can_change_color()))
-
-    maxy, maxx = stdscr.getmaxyx()
-
+    stdscr.addstr('%d\n' % (maxx,))
+    rgbs=[]
     if colors:
-        curses.init_pair(5, curses.COLOR_GREEN, -1)
+        for i in range(curses.COLORS):
+            rgb = '%02x%02x%02x' % tuple(int((j/1000)*255.0) for j in  curses.color_content(i))
+            rgbs.append(rgb)
+            stdscr.addstr(' %s' % (rgb,))
+            if (stdscr.getyx()[1] + 7) > maxx:
+                stdscr.addstr('\n')
+    stdscr.addstr('\n')
+    stdscr.addstr('press a key')
+    stdscr.get_wch()
+    stdscr.addstr('\n')
 
-    for i in range(curses.COLOR_PAIRS):
-        stdscr.addstr(' %03d' % (i,), curses.color_pair(i))
+    pairs = {}
+    if colors:
+        for i in range(min(curses.COLORS, curses.COLOR_PAIRS - 1)):
+            curses.init_pair(i+1, -1, i)
+
+        ## if curses.can_change_color():
+        ##     for i in range(curses.COLORS):
+        ##         curses.init_color(i, 0, 1000, 0)
+
+    for i in range(1, curses.COLOR_PAIRS):
+        #stdscr.addstr(' %03d' % (i,), curses.color_pair(i))
+        stdscr.addstr(' %s' % (rgbs[i-1],), curses.color_pair(i))
         y, x = stdscr.getyx()
-        if x + 4 > maxx:
+        if x + 7 > maxx:
             stdscr.addstr('\n')
     else:
         stdscr.addstr('\n')
+
+    stdscr.addstr('press a key')
+    stdscr.get_wch()
+    stdscr.addstr('\n')
+    if colors:
+        if curses.can_change_color():
+            for i in range(curses.COLORS):
+                curses.init_color(i, 0, 1000, 0)
 
     stdscr.addstr('press q to quit\n')
 
