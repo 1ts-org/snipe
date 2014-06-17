@@ -195,6 +195,7 @@ class DynamicColorAssigner(CleverColorAssigner):
 
 
 class StaticColorAssigner(CleverColorAssigner):
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
@@ -216,12 +217,10 @@ class StaticColorAssigner(CleverColorAssigner):
             (n, math.sqrt((r2 - r1)**2 + (g2 - g1)**2 + (b2 - b1)**2))
             for (n, (r2, g2, b2)) in self.map
             if n < curses.COLORS]
-        #xmap = []
-        #for (n, (r2, g2, b2)) in self.map:
-        #    xmap.append((n, abs(r2-r1 + g2-g1 + b2-b1)))
-        return min(# lookup/derive actual vector magnitude
+        return min(
             xmap,
             key=lambda x: x[1])[0]
+
 
 colors_simple = [
     (curses.COLOR_BLACK,   '#000'),
@@ -234,7 +233,16 @@ colors_simple = [
     (curses.COLOR_WHITE,   '#fff'),
     ]
 
-# extracted from xterm-306 #XXXcopyrigh
+#  The following was extracted from the xterm v306 source tree as
+# distributed by Debian.
+#
+#  The first set of values were gleaned from a charproc.c (lines
+# 613-628), with copyright notices from Thomas E. Dickey
+# (1999-2013,2014), the Open Group (1988), and Digital Equipment
+# Corporation (1988); by their nature, I don't think they carry
+# copyright with them, but I'm going to be sure to cite my sources
+# anyway.
+
 colors_xterm = [
     (0, "black"),
     (1, "red3"),
@@ -253,6 +261,10 @@ colors_xterm = [
     (14, "cyan"),
     (15, "white"),
 ]
+
+# These next two chunks were derived somewhat mechanically from
+# 88colres.h and 256colres.h; these appear to have generated, and
+# there are no copyright notices on the files.
 
 colors_xterm_88color = colors_xterm + [
     (16, "#000000"),
