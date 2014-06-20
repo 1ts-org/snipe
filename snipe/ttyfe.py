@@ -196,6 +196,8 @@ class TTYRenderer:
                         self.move(self.height - screenlines, 0)
         if self.y + self.height < self.ui.maxy:
             self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
+        self.attrset(0)
+        self.bkgdset(0)
         if self.active:
             if cursor is not None:
                 self.w.leaveok(0)
