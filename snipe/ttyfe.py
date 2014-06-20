@@ -171,8 +171,9 @@ class TTYRenderer:
                     try:
                         self.addstr(line)
                     except:
-                        self.log.exception(
-                            'in addstr; line=%s, remaining=%d, screenlines=%d',
+                        self.log.debug(
+                            'addstr returned ERR'
+                            '; line=%s, remaining=%d, screenlines=%d',
                             line, remaining, screenlines)
                     if remaining <= 0:
                         screenlines -= 1
