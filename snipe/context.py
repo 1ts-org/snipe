@@ -242,7 +242,7 @@ class PagingMixIn:
         self.cursor = self.frame
         self.renderer.reframe(-1)
 
-    @bind('[npage]', 'Control-v', '[space]')
+    @bind('[npage]', 'Control-v')
     def pagedown(self, k):
         self.cursor = self.sill
         self.renderer.reframe(1)
@@ -256,6 +256,7 @@ class Messager(Window, PagingMixIn):
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
         self.filter = None
+        self.keymap['[space]'] = self.pagedown
 
     def walk(self, origin, direction):
         return self.fe.context.backends.walk(origin, direction, self.filter)
