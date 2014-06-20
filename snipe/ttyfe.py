@@ -139,6 +139,7 @@ class TTYRenderer:
         for mark, chunk in self.window.view(self.window.frame):
             if screenlines <= 0:
                 break
+            self.window.sill = mark
             for tags, text in chunk:
                 if screenlines <= 0:
                     break

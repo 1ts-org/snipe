@@ -70,9 +70,11 @@ class Window:
         if prototype is None:
             self.cursor = None
             self.frame = None
+            self.sill = None
         else:
             self.cursor = prototype.cursor
             self.frame = prototype.frame
+            self.sill = prototype.sill
         self.destroy = destroy
         self.rules = []
         for (filt, decor) in self.context.conf.get('rules', []):
@@ -234,7 +236,19 @@ class Window:
         self.context.conf_write()
 
 
-class Messager(Window):
+class PagingMixIn:
+    @bind('[ppage]', 'Meta-v')
+    def pageup(self, k):
+        self.cursor = self.frame
+        self.renderer.reframe(-1)
+
+    @bind('[npage]', 'Control-v', '[space]')
+    def pagedown(self, k):
+        self.cursor = self.sill
+        self.renderer.reframe(1)
+
+
+class Messager(Window, PagingMixIn):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         #SPACE

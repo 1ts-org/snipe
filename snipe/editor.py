@@ -79,7 +79,7 @@ class Mark:
         return id(self)
 
 
-class Editor(context.Window):
+class Editor(context.Window, context.PagingMixIn):
     EOL = '\n'
 
     def __init__(
