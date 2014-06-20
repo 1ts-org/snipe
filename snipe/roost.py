@@ -230,13 +230,19 @@ class RoostMessage(messages.SnipeMessage):
 
     def display(self, decoration):
         tags = self.decotags(decoration)
+        instance = self.data['instance']
+        instance = instance or "''"
         chunk = [
             (tags + ('bold',), self.field('sender')),
             ]
-        instance = self.data['instance']
-        instance = instance or "''"
         if self.personal:
-            chunk += [(tags + ('bold',), ' (personal)')]
+            if self.data['sender'] == self.backend.r.principal:
+                chunk += [(tags + ('bold',), ' (personal)')]
+                chunk += [(tags + ('bold',), ' -> ')]
+                chunk += [(tags + ('bold',), self.field('recipient'))]
+            else:
+                chunk += [(tags + ('bold',), ' (personal)')]
+
         if not self.personal or self.data['class'].lower() != 'message':
             chunk += [
                 (tags, ' -c '),
