@@ -40,6 +40,8 @@ import json
 import urllib.parse
 import base64
 import logging
+import functools
+import concurrent.futures
 
 import aiohttp
 import aiohttp.websocket
@@ -56,35 +58,27 @@ class Rooster:
         if self.url[-1] == '/':
             # strip _1_ trailing /
             self.url = self.url[:-1]
-        self.service = service
+        self.service = service + '@' + urllib.parse.urlparse(url).hostname
         self.principal = None
         self.ctx = None
         self.ccache = None
         self.tailid = 0
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
+        loop = asyncio.get_event_loop()
+        executor = concurrent.futures.ProcessPoolExecutor(1)
+        self.exile = functools.partial(loop.run_in_executor, executor)
 
     @asyncio.coroutine
     def auth(self, create_user=False):
-        self.ctx = krb5.Context()
-        self.ccache = self.ctx.cc_default()
-        self.principal = self.ccache.get_principal()
-        princ_str = self.principal.unparse_name()
-
-        client_name = gss.import_name(princ_str, gss.KRB5_NT_PRINCIPAL_NAME)
-        target_name = gss.import_name(self.service, gss.C_NT_HOSTBASED_SERVICE)
-        cred = gss.acquire_cred(client_name, initiate=True)
-
-        gss_ctx = gss.create_initiator(
-            target_name, credential=cred, mechanism=gss.KRB5_MECHANISM)
-        token = gss_ctx.init_sec_context()
-        if not gss_ctx.is_established():
-            raise Exception('Should be single-token')
+        loop = asyncio.get_event_loop()
+        self.principal, token = yield from self.exile(
+            get_auth_token, self.service)
 
         result = yield from self.http(
             '/v1/auth',
             {
-                'principal': princ_str.decode('utf-8'),
-                'token': base64.b64encode(token).decode('ascii'),
+                'principal': self.principal,
+                'token': token,
                 'createUser': create_user,
                 },
             )
@@ -101,19 +95,13 @@ class Rooster:
         yield from self.ensure_auth()
         return (yield from self.http('/v1/info'))
 
-    def zephyr_creds(self):
-        #XXX hardcoded ATHENA.MIT.EDU
-        zephyr = self.ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
-        creds = self.ccache.get_credentials(self.principal, zephyr)
-        return creds.to_dict()
-
     @asyncio.coroutine
     def send(self, message):
         yield from self.ensure_auth()
         return (yield from self.http(
             '/v1/zwrite', {
                 'message': message,
-                'credentials': self.zephyr_creds(),
+                'credentials': (yield from self.exile(get_zephyr_creds))
                 },
             ))
 
@@ -313,3 +301,32 @@ class Rooster:
             raise
 
         return result
+
+
+def get_auth_token(service):
+    context = krb5.Context()
+    ccache = context.cc_default()
+    principal = ccache.get_principal()
+    princ_str = principal.unparse_name()
+
+    client_name = gss.import_name(princ_str, gss.KRB5_NT_PRINCIPAL_NAME)
+    target_name = gss.import_name(service, gss.C_NT_HOSTBASED_SERVICE)
+    cred = gss.acquire_cred(client_name, initiate=True)
+
+    gss_ctx = gss.create_initiator(
+        target_name, credential=cred, mechanism=gss.KRB5_MECHANISM)
+    token = gss_ctx.init_sec_context()
+    if not gss_ctx.is_established():
+        raise Exception('Should be single-token')
+
+    return princ_str.decode('utf-8'), base64.b64encode(token).decode('ascii')
+
+
+def get_zephyr_creds():
+    #XXX hardcoded ATHENA.MIT.EDU
+    context = krb5.Context()
+    ccache = context.cc_default()
+    principal = ccache.get_principal()
+    zephyr = context.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
+    creds = ccache.get_credentials(principal, zephyr)
+    return creds.to_dict()
