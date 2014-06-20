@@ -251,8 +251,6 @@ class PagingMixIn:
 class Messager(Window, PagingMixIn):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        #SPACE
-        #^n ^p j k NEXT PREV
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
         self.filter = None
@@ -297,11 +295,11 @@ class Messager(Window, PagingMixIn):
             else:
                 yield x, chunk
 
-    @bind('n', '[down]')
+    @bind('n', 'j', '[down]')
     def next_message(self, k):
         self.move(True)
 
-    @bind('p', '[up]')
+    @bind('p', 'k', '[up]')
     def prev_message(self, k):
         self.move(False)
 
