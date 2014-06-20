@@ -256,6 +256,9 @@ class TTYRenderer:
 
         self.log.debug('reframe, screenlines=%d', screenlines)
 
+    def focus(self):
+        self.window.focus()
+
 unkey = dict(
     (getattr(curses, k), k[len('KEY_'):])
     for k in dir(curses)
@@ -395,6 +398,7 @@ class TTYFrontend:
                 self, u.y, victim.height + u.height, u.window)
             if self.active == n:
                 self.active -= 1
+                self.windows[self.active].focus()
 
     def delete_current_window(self):
         self.delete_window(self.active)
@@ -421,6 +425,7 @@ class TTYFrontend:
         self.popstack.append((new, height))
         if select:
             self.active = len(self.windows) - 1
+            self.windows[self.active].focus()
 
     def popdown_window(self):
         victim_window, _ = self.popstack.pop()
@@ -442,6 +447,9 @@ class TTYFrontend:
                 self, adj.y, adj.height + victim.height, adj.window)
         if self.active >= len(self.windows):
             self.active = len(self.windows) - 1
+            self.windows[self.active].focus()
 
     def switch_window(self, adj):
         self.active = (self.active + adj) % len(self.windows)
+        self.windows[self.active].focus()
+

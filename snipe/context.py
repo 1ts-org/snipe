@@ -84,6 +84,9 @@ class Window:
                 self.log.exception(
                     'error in filter %s for decor %s', filt, decor)
 
+    def focus(self):
+        pass
+
     @property
     def context(self):
         if self.fe is None:
@@ -254,7 +257,13 @@ class Messager(Window, PagingMixIn):
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
         self.filter = None
+        self.secondary = None
         self.keymap['[space]'] = self.pagedown
+
+    def focus(self):
+        if self.secondary is not None:
+            self.cursor = self.secondary
+            self.secondary = None
 
     def walk(self, origin, direction):
         return self.fe.context.backends.walk(origin, direction, self.filter)
@@ -267,8 +276,9 @@ class Messager(Window, PagingMixIn):
                     decoration.update(decor)
             chunk = x.display(decoration)
 
-            if x is self.cursor:
+            if x is self.cursor or x is self.secondary:
                 if not chunk:
+                    # this is a bug so it will do the wrong thing sometimes
                     yield x, [(('visible', 'standout'), '\n')]
                     continue
 
@@ -289,8 +299,12 @@ class Messager(Window, PagingMixIn):
                         chunk = [(tags, rest)] + chunk[1:]
                         break
 
-                first = [(first[0][0] + ('visible',), first[0][1])] + first[1:]
-                first = [(tags + ('standout',), text) for (tags, text) in first]
+                if x is self.cursor:
+                    first = (
+                        [(first[0][0] + ('visible',), first[0][1])] + first[1:])
+                if x is self.secondary or self.secondary is None:
+                    first = [
+                        (tags + ('standout',), text) for (tags, text) in first]
                 yield x, first + chunk
             else:
                 yield x, chunk
@@ -323,6 +337,9 @@ class Messager(Window, PagingMixIn):
 
     @bind('s')
     def send(self, k, recipient=''):
+        if self.sill.time == float('inf'): #XXX omega message is visible
+            self.secondary = self.cursor
+            self.cursor = self.sill
         message = yield from self.read_string(
             '[roost] send --> ',
             height=10,
@@ -331,13 +348,21 @@ class Messager(Window, PagingMixIn):
         params, body = message.split('\n', 1)
         yield from self.fe.context.roost.send(params, body)
 
+    def replymsg(self):
+        replymsg = self.cursor
+        if replymsg.time == float('inf'):
+            it = self.walk(self.cursor, False)
+            next(it)
+            replymsg = next(it)
+        return replymsg
+
     @bind('f')
     def followup(self, k):
-        yield from self.send(k, self.cursor.followupstr())
+        yield from self.send(k, self.replymsg().followupstr())
 
     @bind('r')
     def reply(self, k):
-        yield from self.send(k, self.cursor.replystr())
+        yield from self.send(k, self.replymsg().replystr())
 
     @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self, k):
