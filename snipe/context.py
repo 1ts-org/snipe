@@ -256,7 +256,7 @@ class Messager(Window, PagingMixIn):
         super().__init__(*args, **kw)
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
         self.frame = self.cursor
-        self.filter = None
+        self.filter_reset()
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
 
@@ -373,8 +373,9 @@ class Messager(Window, PagingMixIn):
         self.cursor = next(self.walk(float('-inf'), True))
 
     @bind('Meta-/ 0')
-    def filter_reset(self, k):
+    def filter_reset(self, k=None):
         self.filter = None
+        self.filter_stack = []
 
     @bind('Meta-/ =')
     def filter_edit(self, k):
@@ -415,16 +416,18 @@ class Messager(Window, PagingMixIn):
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'background': bg})
 
-    def filter_push(self, filter):
-        if self.filter is None:
-            self.filter = filter
-        elif isinstance(self.filter, filters.And):
-            self.filter.push(filter)
-        else:
-            self.filter = filters.And(self.filter, filter)
+    def filter_push_and_replace(self, new_filter):
+        if self.filter is not None:
+            self.filter_stack.append(self.filter)
+        self.filter = new_filter
 
         self.cursor = next(self.walk(self.cursor, True))
 
+    def filter_push(self, new_filter):
+        if self.filter is None:
+            self.filter_push_and_replace(new_filter)
+        else:
+            self.filter_push_and_replace(filters.And(self.filter, new_filter))
 
     @bind('Meta-/ c')
     def filter_class(self, k):
@@ -470,14 +473,10 @@ class Messager(Window, PagingMixIn):
 
     @bind("Meta-/ Meta-/")
     def filter_pop(self, k):
-        if self.filter is None:
-            return
-
-        if isinstance(self.filter, filters.And):
-            self.filter = self.filter.pop()
-            self.cursor = next(self.walk(self.cursor, True))
-        else:
+        if not self.filter_stack:
             self.filter = None
+        else:
+            self.filter = self.filter_stack.pop()
 
 class Context:
     # per-session state and abstact control
