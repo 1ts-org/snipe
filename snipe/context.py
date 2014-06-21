@@ -387,6 +387,10 @@ class Messager(Window, PagingMixIn):
 
         self.cursor = next(self.walk(self.cursor, True))
 
+    @bind('Meta-/ -')
+    def filter_everything(self, k):
+        self.filter_push_and_replace(filters.No())
+
     def filter_clear_decorate(self, decoration):
         self.rules = [
             (filt, decor) for (filt, decor) in self.rules if filt != self.filter]
