@@ -143,6 +143,7 @@ class SnipeBackend:
     # list of messages, sorted by message time
     #  (not all backends will export this, it can be None)
     messages = []
+    principal = None
 
     def __init__(self, context,  conf = {}):
         self.context = context

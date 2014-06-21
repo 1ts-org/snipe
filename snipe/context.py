@@ -450,14 +450,21 @@ class Messager(Window, PagingMixIn):
 
     @bind('Meta-/ /')
     def filter_cleverly(self, k):
-        if self.cursor.personal:
+        message = self.cursor
+        if message.personal:
+            if str(message.sender) == message.backend.principal:
+                conversant = message.field('recipient')
+            else:
+                conversant = message.field('sender')
             self.filter_push(
                 filters.And(
                     filters.Truth('personal'),
-                    filters.Compare('=', 'sender', self.cursor.field('sender'))))
-        elif self.cursor.field('class'):
+                    filters.Or(
+                        filters.Compare('=', 'sender', conversant),
+                        filters.Compare('=', 'recipient', conversant))))
+        elif message.field('class'):
             self.filter_push(
-                filters.Compare('=', 'class', self.cursor.field('class')))
+                filters.Compare('=', 'class', message.field('class')))
         else:
             self.whine("Can't deduce what to filter on")
 

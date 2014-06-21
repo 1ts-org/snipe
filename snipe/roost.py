@@ -72,6 +72,9 @@ class Roost(messages.SnipeBackend):
         self.backfilling = False
         asyncio.Task(self.r.newmessages(self.new_message))
 
+    @property
+    def principal(self):
+        return self.r.principal
 
     def redisplay(self, message):
         self.context.ui.redisplay() # XXX figure out how to inform the
