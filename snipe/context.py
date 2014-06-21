@@ -373,7 +373,7 @@ class Messager(Window, PagingMixIn):
         self.cursor = next(self.walk(float('-inf'), True))
 
     @bind('Meta-/ 0')
-    def filter_rest(self, k):
+    def filter_reset(self, k):
         self.filter = None
 
     @bind('Meta-/ =')
