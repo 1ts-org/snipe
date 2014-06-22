@@ -72,7 +72,7 @@ class Rooster:
     def auth(self, create_user=False):
         loop = asyncio.get_event_loop()
         self.principal, token = yield from self.exile(
-            get_auth_token, self.service)
+            trampoline, get_auth_token, self.service)
 
         result = yield from self.http(
             '/v1/auth',
@@ -101,7 +101,8 @@ class Rooster:
         return (yield from self.http(
             '/v1/zwrite', {
                 'message': message,
-                'credentials': (yield from self.exile(get_zephyr_creds))
+                'credentials': (yield from self.exile(
+                    trampoline, get_zephyr_creds))
                 },
             ))
 
@@ -301,6 +302,14 @@ class Rooster:
             raise
 
         return result
+
+
+def trampoline(f, *args, **kwargs):
+    import traceback
+    try:
+        return f(*args, **kwargs)
+    except:
+        raise Exception(traceback.format_exc()) from None
 
 
 def get_auth_token(service):
