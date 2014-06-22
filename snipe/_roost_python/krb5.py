@@ -30,7 +30,7 @@ class Error(Exception):
     def __init__(self, ctx_raw, code):
         self.code = code
         msg_c = krb5_ctypes.krb5_get_error_message(ctx_raw, code)
-        self.message = msg_c.value
+        self.message = msg_c.value.decode()
         krb5_ctypes.krb5_free_error_message(ctx_raw, msg_c)
 
     def __str__(self):
