@@ -160,14 +160,15 @@ class TTYRenderer:
                     if t.startswith('bg:'):
                         bg = t[3:]
                 attr |= self.ui.color_assigner(fg, bg)
-                self.log.debug('attr is %d', attr)
-                self.attrset(attr)
-                self.bkgdset(attr)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
                 for line, remaining in self.doline(text, self.width, remaining):
+                    if screenlines == 1 and self.y + self.height < self.ui.maxy:
+                        attr |= curses.A_UNDERLINE
+                    self.attrset(attr)
+                    self.bkgdset(attr)
                     try:
                         self.addstr(line)
                     except:
@@ -178,6 +179,7 @@ class TTYRenderer:
                     if remaining <= 0:
                         screenlines -= 1
                     if screenlines <= 0:
+                        self.chgat(attr)
                         break
                     if remaining == -1:
                         if screenlines > 0:
@@ -189,12 +191,9 @@ class TTYRenderer:
                                     ' screenlines=%d, remaining=%d',
                                     screenlines,
                                     remaining)
-                        else:
-                            self.chgat(attr | curses.A_UNDERLINE)
-                            break
                     elif remaining == 0:
                         self.move(self.height - screenlines, 0)
-        if self.y + self.height < self.ui.maxy:
+        if screenlines > 1 and self.y + self.height < self.ui.maxy:
             self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
         self.attrset(0)
         self.bkgdset(0)
