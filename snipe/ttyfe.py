@@ -164,11 +164,13 @@ class TTYRenderer:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
+
                 for line, remaining in self.doline(text, self.width, remaining):
                     if screenlines == 1 and self.y + self.height < self.ui.maxy:
                         attr |= curses.A_UNDERLINE
                     self.attrset(attr)
                     self.bkgdset(attr)
+
                     try:
                         self.addstr(line)
                     except:
@@ -176,6 +178,7 @@ class TTYRenderer:
                             'addstr returned ERR'
                             '; line=%s, remaining=%d, screenlines=%d',
                             line, remaining, screenlines)
+
                     if remaining <= 0:
                         screenlines -= 1
                     if screenlines <= 0:
@@ -193,10 +196,13 @@ class TTYRenderer:
                                     remaining)
                     elif remaining == 0:
                         self.move(self.height - screenlines, 0)
+
         if screenlines > 1 and self.y + self.height < self.ui.maxy:
             self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
+
         self.attrset(0)
         self.bkgdset(0)
+
         if self.active:
             if cursor is not None:
                 self.w.leaveok(0)
