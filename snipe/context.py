@@ -76,13 +76,6 @@ class Window:
             self.frame = prototype.frame
             self.sill = prototype.sill
         self.destroy = destroy
-        self.rules = []
-        for (filt, decor) in self.context.conf.get('rules', []):
-            try:
-                self.rules.append((filters.makefilter(filt), decor))
-            except:
-                self.log.exception(
-                    'error in filter %s for decor %s', filt, decor)
 
     def focus(self):
         pass
@@ -259,6 +252,13 @@ class Messager(Window, PagingMixIn):
         self.filter_reset()
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
+        self.rules = []
+        for (filt, decor) in self.context.conf.get('rules', []):
+            try:
+                self.rules.append((filters.makefilter(filt), decor))
+            except:
+                self.log.exception(
+                    'error in filter %s for decor %s', filt, decor)
 
     def focus(self):
         if self.secondary is not None:
