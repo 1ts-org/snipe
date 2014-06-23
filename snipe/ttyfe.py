@@ -165,7 +165,11 @@ class TTYRenderer:
                 if 'visible' in tags:
                     visible = True
 
-                for line, remaining in self.doline(text, self.width, remaining):
+                textbits = list(self.doline(text, self.width, remaining))
+                if not textbits:
+                    x = 0 if remaining is None else remaining
+                    textbits = [('', self.width if x <= 0 else x)]
+                for line, remaining in textbits:
                     if screenlines == 1 and self.y + self.height < self.ui.maxy:
                         attr |= curses.A_UNDERLINE
                     self.attrset(attr)
@@ -173,6 +177,7 @@ class TTYRenderer:
 
                     try:
                         self.addstr(line)
+                        self.chgat(attr)
                     except:
                         self.log.debug(
                             'addstr returned ERR'
@@ -182,7 +187,6 @@ class TTYRenderer:
                     if remaining <= 0:
                         screenlines -= 1
                     if screenlines <= 0:
-                        self.chgat(attr)
                         break
                     if remaining == -1:
                         if screenlines > 0:
