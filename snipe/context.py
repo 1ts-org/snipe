@@ -109,7 +109,7 @@ class Window:
                         except:
                             self.log.exception('Executing complex command')
                             self.whine(k)
-                        self.fe.redisplay()
+                        self.fe.redisplay({'window': self})
 
                     t = asyncio.Task(catch_and_log(ret))
 
@@ -117,6 +117,11 @@ class Window:
             self.log.exception('executing command from keymap')
             self.whine(k)
             self.active_keymap = self.keymap
+
+    def check_redisplay_hint(self, hint):
+        ret = hint.get('window', None) is self
+        self.log.debug('redisplay hint %s -> %s', repr(hint), repr(ret))
+        return ret
 
     def read_string(self, prompt, content=None, height=1, window=None):
         f = asyncio.Future()
@@ -308,6 +313,22 @@ class Messager(Window, PagingMixIn):
                 yield x, first + chunk
             else:
                 yield x, chunk
+
+    def check_redisplay_hint(self, hint):
+        if super().check_redisplay_hint(hint):
+            return True
+        mrange = hint.get('messages')
+        if mrange:
+            m1, m2 = mrange
+            self.log.debug('frame=%s, sill=%s', repr(self.frame), repr(self.sill))
+            self.log.debug('m1=%s, m2=%s', repr(m1), repr(m2))
+            self.log.debug('max(frame, m1)=%s', repr(max(self.frame, m1)))
+            self.log.debug('min(sill, m2)=%s', repr(min(self.sill, m2)))
+            if max(self.frame, m1) <= min(self.sill, m2):
+                self.log.debug('True!')
+                return True
+        self.log.debug("Fals.e")
+        return False
 
     @bind('n', 'j', '[down]')
     def next_message(self, k):

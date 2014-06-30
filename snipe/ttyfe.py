@@ -55,6 +55,7 @@ class TTYRenderer:
             'subwin(%d, %d, %d, %d)', self.height, self.width, self.y, self.x)
         self.w = ui.stdscr.subwin(self.height, self.width, self.y, self.x)
         self.w.idlok(1)
+        self.cursorpos = None
         self.context = None
 
     @property
@@ -206,25 +207,40 @@ class TTYRenderer:
 
         self.attrset(0)
         self.bkgdset(0)
+        self.w.leaveok(1)
+        self.w.noutrefresh()
 
-        if self.active:
-            if cursor is not None:
-                self.w.leaveok(0)
-                with contextlib.suppress(curses.error):
-                    curses.curs_set(1)
-                self.move(*cursor)
-                self.w.cursyncup()
-            else:
-                with contextlib.suppress(curses.error):
-                    curses.curs_set(0)
-        else:
-            self.w.leaveok(1)
+        self.cursorpos = cursor
+
         self.log.debug(
             'redisplay internal exiting, cursor=%s, visible=%s',
             repr(cursor),
             repr(visible),
             )
         return visible
+
+    def place_cursor(self):
+        if self.active:
+            if self.cursorpos is not None:
+                self.log.debug('placing cursor %s', repr(self.cursorpos))
+                self.w.leaveok(0)
+                with contextlib.suppress(curses.error):
+                    curses.curs_set(1)
+                self.move(*self.cursorpos)
+                self.w.cursyncup()
+                self.w.noutrefresh()
+            else:
+                self.log.debug('not placing')
+                try:
+                    curses.curs_set(0)
+                except curses.error:
+                    self.move(self.height - 1, self.width -1)
+        else:
+            self.log.debug('place_cursor called on inactive window')
+            self.w.leaveok(1)
+
+    def check_redisplay_hint(self, hint):
+        return self.window.check_redisplay_hint(hint)
 
     def makefunc(name):
         def _(self, *args):
@@ -356,20 +372,26 @@ class TTYFrontend:
                 self.doresize()
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
             elif self.active is not None:
+                #XXX
+                state = (list(self.windows), self.active)
                 self.windows[self.active].window.input_char(k)
-            self.redisplay()
+                if state == (list(self.windows), self.active):
+                    self.redisplay({'window': self.windows[self.active].window})
+                else:
+                    self.redisplay()
 
-    def redisplay(self):
+    def redisplay(self, hint=None):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
         self.color_assigner.reset()
         active = None
         for i, w in enumerate(self.windows):
             if i == self.active:
                 active = w
-            else:
+            if not hint or w.check_redisplay_hint(hint):
+                self.log.debug('calling redisplay on 0x%x', id(w))
                 w.redisplay()
         if active is not None:
-            active.redisplay()
+            active.place_cursor()
         curses.doupdate()
 
     def notify(self):

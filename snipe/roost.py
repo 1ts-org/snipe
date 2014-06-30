@@ -50,10 +50,12 @@ class Roost(messages.SnipeBackend):
     backfill_count = util.Configurable(
         'roost.backfill_count', 8,
         'Keep backfilling until you have this many messages'
-        ' unless you hit the time limit')
+        ' unless you hit the time limit',
+        coerce=int)
     backfill_length = util.Configurable(
         'roost.backfill_length', 24 * 3600 * 7,
-        'only backfill this looking for roost.backfill_count messages')
+        'only backfill this looking for roost.backfill_count messages',
+        coerce=int)
     url = util.Configurable(
         'roost.url', 'https://roost-api.mit.edu')
     service_name = util.Configurable(
@@ -76,10 +78,8 @@ class Roost(messages.SnipeBackend):
     def principal(self):
         return self.r.principal
 
-    def redisplay(self, message):
-        self.context.ui.redisplay() # XXX figure out how to inform the
-                                    # redisplay of which messages need
-                                    # refreshing
+    def redisplay(self, m1, m2):
+        self.context.ui.redisplay({'messages': (m1, m2)})
 
     @asyncio.coroutine
     def send(self, paramstr, body):
@@ -116,7 +116,7 @@ class Roost(messages.SnipeBackend):
     def new_message(self, m):
         msg = RoostMessage(self, m)
         self.messages.append(msg)
-        self.redisplay(msg)
+        self.redisplay(msg, msg)
 
     def backfill_trigger(self, iterable, filter):
         yield from iterable
@@ -172,8 +172,7 @@ class Roost(messages.SnipeBackend):
             if (count < self.backfill_count
                 and ms and ms[0].time > (origin - self.backfill_length)):
                 self.trigger_backfill(mfilter, count, origin)
-            self.redisplay(ms[0]) # XXX should actually be a time range, or a
-                                  # pair of messages
+            self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')
 
     def walk(self, start, forward=True, filter=None):
