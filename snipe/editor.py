@@ -224,32 +224,18 @@ class Editor(context.Window, context.PagingMixIn):
                 i,
                 i + 72)) + '\n')
 
-    @property
-    def size(self):
-        return self.buf.size
-
-    @property
-    def text(self):
-        return self.buf.text
-
-    def textrange(self, beg, end):
-        return self.buf.textrange(beg, end)
-
-    def replace(self, size, string):
-        self.cursor.point += self.buf.replace(self.cursor, size, string)
-
     @context.bind(
         '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))
     def insert(self, s):
-        self.replace(0, s)
+        self.cursor.point += self.buf.replace(self.cursor, 0, s)
 
     @context.bind('[carriage return]', 'Control-J')
     def insert_newline(self, k):
         self.insert('\n')
 
     def delete(self, count):
-        self.replace(count, '')
+        self.buf.replace(self.cursor, count, '')
 
     @context.bind('Control-D', '[dc]')
     def delete_forward(self, k):
@@ -307,7 +293,7 @@ class Editor(context.Window, context.PagingMixIn):
             start = self.cursor.point
             self.end_of_line()
             self.move(1)
-            result = (start, self.textrange(start, self.cursor))
+            result = (start, self.buf.textrange(start, self.cursor))
             self.buf.cache['extract_current_line'][p] = result
             return result
 
@@ -328,7 +314,7 @@ class Editor(context.Window, context.PagingMixIn):
             else:
                 prefix = []
             if ((p <= self.cursor.point < p + l)
-                or (self.cursor.point == p + l == self.size)):
+                or (self.cursor.point == p + l == self.buf.size)):
                 yield (
                     self.mark(p),
                     prefix + [
@@ -339,7 +325,7 @@ class Editor(context.Window, context.PagingMixIn):
             else:
                 yield self.mark(p), prefix + [((), s)]
             if direction == 'forward':
-                if p == self.size or s[-1] != '\n':
+                if p == self.buf.size or s[-1] != '\n':
                     break
                 m.point += l
             else:
@@ -348,7 +334,7 @@ class Editor(context.Window, context.PagingMixIn):
                 m.point = p - 1
 
     def character_at_point(self):
-        return self.textrange(self.cursor.point, self.cursor.point + 1)
+        return self.buf.textrange(self.cursor.point, self.cursor.point + 1)
 
     def find_character(self, cs, delta=1):
         while self.move(delta):
@@ -389,7 +375,7 @@ class Editor(context.Window, context.PagingMixIn):
 
     @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(self, k):
-        self.cursor.point = self.size
+        self.cursor.point = self.buf.size
 
     def input_char(self, k):
         self.log.debug('before command %s', self.cursor)
@@ -432,7 +418,7 @@ class LongPrompt(Editor):
         self.keymap['Control-C Control-C'] = self.runcallback
 
     def runcallback(self, k):
-        self.callback(self.text)
+        self.callback(self.buf.text)
 
 class ShortPrompt(LongPrompt):
     def __init__(self, *args, **kw):
