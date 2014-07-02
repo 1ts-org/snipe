@@ -74,7 +74,7 @@ class TestEditor(unittest.TestCase):
         e.insert('bar')
         self.assertEqual(e.text, 'bar')
         self.assertEqual(e.size, 3)
-        m = snipe.editor.Mark(e, 1)
+        m = snipe.editor.Mark(e.buf, 1)
         self.assertEqual(m.point, 1)
         e.cursor.point = 0
         e.insert('foo')
@@ -235,6 +235,13 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.character_at_point(), 't')
         e.move(10)
         self.assertEqual(e.character_at_point(), '\n')
+
+    def test_extract_current_line(self):
+        e = snipe.editor.Editor(None)
+        shouldchange = e.extract_current_line()
+        e.insert('x')
+        e.cursor.point = 0
+        self.assertNotEqual(e.extract_current_line(), shouldchange)
 
 if __name__ == '__main__':
     unittest.main()

@@ -43,24 +43,24 @@ CHUNKSIZE = 4096
 
 @functools.total_ordering
 class Mark:
-    def __init__(self, editor, point):
-        self.editor = editor
-        self.editor.marks.add(self)
-        self.pos = self.editor.pointtopos(point)
+    def __init__(self, buf, point):
+        self.buf = buf
+        self.buf.marks.add(self)
+        self.pos = self.buf.pointtopos(point)
 
     @property
     def point(self):
         """The value of the mark in external coordinates"""
-        return self.editor.postopoint(self.pos)
+        return self.buf.postopoint(self.pos)
 
     @point.setter
     def point(self, val):
-        self.pos = self.editor.pointtopos(val)
+        self.pos = self.buf.pointtopos(val)
 
     def __repr__(self):
         return '<%s:%s %d (%d)>' % (
             self.__class__.__name__,
-            repr(self.editor),
+            repr(self.buf),
             self.pos,
             self.point,
             )
@@ -79,47 +79,25 @@ class Mark:
         return id(self)
 
 
-class Editor(context.Window, context.PagingMixIn):
-    EOL = '\n'
-
-    def __init__(
-        self, *args, chunksize=CHUNKSIZE, prompt=None, content=None, **kw):
-
-        self.chunksize = chunksize
-        self.prompt = prompt
-
+class GapBuffer:
+    def __init__(self, content=None, chunksize=None):
+        self.chunksize = chunksize or CHUNKSIZE
         self.marks = weakref.WeakSet()
-
         self.buf = self._array(self.chunksize)
         self.gapstart = 0
         self.gapend = len(self.buf)
-
         self.cache = {}
 
-        super().__init__(*args, **kw) #XXX need share buffer?
-
-        self.log = logging.getLogger('Editor.%x' % (id(self),))
-
-        self.cursor = Mark(self, 0)
-
         if content is not None:
-            self.insert(content)
+            self.replace(0, 0, content)
 
-
-    @context.bind('Control-T')
-    def insert_test_content(self, k):
-        import itertools
-        for i in range(32):
-            self.insert(''.join(itertools.islice(
-                itertools.cycle(
-                    [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
-                    [chr(x) for x in range(ord('0'), ord('9') + 1)]),
-                i,
-                i + 72)) + '\n')
-
-    def set_content(self, s):
-        self.cursor.point = 0
-        self.replace(self.size, s)
+    def __repr__(self):
+        return '<%s size=%d:%d left=%s right=%s>' % (
+            self.__class__.__name__,
+            self.size, len(self.buf),
+            repr(self.buf[:self.gapstart].tounicode()),
+            repr(self.buf[self.gapend:].tounicode()),
+            )
 
     def _array(self, size):
         return array.array('u', u' ' * size)
@@ -197,15 +175,64 @@ class Editor(context.Window, context.PagingMixIn):
         for mark in self.marks:
             mark.point = mark.pos
 
-    def replace(self, size, string):
-        where = self.cursor.pos
-        self.movegap(where, len(string) - size)
+    def replace(self, where, size, string):
+        if hasattr(where, 'pos'):
+            where = where.pos
+        else:
+            where = self.pointtopos(where)
+        length = len(string)
+        self.movegap(where, length - size)
         self.gapend += size
-        newstart = self.gapstart + len(string)
+        newstart = self.gapstart + length
         self.buf[self.gapstart:newstart] = array.array('u', string)
         self.gapstart = newstart
-        self.cursor.pos = where + len(string)
         self.cache = {}
+        return length
+
+
+class Editor(context.Window, context.PagingMixIn):
+    EOL = '\n'
+
+    def __init__(
+        self, *args, chunksize=CHUNKSIZE, prompt=None, content=None, **kw):
+
+        self.buf = GapBuffer(content=content, chunksize=chunksize)
+        self.prompt = prompt
+
+        super().__init__(*args, **kw) #XXX need share buffer?
+
+        self.log = logging.getLogger('Editor.%x' % (id(self),))
+
+        self.cursor = Mark(self.buf, 0)
+
+    @context.bind('Control-T')
+    def insert_test_content(self, k):
+        import itertools
+        for i in range(32):
+            self.insert(''.join(itertools.islice(
+                itertools.cycle(
+                    [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
+                    [chr(x) for x in range(ord('0'), ord('9') + 1)]),
+                i,
+                i + 72)) + '\n')
+
+    def set_content(self, s):
+        self.cursor.point = 0
+        self.replace(self.size, s)
+
+    @property
+    def size(self):
+        return self.buf.size
+
+    @property
+    def text(self):
+        return self.buf.text
+
+    def textrange(self, beg, end):
+        return self.buf.textrange(beg, end)
+
+    def replace(self, size, string):
+        self.cursor.point += self.buf.replace(self.cursor, size, string)
 
     @context.bind(
         '[tab]', '[linefeed]',
@@ -267,23 +294,23 @@ class Editor(context.Window, context.PagingMixIn):
 
     def extract_current_line(self):
         p = self.cursor.point
-        r = self.cache.setdefault('extract_current_line', {}).get(p)
+        r = self.buf.cache.setdefault('extract_current_line', {}).get(p)
         if r is not None:
             return r
 
         with self.save_excursion():
             self.beginning_of_line()
-            start=self.cursor.point
+            start = self.cursor.point
             self.end_of_line()
             self.move(1)
             result = (start, self.textrange(start, self.cursor))
-            self.cache['extract_current_line'][p] = result
+            self.buf.cache['extract_current_line'][p] = result
             return result
 
     def view(self, origin, direction='forward'):
         # this is the right place to do special processing of
         # e.g. control characters
-        m = Mark(self, origin)
+        m = Mark(self.buf, origin)
 
         if direction not in ('forward', 'backward'):
             raise ValueError('invalid direction', direction)
@@ -299,14 +326,14 @@ class Editor(context.Window, context.PagingMixIn):
             if ((p <= self.cursor.point < p + l)
                 or (self.cursor.point == p + l == self.size)):
                 yield (
-                    Mark(self, p),
+                    Mark(self.buf, p),
                     prefix + [
                         ((), s[:self.cursor.point - p]),
                         (('cursor', 'visible'), s[self.cursor.point - p:]),
                         ],
                     )
             else:
-                yield Mark(self, p), prefix + [((), s)]
+                yield Mark(self.buf, p), prefix + [((), s)]
             if direction == 'forward':
                 if p == self.size or s[-1] != '\n':
                     break
@@ -344,7 +371,7 @@ class Editor(context.Window, context.PagingMixIn):
 
     @contextlib.contextmanager
     def save_excursion(self, mark=None):
-        cursor = Mark(self, self.cursor)
+        cursor = Mark(self.buf, self.cursor)
         if mark is not None:
             self.cursor.point = mark
         yield
