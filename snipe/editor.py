@@ -224,10 +224,6 @@ class Editor(context.Window, context.PagingMixIn):
                 i,
                 i + 72)) + '\n')
 
-    def set_content(self, s):
-        self.cursor.point = 0
-        self.replace(self.size, s)
-
     @property
     def size(self):
         return self.buf.size
