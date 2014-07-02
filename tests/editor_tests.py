@@ -74,7 +74,7 @@ class TestEditor(unittest.TestCase):
         e.insert('bar')
         self.assertEqual(e.text, 'bar')
         self.assertEqual(e.size, 3)
-        m = snipe.editor.Mark(e.buf, 1)
+        m = e.mark(1)
         self.assertEqual(m.point, 1)
         e.cursor.point = 0
         e.insert('foo')

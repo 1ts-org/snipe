@@ -189,6 +189,9 @@ class GapBuffer:
         self.cache = {}
         return length
 
+    def mark(self, where):
+        return Mark(self, where)
+
 
 class Editor(context.Window, context.PagingMixIn):
     EOL = '\n'
@@ -203,7 +206,12 @@ class Editor(context.Window, context.PagingMixIn):
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
-        self.cursor = Mark(self.buf, 0)
+        self.cursor = self.buf.mark(0)
+
+    def mark(self, where=None):
+        if where is None:
+            where = self.cursor
+        return self.buf.mark(where)
 
     @context.bind('Control-T')
     def insert_test_content(self, k):
@@ -310,7 +318,7 @@ class Editor(context.Window, context.PagingMixIn):
     def view(self, origin, direction='forward'):
         # this is the right place to do special processing of
         # e.g. control characters
-        m = Mark(self.buf, origin)
+        m = self.mark(origin)
 
         if direction not in ('forward', 'backward'):
             raise ValueError('invalid direction', direction)
@@ -326,14 +334,14 @@ class Editor(context.Window, context.PagingMixIn):
             if ((p <= self.cursor.point < p + l)
                 or (self.cursor.point == p + l == self.size)):
                 yield (
-                    Mark(self.buf, p),
+                    self.mark(p),
                     prefix + [
                         ((), s[:self.cursor.point - p]),
                         (('cursor', 'visible'), s[self.cursor.point - p:]),
                         ],
                     )
             else:
-                yield Mark(self.buf, p), prefix + [((), s)]
+                yield self.mark(p), prefix + [((), s)]
             if direction == 'forward':
                 if p == self.size or s[-1] != '\n':
                     break
@@ -371,7 +379,7 @@ class Editor(context.Window, context.PagingMixIn):
 
     @contextlib.contextmanager
     def save_excursion(self, mark=None):
-        cursor = Mark(self.buf, self.cursor)
+        cursor = self.mark()
         if mark is not None:
             self.cursor.point = mark
         yield
