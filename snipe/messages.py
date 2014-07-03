@@ -33,6 +33,7 @@ import itertools
 import time
 import logging
 import functools
+import bisect
 
 
 class SnipeAddress:
@@ -152,27 +153,51 @@ class SnipeBackend:
             '%s.%x' % (self.__class__.__name__, id(self),))
 
     def walk(self, start, forward=True, filter=None):
-        if start is None:
-            pred = lambda x: False
-        elif getattr(start, 'backend', None) is self:
-            # it's a message object that belongs to us
-            pred = lambda x: x != start
+        self.log.debug('walk(%s, %s, %s)', start, forward, filter)
+        # I have some concerns that that this depends on the self.messages list
+        # being stable over the life of the iterator.  This doesn't seem to be a
+        # a problem as of when I write this comment, but defensive coding should
+        # address this at some point.   (If you are finding this comment because
+        # of weird message list behavior, this might be why...)
+
+        if filter is None:
+            filter = lambda m: True
+
+        if start is not None:
+            left = bisect.bisect_left(self.messages, start)
+            right = bisect.bisect_right(self.messages, start)
+            try:
+                point = self.messages.index(start, left, right)
+            except ValueError:
+                point = None
         else:
-            if hasattr(start, 'time'):
-                start = start.time
-            # it's a time
             if forward:
-                pred = lambda x: x.time < start
+                point = 0
             else:
-                pred = lambda x: x.time > start
-        l = self.messages
-        if not forward:
-            l = reversed(l)
-        if start:
-            l = itertools.dropwhile(pred, l)
-        if filter is not None:
-            l = (m for m in l if filter(m))
-        return l
+                point = len(self.messages) - 1
+
+        if forward:
+            point = point if point is not None else left
+            getnext = lambda x: x + 1
+        else:
+            point = point if point is not None else right - 1
+            getnext = lambda x: x - 1
+
+        self.log.debug('len(self.messages)=%d, point=%d', len(self.messages), point)
+
+        while self.messages:
+            self.log.debug(', point=%d')
+            if not 0 <= point < len(self.messages):
+                break
+            m = self.messages[point]
+            if filter(m):
+                yield m
+            point = getnext(point)
+        if point < 0:
+            self.backfill(filter)
+
+    def backfill(self, filter):
+        pass
 
     def shutdown(self):
         pass

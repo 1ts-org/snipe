@@ -118,11 +118,7 @@ class Roost(messages.SnipeBackend):
         self.messages.append(msg)
         self.redisplay(msg, msg)
 
-    def backfill_trigger(self, iterable, filter):
-        yield from iterable
-        self.trigger_backfill(filter)
-
-    def trigger_backfill(self, filter, count=0, origin=None):
+    def backfill(self, filter, count=0, origin=None):
         if not self.loaded:
             self.log.debug('triggering backfill')
             msgid = None
@@ -171,35 +167,10 @@ class Roost(messages.SnipeBackend):
             self.log.warning('%d messages, total %d', count, len(self.messages))
             if (count < self.backfill_count
                 and ms and ms[0].time > (origin - self.backfill_length)):
-                self.trigger_backfill(mfilter, count, origin)
+                self.backfill(mfilter, count, origin)
             self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')
 
-    def walk(self, start, forward=True, filter=None):
-        #XXX nearly a straight copy of the superclass
-        self.log.debug('walk(%s, %s, %s)', start, forward, filter)
-        if start is None:
-            pred = lambda x: False
-        elif getattr(start, 'backend', None) is self:
-            # it's a message object that belongs to us
-            pred = lambda x: x != start
-        else:
-            if hasattr(start, 'time'):
-                start = start.time
-            # it's a time
-            if forward:
-                pred = lambda x: x.time < start
-            else:
-                pred = lambda x: x.time > start
-        l = self.messages
-        if not forward:
-            l = iter(reversed(l))
-            l = self.backfill_trigger(l, filter)
-        if start:
-            l = itertools.dropwhile(pred, l)
-        if filter is not None:
-            l = (m for m in l if filter(m))
-        return l
 
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
