@@ -37,6 +37,7 @@ import signal
 import logging
 import itertools
 import contextlib
+import unicodedata
 
 from . import util
 from . import ttycolor
@@ -87,6 +88,20 @@ class TTYRenderer:
         self.w.noutrefresh()
 
     @staticmethod
+    def width(c):
+        # from http://bugs.python.org/msg155361 http://bugs.python.org/issue12568
+        if (
+            (c < ' ') or
+            (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
+            (unicodedata.category(c) in ('Mn', 'Me', 'Cf') and c != u'\u00ad')
+                                                             # 00ad = soft hyphen
+            ):
+            return 0
+        if unicodedata.east_asian_width(c) in ('F', 'W'):
+            return 2
+        return 1
+
+    @staticmethod
     def doline(s, width, remaining):
         '''string, window width, remaining width ->
         iter([(displayline, remaining), ...])'''
@@ -101,13 +116,6 @@ class TTYRenderer:
                 yield out, -1
                 out = ''
                 col = 0
-            elif ' ' <= c <= '~': #XXX should look up unicode category
-                if col >= width:
-                    yield out, 0
-                    out = ''
-                    col = 0
-                out += c
-                col += 1
             elif c == '\t':
                 n = (8 - col % 8)
                 if col + n >= width:
@@ -117,6 +125,13 @@ class TTYRenderer:
                 else:
                     col += n
                     out += ' ' * n
+            elif c >= ' ':
+                if col >= width:
+                    yield out, 0
+                    out = ''
+                    col = 0
+                out += c
+                col += TTYRenderer.width(c)
             # non printing characters... don't
         if out:
             yield out, width - col
