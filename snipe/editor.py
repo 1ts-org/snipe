@@ -206,7 +206,7 @@ class Editor(context.Window, context.PagingMixIn):
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
-        self.cursor = self.buf.mark(0)
+        self.cursor = self.buf.mark(self.buf.size)
 
     def mark(self, where=None):
         if where is None:
