@@ -74,6 +74,9 @@ def main():
             repr(x) if isinstance(x, str) else curses.keyname(x),
             repr(x) if isinstance(x, str) else unkey[x],
             ))
+        if x == curses.KEY_RESIZE:
+            maxy, maxx = stdscr.getmaxyx()
+            stdscr.addstr('Resize! %d %d\n' % (maxy, maxx))
 
     curses.noraw()
     curses.nl()
