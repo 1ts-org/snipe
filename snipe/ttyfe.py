@@ -38,6 +38,9 @@ import logging
 import itertools
 import contextlib
 import unicodedata
+import array
+import termios
+import fcntl
 
 from . import util
 from . import ttycolor
@@ -342,6 +345,7 @@ class TTYFrontend:
                 self.color_assigner = ttycolor.StaticColorAssigner()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
+        signal.signal(signal.SIGWINCH, self.doresize)
         return self
 
     def initial(self, win):
@@ -373,9 +377,36 @@ class TTYFrontend:
     def write(self, s):
         pass #XXX put a warning here or a debug log or something
 
-    def doresize(self):
+    def doresize(self, signum, frame):
+        winsz = array.array('H', [0] * 4) # four unsigned shorts per tty_ioctl(4)
+        fcntl.ioctl(0, termios.TIOCGWINSZ, winsz, True)
+        curses.resizeterm(winsz[0], winsz[1])
+
+        oldy = self.maxy
         self.maxy, self.maxx = self.stdscr.getmaxyx()
-        # rearrange windows as appropriate and trigger redisplays
+        if self.maxy < len(self.windows):
+            # we don't have vertical room for them all
+            # drop the ones on top
+            if self.active is not None:
+                self.active -= len(self.windows) - self.maxy
+            orphans = self.windows[:-self.maxy]
+            self.windows = self.windows[-self.maxy:]
+            for victim in orphans: # it sounds terrible when you put it that way
+                with contextlib.suppress(ValueError):
+                    self.popstack.remove(victim)
+                victim.window.destroy()
+        neww = []
+        remaining = self.maxy
+        for victim in reversed(self.windows[1:]):
+            # from the bottom
+            newheight = min(1, int(victim.height * (self.maxy / oldy)))
+            remaining -= newheight
+            neww.append(TTYRenderer(self, remaining, newheight, victim.window))
+        neww.reverse()
+        self.windows = \
+            [TTYRenderer(self, 0, remaining, self.windows[0].window)] + neww
+        self.log.debug('RESIZED %d windows', len(self.windows))
+        self.redisplay()
 
     def readable(self):
         while True: # make sure to consume all available input
@@ -384,7 +415,6 @@ class TTYFrontend:
             except curses.error:
                 break
             if k == curses.KEY_RESIZE:
-                self.doresize()
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
             elif self.active is not None:
                 #XXX
