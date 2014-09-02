@@ -562,6 +562,12 @@ class Context:
     def yank(self, off=1):
         return self.killring[-(1 + (off - 1) % len(self.killring))]
 
+    def append(self, data):
+        if not self.killring:
+            self.copy(data)
+        else:
+            self.killring[-1] += data
+
 class Keymap(dict):
     def __init__(self, d={}):
         super().__init__()

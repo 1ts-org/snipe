@@ -433,7 +433,7 @@ class Editor(context.Window, context.PagingMixIn):
             return
         with self.save_excursion():
             self.the_mark = m
-            self.kill_region(k)
+            self.kill_region(k, self.last_command.startswith('kill_'))
 
     def region(self):
         if self.the_mark is None:
@@ -443,14 +443,17 @@ class Editor(context.Window, context.PagingMixIn):
             max(self.cursor, self.the_mark))
 
     @context.bind('Control-W')
-    def kill_region(self, k):
+    def kill_region(self, k, append=False):
         if self.the_mark is None:
             self.whine('no mark is set')
             return
         self.log.debug('kill region %d-%d', self.cursor.point, self.the_mark.point)
         if self.cursor > self.the_mark:
             self.exchange_point_and_mark(k)
-        self.context.copy(self.region())
+        if not append:
+            self.context.copy(self.region())
+        else:
+            self.context.append(self.region())
         self.delete(abs(self.the_mark.point - self.cursor.point))
         self.yank_state = 1
 
