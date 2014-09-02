@@ -196,13 +196,37 @@ class GapBuffer:
         return Mark(self, where)
 
 
+class UndoableGapBuffer(GapBuffer):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.undolog = []
+
+    def replace(self, where, size, string):
+        self.undolog.append(
+            (int(where), len(string), self.textrange(where, int(where) + size)))
+        logging.debug('(%d, %d, %s) -> %s', where, size, repr(string), self.undolog[-1])
+        return super().replace(where, size, string)
+
+    def undo(self, which):
+        if not self.undolog:
+            return None
+        if which is not None:
+            off = which
+        else:
+            off = len(self.undolog) - 1
+        where, size, string = self.undolog[off]
+        self.replace(where, size, string)
+        return (off - 1) % len(self.undolog), where + len(string)
+
+
+
 class Editor(context.Window, context.PagingMixIn):
     EOL = '\n'
 
     def __init__(
         self, *args, chunksize=CHUNKSIZE, prompt=None, content=None, **kw):
 
-        self.buf = GapBuffer(content=content, chunksize=chunksize)
+        self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
         self.prompt = prompt
 
         super().__init__(*args, **kw) #XXX need share buffer?
@@ -213,6 +237,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.the_mark = None
 
         self.yank_state = None
+        self.undo_state = None
 
     def mark(self, where=None):
         if where is None:
@@ -491,6 +516,15 @@ class Editor(context.Window, context.PagingMixIn):
             self.exchange_point_and_mark(k)
         self.delete(abs(self.the_mark.point - self.cursor.point))
         self.insert_region(self.context.yank(self.yank_state))
+
+    @context.bind('Control-_', 'Control-x u')
+    def undo(self, k):
+        if self.last_command != 'undo':
+            self.undo_state = None
+        self.undo_state, where = self.buf.undo(self.undo_state)
+        self.cursor.point = where
+        if self.undo_state == None:
+            self.whine('Nothing to undo')
 
 
 class LongPrompt(Editor):
