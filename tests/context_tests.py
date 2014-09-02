@@ -111,6 +111,11 @@ class TestKeymap(unittest.TestCase):
         with self.assertRaises(KeyError):
             k['\n']
 
+    def testsetmarkkey(self):
+        split = snipe.context.Keymap.split
+        self.assertEqual(split('Control-@'), ('\0', None))
+        self.assertEqual(split('Control-[space]'), ('\0', None))
+
 
 if __name__ == '__main__':
     unittest.main()

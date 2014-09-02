@@ -701,6 +701,8 @@ class Keymap(dict):
                 key = '\x7f'
             elif ord('@') <= ord(key.upper()) <= ord('_'):
                 key = chr(ord(key.upper()) - ord('@'))
+            elif key == ' ':
+                key = '\0'
             else:
                 return None, None #valid but untypable
             modifiers.remove('control')
