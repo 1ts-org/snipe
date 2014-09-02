@@ -76,6 +76,7 @@ class Window:
             self.frame = prototype.frame
             self.sill = prototype.sill
         self.destroy = destroy
+        self.last_command = None
 
     def focus(self):
         pass
@@ -102,6 +103,7 @@ class Window:
             else:
                 self.active_keymap = self.keymap
                 ret = v(k)
+                self.last_command = getattr(v, '__name__', '?')
                 if asyncio.iscoroutine(ret):
                     def catch_and_log(coro):
                         try:

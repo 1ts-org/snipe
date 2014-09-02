@@ -79,8 +79,18 @@ class Mark:
         return id(self)
 
 
-class GapBuffer:
+class KillRing: # mixin
+    def __init__(self):
+        self.ring = []
+    def copy(self, data):
+        self.ring.append(data)
+    def yank(self, off=1):
+        return self.ring[-(1 + (off - 1) % len(self.ring))]
+
+
+class GapBuffer(KillRing):
     def __init__(self, content=None, chunksize=None):
+        super().__init__()
         self.chunksize = chunksize or CHUNKSIZE
         self.marks = weakref.WeakSet()
         self.buf = self._array(self.chunksize)
@@ -92,10 +102,11 @@ class GapBuffer:
             self.replace(0, 0, content)
 
     def __repr__(self):
-        return '<%s size=%d:%d left=%s right=%s>' % (
+        return '<%s size=%d:%d left=%s (%d-%d) right=%s>' % (
             self.__class__.__name__,
             self.size, len(self.buf),
             repr(self.buf[:self.gapstart].tounicode()),
+            self.gapstart, self.gapend,
             repr(self.buf[self.gapend:].tounicode()),
             )
 
@@ -176,6 +187,7 @@ class GapBuffer:
             mark.point = mark.pos
 
     def replace(self, where, size, string):
+        assert size >= 0
         if hasattr(where, 'pos'):
             where = where.pos
         else:
@@ -207,6 +219,9 @@ class Editor(context.Window, context.PagingMixIn):
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
         self.cursor = self.buf.mark(self.buf.size)
+        self.the_mark = None
+
+        self.yank_state = None
 
     def mark(self, where=None):
         if where is None:
@@ -235,6 +250,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.insert('\n')
 
     def delete(self, count):
+        self.log.debug('delete %d', count)
         self.buf.replace(self.cursor, count, '')
 
     @context.bind('Control-D', '[dc]')
@@ -360,14 +376,16 @@ class Editor(context.Window, context.PagingMixIn):
             self.find_character(self.EOL)
 
     @contextlib.contextmanager
-    def save_excursion(self, mark=None):
+    def save_excursion(self, where=None):
         cursor = self.mark()
-        if mark is not None:
-            self.cursor.point = mark
+        mark = self.mark(self.the_mark)
+        if where is not None:
+            self.cursor.point = where
         yield
-        if mark is not None:
-            mark.point = self.cursor
+        if where is not None:
+            where.point = self.cursor
         self.cursor.point = cursor
+        self.the_mark = mark
 
     @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
     def beginning_of_buffer(self, k):
@@ -410,6 +428,77 @@ class Editor(context.Window, context.PagingMixIn):
             if not self.move(-1):
                 return
 
+    @context.bind('Control-k')
+    def kill_to_end_of_line(self, k):
+        m = self.mark()
+        with self.save_excursion(m):
+            self.end_of_line()
+        if m == self.cursor:
+            # at the end of a line, move past it
+            with self.save_excursion(m):
+                self.move(1)
+        if m == self.cursor:
+            # end of buffer
+            return
+        with self.save_excursion():
+            self.the_mark = m
+            self.kill_region(k)
+
+    def region(self):
+        if self.the_mark is None:
+            return None
+        return self.buf.textrange(
+            min(self.cursor, self.the_mark),
+            max(self.cursor, self.the_mark))
+
+    @context.bind('Control-W')
+    def kill_region(self, k):
+        if self.the_mark is None:
+            self.whine('no mark is set')
+            return
+        self.log.debug('kill region %d-%d', self.cursor.point, self.the_mark.point)
+        if self.cursor > self.the_mark:
+            self.exchange_point_and_mark(k)
+        self.buf.copy(self.region())
+        self.delete(abs(self.the_mark.point - self.cursor.point))
+        self.yank_state = 1
+
+    @context.bind('Meta-w')
+    def copy_region(self, k):
+        if self.the_mark is None:
+            self.whine('no mark is set')
+            return
+        self.buf.copy(self.region())
+        self.yank_state = 1
+
+    @context.bind('Control-[space]')
+    def set_mark(self, k):
+        self.the_mark = self.mark()
+
+    @context.bind('Control-X Control-X')
+    def exchange_point_and_mark(self, k):
+        self.cursor, self.the_mark = self.the_mark, self.cursor
+
+    def insert_region(self, s):
+        self.the_mark = self.mark()
+        self.insert(s)
+
+    @context.bind('Control-Y')
+    def yank(self, k):
+        self.insert_region(self.buf.yank(self.yank_state))
+
+    @context.bind('Meta-y')
+    def yank_pop(self, k):
+        if self.last_command not in ('yank', 'yank_pop'):
+            self.whine('last command was not a yank')
+            return
+        self.yank_state += 1
+        if self.cursor > self.the_mark:
+            self.exchange_point_and_mark(k)
+        self.delete(abs(self.the_mark.point - self.cursor.point))
+        self.insert_region(self.buf.yank(self.yank_state))
+
+
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
         super().__init__(*args, **kw)
@@ -419,6 +508,7 @@ class LongPrompt(Editor):
 
     def runcallback(self, k):
         self.callback(self.buf.text)
+
 
 class ShortPrompt(LongPrompt):
     def __init__(self, *args, **kw):
