@@ -79,16 +79,7 @@ class Mark:
         return id(self)
 
 
-class KillRing: # mixin
-    def __init__(self):
-        self.ring = []
-    def copy(self, data):
-        self.ring.append(data)
-    def yank(self, off=1):
-        return self.ring[-(1 + (off - 1) % len(self.ring))]
-
-
-class GapBuffer(KillRing):
+class GapBuffer:
     def __init__(self, content=None, chunksize=None):
         super().__init__()
         self.chunksize = chunksize or CHUNKSIZE
@@ -459,7 +450,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.log.debug('kill region %d-%d', self.cursor.point, self.the_mark.point)
         if self.cursor > self.the_mark:
             self.exchange_point_and_mark(k)
-        self.buf.copy(self.region())
+        self.context.copy(self.region())
         self.delete(abs(self.the_mark.point - self.cursor.point))
         self.yank_state = 1
 
@@ -468,7 +459,7 @@ class Editor(context.Window, context.PagingMixIn):
         if self.the_mark is None:
             self.whine('no mark is set')
             return
-        self.buf.copy(self.region())
+        self.context.copy(self.region())
         self.yank_state = 1
 
     @context.bind('Control-[space]')
@@ -485,7 +476,7 @@ class Editor(context.Window, context.PagingMixIn):
 
     @context.bind('Control-Y')
     def yank(self, k):
-        self.insert_region(self.buf.yank(self.yank_state))
+        self.insert_region(self.context.yank(self.yank_state))
 
     @context.bind('Meta-y')
     def yank_pop(self, k):
@@ -496,7 +487,7 @@ class Editor(context.Window, context.PagingMixIn):
         if self.cursor > self.the_mark:
             self.exchange_point_and_mark(k)
         self.delete(abs(self.the_mark.point - self.cursor.point))
-        self.insert_region(self.buf.yank(self.yank_state))
+        self.insert_region(self.context.yank(self.yank_state))
 
 
 class LongPrompt(Editor):

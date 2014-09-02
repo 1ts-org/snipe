@@ -513,6 +513,7 @@ class Context:
         self.conf_read()
         self.ui = ui
         self.ui.context = self
+        self.killring = []
         self.log = logging.getLogger('Snipe')
         self.log.warning('snipe starting')
         #XXX kludge so the kludged sending can find the roost backend
@@ -554,6 +555,12 @@ class Context:
             os.link(path, backup)
         os.rename(tmp, path)
 
+    # kill ring
+    def copy(self, data):
+        self.killring.append(data)
+
+    def yank(self, off=1):
+        return self.killring[-(1 + (off - 1) % len(self.killring))]
 
 class Keymap(dict):
     def __init__(self, d={}):
