@@ -399,7 +399,7 @@ class TTYFrontend:
         remaining = self.maxy
         for victim in reversed(self.windows[1:]):
             # from the bottom
-            newheight = min(1, int(victim.height * (self.maxy / oldy)))
+            newheight = max(1, int(victim.height * (self.maxy / oldy)))
             remaining -= newheight
             neww.append(TTYRenderer(self, remaining, newheight, victim.window))
         neww.reverse()
