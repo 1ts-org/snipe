@@ -201,10 +201,19 @@ class UndoableGapBuffer(GapBuffer):
         super().__init__(*args, **kw)
         self.undolog = []
 
-    def replace(self, where, size, string):
-        self.undolog.append(
-            (int(where), len(string), self.textrange(where, int(where) + size)))
-        logging.debug('(%d, %d, %s) -> %s', where, size, repr(string), self.undolog[-1])
+    def replace(self, where, size, string, collapsible=False):
+        logging.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
+        if self.undolog:
+            logging.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
+        if collapsible and self.undolog \
+          and where == self.undolog[-1][0] + self.undolog[-1][1] \
+          and string != '' and self.undolog[-1][2] == '':
+            #XXX only "collapses" inserts
+            logging.debug('collapse %s', repr(self.undolog[-1]))
+            self.undolog[-1] = (self.undolog[-1][0], len(string) + self.undolog[-1][1], '')
+        else:
+            self.undolog.append(
+                (int(where), len(string), self.textrange(where, int(where) + size)))
         return super().replace(where, size, string)
 
     def undo(self, which):
@@ -258,8 +267,15 @@ class Editor(context.Window, context.PagingMixIn):
     @context.bind(
         '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))
-    def insert(self, s):
-        self.cursor.point += self.buf.replace(self.cursor, 0, s)
+    def self_insert(self, k):
+        collapsible=True
+        if self.last_command == 'self_insert':
+            if (not self.last_key.isspace()) and k.isspace():
+                collapsible=False
+        self.insert(k, collapsible)
+
+    def insert(self, s, collapsible=False):
+        self.cursor.point += self.buf.replace(self.cursor, 0, s, collapsible)
 
     @context.bind('[carriage return]', 'Control-J')
     def insert_newline(self, k):
