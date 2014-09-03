@@ -228,7 +228,6 @@ class UndoableGapBuffer(GapBuffer):
         return (off - 1) % len(self.undolog), where + len(string)
 
 
-
 class Editor(context.Window, context.PagingMixIn):
     EOL = '\n'
 
