@@ -252,7 +252,7 @@ class Editor(context.Window, context.PagingMixIn):
             where = self.cursor
         return self.buf.mark(where)
 
-    @context.bind('Control-T')
+    @context.bind('Meta-T')
     def insert_test_content(self, k):
         import itertools
         for i in range(32):
@@ -274,7 +274,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.insert(k, collapsible)
 
     def insert(self, s, collapsible=False):
-        self.cursor.point += self.buf.replace(self.cursor, 0, s, collapsible)
+        self.cursor.point += self.replace(0, s, collapsible)
 
     @context.bind('[carriage return]', 'Control-J')
     def insert_newline(self, k):
@@ -282,7 +282,10 @@ class Editor(context.Window, context.PagingMixIn):
 
     def delete(self, count):
         self.log.debug('delete %d', count)
-        self.buf.replace(self.cursor, count, '')
+        self.replace(count, '')
+
+    def replace(self, count, string, collapsible=False):
+        return self.buf.replace(self.cursor, count, string, collapsible)
 
     @context.bind('Control-D', '[dc]')
     def delete_forward(self, k):
@@ -540,6 +543,21 @@ class Editor(context.Window, context.PagingMixIn):
         self.cursor.point = where
         if self.undo_state == None:
             self.whine('Nothing to undo')
+
+    @context.bind('Control-T')
+    def transpose_chars(self, k):
+        off = 1
+        p = self.cursor.point
+        if p == self.buf.size:
+            off = 2
+        if self.move(-off) != -off:
+            self.cursor.point = p
+            self.whine('At beginning')
+            return
+        s = self.buf.textrange(self.cursor, int(self.cursor) + 2)
+        s = ''.join(reversed(s)) # *sigh*
+        self.replace(2, s)
+        self.move(2)
 
 
 class LongPrompt(Editor):
