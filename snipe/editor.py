@@ -198,8 +198,8 @@ class GapBuffer:
 
 class UndoableGapBuffer(GapBuffer):
     def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
         self.undolog = []
+        super().__init__(*args, **kw)
 
     def replace(self, where, size, string, collapsible=False):
         logging.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
