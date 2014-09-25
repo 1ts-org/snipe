@@ -247,6 +247,8 @@ class Editor(context.Window, context.PagingMixIn):
         self.yank_state = None
         self.undo_state = None
 
+        self.goal_column = None
+
     def mark(self, where=None):
         if where is None:
             where = self.cursor
@@ -310,6 +312,7 @@ class Editor(context.Window, context.PagingMixIn):
         '''
         z = self.cursor.point
         self.cursor.point += delta # the setter does appropriate clamping
+        self.goal_column = None
         return self.cursor.point - z
 
     @context.bind('Control-N', '[down]')
@@ -322,6 +325,12 @@ class Editor(context.Window, context.PagingMixIn):
 
     def line_move(self, delta):
         count = abs(delta)
+        goal_column = self.goal_column
+        if goal_column is None:
+            with self.save_excursion():
+                p = self.cursor.point
+                self.beginning_of_line()
+                goal_column = p - self.cursor.point
         for _ in range(count):
             if delta < 0:
                 self.beginning_of_line()
@@ -331,6 +340,12 @@ class Editor(context.Window, context.PagingMixIn):
                 self.end_of_line()
                 if not self.move(1):
                     self.beginning_of_line()
+        with self.save_excursion():
+            p = self.cursor.point
+            self.end_of_line()
+            line_length = self.cursor.point - p
+        self.move(min(goal_column, line_length))
+        self.goal_column = goal_column
 
     def extract_current_line(self):
         p = self.cursor.point
@@ -413,6 +428,7 @@ class Editor(context.Window, context.PagingMixIn):
     def save_excursion(self, where=None):
         cursor = self.mark()
         mark = self.mark(self.the_mark)
+        goal_column = self.goal_column
         if where is not None:
             self.cursor.point = where
         yield
@@ -420,6 +436,7 @@ class Editor(context.Window, context.PagingMixIn):
             where.point = self.cursor
         self.cursor.point = cursor
         self.the_mark = mark
+        self.goal_column = goal_column
 
     @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
     def beginning_of_buffer(self, k):
