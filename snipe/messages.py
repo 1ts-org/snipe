@@ -75,8 +75,11 @@ class SnipeMessage:
         return self._sender
 
     def __str__(self):
-        return 'From: %s at %s\n%s' % (
-            self.sender, time.ctime(self.time), self.body)
+        return '%s %s\n%s' % (
+            time.strftime('%H:%M', time.localtime(self.time)),
+            self.sender,
+            self.body,
+            )
 
     def __repr__(self):
         return (
@@ -129,6 +132,7 @@ class SnipeMessage:
         elif hasattr(other, '__int__'):
             return int(other)
         else:
+            logging.error('comparing %s with %s?', repr(self), repr(other))
             raise NotImplemented
 
     def __eq__(self, other):

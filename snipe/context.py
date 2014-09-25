@@ -37,6 +37,7 @@ import logging
 import time
 import asyncio
 import json
+import datetime
 
 from . import messages
 from . import ttyfe
@@ -278,12 +279,31 @@ class Messager(Window, PagingMixIn):
         return self.fe.context.backends.walk(origin, direction, self.filter)
 
     def view(self, origin, direction='forward'):
+        it = self.walk(origin, direction != 'forward')
+        try:
+            next(it)
+            prev = next(it)
+        except StopIteration:
+            prev = None
+
         for x in self.walk(origin, direction == 'forward'):
             decoration = {}
             for filt, decor in self.rules:
                 if filt(x):
                     decoration.update(decor)
             chunk = x.display(decoration)
+
+            if (
+                    prev is not None and x is not None and
+                    prev.time != float('inf') and prev.time != float('-inf')
+                    and x.time != float('inf') and x.time != float('-inf')
+                ) and (
+                    datetime.datetime.fromtimestamp(prev.time).date() !=
+                    datetime.datetime.fromtimestamp(x.time).date()
+                ):
+                    yield x, [(
+                    ('bold',),
+                    time.strftime('\n%A, %B %d, %Y\n\n', time.localtime(x.time)))]
 
             if x is self.cursor or x is self.secondary:
                 if not chunk:
@@ -317,6 +337,8 @@ class Messager(Window, PagingMixIn):
                 yield x, first + chunk
             else:
                 yield x, chunk
+
+            prev = x
 
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):

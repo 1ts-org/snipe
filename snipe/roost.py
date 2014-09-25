@@ -216,6 +216,8 @@ class RoostMessage(messages.SnipeMessage):
         instance = self.data['instance']
         instance = instance or "''"
         chunk = [
+            (tags,
+             time.strftime('%H:%M ', time.localtime(self.data['time'] / 1000))),
             (tags + ('bold',), self.field('sender')),
             ]
         if self.personal:
@@ -242,7 +244,8 @@ class RoostMessage(messages.SnipeMessage):
 
         if self.data['opcode']:
             chunk += [(tags, ' [' + self.data['opcode'] + ']')]
-        chunk += [(tags, ' ' + time.ctime(self.data['time'] / 1000) + '\n')]
+        #chunk += [(tags, ' ' + time.ctime(self.data['time'] / 1000) + '\n')]
+        chunk += [(tags, '\n')]
         if self.data['signature'].strip():
             chunk += [
                 (tags, ' '),
