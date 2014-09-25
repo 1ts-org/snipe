@@ -570,6 +570,10 @@ class Context:
         else:
             self.killring[-1] += data
 
+    def shutdown(self):
+        self.backends.shutdown()
+
+
 class Keymap(dict):
     def __init__(self, d={}):
         super().__init__()

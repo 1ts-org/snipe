@@ -310,3 +310,8 @@ class AggregatorBackend(SnipeBackend):
                 for backend in self.backends
                 ],
             key = lambda m: m.time if forward else -m.time)
+
+    def shutdown(self):
+        for backend in self.backends:
+            backend.shutdown()
+        super().shutdown()

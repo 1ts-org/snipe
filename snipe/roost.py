@@ -72,7 +72,17 @@ class Roost(messages.SnipeBackend):
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
-        asyncio.Task(self.r.newmessages(self.new_message))
+        self.new_task = asyncio.Task(self.r.newmessages(self.new_message))
+
+    def shutdown(self):
+        self.new_task.cancel()
+        # this is kludgy, but make sure the task runs a tick to
+        # process its cancellation
+        try:
+            asyncio.get_event_loop().run_until_complete(self.new_task)
+        except asyncio.CancelledError:
+            pass
+        super().shutdown()
 
     @property
     def principal(self):
