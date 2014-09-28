@@ -275,6 +275,8 @@ class RoostMessage(messages.SnipeMessage):
             value = value[:x1]
         elif field == 'instance':
             value = value.lower() #XXX do proper unicode thing
+            x1, x2 = self.class_dotd.search(value).span()
+            value = value[:x1]
         elif field == 'opcode':
             value = value.lower().strip()
         return value
