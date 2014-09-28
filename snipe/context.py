@@ -293,14 +293,12 @@ class Messager(Window, PagingMixIn):
                     decoration.update(decor)
             chunk = x.display(decoration)
 
-            if (
-                    prev is not None and x is not None and
-                    prev.time != float('inf') and prev.time != float('-inf')
-                    and x.time != float('inf') and x.time != float('-inf')
-                ) and (
-                    datetime.datetime.fromtimestamp(prev.time).date() !=
-                    datetime.datetime.fromtimestamp(x.time).date()
-                ):
+            def dateof(m):
+                if m is None or m.time in (float('inf'), float('-inf')):
+                    return None
+                return datetime.datetime.fromtimestamp(m.time).date()
+
+            if x.time != float('inf') and (dateof(prev) != dateof(x)):
                     yield x, [(
                     ('bold',),
                     time.strftime('\n%A, %B %d, %Y\n\n', time.localtime(x.time)))]
