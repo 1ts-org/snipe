@@ -38,6 +38,7 @@ import os
 import urllib.parse
 import contextlib
 import re
+import pwd
 
 from . import messages
 from . import _rooster
@@ -64,6 +65,9 @@ class Roost(messages.SnipeBackend):
     realm = util.Configurable(
         'roost.realm', 'ATHENA.MIT.EDU',
         'Zephyr realm that roost is fronting for')
+    signature = util.Configurable(
+        'roost.signature', pwd.getpwuid(os.getuid()).pw_gecos.split(',')[0],
+        'Name-ish field on messages')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -94,8 +98,6 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def send(self, paramstr, body):
         import getopt
-        import pwd
-        import os
 
         self.log.debug('send paramstr=%s', paramstr)
 
@@ -113,7 +115,7 @@ class Roost(messages.SnipeBackend):
                 'instance': flags.get('-i', 'PERSONAL'),
                 'recipient': recipient,
                 'opcode': flags.get('-O', ''),
-                'signature': pwd.getpwuid(os.getuid()).pw_gecos.split(',')[0],#XXX
+                'signature': flags.get('-s', self.signature),
                 'message': body,
                 }
 
