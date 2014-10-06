@@ -493,6 +493,7 @@ class Editor(context.Window, context.PagingMixIn):
             return
         with self.save_excursion():
             self.the_mark = m
+            self.exchange_point_and_mark()
             self.kill_region(k, self.last_command.startswith('kill_'))
 
     def region(self):
@@ -512,7 +513,7 @@ class Editor(context.Window, context.PagingMixIn):
         if not append:
             self.context.copy(self.region())
         else:
-            self.context.copy(self.region(), self.the_mark > self.cursor)
+            self.context.copy(self.region(), self.the_mark < self.cursor)
 
         count = abs(self.the_mark.point - self.cursor.point)
         self.cursor = min(self.cursor, self.the_mark)
@@ -533,7 +534,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.the_mark = self.mark()
 
     @context.bind('Control-X Control-X')
-    def exchange_point_and_mark(self, k):
+    def exchange_point_and_mark(self, k=None):
         self.cursor, self.the_mark = self.the_mark, self.cursor
 
     def insert_region(self, s):
@@ -551,7 +552,7 @@ class Editor(context.Window, context.PagingMixIn):
             return
         self.yank_state += 1
         if self.cursor > self.the_mark:
-            self.exchange_point_and_mark(k)
+            self.exchange_point_and_mark()
         self.delete(abs(self.the_mark.point - self.cursor.point))
         self.insert_region(self.context.yank(self.yank_state))
 
@@ -584,6 +585,20 @@ class Editor(context.Window, context.PagingMixIn):
         with self.save_excursion():
             self.insert('\n')
 
+    @context.bind(
+        'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
+    def kill_word_backward(self, k):
+        with self.save_excursion():
+            self.the_mark = self.mark()
+            self.word_backward(k)
+            self.kill_region(k, self.last_command.startswith('kill_'))
+
+    @context.bind('Meta-d')
+    def kill_word_forward(self, k):
+        with self.save_excursion():
+            self.the_mark = self.mark()
+            self.word_forward(k)
+            self.kill_region(k, self.last_command.startswith('kill_'))
 
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
