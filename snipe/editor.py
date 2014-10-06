@@ -579,6 +579,11 @@ class Editor(context.Window, context.PagingMixIn):
         self.replace(2, s)
         self.move(2)
 
+    @context.bind('Control-O')
+    def open_line(self, k):
+        with self.save_excursion():
+            self.insert('\n')
+
 
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
