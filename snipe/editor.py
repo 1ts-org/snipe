@@ -482,19 +482,14 @@ class Editor(context.Window, context.PagingMixIn):
     @context.bind('Control-k')
     def kill_to_end_of_line(self, k):
         m = self.mark()
-        with self.save_excursion(m):
-            self.end_of_line()
+        self.end_of_line()
         if m == self.cursor:
             # at the end of a line, move past it
-            with self.save_excursion(m):
-                self.move(1)
+            self.move(1)
         if m == self.cursor:
             # end of buffer
             return
-        with self.save_excursion():
-            self.the_mark = m
-            self.exchange_point_and_mark()
-            self.kill_region(k, self.last_command.startswith('kill_'))
+        self.kill_region(k, self.last_command.startswith('kill_'))
 
     def region(self):
         if self.the_mark is None:
