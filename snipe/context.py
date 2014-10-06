@@ -578,17 +578,17 @@ class Context:
         os.rename(tmp, path)
 
     # kill ring
-    def copy(self, data):
-        self.killring.append(data)
+    def copy(self, data, append=None):
+        if not self.killring or append is None:
+            self.killring.append(data)
+        else:
+            if append:
+                self.killring[-1] = self.killring[-1] + data
+            else:
+                self.killring[-1] = data + self.killring[-1]
 
     def yank(self, off=1):
         return self.killring[-(1 + (off - 1) % len(self.killring))]
-
-    def append(self, data):
-        if not self.killring:
-            self.copy(data)
-        else:
-            self.killring[-1] += data
 
     def shutdown(self):
         self.backends.shutdown()

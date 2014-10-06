@@ -508,13 +508,16 @@ class Editor(context.Window, context.PagingMixIn):
             self.whine('no mark is set')
             return
         self.log.debug('kill region %d-%d', self.cursor.point, self.the_mark.point)
-        if self.cursor > self.the_mark:
-            self.exchange_point_and_mark(k)
+
         if not append:
             self.context.copy(self.region())
         else:
-            self.context.append(self.region())
-        self.delete(abs(self.the_mark.point - self.cursor.point))
+            self.context.copy(self.region(), self.the_mark > self.cursor)
+
+        count = abs(self.the_mark.point - self.cursor.point)
+        self.cursor = min(self.cursor, self.the_mark)
+        self.delete(count)
+
         self.yank_state = 1
 
     @context.bind('Meta-w')
