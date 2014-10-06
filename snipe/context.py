@@ -760,6 +760,8 @@ class Keymap(dict):
         if 'meta' in modifiers:
             if key in Keymap.unother_keys:
                 name = '[' + Keymap.unother_keys[key].upper() + ']'
+            elif isinstance(key, int):
+                name = '[' + ttyfe.unkey.get(key) + ']'
             elif ord(key) < ord(' '):
                 name = 'Control-' + chr(ord(key) + ord('@'))
             elif ord(key) < 127:
