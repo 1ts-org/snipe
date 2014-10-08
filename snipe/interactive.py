@@ -39,12 +39,12 @@ def last_key(context, last_key):
     return last_key
 
 
-def call(callable, context, last_key):
+def call(callable, *args, **kw):
     d = {}
     parameters = inspect.signature(callable).parameters
     for (name, arg) in parameters.items():
         if arg.annotation != inspect.Parameter.empty:
-            d[name] = arg.annotation(context, last_key)
+            d[name] = arg.annotation(*args, **kw)
         elif arg.default == inspect.Parameter.empty:
             raise Exception(
                 'insufficient defaults calling %s' % (repr(callable),))
