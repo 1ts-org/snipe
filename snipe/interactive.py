@@ -46,7 +46,6 @@ def call(callable, context, last_key):
         if arg.annotation != inspect.Parameter.empty:
             d[name] = arg.annotation(context, last_key)
         elif arg.default == inspect.Parameter.empty:
-            return callable(last_key) # old style for now
-            ## raise Exception(
-            ##     'insufficient defaults calling %s' % (repr(callable),)
+            raise Exception(
+                'insufficient defaults calling %s' % (repr(callable),))
     return callable(**d)
