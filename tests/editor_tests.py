@@ -223,8 +223,8 @@ class TestEditor(unittest.TestCase):
         # really testing textrange
         e = snipe.editor.Editor(None)
         e.insert('one\ntwo\nthree\nfour\n')
-        e.line_previous(None)
-        e.line_previous(None)
+        e.line_previous()
+        e.line_previous()
         self.assertEqual(e.character_at_point(), 't')
         e.insert('x')
         self.assertEqual(e.character_at_point(), 't')

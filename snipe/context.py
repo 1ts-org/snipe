@@ -44,6 +44,7 @@ from . import ttyfe
 from . import roost
 from . import filters
 from . import util
+from . import interactive
 
 
 def bind(*seqs):
@@ -104,7 +105,7 @@ class Window:
                 self.active_keymap = v
             else:
                 self.active_keymap = self.keymap
-                ret = v(k)
+                ret = interactive.call(v, self.context, k)
                 self.last_command = getattr(v, '__name__', '?')
                 self.last_key = k
                 if asyncio.iscoroutine(ret):
@@ -162,46 +163,46 @@ class Window:
         return f.result()
 
     @bind('Control-X Control-C')
-    def quit(self, k):
+    def quit(self):
         asyncio.get_event_loop().stop()
 
     def whine(self, k):
         self.fe.notify()
 
     @bind('Control-Z')
-    def stop(self, k):
+    def stop(self):
         self.fe.sigtstp(None, None)
 
     def view(self, origin=None, direction=None):
         yield 0, [(('visible',), '')]
 
     @bind('Control-X 2')
-    def split_window(self, k):
+    def split_window(self):
         self.fe.split_window(self.__class__(self.fe, prototype=self))
 
     @bind('Control-X 0')
-    def delete_window(self, k):
+    def delete_window(self):
         self.fe.delete_current_window()
 
     @bind('Control-X 1')
-    def popdown(self, k):
+    def popdown(self):
         self.fe.popdown_window()
 
     @bind('Control-X o')
-    def other_window(self, k):
+    def other_window(self):
         self.fe.switch_window(1)
 
     @bind('Control-X e')#XXX
-    def split_to_editor(self, k):
+    def split_to_editor(self):
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
     @bind('Control-X c')#XXX
-    def split_to_colordemo(self, k):
+    def split_to_colordemo(self):
         self.fe.split_window(ColorDemo(self.fe))
 
     @bind('Control-X t')#XXX
-    def test_ui(self, k):
+    def test_ui(self):
         streeng = yield from self.read_string('floop> ', content='zoge')
         self.log.debug(
             'AAAA %s',
@@ -209,7 +210,7 @@ class Window:
             )
 
     @bind('Meta-[ESCAPE]', 'Meta-:')
-    def replhack(self, k):
+    def replhack(self):
         import traceback
         from . import editor
 
@@ -235,7 +236,7 @@ class Window:
             self.log.debug('result: %s', out)
 
     @bind('Meta-=')
-    def set_config(self, k):
+    def set_config(self):
         key = yield from self.read_string('Key: ')
         value = yield from self.read_string('Value: ')
         util.Configurable.set(self, key, value)
@@ -244,12 +245,12 @@ class Window:
 
 class PagingMixIn:
     @bind('[ppage]', 'Meta-v')
-    def pageup(self, k):
+    def pageup(self):
         self.cursor = self.frame
         self.renderer.reframe(-1)
 
     @bind('[npage]', 'Control-v')
-    def pagedown(self, k):
+    def pagedown(self):
         self.cursor = self.sill
         self.renderer.reframe(1)
 
@@ -355,11 +356,11 @@ class Messager(Window, PagingMixIn):
         return False
 
     @bind('n', 'j', '[down]')
-    def next_message(self, k):
+    def next_message(self):
         self.move(True)
 
     @bind('p', 'k', '[up]')
-    def prev_message(self, k):
+    def prev_message(self):
         self.move(False)
 
     def move(self, forward):
@@ -381,7 +382,7 @@ class Messager(Window, PagingMixIn):
             self.whine('No more messages')
 
     @bind('s')
-    def send(self, k, recipient=''):
+    def send(self, recipient=''):
         if self.sill.time == float('inf'): #XXX omega message is visible
             self.secondary = self.cursor
             self.cursor = self.sill
@@ -402,28 +403,28 @@ class Messager(Window, PagingMixIn):
         return replymsg
 
     @bind('f')
-    def followup(self, k):
-        yield from self.send(k, self.replymsg().followupstr())
+    def followup(self):
+        yield from self.send(self.replymsg().followupstr())
 
     @bind('r')
     def reply(self, k):
-        yield from self.send(k, self.replymsg().replystr())
+        yield from self.send(self.replymsg().replystr())
 
     @bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
-    def last(self, k):
+    def last(self):
         self.cursor = next(self.walk(float('inf'), False))
 
     @bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
-    def first(self, k):
+    def first(self):
         self.cursor = next(self.walk(float('-inf'), True))
 
     @bind('Meta-/ 0')
-    def filter_reset(self, k=None):
+    def filter_reset(self):
         self.filter = None
         self.filter_stack = []
 
     @bind('Meta-/ =')
-    def filter_edit(self, k):
+    def filter_edit(self):
         s = '' if self.filter is None else str(self.filter)
 
         s = yield from self.read_string('Filter expression:\n', s, 5)
@@ -433,7 +434,7 @@ class Messager(Window, PagingMixIn):
         self.cursor = next(self.walk(self.cursor, True))
 
     @bind('Meta-/ -')
-    def filter_everything(self, k):
+    def filter_everything(self):
         self.filter_push_and_replace(filters.No())
 
     def filter_clear_decorate(self, decoration):
@@ -450,18 +451,18 @@ class Messager(Window, PagingMixIn):
         self.filter = None
 
     @bind('Meta-/ g')
-    def filter_foreground_background(self, k):
+    def filter_foreground_background(self):
         fg = yield from self.read_string('Foreground: ')
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @bind('Meta-/ f')
-    def filter_foreground(self, k):
+    def filter_foreground(self):
         fg = yield from self.read_string('Foreground: ')
         self.filter_clear_decorate({'foreground': fg})
 
     @bind('Meta-/ b')
-    def filter_background(self, k):
+    def filter_background(self):
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'background': bg})
 
@@ -479,29 +480,29 @@ class Messager(Window, PagingMixIn):
             self.filter_push_and_replace(filters.And(self.filter, new_filter))
 
     @bind('Meta-/ c')
-    def filter_class(self, k):
+    def filter_class(self):
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class'))
         self.filter_push(filters.Compare('=', 'class', class_))
 
     @bind('Meta-/ C')
-    def filter_class_exactly(self, k):
+    def filter_class_exactly(self):
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class', False))
         self.filter_push(filters.Compare('==', 'class', class_))
 
     @bind('Meta-/ p')
-    def filter_personals(self, k):
+    def filter_personals(self):
         self.filter_push(filters.Truth('personal'))
 
     @bind('Meta-/ s')
-    def filter_sender(self, k):
+    def filter_sender(self):
         sender = yield from self.read_string(
             'Sender: ', self.cursor.field('sender'))
         self.filter_push(filters.Compare('=', 'sender', sender))
 
     @bind('Meta-/ /')
-    def filter_cleverly(self, k):
+    def filter_cleverly(self):
         message = self.cursor
         if message.personal:
             if str(message.sender) == message.backend.principal:
@@ -521,7 +522,7 @@ class Messager(Window, PagingMixIn):
             self.whine("Can't deduce what to filter on")
 
     @bind("Meta-/ Meta-/")
-    def filter_pop(self, k):
+    def filter_pop(self):
         if not self.filter_stack:
             self.filter = None
         else:
