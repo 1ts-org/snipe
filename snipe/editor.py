@@ -604,7 +604,7 @@ class LongPrompt(Editor):
         self.keymap['Control-J'] = self.runcallback
         self.keymap['Control-C Control-C'] = self.runcallback
 
-    def runcallback(self, k):
+    def runcallback(self):
         self.callback(self.buf.text)
 
 
