@@ -79,6 +79,7 @@ class TestKeymap(unittest.TestCase):
         self.assertEqual(split('Shift-[F1]'), (None, None)) #XXX
         self.assertEqual(split('Control-?'), ('\x7f', None))
         self.assertEqual(split('Control-$'), (None, None))
+        self.assertEqual(split('Meta--'), ('\x1b', '-'))
         self.assertEqual(
             split('Meta-:'),
             ('\x1b', ':'))
