@@ -80,6 +80,7 @@ class Window:
         self.destroy = destroy
         self.last_command = None
         self.last_key = None
+        self.universal_argument = None
 
     def focus(self):
         pass
@@ -105,7 +106,13 @@ class Window:
                 self.active_keymap = v
             else:
                 self.active_keymap = self.keymap
-                ret = interactive.call(v, self.context, k)
+                arg, self.universal_argument = self.universal_argument, None
+                ret = interactive.call(
+                    v,
+                    context = self.context,
+                    keystroke = k,
+                    argument = arg,
+                    )
                 self.last_command = getattr(v, '__name__', '?')
                 self.last_key = k
                 if asyncio.iscoroutine(ret):
@@ -241,6 +248,39 @@ class Window:
         value = yield from self.read_string('Value: ')
         util.Configurable.set(self, key, value)
         self.context.conf_write()
+
+    @bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
+    def decimal_argument(
+            self, key: interactive.keystroke, arg: interactive.argument = 0):
+        self.active_keymap = dict(self.keymap)
+        for i in range(10):
+            self.active_keymap[str(i)] = self.decimal_argument
+
+        if key == '-':
+            self.universal_argument = '-'
+        elif arg == '-':
+            self.universal_argument = -int(key)
+        else:
+            if not isinstance(arg, int):
+                arg = 0
+            self.universal_argument = arg * 10 + int(key)
+
+    @bind('Control-U')
+    def start_universal_argument(
+            self, arg: interactive.argument, key: interactive.keystroke):
+        if isinstance(arg, int):
+            self.universal_argument = arg # shouldn't do this the second time?
+
+        self.active_keymap = dict(self.keymap)
+
+        for i in range(10):
+            self.active_keymap[str(i)] = self.decimal_argument
+        self.active_keymap['-'] = self.decimal_argument
+
+        if arg is None:
+            self.universal_argument = [key]
+        else:
+            self.universal_argument = arg + [key]
 
 
 class PagingMixIn:

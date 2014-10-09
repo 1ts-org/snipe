@@ -269,12 +269,16 @@ class Editor(context.Window, context.PagingMixIn):
     @context.bind(
         '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))
-    def self_insert(self, key: interactive.last_key):
-        collapsible=True
+    def self_insert(
+            self,
+            key: interactive.keystroke,
+            count: interactive.integer_argument=1):
+        collapsible = True
         if self.last_command == 'self_insert':
             if (not self.last_key.isspace()) and key.isspace():
                 collapsible=False
-        self.insert(key, collapsible)
+        for _ in range(count):
+            self.insert(key, collapsible)
 
     def insert(self, s, collapsible=False):
         self.cursor.point += self.replace(0, s, collapsible)

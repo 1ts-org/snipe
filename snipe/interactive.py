@@ -31,12 +31,25 @@
 import inspect
 
 
-def context(context, last_key):
-    return context
+def context(*args, **kw):
+    return kw.get('context', None)
 
 
-def last_key(context, last_key):
-    return last_key
+def keystroke(*args, **kw):
+    return kw.get('keystroke', None)
+
+
+def argument(*args, **kw):
+    return kw.get('argument', None)
+
+
+def integer_argument(*args, **kw):
+    arg = kw.get('argument', None)
+    if isinstance(arg, int):
+        return arg
+    if arg == '-':
+        return 0
+    return 4**len(arg)
 
 
 def call(callable, *args, **kw):
@@ -44,7 +57,10 @@ def call(callable, *args, **kw):
     parameters = inspect.signature(callable).parameters
     for (name, arg) in parameters.items():
         if arg.annotation != inspect.Parameter.empty:
-            d[name] = arg.annotation(*args, **kw)
+            val = arg.annotation(*args, **kw)
+            if val is None and arg.default != inspect.Parameter.empty:
+                val = arg.default
+            d[name] = val
         elif arg.default == inspect.Parameter.empty:
             raise Exception(
                 'insufficient defaults calling %s' % (repr(callable),))
