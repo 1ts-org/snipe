@@ -45,11 +45,18 @@ def argument(*args, **kw):
 
 def integer_argument(*args, **kw):
     arg = kw.get('argument', None)
-    if isinstance(arg, int):
+    if isinstance(arg, int) or arg is None:
         return arg
     if arg == '-':
-        return 0
+        return -1
     return 4**len(arg)
+
+
+def positive_integer_argument(*args, **kw):
+    arg = integer_argument(*args, **kw)
+    if not isinstance(arg, int): #coercion happens in integer_argument
+        return arg
+    return abs(arg)
 
 
 def call(callable, *args, **kw):

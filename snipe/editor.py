@@ -256,15 +256,11 @@ class Editor(context.Window, context.PagingMixIn):
         return self.buf.mark(where)
 
     @context.bind('Meta-T')
-    def insert_test_content(self):
+    def insert_test_content(
+            self, count: interactive.positive_integer_argument=80):
         import itertools
-        for i in range(32):
-            self.insert(''.join(itertools.islice(
-                itertools.cycle(
-                    [chr(x) for x in range(ord('A'), ord('Z') + 1)] +
-                    [chr(x) for x in range(ord('0'), ord('9') + 1)]),
-                i,
-                i + 72)) + '\n')
+        self.insert(''.join(
+            itertools.islice(itertools.cycle('1234567890'), count)))
 
     @context.bind(
         '[tab]', '[linefeed]',
@@ -272,7 +268,7 @@ class Editor(context.Window, context.PagingMixIn):
     def self_insert(
             self,
             key: interactive.keystroke,
-            count: interactive.integer_argument=1):
+            count: interactive.positive_integer_argument=1):
         collapsible = True
         if self.last_command == 'self_insert':
             if (not self.last_key.isspace()) and key.isspace():
@@ -295,21 +291,23 @@ class Editor(context.Window, context.PagingMixIn):
         return self.buf.replace(self.cursor, count, string, collapsible)
 
     @context.bind('Control-D', '[dc]')
-    def delete_forward(self):
-        self.delete(1)
+    def delete_forward(self, count: interactive.integer_argument=1):
+        if count < 0:
+            self.move(count)
+            count = -count
+        self.delete(count)
 
     @context.bind('Control-H', 'Control-?', '[backspace]')
-    def delete_backward(self):
-        if self.move(-1):
-            self.delete(1)
+    def delete_backward(self, count: interactive.integer_argument=1):
+        self.delete_forward(-count)
 
     @context.bind('Control-F', '[right]')
-    def move_forward(self):
-        self.move(1)
+    def move_forward(self, count: interactive.integer_argument=1):
+        self.move(count)
 
     @context.bind('Control-B', '[left]')
-    def move_backward(self):
-        self.move(-1)
+    def move_backward(self, count: interactive.integer_argument=1):
+        self.move(-count)
 
     def move(self, delta):
         '''.move(delta, mark=None) -> actual distance moved
@@ -321,12 +319,12 @@ class Editor(context.Window, context.PagingMixIn):
         return self.cursor.point - z
 
     @context.bind('Control-N', '[down]')
-    def line_next(self):
-        self.line_move(1)
+    def line_next(self, count: interactive.integer_argument=1):
+        self.line_move(count)
 
     @context.bind('Control-P', '[up]')
-    def line_previous(self):
-        self.line_move(-1)
+    def line_previous(self, count: interactive.integer_argument=1):
+        self.line_move(-count)
 
     def line_move(self, delta):
         count = abs(delta)
@@ -444,12 +442,29 @@ class Editor(context.Window, context.PagingMixIn):
         self.goal_column = goal_column
 
     @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
-    def beginning_of_buffer(self):
-        self.cursor.point = 0
+    def beginning_of_buffer(self, pct: interactive.argument):
+        self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
+        oldpoint = self.cursor.point
+        if not isinstance(pct, int):
+            pct = 0
+        if pct < 0:
+            return self.end_of_buffer(-pct)
+        self.cursor.point = min(pct * self.buf.size // 10, self.buf.size)
+        self.beginning_of_line()
+        if oldpoint != self.cursor.point:
+            self.the_mark = self.mark(oldpoint)
 
     @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
-    def end_of_buffer(self):
-        self.cursor.point = self.buf.size
+    def end_of_buffer(self, pct: interactive.argument):
+        oldpoint = self.cursor.point
+        if not isinstance(pct, int):
+            pct = 0
+        if pct < 0:
+            return self.beginning_of_buffer(-pct)
+        self.cursor.point = max((10 - pct) * self.buf.size // 10, 0)
+        self.beginning_of_line()
+        if oldpoint != self.cursor.point:
+            self.the_mark = self.mark(oldpoint)
 
     def input_char(self, k):
         self.log.debug('before command %s', self.cursor)
@@ -467,22 +482,28 @@ class Editor(context.Window, context.PagingMixIn):
             return cat[0] == 'L' or cat == 'Pc'
 
     @context.bind('Meta-f')
-    def word_forward(self):
-        while not self.isword():
-            if not self.move(1):
-                return
-        while self.isword():
-            if not self.move(1):
-                return
+    def word_forward(self, count: interactive.integer_argument=1):
+        if count < 0:
+            return self.word_backward(-count)
+        for _ in range(count):
+            while not self.isword():
+                if not self.move(1):
+                    return
+            while self.isword():
+                if not self.move(1):
+                    return
 
     @context.bind('Meta-b')
-    def word_backward(self):
-        while not self.isword(-1):
-            if not self.move(-1):
-                return
-        while self.isword(-1):
-            if not self.move(-1):
-                return
+    def word_backward(self, count: interactive.integer_argument=1):
+        if count < 0:
+            return self.word_forward(-count)
+        for _ in range(count):
+            while not self.isword(-1):
+                if not self.move(-1):
+                    return
+            while self.isword(-1):
+                if not self.move(-1):
+                    return
 
     @context.bind('Control-k')
     def kill_to_end_of_line(self):
@@ -581,23 +602,23 @@ class Editor(context.Window, context.PagingMixIn):
         self.move(2)
 
     @context.bind('Control-O')
-    def open_line(self):
+    def open_line(self, count: interactive.positive_integer_argument=1):
         with self.save_excursion():
-            self.insert('\n')
+            self.insert('\n' * count)
 
     @context.bind(
         'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
-    def kill_word_backward(self):
+    def kill_word_backward(self, count: interactive.integer_argument=1):
         with self.save_excursion():
             self.the_mark = self.mark()
-            self.word_backward()
+            self.word_backward(count)
             self.kill_region(self.last_command.startswith('kill_'))
 
     @context.bind('Meta-d')
-    def kill_word_forward(self):
+    def kill_word_forward(self, count: interactive.integer_argument=1):
         with self.save_excursion():
             self.the_mark = self.mark()
-            self.word_forward()
+            self.word_forward(count)
             self.kill_region(self.last_command.startswith('kill_'))
 
 
