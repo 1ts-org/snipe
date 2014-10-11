@@ -515,6 +515,7 @@ class Editor(context.Window, context.PagingMixIn):
         if m == self.cursor:
             # end of buffer
             return
+        self.the_mark = m
         self.kill_region(self.last_command.startswith('kill_'))
 
     def region(self):
