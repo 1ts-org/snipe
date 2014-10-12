@@ -244,6 +244,7 @@ class Editor(context.Window, context.PagingMixIn):
 
         self.cursor = self.buf.mark(self.buf.size)
         self.the_mark = None
+        self.mark_ring = []
 
         self.yank_state = None
         self.undo_state = None
@@ -436,6 +437,8 @@ class Editor(context.Window, context.PagingMixIn):
     def save_excursion(self, where=None):
         cursor = self.mark()
         mark = self.mark(self.the_mark)
+        mark_ring = self.mark_ring
+        self.mark_ring = list(self.mark_ring)
         goal_column = self.goal_column
         if where is not None:
             self.cursor.point = where
@@ -444,6 +447,7 @@ class Editor(context.Window, context.PagingMixIn):
             where.point = self.cursor
         self.cursor.point = cursor
         self.the_mark = mark
+        self.mark_ring = mark_ring
         self.goal_column = goal_column
 
     @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
@@ -457,7 +461,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.cursor.point = min(pct * self.buf.size // 10, self.buf.size)
         self.beginning_of_line()
         if oldpoint != self.cursor.point:
-            self.the_mark = self.mark(oldpoint)
+            self.set_mark(oldpoint)
 
     @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(self, pct: interactive.argument):
@@ -469,7 +473,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.cursor.point = max((10 - pct) * self.buf.size // 10, 0)
         self.beginning_of_line()
         if oldpoint != self.cursor.point:
-            self.the_mark = self.mark(oldpoint)
+            self.set_mark(oldpoint)
 
     def input_char(self, k):
         self.log.debug('before command %s', self.cursor)
@@ -525,30 +529,33 @@ class Editor(context.Window, context.PagingMixIn):
             self.beginning_of_line()
         else:
             self.line_move(count, False)
-        self.the_mark = m
-        self.kill_region(self.last_command.startswith('kill_'))
+        self.kill_region(mark=m, append=self.last_command.startswith('kill_'))
 
-    def region(self):
-        if self.the_mark is None:
+    def region(self, mark=None):
+        if mark is None:
+            mark = self.mark
+        if mark is None:
             return None
         return self.buf.textrange(
             min(self.cursor, self.the_mark),
             max(self.cursor, self.the_mark))
 
     @context.bind('Control-W')
-    def kill_region(self, append=False):
-        if self.the_mark is None:
+    def kill_region(self, mark=None, append=False):
+        if mark is None:
+            mark = self.the_mark
+        if mark is None:
             self.whine('no mark is set')
             return
-        self.log.debug('kill region %d-%d', self.cursor.point, self.the_mark.point)
+        self.log.debug('kill region %d-%d', self.cursor.point, mark.point)
 
         if not append:
-            self.context.copy(self.region())
+            self.context.copy(self.region(mark))
         else:
-            self.context.copy(self.region(), self.the_mark < self.cursor)
+            self.context.copy(self.region(mark), mark < self.cursor)
 
-        count = abs(self.the_mark.point - self.cursor.point)
-        self.cursor = min(self.cursor, self.the_mark)
+        count = abs(mark.point - self.cursor.point)
+        self.cursor = min(self.cursor, mark)
         self.delete(count)
 
         self.yank_state = 1
@@ -562,15 +569,22 @@ class Editor(context.Window, context.PagingMixIn):
         self.yank_state = 1
 
     @context.bind('Control-[space]')
-    def set_mark(self):
-        self.the_mark = self.mark()
+    def set_mark(self, where=None, prefix: interactive.argument=None):
+        if prefix is None:
+            self.mark_ring.append(self.the_mark)
+            self.the_mark = self.mark(where)
+        else:
+            self.mark_ring.insert(0, self.mark(where))
+            where = self.the_mark
+            self.the_mark = self.mark_ring.pop()
+            self.cursor = where
 
     @context.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
         self.cursor, self.the_mark = self.the_mark, self.cursor
 
     def insert_region(self, s):
-        self.the_mark = self.mark()
+        self.set_mark()
         self.insert(s)
 
     @context.bind('Control-Y')
@@ -620,17 +634,15 @@ class Editor(context.Window, context.PagingMixIn):
     @context.bind(
         'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
     def kill_word_backward(self, count: interactive.integer_argument=1):
-        with self.save_excursion():
-            self.the_mark = self.mark()
-            self.word_backward(count)
-            self.kill_region(self.last_command.startswith('kill_'))
+        mark = self.mark()
+        self.word_backward(count)
+        self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
     @context.bind('Meta-d')
     def kill_word_forward(self, count: interactive.integer_argument=1):
-        with self.save_excursion():
-            self.the_mark = self.mark()
-            self.word_forward(count)
-            self.kill_region(self.last_command.startswith('kill_'))
+        mark = self.mark()
+        self.word_forward(count)
+        self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
 
 class LongPrompt(Editor):
