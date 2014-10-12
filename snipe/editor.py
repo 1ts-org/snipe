@@ -326,7 +326,7 @@ class Editor(context.Window, context.PagingMixIn):
     def line_previous(self, count: interactive.integer_argument=1):
         self.line_move(-count)
 
-    def line_move(self, delta):
+    def line_move(self, delta, track_column=True):
         count = abs(delta)
         goal_column = self.goal_column
         if goal_column is None:
@@ -347,8 +347,9 @@ class Editor(context.Window, context.PagingMixIn):
             p = self.cursor.point
             self.end_of_line()
             line_length = self.cursor.point - p
-        self.move(min(goal_column, line_length))
-        self.goal_column = goal_column
+        if track_column:
+            self.move(min(goal_column, line_length))
+            self.goal_column = goal_column
 
     def extract_current_line(self):
         p = self.cursor.point
@@ -510,15 +511,20 @@ class Editor(context.Window, context.PagingMixIn):
                     return
 
     @context.bind('Control-k')
-    def kill_to_end_of_line(self):
+    def kill_to_end_of_line(self, count: interactive.integer_argument):
         m = self.mark()
-        self.end_of_line()
-        if m == self.cursor:
-            # at the end of a line, move past it
-            self.move(1)
-        if m == self.cursor:
-            # end of buffer
-            return
+        if count is None: #"normal" case
+            self.end_of_line()
+            if m == self.cursor:
+                # at the end of a line, move past it
+                self.move(1)
+            if m == self.cursor:
+                # end of buffer
+                return
+        elif count == 0: # kill to beginning of line?
+            self.beginning_of_line()
+        else:
+            self.line_move(count, False)
         self.the_mark = m
         self.kill_region(self.last_command.startswith('kill_'))
 
