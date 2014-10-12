@@ -246,7 +246,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.the_mark = None
         self.mark_ring = []
 
-        self.yank_state = None
+        self.yank_state = 1
         self.undo_state = None
 
         self.goal_column = None
@@ -588,15 +588,19 @@ class Editor(context.Window, context.PagingMixIn):
         self.insert(s)
 
     @context.bind('Control-Y')
-    def yank(self):
+    def yank(self, arg: interactive.argument=None):
+        if arg and isinstance(arg, int):
+            self.yank_state += arg - 1
         self.insert_region(self.context.yank(self.yank_state))
+        if arg is not None and not isinstance(nth, int):
+            self.exchange_point_and_mark()
 
     @context.bind('Meta-y')
-    def yank_pop(self):
+    def yank_pop(self, arg: interactive.integer_argument=1):
         if self.last_command not in ('yank', 'yank_pop'):
             self.whine('last command was not a yank')
             return
-        self.yank_state += 1
+        self.yank_state += arg
         if self.cursor > self.the_mark:
             self.exchange_point_and_mark()
         self.delete(abs(self.the_mark.point - self.cursor.point))
