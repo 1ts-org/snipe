@@ -603,13 +603,15 @@ class Editor(context.Window, context.PagingMixIn):
         self.insert_region(self.context.yank(self.yank_state))
 
     @context.bind('Control-_', 'Control-x u')
-    def undo(self):
+    def undo(self, count: interactive.positive_integer_argument=1):
         if self.last_command != 'undo':
             self.undo_state = None
-        self.undo_state, where = self.buf.undo(self.undo_state)
-        self.cursor.point = where
-        if self.undo_state == None:
-            self.whine('Nothing to undo')
+        for _ in range(count):
+            self.undo_state, where = self.buf.undo(self.undo_state)
+            self.cursor.point = where
+            if self.undo_state == None:
+                self.whine('Nothing to undo')
+                break
 
     @context.bind('Control-T')
     def transpose_chars(self):

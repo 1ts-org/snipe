@@ -78,6 +78,7 @@ class Window:
             self.frame = prototype.frame
             self.sill = prototype.sill
         self.destroy = destroy
+        self.this_command = None
         self.last_command = None
         self.last_key = None
         self.universal_argument = None
@@ -107,13 +108,14 @@ class Window:
             else:
                 self.active_keymap = self.keymap
                 arg, self.universal_argument = self.universal_argument, None
+                self.this_command = getattr(v, '__name__', '?')
                 ret = interactive.call(
                     v,
                     context = self.context,
                     keystroke = k,
                     argument = arg,
                     )
-                self.last_command = getattr(v, '__name__', '?')
+                self.last_command = self.this_command
                 self.last_key = k
                 if asyncio.iscoroutine(ret):
                     def catch_and_log(coro):
@@ -265,6 +267,9 @@ class Window:
                 arg = 0
             self.universal_argument = arg * 10 + int(key)
 
+        # retain status quo
+        self.this_command = self.last_command
+
     @bind('Control-U')
     def start_universal_argument(
             self, arg: interactive.argument, key: interactive.keystroke):
@@ -281,6 +286,9 @@ class Window:
             self.universal_argument = [key]
         else:
             self.universal_argument = arg + [key]
+
+        # retain status quo
+        self.this_command = self.last_command
 
 
 class PagingMixIn:
