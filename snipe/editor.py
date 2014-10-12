@@ -293,8 +293,8 @@ class Editor(context.Window, context.PagingMixIn):
     @context.bind('Control-D', '[dc]')
     def delete_forward(self, count: interactive.integer_argument=1):
         if count < 0:
-            self.move(count)
-            count = -count
+            moved = self.move(count)
+            count = -moved
         self.delete(count)
 
     @context.bind('Control-H', 'Control-?', '[backspace]')
