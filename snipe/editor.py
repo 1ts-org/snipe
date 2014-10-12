@@ -280,8 +280,8 @@ class Editor(context.Window, context.PagingMixIn):
         self.cursor.point += self.replace(0, s, collapsible)
 
     @context.bind('[carriage return]', 'Control-J')
-    def insert_newline(self):
-        self.insert('\n')
+    def insert_newline(self, count: interactive.positive_integer_argument=1):
+        self.insert('\n' * count)
 
     def delete(self, count):
         self.log.debug('delete %d', count)
@@ -412,7 +412,9 @@ class Editor(context.Window, context.PagingMixIn):
         return ''
 
     @context.bind('Control-A', '[home]')
-    def beginning_of_line(self):
+    def beginning_of_line(self, count: interactive.integer_argument=None):
+        if count is not None:
+            self.line_move(count - 1)
         if self.cursor.point == 0:
             return
         with self.save_excursion():
@@ -423,7 +425,9 @@ class Editor(context.Window, context.PagingMixIn):
             self.move(1)
 
     @context.bind('Control-E', '[end]')
-    def end_of_line(self):
+    def end_of_line(self, count: interactive.integer_argument=None):
+        if count is not None:
+            self.line_move(count - 1)
         if not self.character_at_point() == self.EOL:
             self.find_character(self.EOL)
 
