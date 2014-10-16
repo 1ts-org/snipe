@@ -83,6 +83,8 @@ class Mark:
 class GapBuffer:
     def __init__(self, content=None, chunksize=None):
         super().__init__()
+        self.log = logging.getLogger(
+            '%s.%x' % ('GapBuffer', id(self),))
         self.chunksize = chunksize or CHUNKSIZE
         self.marks = weakref.WeakSet()
         self.buf = self._array(self.chunksize)
@@ -203,14 +205,14 @@ class UndoableGapBuffer(GapBuffer):
         super().__init__(*args, **kw)
 
     def replace(self, where, size, string, collapsible=False):
-        logging.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
+        self.log.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
         if self.undolog:
-            logging.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
+            self.log.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
         if collapsible and self.undolog \
           and where == self.undolog[-1][0] + self.undolog[-1][1] \
           and string != '' and self.undolog[-1][2] == '':
             #XXX only "collapses" inserts
-            logging.debug('collapse %s', repr(self.undolog[-1]))
+            self.log.debug('collapse %s', repr(self.undolog[-1]))
             self.undolog[-1] = (self.undolog[-1][0], len(string) + self.undolog[-1][1], '')
         else:
             self.undolog.append(

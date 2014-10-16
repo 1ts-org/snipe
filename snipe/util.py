@@ -134,6 +134,7 @@ for userspace_name, program_name in [
     ('log.messager', 'Messager'),
     ('log.editor', 'Editor'),
     ('log.asyncio', 'asyncio'),
+    ('log.gapbuffer', 'GapBuffer'),
     ]:
     Level(
         userspace_name,
