@@ -456,6 +456,7 @@ class TTYFrontend:
             TTYRenderer(self, r.y, nh, r.window),
             TTYRenderer(self, r.y + nh, r.height - nh, new),
             ]
+        self.redisplay({'window': new})
 
     def delete_window(self, n):
         if len(self.windows) == 1:
