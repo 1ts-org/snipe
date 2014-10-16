@@ -245,11 +245,19 @@ class Window:
             self.log.debug('result: %s', out)
 
     @bind('Meta-=')
-    def set_config(self):
-        key = yield from self.read_string('Key: ')
-        value = yield from self.read_string('Value: ')
-        util.Configurable.set(self, key, value)
-        self.context.conf_write()
+    def set_config(self, arg: interactive.argument):
+        if not arg:
+            key = yield from self.read_string('Key: ')
+            value = yield from self.read_string('Value: ')
+            util.Configurable.set(self, key, value)
+            self.context.conf_write()
+        else:
+            from . import editor
+            import pprint
+            self.fe.split_window(editor.Editor(
+                self.fe,
+                content=pprint.pformat(self.context.conf),
+                ))
 
     @bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
