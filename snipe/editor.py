@@ -244,7 +244,7 @@ class Editor(context.Window, context.PagingMixIn):
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
-        self.cursor = self.buf.mark(self.buf.size)
+        self.cursor = self.buf.mark(0)
         self.the_mark = None
         self.mark_ring = []
 
@@ -659,6 +659,7 @@ class LongPrompt(Editor):
         self.callback = callback
         self.keymap['Control-J'] = self.runcallback
         self.keymap['Control-C Control-C'] = self.runcallback
+        self.cursor = self.buf.mark(self.buf.size)
 
     def runcallback(self):
         self.callback(self.buf.text)
