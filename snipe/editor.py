@@ -652,6 +652,15 @@ class Editor(context.Window, context.PagingMixIn):
         self.word_forward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
+    @context.bind('Control-X i')
+    def insert_file(self):
+        filename = yield from self.read_string('Filename: ')
+        try:
+            with open(filename) as fp:
+                self.insert(fp.read())
+        except Exception as exc:
+            self.whine(str(exc))
+
 
 class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
