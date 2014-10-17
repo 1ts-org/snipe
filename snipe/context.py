@@ -71,17 +71,31 @@ class Window:
             '%s.%x' % (self.__class__.__name__, id(self),))
         if prototype is None:
             self.cursor = None
-            self.frame = None
-            self.sill = None
+            self.hints = {}
         else:
             self.cursor = prototype.cursor
-            self.frame = prototype.frame
-            self.sill = prototype.sill
+            self.hints = prototype.renderer.get_hints()
         self.destroy = destroy
         self.this_command = None
         self.last_command = None
         self.last_key = None
         self.universal_argument = None
+
+    @property
+    def sill(self):
+        if not self.renderer:
+            return None
+        if not self.renderer.sill:
+            return None
+        return self.renderer.sill.cursor
+
+    @property
+    def frame(self):
+        if not self.renderer:
+            return None
+        if not self.renderer.head:
+            return None
+        return self.renderer.head.cursor
 
     def focus(self):
         pass
@@ -302,20 +316,19 @@ class Window:
 class PagingMixIn:
     @bind('[ppage]', 'Meta-v')
     def pageup(self):
-        self.cursor = self.frame
+        self.cursor = self.renderer.display_range()[0]
         self.renderer.reframe(-1)
 
     @bind('[npage]', 'Control-v')
     def pagedown(self):
-        self.cursor = self.sill
-        self.renderer.reframe(1)
+        self.cursor = self.renderer.display_range()[1]
+        self.renderer.reframe(action='pagedown')
 
 
 class Messager(Window, PagingMixIn):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
-        self.frame = self.cursor
         self.filter_reset()
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
@@ -400,12 +413,13 @@ class Messager(Window, PagingMixIn):
             return True
         mrange = hint.get('messages')
         if mrange:
+            head, sill = self.renderer.display_range()
             m1, m2 = mrange
-            self.log.debug('frame=%s, sill=%s', repr(self.frame), repr(self.sill))
+            self.log.debug('head=%s, sill=%s', repr(head), repr(sill))
             self.log.debug('m1=%s, m2=%s', repr(m1), repr(m2))
-            self.log.debug('max(frame, m1)=%s', repr(max(self.frame, m1)))
-            self.log.debug('min(sill, m2)=%s', repr(min(self.sill, m2)))
-            if max(self.frame, m1) <= min(self.sill, m2):
+            self.log.debug('max(head, m1)=%s', repr(max(head, m1)))
+            self.log.debug('min(sill, m2)=%s', repr(min(sill, m2)))
+            if max(head, m1) <= min(sill, m2):
                 self.log.debug('True!')
                 return True
         self.log.debug("Fals.e")

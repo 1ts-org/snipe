@@ -62,6 +62,13 @@ class TTYRenderer:
         self.cursorpos = None
         self.context = None
 
+        self.head = self.window.hints.get('head')
+        self.sill = self.window.hints.get('sill')
+        self.window.hints = {}
+
+    def get_hints(self):
+        return {'head': self.head, 'sill': self.sill}
+
     @property
     def active(self):
         return self.ui.windows[self.ui.active] == self
@@ -70,15 +77,15 @@ class TTYRenderer:
         self.log.debug('someone used write(%s)', repr(s))
 
     def redisplay(self):
-        if self.window.frame is None:
+        if self.head is None:
             self.log.debug('redisplay with no frame, firing reframe')
             self.reframe()
         visible = self.redisplay_internal()
         if not visible:
             self.log.warning('redisplay, no visibility, firing reframe')
-            if self.window.cursor < self.window.frame:
+            if self.window.cursor < self.head.cursor:
                 self.reframe(0)
-            elif self.window.cursor > self.window.frame:
+            elif self.window.cursor > self.head.cursor:
                 self.reframe(-1)
             visible = self.redisplay_internal()
             if not visible:
@@ -139,12 +146,32 @@ class TTYRenderer:
         if out:
             yield out, width - col
 
+    def compute_attr(self, tags):
+        #A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
+        attrs = {
+            'bold': curses.A_BOLD,
+            'standout': (
+                curses.A_REVERSE | (curses.A_BOLD if self.active else 0)
+                ),
+            'reverse': curses.A_REVERSE,
+            }
+        attr = 0
+        fg, bg = '', ''
+        for t in tags:
+            attr |= attrs.get(t, 0)
+            if t.startswith('fg:'):
+                fg = t[3:]
+            if t.startswith('bg:'):
+                bg = t[3:]
+        attr |= self.ui.color_assigner(fg, bg)
+        return attr
+
     def redisplay_internal(self):
         self.log.debug(
             'in redisplay_internal: w=%d, h=%d, frame=%s',
             self.width,
             self.height,
-            repr(self.window.frame),
+            repr(self.head),
             )
 
         self.w.erase()
@@ -152,33 +179,20 @@ class TTYRenderer:
 
         visible = False
         cursor = None
-        screenlines = self.height
+        screenlines = self.height + self.head.offset
         remaining = None
 
-        for mark, chunk in self.window.view(self.window.frame):
+        for mark, chunk in self.window.view(self.head.cursor):
             if screenlines <= 0:
                 break
-            self.window.sill = mark
+            self.sill = Location(mark)
+            chunkat = screenlines
+
             for tags, text in chunk:
+                self.sill.offset = chunkat - screenlines
                 if screenlines <= 0:
                     break
-                #A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
-                attrs = {
-                    'bold': curses.A_BOLD,
-                    'standout': (
-                        curses.A_REVERSE | (curses.A_BOLD if self.active else 0)
-                        ),
-                    'reverse': curses.A_REVERSE,
-                    }
-                attr = 0
-                fg, bg = '', ''
-                for t in tags:
-                    attr |= attrs.get(t, 0)
-                    if t.startswith('fg:'):
-                        fg = t[3:]
-                    if t.startswith('bg:'):
-                        bg = t[3:]
-                attr |= self.ui.color_assigner(fg, bg)
+                attr = self.compute_attr(tags)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
@@ -195,8 +209,9 @@ class TTYRenderer:
                     self.bkgdset(attr)
 
                     try:
-                        self.addstr(line)
-                        self.chgat(attr)
+                        if screenlines <= self.height:
+                            self.addstr(line)
+                            self.chgat(attr)
                     except:
                         self.log.debug(
                             'addstr returned ERR'
@@ -208,7 +223,7 @@ class TTYRenderer:
                     if screenlines <= 0:
                         break
                     if remaining == -1:
-                        if screenlines > 0:
+                        if screenlines > 0 and screenlines < self.height:
                             try:
                                 self.addstr('\n')
                             except:
@@ -275,7 +290,11 @@ class TTYRenderer:
 
     del func, makefunc
 
-    def reframe(self, target=None):
+    def reframe(self, target=None, action=None):
+        if action == 'pagedown':
+            self.head = self.sill
+            self.log.debug('reframe pagedown to %s', self.head)
+            return
         if target is None:
             screenlines = self.height / 2
         elif target >= 0:
@@ -283,10 +302,11 @@ class TTYRenderer:
         else: # target < 0
             screenlines = max(self.height + target, 0)
 
-        self.log.debug('reframe, previous frame=%s', repr(self.window.frame))
+        self.log.debug('reframe, previous frame=%s', repr(self.head))
         self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
 
-        self.window.frame, _ = next(self.window.view(self.window.cursor, 'backward'))
+        cursor, _ = next(self.window.view(self.window.cursor, 'backward'))
+        self.head = Location(cursor)
 
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
             # this should only drop stuff off the first chunk...
@@ -297,12 +317,15 @@ class TTYRenderer:
             screenlines -= len(chunklines)
             if screenlines <= 0:
                 break
-            self.window.frame = mark
+            self.head = Location(mark)
 
         self.log.debug('reframe, screenlines=%d', screenlines)
 
     def focus(self):
         self.window.focus()
+
+    def display_range(self):
+        return self.head.cursor, self.sill.cursor
 
 unkey = dict(
     (getattr(curses, k), k[len('KEY_'):])
@@ -532,3 +555,11 @@ class TTYFrontend:
         self.active = (self.active + adj) % len(self.windows)
         self.windows[self.active].focus()
 
+
+class Location:
+    """Abstraction for a pointer into whatever the window is displaying."""
+    def __init__(self, cursor, offset=0):
+        self.cursor = cursor
+        self.offset = offset
+    def __repr__(self):
+        return '<Location %s +%d>' % (repr(self.cursor), self.offset)

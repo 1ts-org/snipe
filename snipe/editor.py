@@ -391,7 +391,8 @@ class Editor(context.Window, context.PagingMixIn):
                     self.mark(p),
                     prefix + [
                         ((), s[:self.cursor.point - p]),
-                        (('cursor', 'visible'), s[self.cursor.point - p:]),
+                        (('cursor', 'visible'), ''),
+                        ((), s[self.cursor.point - p:]),
                         ],
                     )
             else:
