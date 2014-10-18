@@ -212,7 +212,7 @@ class StaticColorAssigner(CleverColorAssigner):
 
     def findcolor(self, rgb):
         r1, g1, b1 = rgb
-        self.log.error("%s %s", repr(rgb), repr(self.map))
+        self.log.debug("%s %s", repr(rgb), repr(self.map))
         xmap = [
             (n, math.sqrt((r2 - r1)**2 + (g2 - g1)**2 + (b2 - b1)**2))
             for (n, (r2, g2, b2)) in self.map
