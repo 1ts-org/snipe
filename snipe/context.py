@@ -317,7 +317,7 @@ class PagingMixIn:
     @bind('[ppage]', 'Meta-v')
     def pageup(self):
         self.cursor = self.renderer.display_range()[0]
-        self.renderer.reframe(-1)
+        self.renderer.reframe(action='pageup')
 
     @bind('[npage]', 'Control-v')
     def pagedown(self):

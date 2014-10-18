@@ -189,7 +189,6 @@ class TTYRenderer:
             chunkat = screenlines
 
             for tags, text in chunk:
-                self.sill.offset = chunkat - screenlines
                 if screenlines <= 0:
                     break
                 attr = self.compute_attr(tags)
@@ -234,6 +233,9 @@ class TTYRenderer:
                                     remaining)
                     elif remaining == 0:
                         self.move(self.height - screenlines, 0)
+            # XXX I'm not sure the following is _correct_ but it produces the
+            # correct result
+            self.sill.offset = max(0, chunkat - screenlines - 1)
 
         if screenlines > 1 and self.y + self.height < self.ui.maxy:
             self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
@@ -291,12 +293,16 @@ class TTYRenderer:
     del func, makefunc
 
     def reframe(self, target=None, action=None):
+        self.log.debug('reframe(target=%s, action=%s)', repr(target), repr(action))
         if action == 'pagedown':
             self.head = self.sill
             self.log.debug('reframe pagedown to %s', self.head)
             return
-        if target is None:
-            screenlines = self.height / 2
+        elif action == 'pageup':
+            screenlines = self.height - 2 - self.head.offset
+            self.log.debug('reframe pageup, screenline=%d', screenlines)
+        elif target is None:
+            screenlines = self.height // 2
         elif target >= 0:
             screenlines = min(self.height - 1, target)
         else: # target < 0
@@ -307,6 +313,7 @@ class TTYRenderer:
 
         cursor, _ = next(self.window.view(self.window.cursor, 'backward'))
         self.head = Location(cursor)
+        self.log.debug('reframe, initial,     mark=%x: %s', id(cursor), repr(self.head))
 
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
             # this should only drop stuff off the first chunk...
@@ -314,12 +321,15 @@ class TTYRenderer:
                 lambda x: 'visible' not in x[0],
                 chunk)
             chunklines = list(self.doline(''.join(c[1] for c in chunk), self.width, self.width))
+            self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, len(chunklines))
             screenlines -= len(chunklines)
             if screenlines <= 0:
                 break
-            self.head = Location(mark)
+            self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+        self.head = Location(mark, max(0, (- screenlines) - 1))
+        self.log.debug('reframe, post-loop,   mark=%x, /offset=%d: %s', id(mark), max(0, -screenlines), repr(self.head))
 
-        self.log.debug('reframe, screenlines=%d', screenlines)
+        self.log.debug('reframe, screenlines=%d, head=%s', screenlines, repr(self.head))
 
     def focus(self):
         self.window.focus()
