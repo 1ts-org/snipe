@@ -43,6 +43,7 @@ def main():
         loop.add_reader(0, ui.readable)
         ui.redisplay()
         loop.run_forever()
+    print()
     context_.shutdown()
     logging.shutdown()
 
