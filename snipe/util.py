@@ -135,6 +135,8 @@ for userspace_name, program_name in [
     ('log.editor', 'Editor'),
     ('log.asyncio', 'asyncio'),
     ('log.gapbuffer', 'GapBuffer'),
+    ('log.backend.terminus', 'TerminusBackend'),
+    ('log.backend.startup', 'StartupBackend'),
     ]:
     Level(
         userspace_name,
@@ -142,3 +144,4 @@ for userspace_name, program_name in [
         {'log.context': logging.INFO}.get(userspace_name, logging.WARNING),
         'logging for %s object' % (program_name,)
         )
+
