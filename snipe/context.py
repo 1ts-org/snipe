@@ -81,6 +81,9 @@ class Window:
         self.last_key = None
         self.universal_argument = None
 
+    def __repr__(self):
+        return '<%s %x>' % (self.__class__.__name__, id(self))
+
     @property
     def sill(self):
         if not self.renderer:

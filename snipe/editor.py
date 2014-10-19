@@ -59,8 +59,9 @@ class Mark:
         self.pos = self.buf.pointtopos(val)
 
     def __repr__(self):
-        return '<%s:%s %d (%d)>' % (
+        return '<%s %x %s %d (%d)>' % (
             self.__class__.__name__,
+            id(self),
             repr(self.buf),
             self.pos,
             self.point,
@@ -96,12 +97,10 @@ class GapBuffer:
             self.replace(0, 0, content)
 
     def __repr__(self):
-        return '<%s size=%d:%d left=%s (%d-%d) right=%s>' % (
+        return '<%s size=%d:%d %d-%d>' % (
             self.__class__.__name__,
             self.size, len(self.buf),
-            repr(self.buf[:self.gapstart].tounicode()),
             self.gapstart, self.gapend,
-            repr(self.buf[self.gapend:].tounicode()),
             )
 
     def _array(self, size):
