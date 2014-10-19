@@ -37,6 +37,8 @@ from . import context
 
 def main():
     logging.basicConfig(filename='/tmp/snipe.log', level=logging.DEBUG)
+    log = logging.getLogger('Snipe')
+    log.warning('snipe starting')
     with ttyfe.TTYFrontend() as ui:
         context_ = context.Context(ui)
         loop = asyncio.get_event_loop()
@@ -46,6 +48,7 @@ def main():
     print()
     context_.shutdown()
     logging.shutdown()
+    log.warning('snipe ends')
 
 
 if __name__ == '__main__':

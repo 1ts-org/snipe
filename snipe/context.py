@@ -611,7 +611,6 @@ class Context:
         self.ui.context = self
         self.killring = []
         self.log = logging.getLogger('Snipe')
-        self.log.warning('snipe starting')
         #XXX kludge so the kludged sending can find the roost backend
         self.roost = roost.Roost(self)
         self.backends = messages.AggregatorBackend(
