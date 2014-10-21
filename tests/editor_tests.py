@@ -148,7 +148,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(forward, list(reversed(backward)))
         self.assertEqual(
             backward[0],
-            (e.buf.size, [((), u''), (('cursor', 'visible'), u'')]))
+            (e.buf.size, [((), ''), (('cursor', 'visible'), ''), ((), '')]))
         self.assertEqual(len(forward), 257)
         c = e.cursor.point
         it = iter(e.view(0, 'forward'))
@@ -167,7 +167,7 @@ class TestEditor(unittest.TestCase):
         e.insert('abc')
         self.assertEqual(
             [(int(m), l) for (m, l) in e.view(0, 'forward')],
-            [(0, [((), u'abc'), (('cursor', 'visible'), u'')])])
+            [(0, [((), 'abc'), (('cursor', 'visible'), ''), ((), '')])])
 
     def testfuzz(
         self,
