@@ -185,7 +185,7 @@ class TTYRenderer:
         for mark, chunk in self.window.view(self.head.cursor):
             if screenlines <= 0:
                 break
-            self.sill = Location(mark)
+            self.sill = Location(self, mark)
             chunkat = screenlines
 
             for tags, text in chunk:
@@ -312,7 +312,7 @@ class TTYRenderer:
         self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
 
         cursor, _ = next(self.window.view(self.window.cursor, 'backward'))
-        self.head = Location(cursor)
+        self.head = Location(self, cursor)
         self.log.debug('reframe, initial,     mark=%x: %s', id(cursor), repr(self.head))
 
         for mark, chunk in self.window.view(self.window.cursor, 'backward'):
@@ -320,16 +320,19 @@ class TTYRenderer:
             chunk = itertools.takewhile(
                 lambda x: 'visible' not in x[0],
                 chunk)
-            chunklines = list(self.doline(''.join(c[1] for c in chunk), self.width, self.width))
-            self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, len(chunklines))
-            screenlines -= len(chunklines)
+            chunklines = self.chunksize(chunk)
+            self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
+            screenlines -= chunklines
             if screenlines <= 0:
                 break
             self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
-        self.head = Location(mark, max(0, (- screenlines) - 1))
+        self.head = Location(self, mark, max(0, (- screenlines) - 1))
         self.log.debug('reframe, post-loop,   mark=%x, /offset=%d: %s', id(mark), max(0, -screenlines), repr(self.head))
 
         self.log.debug('reframe, screenlines=%d, head=%s', screenlines, repr(self.head))
+
+    def chunksize(self, chunk):
+        return len(list(self.doline(''.join(c[1] for c in chunk), self.width, self.width)))
 
     def focus(self):
         self.window.focus()
@@ -568,8 +571,41 @@ class TTYFrontend:
 
 class Location:
     """Abstraction for a pointer into whatever the window is displaying."""
-    def __init__(self, cursor, offset=0):
+    def __init__(self, fe, cursor, offset=0):
+        self.fe = fe
         self.cursor = cursor
         self.offset = offset
     def __repr__(self):
-        return '<Location %s +%d>' % (repr(self.cursor), self.offset)
+        return '<Location %x: %s, %s +%d>' % (id(self), repr(self.fe), repr(self.cursor), self.offset)
+    def shift(self, delta):
+        if delta == 0:
+            return self
+        if delta <= 0 and -delta < self.offset:
+            return Location(self.fe, self.cursor, self.offset + delta)
+
+        direction = 'forward' if delta > 0 else 'backward'
+
+        view = self.fe.window.view(self.cursor, direction)
+        cursor, chunks = next(view)
+        lines = self.fe.chunksize(chunks)
+        if direction == 'forward':
+            if self.offset + delta < lines:
+                return Location(self.fe, self.cursor, self.offset + delta)
+            delta -= lines - self.offset
+            for cursor, chunks in view:
+                lines = self.fe.chunksize(chunks)
+                if delta < lines:
+                    break
+                delta -= lines
+            return Location(self.fe, cursor, min(lines + delta, lines))
+        else: # 'backward', delta < 0
+            print (self.cursor, self.offset)
+            delta += self.offset - 1
+            for cursor, chunks in view:
+                lines = self.fe.chunksize(chunks)
+                if -delta <= lines:
+                    break
+                delta += lines
+                print (cursor, lines, delta)
+            print (cursor, lines, delta)
+            return Location(self.fe, cursor, max(0, lines + delta))

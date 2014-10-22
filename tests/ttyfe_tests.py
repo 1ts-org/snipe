@@ -63,6 +63,117 @@ class TestTTYFE(unittest.TestCase):
             list(snipe.ttyfe.TTYRenderer.doline('ab\tdef', 3, 3)),
             [('ab', 0), ('def', 0)])
 
+    def testMockWindow(self):
+        w = MockWindow([''])
+        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        w = MockWindow(['abc\n', 'def\n'])
+        self.assertEqual(
+            list(w.view(0, 'forward')),
+            [
+                (0, [((), 'abc\n')]),
+                (1, [((), 'def\n')]),
+            ])
+
+    def testLocation0(self):
+        w = MockWindow([''])
+        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        ui = MockUI()
+        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+        l = snipe.ttyfe.Location(renderer, 0, 0)
+        m = l.shift(100)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+        m = l.shift(-100)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def testLocation1(self):
+        w = MockWindow(['abc\n', 'def'])
+        ui = MockUI()
+        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = snipe.ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 1)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(1)
+        self.assertEqual(m.cursor, 1)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-1)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def testLocation2(self):
+        w = MockWindow(['abc\n', 'def\n', 'ghi\n', 'jkl'])
+        ui = MockUI()
+        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = snipe.ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(3)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-3)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def testLocation2(self):
+        w = MockWindow(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl'])
+        ui = MockUI()
+        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = snipe.ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(3)
+        self.assertEqual(m.cursor, 2)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-3)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+
+class MockCursesWindow:
+    def subwin(self, *args):
+        return self
+    def idlok(slef, *args):
+        pass
+
+
+class MockUI:
+    def __init__(self, maxx=80):
+        self.stdscr = MockCursesWindow()
+        self.maxx = maxx
+
+
+class MockWindow:
+    hints = {}
+    def __init__(self, chunks):
+        self.chunks = [[((), chunk)] for chunk in chunks]
+    def view(self, origin, direction='forward'):
+        assert direction in ('forward', 'backward')
+        if direction == 'forward':
+            r = range(origin, len(self.chunks))
+        elif direction == 'backward':
+            r = range(origin, -1, -1)
+        for i in r:
+            yield i, self.chunks[i]
+
 
 if __name__ == '__main__':
     unittest.main()

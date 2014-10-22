@@ -84,22 +84,6 @@ class Window:
     def __repr__(self):
         return '<%s %x>' % (self.__class__.__name__, id(self))
 
-    @property
-    def sill(self):
-        if not self.renderer:
-            return None
-        if not self.renderer.sill:
-            return None
-        return self.renderer.sill.cursor
-
-    @property
-    def frame(self):
-        if not self.renderer:
-            return None
-        if not self.renderer.head:
-            return None
-        return self.renderer.head.cursor
-
     def focus(self):
         pass
 
@@ -315,6 +299,10 @@ class Window:
         # retain status quo
         self.this_command = self.last_command
 
+    @bind('Control-L')
+    def reframe(self):
+        self.renderer.reframe()
+
 
 class PagingMixIn:
     @bind('[ppage]', 'Meta-v')
@@ -456,9 +444,10 @@ class Messager(Window, PagingMixIn):
 
     @bind('s')
     def send(self, recipient=''):
-        if self.sill.time == float('inf'): #XXX omega message is visible
+        sill = self.renderer.display_range()[1]
+        if sill.time == float('inf'): #XXX omega message is visible
             self.secondary = self.cursor
-            self.cursor = self.sill
+            self.cursor = sill
         message = yield from self.read_string(
             '[roost] send --> ',
             height=10,
