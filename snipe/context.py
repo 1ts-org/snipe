@@ -54,7 +54,6 @@ def bind(*seqs):
 class Window:
     def __init__(self, frontend, prototype=None, destroy=lambda: None):
         self.fe = frontend
-        self.keymap = {}
         self.renderer = None
         self.keymap = Keymap()
         #XXX should really be walking the inheritance tree so the stuff
