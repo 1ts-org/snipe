@@ -37,6 +37,7 @@ import unicodedata
 
 from . import context
 from . import interactive
+from . import keymap
 
 
 CHUNKSIZE = 4096
@@ -257,14 +258,14 @@ class Editor(context.Window, context.PagingMixIn):
             where = self.cursor
         return self.buf.mark(where)
 
-    @context.bind('Meta-T')
+    @keymap.bind('Meta-T')
     def insert_test_content(
             self, count: interactive.positive_integer_argument=80):
         import itertools
         self.insert(''.join(
             itertools.islice(itertools.cycle('1234567890'), count)))
 
-    @context.bind(
+    @keymap.bind(
         '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))
     def self_insert(
@@ -281,7 +282,7 @@ class Editor(context.Window, context.PagingMixIn):
     def insert(self, s, collapsible=False):
         self.cursor.point += self.replace(0, s, collapsible)
 
-    @context.bind('[carriage return]', 'Control-J')
+    @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(self, count: interactive.positive_integer_argument=1):
         self.insert('\n' * count)
 
@@ -292,22 +293,22 @@ class Editor(context.Window, context.PagingMixIn):
     def replace(self, count, string, collapsible=False):
         return self.buf.replace(self.cursor, count, string, collapsible)
 
-    @context.bind('Control-D', '[dc]')
+    @keymap.bind('Control-D', '[dc]')
     def delete_forward(self, count: interactive.integer_argument=1):
         if count < 0:
             moved = self.move(count)
             count = -moved
         self.delete(count)
 
-    @context.bind('Control-H', 'Control-?', '[backspace]')
+    @keymap.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, count: interactive.integer_argument=1):
         self.delete_forward(-count)
 
-    @context.bind('Control-F', '[right]')
+    @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=1):
         self.move(count)
 
-    @context.bind('Control-B', '[left]')
+    @keymap.bind('Control-B', '[left]')
     def move_backward(self, count: interactive.integer_argument=1):
         self.move(-count)
 
@@ -320,11 +321,11 @@ class Editor(context.Window, context.PagingMixIn):
         self.goal_column = None
         return self.cursor.point - z
 
-    @context.bind('Control-N', '[down]')
+    @keymap.bind('Control-N', '[down]')
     def line_next(self, count: interactive.integer_argument=1):
         self.line_move(count)
 
-    @context.bind('Control-P', '[up]')
+    @keymap.bind('Control-P', '[up]')
     def line_previous(self, count: interactive.integer_argument=1):
         self.line_move(-count)
 
@@ -415,7 +416,7 @@ class Editor(context.Window, context.PagingMixIn):
                 return x
         return ''
 
-    @context.bind('Control-A', '[home]')
+    @keymap.bind('Control-A', '[home]')
     def beginning_of_line(self, count: interactive.integer_argument=None):
         if count is not None:
             self.line_move(count - 1)
@@ -428,7 +429,7 @@ class Editor(context.Window, context.PagingMixIn):
         if self.find_character(self.EOL, -1):
             self.move(1)
 
-    @context.bind('Control-E', '[end]')
+    @keymap.bind('Control-E', '[end]')
     def end_of_line(self, count: interactive.integer_argument=None):
         if count is not None:
             self.line_move(count - 1)
@@ -452,7 +453,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.mark_ring = mark_ring
         self.goal_column = goal_column
 
-    @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
+    @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
     def beginning_of_buffer(self, pct: interactive.argument):
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
         oldpoint = self.cursor.point
@@ -465,7 +466,7 @@ class Editor(context.Window, context.PagingMixIn):
         if oldpoint != self.cursor.point:
             self.set_mark(oldpoint)
 
-    @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
+    @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(self, pct: interactive.argument):
         oldpoint = self.cursor.point
         if not isinstance(pct, int):
@@ -492,7 +493,7 @@ class Editor(context.Window, context.PagingMixIn):
             cat = unicodedata.category(c)
             return cat[0] == 'L' or cat == 'Pc'
 
-    @context.bind('Meta-f')
+    @keymap.bind('Meta-f')
     def word_forward(self, count: interactive.integer_argument=1):
         if count < 0:
             return self.word_backward(-count)
@@ -504,7 +505,7 @@ class Editor(context.Window, context.PagingMixIn):
                 if not self.move(1):
                     return
 
-    @context.bind('Meta-b')
+    @keymap.bind('Meta-b')
     def word_backward(self, count: interactive.integer_argument=1):
         if count < 0:
             return self.word_forward(-count)
@@ -516,7 +517,7 @@ class Editor(context.Window, context.PagingMixIn):
                 if not self.move(-1):
                     return
 
-    @context.bind('Control-k')
+    @keymap.bind('Control-k')
     def kill_to_end_of_line(self, count: interactive.integer_argument):
         m = self.mark()
         if count is None: #"normal" case
@@ -542,7 +543,7 @@ class Editor(context.Window, context.PagingMixIn):
             min(self.cursor, self.the_mark),
             max(self.cursor, self.the_mark))
 
-    @context.bind('Control-W')
+    @keymap.bind('Control-W')
     def kill_region(self, mark=None, append=False):
         if mark is None:
             mark = self.the_mark
@@ -562,7 +563,7 @@ class Editor(context.Window, context.PagingMixIn):
 
         self.yank_state = 1
 
-    @context.bind('Meta-w')
+    @keymap.bind('Meta-w')
     def copy_region(self):
         if self.the_mark is None:
             self.whine('no mark is set')
@@ -570,7 +571,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.context.copy(self.region())
         self.yank_state = 1
 
-    @context.bind('Control-[space]')
+    @keymap.bind('Control-[space]')
     def set_mark(self, where=None, prefix: interactive.argument=None):
         if prefix is None:
             self.mark_ring.append(self.the_mark)
@@ -581,7 +582,7 @@ class Editor(context.Window, context.PagingMixIn):
             self.the_mark = self.mark_ring.pop()
             self.cursor = where
 
-    @context.bind('Control-X Control-X')
+    @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
         self.cursor, self.the_mark = self.the_mark, self.cursor
 
@@ -589,7 +590,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.set_mark()
         self.insert(s)
 
-    @context.bind('Control-Y')
+    @keymap.bind('Control-Y')
     def yank(self, arg: interactive.argument=None):
         if arg and isinstance(arg, int):
             self.yank_state += arg - 1
@@ -597,7 +598,7 @@ class Editor(context.Window, context.PagingMixIn):
         if arg is not None and not isinstance(nth, int):
             self.exchange_point_and_mark()
 
-    @context.bind('Meta-y')
+    @keymap.bind('Meta-y')
     def yank_pop(self, arg: interactive.integer_argument=1):
         if self.last_command not in ('yank', 'yank_pop'):
             self.whine('last command was not a yank')
@@ -608,7 +609,7 @@ class Editor(context.Window, context.PagingMixIn):
         self.delete(abs(self.the_mark.point - self.cursor.point))
         self.insert_region(self.context.yank(self.yank_state))
 
-    @context.bind('Control-_', 'Control-x u')
+    @keymap.bind('Control-_', 'Control-x u')
     def undo(self, count: interactive.positive_integer_argument=1):
         if self.last_command != 'undo':
             self.undo_state = None
@@ -619,7 +620,7 @@ class Editor(context.Window, context.PagingMixIn):
                 self.whine('Nothing to undo')
                 break
 
-    @context.bind('Control-T')
+    @keymap.bind('Control-T')
     def transpose_chars(self):
         off = 1
         p = self.cursor.point
@@ -634,25 +635,25 @@ class Editor(context.Window, context.PagingMixIn):
         self.replace(2, s)
         self.move(2)
 
-    @context.bind('Control-O')
+    @keymap.bind('Control-O')
     def open_line(self, count: interactive.positive_integer_argument=1):
         with self.save_excursion():
             self.insert('\n' * count)
 
-    @context.bind(
+    @keymap.bind(
         'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
     def kill_word_backward(self, count: interactive.integer_argument=1):
         mark = self.mark()
         self.word_backward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
-    @context.bind('Meta-d')
+    @keymap.bind('Meta-d')
     def kill_word_forward(self, count: interactive.integer_argument=1):
         mark = self.mark()
         self.word_forward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
-    @context.bind('Control-X i')
+    @keymap.bind('Control-X i')
     def insert_file(self):
         filename = yield from self.read_string('Filename: ')
         try:

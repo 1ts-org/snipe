@@ -36,6 +36,7 @@ import datetime
 from . import context
 from . import filters
 from . import roost
+from . import keymap
 
 
 class Messager(context.Window, context.PagingMixIn):
@@ -138,11 +139,11 @@ class Messager(context.Window, context.PagingMixIn):
         self.log.debug("Fals.e")
         return False
 
-    @context.bind('n', 'j', '[down]')
+    @keymap.bind('n', 'j', '[down]')
     def next_message(self):
         self.move(True)
 
-    @context.bind('p', 'k', '[up]')
+    @keymap.bind('p', 'k', '[up]')
     def prev_message(self):
         self.move(False)
 
@@ -164,7 +165,7 @@ class Messager(context.Window, context.PagingMixIn):
         except StopIteration:
             self.whine('No more messages')
 
-    @context.bind('s')
+    @keymap.bind('s')
     def send(self, recipient=''):
         sill = self.renderer.display_range()[1]
         if sill.time == float('inf'): #XXX omega message is visible
@@ -186,28 +187,28 @@ class Messager(context.Window, context.PagingMixIn):
             replymsg = next(it)
         return replymsg
 
-    @context.bind('f')
+    @keymap.bind('f')
     def followup(self):
         yield from self.send(self.replymsg().followupstr())
 
-    @context.bind('r')
+    @keymap.bind('r')
     def reply(self, k):
         yield from self.send(self.replymsg().replystr())
 
-    @context.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
+    @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):
         self.cursor = next(self.walk(float('inf'), False))
 
-    @context.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
+    @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
     def first(self):
         self.cursor = next(self.walk(float('-inf'), True))
 
-    @context.bind('Meta-/ 0')
+    @keymap.bind('Meta-/ 0')
     def filter_reset(self):
         self.filter = None
         self.filter_stack = []
 
-    @context.bind('Meta-/ =')
+    @keymap.bind('Meta-/ =')
     def filter_edit(self):
         s = '' if self.filter is None else str(self.filter)
 
@@ -217,7 +218,7 @@ class Messager(context.Window, context.PagingMixIn):
 
         self.cursor = next(self.walk(self.cursor, True))
 
-    @context.bind('Meta-/ -')
+    @keymap.bind('Meta-/ -')
     def filter_everything(self):
         self.filter_push_and_replace(filters.No())
 
@@ -234,18 +235,18 @@ class Messager(context.Window, context.PagingMixIn):
         self.context.conf_write()
         self.filter = None
 
-    @context.bind('Meta-/ g')
+    @keymap.bind('Meta-/ g')
     def filter_foreground_background(self):
         fg = yield from self.read_string('Foreground: ')
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
-    @context.bind('Meta-/ f')
+    @keymap.bind('Meta-/ f')
     def filter_foreground(self):
         fg = yield from self.read_string('Foreground: ')
         self.filter_clear_decorate({'foreground': fg})
 
-    @context.bind('Meta-/ b')
+    @keymap.bind('Meta-/ b')
     def filter_background(self):
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'background': bg})
@@ -263,29 +264,29 @@ class Messager(context.Window, context.PagingMixIn):
         else:
             self.filter_push_and_replace(filters.And(self.filter, new_filter))
 
-    @context.bind('Meta-/ c')
+    @keymap.bind('Meta-/ c')
     def filter_class(self):
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class'))
         self.filter_push(filters.Compare('=', 'class', class_))
 
-    @context.bind('Meta-/ C')
+    @keymap.bind('Meta-/ C')
     def filter_class_exactly(self):
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class', False))
         self.filter_push(filters.Compare('==', 'class', class_))
 
-    @context.bind('Meta-/ p')
+    @keymap.bind('Meta-/ p')
     def filter_personals(self):
         self.filter_push(filters.Truth('personal'))
 
-    @context.bind('Meta-/ s')
+    @keymap.bind('Meta-/ s')
     def filter_sender(self):
         sender = yield from self.read_string(
             'Sender: ', self.cursor.field('sender'))
         self.filter_push(filters.Compare('=', 'sender', sender))
 
-    @context.bind('Meta-/ /')
+    @keymap.bind('Meta-/ /')
     def filter_cleverly(self):
         message = self.cursor
         if message.personal:
@@ -305,7 +306,7 @@ class Messager(context.Window, context.PagingMixIn):
         else:
             self.whine("Can't deduce what to filter on")
 
-    @context.bind("Meta-/ Meta-/")
+    @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
         if not self.filter_stack:
             self.filter = None
