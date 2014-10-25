@@ -563,6 +563,7 @@ class Keymap(dict):
 
         return key, rest
 
+
 class ColorDemo(Window):
     def view(self, origin=0, direction='forward'):
         yield 0, [
