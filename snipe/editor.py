@@ -35,7 +35,7 @@ import logging
 import functools
 import unicodedata
 
-from . import context
+from . import window
 from . import interactive
 from . import keymap
 
@@ -231,7 +231,7 @@ class UndoableGapBuffer(GapBuffer):
         return (off - 1) % len(self.undolog), where + len(string)
 
 
-class Editor(context.Window, context.PagingMixIn):
+class Editor(window.Window, window.PagingMixIn):
     EOL = '\n'
 
     def __init__(

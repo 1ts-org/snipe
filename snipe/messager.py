@@ -33,13 +33,13 @@
 import time
 import datetime
 
-from . import context
 from . import filters
 from . import roost
 from . import keymap
+from . import window
 
 
-class Messager(context.Window, context.PagingMixIn):
+class Messager(window.Window, window.PagingMixIn):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
