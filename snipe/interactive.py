@@ -35,6 +35,10 @@ def context(*args, **kw):
     return kw.get('context', None)
 
 
+def window(*args, **kw):
+    return kw.get('window', None)
+
+
 def keystroke(*args, **kw):
     return kw.get('keystroke', None)
 

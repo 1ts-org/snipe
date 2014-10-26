@@ -38,6 +38,7 @@ import unicodedata
 from . import window
 from . import interactive
 from . import keymap
+from . import help
 
 
 CHUNKSIZE = 4096
@@ -241,6 +242,7 @@ class Editor(window.Window, window.PagingMixIn):
         self.prompt = prompt
 
         super().__init__(*args, **kw) #XXX need share buffer?
+        self.keymap['[escape] ?'] = help.help
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 

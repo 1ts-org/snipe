@@ -45,10 +45,6 @@ class Window:
         self.keymap = keymap.Keymap()
         #XXX should really be walking the inheritance tree so the stuff
         #lower in the tree wins
-        for f in (getattr(self, name) for name in dir(self)):
-            if hasattr(f, 'snipe_seqs'):
-                for seq in f.snipe_seqs:
-                    self.keymap[seq] = f
         self.keymap.interrogate(self)
         self.active_keymap = self.keymap
         self.log = logging.getLogger(
@@ -97,6 +93,7 @@ class Window:
                 ret = interactive.call(
                     v,
                     context = self.context,
+                    window = self,
                     keystroke = k,
                     argument = arg,
                     )

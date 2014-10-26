@@ -37,6 +37,7 @@ from . import filters
 from . import roost
 from . import keymap
 from . import window
+from . import help
 
 
 class Messager(window.Window, window.PagingMixIn):
@@ -46,6 +47,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.filter_reset()
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
+        self.keymap.interrogate(help)
         self.rules = []
         for (filt, decor) in self.context.conf.get('rules', []):
             try:

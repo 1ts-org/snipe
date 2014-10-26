@@ -139,6 +139,7 @@ class Keymap(dict):
         (('line feed', 'linefeed', 'newline'), '\x0a'),
         (('carriage return', 'return'), '\x0d'),
         (('tab',), '\x09'),
+        (('space',), ' '),
         ]
 
     other_keys = {}
@@ -235,3 +236,56 @@ class Keymap(dict):
         assert bool(modifiers) == False
 
         return key, rest
+
+    @classmethod
+    def unkey(self, c):
+        if hasattr(c, 'upper'):
+            if c in self.unother_keys:
+                return '[' + self.unother_keys[c] + ']'
+            if ord(c) < ord(' '):
+                return 'Control-' + chr(ord('@') + ord(c))
+            if ord(c) < ord('\177'):
+                return c
+            try:
+                return '[' + unicodedata.name(c).lower() + ']'
+            except ValueError:
+                return '[?%x]' % ord(c)
+        else: # probably an integer?
+            if c in ttyfe.unkey:
+                return '[' + ttyfe.unkey[c].lower() + ']'
+            else:
+                return '[%x?]' % c
+
+    def pairify(self, prefix=''):
+        ks = list(sorted(
+                self.keys(), key=lambda k: (0 if hasattr(k, 'upper') else 1, k)))
+        eliding = None
+        for (i, k) in enumerate(ks):
+            keyseq = prefix + self.unkey(k)
+            if eliding is None and hasattr(k, 'upper') and len(ks) > i + 2 \
+              and hasattr(ks[i+1], 'upper') and ord(k) + 1 == ord(ks[i + 1]) \
+              and hasattr(ks[i+2], 'upper') and ord(k) + 2 == ord(ks[i + 2]) \
+              and self[k] is self[ks[i+1]] is self[ks[i+2]]:
+                eliding = keyseq
+                continue
+            if eliding is not None \
+              and (
+                len(ks) < i + 1 or \
+                not hasattr(ks[i + 1], 'upper') or \
+                ord(k) + 1 != ord(ks[i + 1]) or \
+                self[k] is not self[ks[i+1]]):
+                    keyseq = eliding + ' .. ' + self.unkey(k)
+                    eliding = None
+            if eliding is None:
+                if hasattr(self[k], 'pairify'):
+                    yield from self[k].pairify(keyseq + ' ')
+                elif hasattr(self[k], '__name__'):
+                    yield keyseq, self[k].__name__
+                else:
+                    yield keyseq, '???'
+
+    def __str__(self):
+        mappings = list(self.pairify())
+        width = max(len(keyseq) for (keyseq, action) in mappings)
+        return '\n'.join(
+            '%-*s  %s' % (width, keyseq, action) for (keyseq, action) in mappings)

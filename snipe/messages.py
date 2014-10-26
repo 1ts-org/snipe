@@ -35,6 +35,8 @@ import logging
 import functools
 import bisect
 
+from . import util
+
 
 class SnipeAddress:
     backend = None
@@ -237,7 +239,7 @@ class StartupBackend(SnipeBackend):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.messages = [
-            SnipeMessage(self, 'Welcome to snipe.\n\n'),
+            SnipeMessage(self, util.SPLASH + '\n'),
             ]
 
 
