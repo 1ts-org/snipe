@@ -262,20 +262,16 @@ class Keymap(dict):
         eliding = None
         for (i, k) in enumerate(ks):
             keyseq = prefix + self.unkey(k)
-            if eliding is None and hasattr(k, 'upper') and len(ks) > i + 2 \
-              and hasattr(ks[i+1], 'upper') and ord(k) + 1 == ord(ks[i + 1]) \
-              and hasattr(ks[i+2], 'upper') and ord(k) + 2 == ord(ks[i + 2]) \
+            if eliding is None and hasattr(k, 'upper') \
+              and ks[i + 1:i + 3] == [chr(ord(k) + 1), chr(ord(k) + 2)] \
               and self[k] is self[ks[i+1]] is self[ks[i+2]]:
                 eliding = keyseq
                 continue
-            if eliding is not None \
-              and (
-                len(ks) < i + 1 or \
-                not hasattr(ks[i + 1], 'upper') or \
-                ord(k) + 1 != ord(ks[i + 1]) or \
-                self[k] is not self[ks[i+1]]):
-                    keyseq = eliding + ' .. ' + self.unkey(k)
-                    eliding = None
+            if eliding is not None and (
+              ks[i + 1:i + 2] != [chr(ord(k) + 1)]
+              or self[k] is not self[ks[i + 1]]):
+                keyseq = eliding + ' .. ' + self.unkey(k)
+                eliding = None
             if eliding is None:
                 if hasattr(self[k], 'pairify'):
                     yield from self[k].pairify(keyseq + ' ')
