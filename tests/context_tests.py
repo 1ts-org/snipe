@@ -39,14 +39,14 @@ import sys
 import curses
 
 sys.path.append('..')
-import snipe.context
+import snipe.keymap
 
 
 class TestKeymap(unittest.TestCase):
     def testkeyseq_re(self):
-        self.assertFalse(snipe.context.Keymap.keyseq_re.match('frob'))
+        self.assertFalse(snipe.keymap.Keymap.keyseq_re.match('frob'))
         s = 'control-Shift-META-hyper-SUPER-aLT-ctl-[LATIN CAPITAL LETTER A]'
-        m = snipe.context.Keymap.keyseq_re.match(s)
+        m = snipe.keymap.Keymap.keyseq_re.match(s)
         self.assertTrue(m, msg='Keymap.keyseq_re.match(' + s + ')')
         d = m.groupdict()
         self.assertEqual(
@@ -59,7 +59,7 @@ class TestKeymap(unittest.TestCase):
                 })
 
     def testsplit(self):
-        split = snipe.context.Keymap.split
+        split = snipe.keymap.Keymap.split
 
         with self.assertRaises(TypeError):
             split('frob')
@@ -95,10 +95,10 @@ class TestKeymap(unittest.TestCase):
         self.assertEqual(split(-5), (-5, None))
 
     def testdict(self):
-        k = snipe.context.Keymap()
+        k = snipe.keymap.Keymap()
         k['a b'] = 1
         self.assertEqual(k['a b'], 1)
-        l = snipe.context.Keymap(k)
+        l = snipe.keymap.Keymap(k)
         self.assertEqual(k['a b'], 1)
         self.assertIsNot(k, l)
         self.assertIsNot(k['a'], l['a'])
@@ -115,7 +115,7 @@ class TestKeymap(unittest.TestCase):
             k['\n']
 
     def testsetmarkkey(self):
-        split = snipe.context.Keymap.split
+        split = snipe.keymap.Keymap.split
         self.assertEqual(split('Control-@'), ('\0', None))
         self.assertEqual(split('Control-[space]'), ('\0', None))
 
