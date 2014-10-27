@@ -44,7 +44,8 @@ from . import help
 @functools.total_ordering
 class Mark:
     def __init__(self, buf, point):
-        self.mark = buf.mark(point)
+        self.buf = buf
+        self.mark = buf.buf.mark(point)
 
     @property
     def point(self):
@@ -63,7 +64,7 @@ class Mark:
             )
 
     def replace(self, count, string, collapsible=False):
-        return self.mark.buf.replace(self.mark, count, string, collapsible)
+        return self.buf.replace(self.mark, count, string, collapsible)
 
     def insert(self, s, collapsible=False):
         self.point += self.replace(0, s, collapsible)
@@ -87,7 +88,7 @@ class Buffer:
         self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
 
     def mark(self, where):
-        return Mark(self.buf, where)
+        return Mark(self, where)
 
     def __str__(self):
         return self.buf.text
@@ -107,6 +108,9 @@ class Buffer:
 
     def undo(self, which):
         self.buf.undo(which)
+
+    def replace(self, where, count, string, collapsible):
+        return self.buf.replace(where, count, string, collapsible)
 
 
 class Editor(window.Window, window.PagingMixIn):
