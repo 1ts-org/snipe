@@ -50,10 +50,10 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.cursor.point, 4)
         e.cursor.point = 0
         e.insert('flim')
-        self.assertEqual(e.buf.text, 'flimflam')
+        self.assertEqual(str(e.buf), 'flimflam')
         e.cursor.point += 4
         e.insert('blam')
-        self.assertEqual(e.buf.text, 'flimflamblam')
+        self.assertEqual(str(e.buf), 'flimflamblam')
 
     def testEditorExpansion(self):
         e = snipe.editor.Editor(None, chunksize=1)
@@ -61,55 +61,55 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.cursor.point, 4)
         e.cursor.point = 0
         e.insert('flim')
-        self.assertEqual(e.buf.text, 'flimflam')
+        self.assertEqual(str(e.buf), 'flimflam')
         e.cursor.point += 4
         e.insert('blam')
-        self.assertEqual(e.buf.text, 'flimflamblam')
+        self.assertEqual(str(e.buf), 'flimflamblam')
 
     def testEditorMore(self):
         e = snipe.editor.Editor(None)
         e.insert('bar')
-        self.assertEqual(e.buf.text, 'bar')
-        self.assertEqual(e.buf.size, 3)
-        m = e.mark(1)
+        self.assertEqual(str(e.buf), 'bar')
+        self.assertEqual(len(e.buf), 3)
+        m = e.buf.mark(1)
         self.assertEqual(m.point, 1)
         e.cursor.point = 0
         e.insert('foo')
-        self.assertEqual(e.buf.text, 'foobar')
+        self.assertEqual(str(e.buf), 'foobar')
         self.assertEqual(m.point, 4)
         e.cursor.point=6
         e.insert('baz')
-        self.assertEqual(e.buf.text, 'foobarbaz')
+        self.assertEqual(str(e.buf), 'foobarbaz')
         self.assertEqual(m.point, 4)
         e.cursor.point=6
         e.insert('quux')
-        self.assertEqual(e.buf.text, 'foobarquuxbaz')
+        self.assertEqual(str(e.buf), 'foobarquuxbaz')
         self.assertEqual(m.point, 4)
         e.cursor.point=3
         e.insert('Q'*8192)
-        self.assertEqual(e.buf.text, 'foo' + 'Q'*8192 + 'barquuxbaz')
+        self.assertEqual(str(e.buf), 'foo' + 'Q'*8192 + 'barquuxbaz')
         self.assertEqual(m.point, 8196)
         e.cursor.point=3
         e.delete(8192)
         self.assertEqual(e.cursor.point, 3)
-        self.assertEqual(e.buf.text, 'foobarquuxbaz')
-        self.assertEqual(e.buf.size, 13)
+        self.assertEqual(str(e.buf), 'foobarquuxbaz')
+        self.assertEqual(len(e.buf), 13)
         self.assertEqual(m.point, 4)
         e.cursor.point=3
         e.insert('honk')
         e.delete(3)
-        self.assertEqual(e.buf.text, 'foohonkquuxbaz')
+        self.assertEqual(str(e.buf), 'foohonkquuxbaz')
         self.assertEqual(m.point, 7)
         e.cursor.point=4
         e.insert('u')
         e.delete(1)
-        self.assertEqual(e.buf.text[4], 'u')
+        self.assertEqual(str(e.buf)[4], 'u')
         e.cursor.point=4
         e.delete(1)
-        self.assertEqual(e.buf.text, 'foohnkquuxbaz')
+        self.assertEqual(str(e.buf), 'foohnkquuxbaz')
         e.cursor.point=3
         e.delete(3)
-        self.assertEqual(e.buf.text, 'fooquuxbaz')
+        self.assertEqual(str(e.buf), 'fooquuxbaz')
 
     def testFindchar(self):
         e = snipe.editor.Editor(None)
@@ -142,13 +142,13 @@ class TestEditor(unittest.TestCase):
         c = e.cursor.point
         forward = [(int(m), l) for (m, l) in e.view(0, 'forward')]
         self.assertEqual(e.cursor.point, c)
-        backward = [(int(m), l) for (m, l) in e.view(e.buf.size, 'backward')]
+        backward = [(int(m), l) for (m, l) in e.view(len(e.buf), 'backward')]
         self.assertEqual(e.cursor.point, c)
         self.assertEqual(len(forward), 257)
         self.assertEqual(forward, list(reversed(backward)))
         self.assertEqual(
             backward[0],
-            (e.buf.size, [((), ''), (('cursor', 'visible'), ''), ((), '')]))
+            (len(e.buf), [((), ''), (('cursor', 'visible'), ''), ((), '')]))
         self.assertEqual(len(forward), 257)
         c = e.cursor.point
         it = iter(e.view(0, 'forward'))
@@ -156,7 +156,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.cursor.point, c)
         next(it)
         self.assertEqual(e.cursor.point, c)
-        it = iter(e.view(e.buf.size, 'backward'))
+        it = iter(e.view(len(e.buf), 'backward'))
         next(it)
         self.assertEqual(e.cursor.point, c)
         next(it)
@@ -197,11 +197,11 @@ class TestEditor(unittest.TestCase):
         g = snipe.editor.Editor(None)
         a = array.array('u')
         for n in range(iterations):
-            pos = g.buf.size and random.randint(0, g.buf.size - 1)
+            pos = len(g.buf) and random.randint(0, len(g.buf) - 1)
             # A 1 in 3 chance to delete, unless we're at max length,
             # then delete regardless
-            if not random.randint(0, 2) or g.buf.size >= max_len:
-                howmany = min(g.buf.size - pos, random.randint(1, max_op_len))
+            if not random.randint(0, 2) or len(g.buf) >= max_len:
+                howmany = min(len(g.buf) - pos, random.randint(1, max_op_len))
                 g.cursor.point = pos
                 g.delete(howmany)
                 for d in range(howmany):
@@ -211,13 +211,13 @@ class TestEditor(unittest.TestCase):
                 # A 1 in 2 chance to insert instead of just moving th gap
                 if not random.randint(0, 1):
                     howmany = random.randint(
-                        1, max(max_op_len, max_len - g.buf.size))
+                        1, max(max_op_len, max_len - len(g.buf)))
                     char = random.choice(contents)
                     g.insert(char * howmany)
                     for i in range(howmany):
                         a.insert(pos, char)
-            self.assertEqual(a.tounicode(), g.buf.text)
-            print (g.buf.text)
+            self.assertEqual(a.tounicode(), str(g.buf))
+            print (str(g.buf))
 
     def test_character_at_point(self):
         # really testing textrange

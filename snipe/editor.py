@@ -44,8 +44,7 @@ from . import help
 CHUNKSIZE = 4096
 
 
-@functools.total_ordering
-class Mark:
+class GapMark:
     def __init__(self, buf, point):
         self.buf = buf
         self.buf.marks.add(self)
@@ -72,15 +71,45 @@ class Mark:
     def __int__(self):
         return self.point
 
+
+@functools.total_ordering
+class Mark:
+    def __init__(self, buf, point):
+        self.mark = buf.mark(point)
+
+    @property
+    def point(self):
+        """The value of the mark in external coordinates"""
+        return self.mark.point
+
+    @point.setter
+    def point(self, val):
+        self.mark.point = val
+
+    def __repr__(self):
+        return '<%s %x %s>' % (
+            self.__class__.__name__,
+            id(self),
+            repr(self.mark),
+            )
+
+    def replace(self, count, string, collapsible=False):
+        return self.mark.buf.replace(self.mark, count, string, collapsible)
+
+    def insert(self, s, collapsible=False):
+        self.point += self.replace(0, s, collapsible)
+
+    def delete(self, count):
+        self.replace(count, '')
+
+    def __int__(self):
+        return self.point
+
     def __eq__(self, other):
         return self.point == int(other)
 
     def __lt__(self, other):
         return self.point < int(other)
-
-    def __hash__(self):
-        # this is technically a nono
-        return id(self)
 
 
 class GapBuffer:
@@ -181,7 +210,7 @@ class GapBuffer:
         for mark in self.marks:
             mark.point = mark.pos
 
-    def replace(self, where, size, string):
+    def replace(self, where, size, string, collapsible=None):
         assert size >= 0
         if hasattr(where, 'pos'):
             where = where.pos
@@ -197,7 +226,7 @@ class GapBuffer:
         return length
 
     def mark(self, where):
-        return Mark(self, where)
+        return GapMark(self, where)
 
 
 class UndoableGapBuffer(GapBuffer):
@@ -232,13 +261,41 @@ class UndoableGapBuffer(GapBuffer):
         return (off - 1) % len(self.undolog), where + len(string)
 
 
+class Buffer:
+    '''higher-level abstract notion of an editable chunk of data'''
+    def __init__(self, content=None, chunksize=None):
+        self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
+
+    def mark(self, where):
+        return Mark(self.buf, where)
+
+    def __str__(self):
+        return self.buf.text
+
+    def __len__(self):
+        return self.buf.size
+
+    def __getitem__(self, k):
+        if hasattr(k, 'start'): # slice object, ignore the step
+            return self.buf.textrange(k.start or 0, k.stop or len(self))
+        else:
+            return self.buf.textrange(k, k+1)
+
+    @property
+    def cache(self):
+        return self.buf.cache
+
+    def undo(self, which):
+        self.buf.undo(which)
+
+
 class Editor(window.Window, window.PagingMixIn):
     EOL = '\n'
 
     def __init__(
-        self, *args, chunksize=CHUNKSIZE, prompt=None, content=None, **kw):
+        self, *args, chunksize=None, prompt=None, content=None, **kw):
 
-        self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
+        self.buf = Buffer(content=content, chunksize=chunksize)
         self.prompt = prompt
 
         super().__init__(*args, **kw) #XXX need share buffer?
@@ -254,11 +311,6 @@ class Editor(window.Window, window.PagingMixIn):
         self.undo_state = None
 
         self.goal_column = None
-
-    def mark(self, where=None):
-        if where is None:
-            where = self.cursor
-        return self.buf.mark(where)
 
     @keymap.bind('Meta-T')
     def insert_test_content(
@@ -293,7 +345,7 @@ class Editor(window.Window, window.PagingMixIn):
         self.replace(count, '')
 
     def replace(self, count, string, collapsible=False):
-        return self.buf.replace(self.cursor, count, string, collapsible)
+        return self.cursor.replace(count, string, collapsible)
 
     @keymap.bind('Control-D', '[dc]')
     def delete_forward(self, count: interactive.integer_argument=1):
@@ -367,14 +419,14 @@ class Editor(window.Window, window.PagingMixIn):
             start = self.cursor.point
             self.end_of_line()
             self.move(1)
-            result = (start, self.buf.textrange(start, self.cursor))
+            result = (start, self.buf[start:self.cursor])
             self.buf.cache['extract_current_line'][p] = result
             return result
 
     def view(self, origin, direction='forward'):
         # this is the right place to do special processing of
         # e.g. control characters
-        m = self.mark(origin)
+        m = self.buf.mark(origin)
 
         if direction not in ('forward', 'backward'):
             raise ValueError('invalid direction', direction)
@@ -388,9 +440,9 @@ class Editor(window.Window, window.PagingMixIn):
             else:
                 prefix = []
             if ((p <= self.cursor.point < p + l)
-                or (self.cursor.point == p + l == self.buf.size)):
+                or (self.cursor.point == p + l == len(self.buf))):
                 yield (
-                    self.mark(p),
+                    self.buf.mark(p),
                     prefix + [
                         ((), s[:self.cursor.point - p]),
                         (('cursor', 'visible'), ''),
@@ -398,9 +450,9 @@ class Editor(window.Window, window.PagingMixIn):
                         ],
                     )
             else:
-                yield self.mark(p), prefix + [((), s)]
+                yield self.buf.mark(p), prefix + [((), s)]
             if direction == 'forward':
-                if p == self.buf.size or s[-1] != '\n':
+                if p == len(self.buf) or s[-1] != '\n':
                     break
                 m.point += l
             else:
@@ -409,7 +461,7 @@ class Editor(window.Window, window.PagingMixIn):
                 m.point = p - 1
 
     def character_at_point(self):
-        return self.buf.textrange(self.cursor.point, self.cursor.point + 1)
+        return self.buf[self.cursor.point]
 
     def find_character(self, cs, delta=1):
         while self.move(delta):
@@ -440,8 +492,8 @@ class Editor(window.Window, window.PagingMixIn):
 
     @contextlib.contextmanager
     def save_excursion(self, where=None):
-        cursor = self.mark()
-        mark = self.mark(self.the_mark)
+        cursor = self.buf.mark(self.cursor)
+        mark = self.buf.mark(self.the_mark or self.cursor)
         mark_ring = self.mark_ring
         self.mark_ring = list(self.mark_ring)
         goal_column = self.goal_column
@@ -463,7 +515,7 @@ class Editor(window.Window, window.PagingMixIn):
             pct = 0
         if pct < 0:
             return self.end_of_buffer(-pct)
-        self.cursor.point = min(pct * self.buf.size // 10, self.buf.size)
+        self.cursor.point = min(pct * len(self.buf) // 10, len(self.buf))
         self.beginning_of_line()
         if oldpoint != self.cursor.point:
             self.set_mark(oldpoint)
@@ -475,7 +527,7 @@ class Editor(window.Window, window.PagingMixIn):
             pct = 0
         if pct < 0:
             return self.beginning_of_buffer(-pct)
-        self.cursor.point = max((10 - pct) * self.buf.size // 10, 0)
+        self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
         self.beginning_of_line()
         if oldpoint != self.cursor.point:
             self.set_mark(oldpoint)
@@ -521,7 +573,7 @@ class Editor(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-k')
     def kill_to_end_of_line(self, count: interactive.integer_argument):
-        m = self.mark()
+        m = self.buf.mark(self.cursor)
         if count is None: #"normal" case
             self.end_of_line()
             if m == self.cursor:
@@ -538,12 +590,13 @@ class Editor(window.Window, window.PagingMixIn):
 
     def region(self, mark=None):
         if mark is None:
-            mark = self.mark
+            mark = self.the_mark
         if mark is None:
             return None
-        return self.buf.textrange(
-            min(self.cursor, self.the_mark),
-            max(self.cursor, self.the_mark))
+
+        start = min(self.cursor, self.the_mark)
+        stop = max(self.cursor, self.the_mark)
+        return self.buf[start:stop]
 
     @keymap.bind('Control-W')
     def kill_region(self, mark=None, append=False):
@@ -577,9 +630,10 @@ class Editor(window.Window, window.PagingMixIn):
     def set_mark(self, where=None, prefix: interactive.argument=None):
         if prefix is None:
             self.mark_ring.append(self.the_mark)
-            self.the_mark = self.mark(where)
+            self.the_mark = self.buf.mark(where or self.cursor)
         else:
-            self.mark_ring.insert(0, self.mark(where))
+            self.mark_ring.insert(
+                0, self.buf.mark(where or self.cursor))
             where = self.the_mark
             self.the_mark = self.mark_ring.pop()
             self.cursor = where
@@ -626,13 +680,13 @@ class Editor(window.Window, window.PagingMixIn):
     def transpose_chars(self):
         off = 1
         p = self.cursor.point
-        if p == self.buf.size:
+        if p == len(self.buf):
             off = 2
         if self.move(-off) != -off:
             self.cursor.point = p
             self.whine('At beginning')
             return
-        s = self.buf.textrange(self.cursor, int(self.cursor) + 2)
+        s = self.buf[self.cursor:self.cursor + 2]
         s = ''.join(reversed(s)) # *sigh*
         self.replace(2, s)
         self.move(2)
@@ -645,13 +699,13 @@ class Editor(window.Window, window.PagingMixIn):
     @keymap.bind(
         'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
     def kill_word_backward(self, count: interactive.integer_argument=1):
-        mark = self.mark()
+        mark = self.buf.mark(self.cursor)
         self.word_backward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
     @keymap.bind('Meta-d')
     def kill_word_forward(self, count: interactive.integer_argument=1):
-        mark = self.mark()
+        mark = self.buf.mark(self.cursor)
         self.word_forward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
@@ -671,10 +725,10 @@ class LongPrompt(Editor):
         self.callback = callback
         self.keymap['Control-J'] = self.runcallback
         self.keymap['Control-C Control-C'] = self.runcallback
-        self.cursor = self.buf.mark(self.buf.size)
+        self.cursor = self.buf.mark(len(self.buf))
 
     def runcallback(self):
-        self.callback(self.buf.text)
+        self.callback(str(self.buf))
 
 
 class ShortPrompt(LongPrompt):
