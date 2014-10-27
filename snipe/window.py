@@ -75,7 +75,7 @@ class Window:
 
     def input_char(self, k):
         try:
-            self.log.debug('got key %s', repr(k))
+            self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
             try:
                 v = self.active_keymap[k]
             except KeyError:

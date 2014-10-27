@@ -533,9 +533,9 @@ class Editor(window.Window, window.PagingMixIn):
             self.set_mark(oldpoint)
 
     def input_char(self, k):
-        self.log.debug('before command %s', self.cursor)
+        self.log.debug('before command %s %s', self.cursor, self.the_mark)
         super().input_char(k)
-        self.log.debug('after command  %s', self.cursor)
+        self.log.debug('after command  %s %s', self.cursor, self.the_mark)
 
     def isword(self, delta=0):
         with self.save_excursion():
