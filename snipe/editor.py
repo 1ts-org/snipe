@@ -41,9 +41,6 @@ from . import keymap
 from . import help
 
 
-CHUNKSIZE = 4096
-
-
 @functools.total_ordering
 class Mark:
     def __init__(self, buf, point):
@@ -561,11 +558,13 @@ class ShortPrompt(LongPrompt):
 
 
 class GapBuffer:
+    CHUNKSIZE = 4096
+
     def __init__(self, content=None, chunksize=None):
         super().__init__()
         self.log = logging.getLogger(
             '%s.%x' % ('GapBuffer', id(self),))
-        self.chunksize = chunksize or CHUNKSIZE
+        self.chunksize = chunksize or self.CHUNKSIZE
         self.marks = weakref.WeakSet()
         self.buf = self._array(self.chunksize)
         self.gapstart = 0
