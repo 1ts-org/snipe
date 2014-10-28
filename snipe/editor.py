@@ -86,6 +86,7 @@ class Buffer:
     '''higher-level abstract notion of an editable chunk of data'''
     def __init__(self, content=None, chunksize=None):
         self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
+        self.cache = {}
 
     def mark(self, where):
         return Mark(self, where)
@@ -110,14 +111,12 @@ class Buffer:
                 k = len(self) - k
             return self.buf.textrange(k, k+1)
 
-    @property
-    def cache(self):
-        return self.buf.cache
-
     def undo(self, which):
-        self.buf.undo(which)
+        self.cache = {}
+        return self.buf.undo(which)
 
     def replace(self, where, count, string, collapsible):
+        self.cache = {}
         return self.buf.replace(where, count, string, collapsible)
 
 
