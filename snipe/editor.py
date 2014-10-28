@@ -733,10 +733,10 @@ class GapMark:
         self.pos = self.buf.pointtopos(val)
 
     def __repr__(self):
-        return '<%s %x %s %d (%d)>' % (
+        return '<%s %x (%x) %d (%d)>' % (
             self.__class__.__name__,
             id(self),
-            repr(self.buf),
+            id(self.buf),
             self.pos,
             self.point,
             )
