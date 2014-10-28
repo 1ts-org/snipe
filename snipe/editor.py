@@ -283,7 +283,7 @@ class Editor(window.Window, window.PagingMixIn):
             else:
                 yield self.buf.mark(p), prefix + [((), s)]
             if direction == 'forward':
-                if p == len(self.buf) or s[-1] != '\n':
+                if p == len(self.buf) or s[-1:] != '\n':
                     break
                 m.point += l
             else:
