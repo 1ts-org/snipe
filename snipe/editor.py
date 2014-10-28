@@ -454,10 +454,10 @@ class Editor(window.Window, window.PagingMixIn):
     def set_mark(self, where=None, prefix: interactive.argument=None):
         if prefix is None:
             self.mark_ring.append(self.the_mark)
-            self.the_mark = self.buf.mark(where or self.cursor)
+            self.the_mark = self.buf.mark(where if where is not None else self.cursor)
         else:
             self.mark_ring.insert(
-                0, self.buf.mark(where or self.cursor))
+                0, self.buf.mark(where if where is not None else self.cursor))
             where = self.the_mark
             self.the_mark = self.mark_ring.pop()
             self.cursor = where
