@@ -580,7 +580,6 @@ class GapBuffer:
         self.buf = self._array(self.chunksize)
         self.gapstart = 0
         self.gapend = len(self.buf)
-        self.cache = {}
 
         if content is not None:
             self.replace(0, 0, content)
@@ -680,7 +679,6 @@ class GapBuffer:
         newstart = self.gapstart + length
         self.buf[self.gapstart:newstart] = array.array('u', string)
         self.gapstart = newstart
-        self.cache = {}
         return length
 
     def mark(self, where):
