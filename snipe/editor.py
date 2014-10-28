@@ -354,13 +354,18 @@ class Editor(window.Window, window.PagingMixIn):
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(self, pct: interactive.argument):
         oldpoint = self.cursor.point
+        self.log.debug('end_of_buffer: arg, %s oldpoint %s', repr(pct), oldpoint)
+        noarg = pct is None
         if not isinstance(pct, int):
             pct = 0
         if pct < 0:
             return self.beginning_of_buffer(-pct)
         self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
-        self.beginning_of_line()
+        if not noarg:
+            self.beginning_of_line()
+        self.log.debug('end_of_buffer: newpoint %s', self.cursor.point)
         if oldpoint != self.cursor.point:
+            self.log.debug('end_of_buffer: setting mark %s', oldpoint)
             self.set_mark(oldpoint)
 
     def input_char(self, k):
