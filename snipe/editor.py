@@ -98,8 +98,16 @@ class Buffer:
 
     def __getitem__(self, k):
         if hasattr(k, 'start'): # slice object, ignore the step
-            return self.buf.textrange(k.start or 0, k.stop or len(self))
+            start = k.start if k.start is not None else 0
+            stop = k.stop if k.stop is not None else len(self)
+            if start < 0:
+                start = len(self) - start
+            if stop < 0:
+                stop = len(self) - start
+            return self.buf.textrange(start, stop)
         else:
+            if k < 0:
+                k = len(self) - k
             return self.buf.textrange(k, k+1)
 
     @property
