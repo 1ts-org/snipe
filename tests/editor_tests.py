@@ -337,5 +337,33 @@ class TestGapBuffer(unittest.TestCase):
             print (g.text)
 
 
+class TestBuffer(unittest.TestCase):
+    def testRegister(self):
+        b = snipe.editor.Buffer(name='foo')
+        self.assertEqual(b.name, 'foo')
+        self.assertIs(snipe.editor.Buffer.registry['foo'], b)
+
+        b = snipe.editor.Buffer(name='foo')
+        self.assertEqual(b.name, 'foo[1]')
+        self.assertIs(snipe.editor.Buffer.registry['foo[1]'], b)
+
+        b = snipe.editor.Buffer(name='foo')
+        self.assertEqual(b.name, 'foo[2]')
+        self.assertIs(snipe.editor.Buffer.registry['foo[2]'], b)
+
+        del b
+        del snipe.editor.Buffer.registry['foo[2]']
+
+        b = snipe.editor.Buffer(name='foo')
+        self.assertEqual(b.name, 'foo[2]')
+        self.assertIs(snipe.editor.Buffer.registry['foo[2]'], b)
+
+        del snipe.editor.Buffer.registry['foo[1]']
+
+        b = snipe.editor.Buffer(name='foo')
+        self.assertEqual(b.name, 'foo[3]')
+        self.assertIs(snipe.editor.Buffer.registry['foo[3]'], b)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -34,6 +34,7 @@ import contextlib
 import logging
 import functools
 import unicodedata
+import re
 
 from . import window
 from . import interactive
@@ -84,9 +85,28 @@ class Mark:
 
 class Buffer:
     '''higher-level abstract notion of an editable chunk of data'''
-    def __init__(self, content=None, chunksize=None):
+
+    registry = {}
+
+    def __init__(self, name=None, content=None, chunksize=None):
+        if name is None:
+            name = '*x%x*' % (id(self),)
+        self.name = self.register(name)
+
         self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
+
+    def register(self, name):
+        if name not in self.registry:
+            self.registry[name]  = self
+            return name
+
+        r = re.compile(r'^%s(?:|\[(\d+)\])$' % (name,))
+        competition = filter(
+            None, (r.match(bufname) for bufname in self.registry))
+        competition = [m.group(1) for m in competition]
+        n = max(int(i) if i is not None else 0 for i in competition) + 1
+        return self.register('%s[%d]' % (name, n))
 
     def mark(self, where):
         return Mark(self, where)
