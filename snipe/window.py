@@ -106,7 +106,7 @@ class Window:
                         except:
                             self.log.exception('Executing complex command')
                             self.whine(k)
-                        self.fe.redisplay({'window': self})
+                        self.fe.redisplay(self.redisplay_hint())
 
                     t = asyncio.Task(catch_and_log(ret))
 
@@ -119,6 +119,10 @@ class Window:
         ret = hint.get('window', None) is self
         self.log.debug('redisplay hint %s -> %s', repr(hint), repr(ret))
         return ret
+
+    def redisplay_hint(self):
+        self.log.debug('base redisplay_hint')
+        return {'window': self}
 
     def read_string(self, prompt, content=None, height=1, window=None):
         f = asyncio.Future()

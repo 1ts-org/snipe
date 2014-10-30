@@ -124,24 +124,58 @@ class Editor(window.Window, window.PagingMixIn):
     EOL = '\n'
 
     def __init__(
-        self, *args, chunksize=None, prompt=None, content=None, **kw):
+        self,
+        *args,
+        prototype=None,
+        chunksize=None,
+        prompt=None,
+        content=None,
+        **kw):
 
-        self.buf = Buffer(content=content, chunksize=chunksize)
-        self.prompt = prompt
+        if not prototype:
+            self.buf = Buffer(content=content, chunksize=chunksize)
+            self.prompt = prompt
+        else:
+            self.buf = prototype.buf
+            self.prompt = prototype.prompt
 
         super().__init__(*args, **kw) #XXX need share buffer?
         self.keymap['[escape] ?'] = help.help
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
-        self.cursor = self.buf.mark(0)
-        self.the_mark = None
-        self.mark_ring = []
+        if not prototype:
+            self.cursor = self.buf.mark(0)
+            self.the_mark = None
+            self.mark_ring = []
 
-        self.yank_state = 1
-        self.undo_state = None
+            self.yank_state = 1
+            self.undo_state = None
 
-        self.goal_column = None
+            self.goal_column = None
+        else:
+            self.cursor = self.buf.mark(prototype.cursor)
+            self.the_mark = self.buf.mark(prototype.the_mark)
+            self.mark_ring = [self.buf.mark(i) for i in prototype.mark_ring]
+
+            self.yank_state = prototype.yank_state
+            self.undo_state = prototype.undo_state #?
+
+            self.goal_column = prototype.goal_column
+
+    def check_redisplay_hint(self, hint):
+        self.log.debug('checking hint %s', repr(hint))
+        if super().check_redisplay_hint(hint):
+            return True
+        if hint.get('buffer', None) is self.buf:
+            return True
+        return False
+
+    def redisplay_hint(self):
+        hint = super().redisplay_hint()
+        hint['buffer'] = self.buf
+        self.log.debug('returning hint %s', repr(hint))
+        return hint
 
     @keymap.bind('Meta-T')
     def insert_test_content(
@@ -687,6 +721,8 @@ class GapBuffer:
         return length
 
     def mark(self, where):
+        if where is None:
+            return None
         return GapMark(self, where)
 
 

@@ -457,7 +457,7 @@ class TTYFrontend:
                 state = (list(self.windows), self.active)
                 self.windows[self.active].window.input_char(k)
                 if state == (list(self.windows), self.active):
-                    self.redisplay({'window': self.windows[self.active].window})
+                    self.redisplay(self.windows[self.active].window.redisplay_hint())
                 else:
                     self.redisplay()
 
