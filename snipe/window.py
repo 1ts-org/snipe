@@ -124,7 +124,7 @@ class Window:
         self.log.debug('base redisplay_hint')
         return {'window': self}
 
-    def read_string(self, prompt, content=None, height=1, window=None):
+    def read_string(self, prompt, content=None, height=1, window=None, wkw={}):
         f = asyncio.Future()
 
         def done_callback(result):
@@ -141,16 +141,16 @@ class Window:
                 window = LongPrompt
             else:
                 window = ShortPrompt
-        self.fe.popup_window(
-            window(
-                self.fe,
-                prompt=prompt,
-                content=content,
-                callback=done_callback,
-                destroy=destroy_callback,
-                ),
-            height=height,
+
+        kw = dict(
+            prompt=prompt,
+            content=content,
+            callback=done_callback,
+            destroy=destroy_callback,
             )
+        kw.update(wkw)
+
+        self.fe.popup_window(window(self.fe, **kw), height=height)
         self.fe.redisplay()
 
         yield from f
