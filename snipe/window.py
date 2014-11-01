@@ -39,11 +39,13 @@ from . import util
 
 
 class Window:
-    def __init__(self, frontend, prototype=None, destroy=lambda: None):
+    def __init__(self, frontend, prototype=None, destroy=lambda: None, modes=[]):
         self.fe = frontend
         self.renderer = None
         self.keymap = keymap.Keymap()
         self.keymap.interrogate(self)
+        for mode in modes:
+            self.keymap.interrogate(mode)
         self.active_keymap = self.keymap
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
