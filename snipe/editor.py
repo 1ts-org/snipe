@@ -159,7 +159,7 @@ class Editor(window.Window, window.PagingMixIn):
             self.buf = prototype.buf
             self.prompt = prototype.prompt
 
-        super().__init__(*args, **kw) #XXX need share buffer?
+        super().__init__(*args, **kw)
         self.keymap['[escape] ?'] = help.help
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
