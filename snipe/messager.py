@@ -38,6 +38,7 @@ from . import roost
 from . import keymap
 from . import window
 from . import help
+from . import editor
 
 
 class Messager(window.Window, window.PagingMixIn):
@@ -168,15 +169,21 @@ class Messager(window.Window, window.PagingMixIn):
             self.whine('No more messages')
 
     @keymap.bind('s')
-    def send(self, recipient=''):
+    def send(self, recipient='', msg=None):
         sill = self.renderer.display_range()[1]
         if sill.time == float('inf'): #XXX omega message is visible
             self.secondary = self.cursor
             self.cursor = sill
+
+        wkw = {}
+        if msg is not None:
+            wkw['modes'] = [editor.ReplyMode(msg)]
+
         message = yield from self.read_string(
             '[roost] send --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
+            wkw=wkw,
             )
         params, body = message.split('\n', 1)
         yield from self.fe.context.roost.send(params, body)
@@ -191,11 +198,13 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('f')
     def followup(self):
-        yield from self.send(self.replymsg().followupstr())
+        msg = self.replymsg()
+        yield from self.send(msg.followupstr(), msg)
 
     @keymap.bind('r')
     def reply(self, k):
-        yield from self.send(self.replymsg().replystr())
+        msg = self.replymsg()
+        yield from self.send(msg.replystr(), msg)
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):

@@ -626,6 +626,19 @@ class ShortPrompt(LongPrompt):
         self.keymap['[carriage return]'] = self.runcallback
 
 
+class ReplyMode:
+    def __init__(self, msg):
+        self.msg = msg
+
+    @keymap.bind('Control-C Control-Y')
+    def yank_original(self, window: interactive.window):
+        m = window.buf.mark(window.cursor)
+        prefix = '> '
+        with window.save_excursion(m):
+            window.insert(
+                prefix + ('\n' + prefix).join(self.msg.body.splitlines()))
+        window.set_mark(m)
+
 class GapBuffer:
     CHUNKSIZE = 4096
 
