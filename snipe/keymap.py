@@ -33,6 +33,7 @@
 import unicodedata
 import contextlib
 import re
+import collections
 
 from . import ttyfe
 
@@ -50,12 +51,30 @@ class Keymap(dict):
         self.update(d)
 
     def interrogate(self, obj):
-        #XXX should really be walking the inheritance tree so the stuff
-        #lower in the tree wins
-        for f in (getattr(obj, name) for name in dir(obj)):
-            if hasattr(f, 'snipe_seqs'):
-                for seq in f.snipe_seqs:
-                    self[seq] = f
+        if hasattr(obj, '__class__'):
+            # the following somewhat abstruse code attempts to insure
+            # that the bindings of a method in a child class override
+            # the bindings in the parent class, both when the method
+            # is actually overriden and when the bindings are on a
+            # different method.
+            methods = collections.OrderedDict()
+            for klass in reversed(obj.__class__.mro()):
+                for name in dir(klass):
+                    unbound = getattr(klass, name)
+                    bound = getattr(obj, name)
+                    if hasattr(bound, 'snipe_seqs'):
+                        if name in methods:
+                            del methods[name]
+                        methods[name] = bound
+            for method in methods.values():
+                for seq in method.snipe_seqs:
+                    self[seq] = method
+        else:
+            for f in (getattr(obj, name) for name in dir(obj)):
+                if hasattr(f, 'snipe_seqs'):
+                    for seq in f.snipe_seqs:
+                        self[seq] = f
+
 
     def update(self, d):
         for k, v in d.items():

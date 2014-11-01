@@ -43,8 +43,6 @@ class Window:
         self.fe = frontend
         self.renderer = None
         self.keymap = keymap.Keymap()
-        #XXX should really be walking the inheritance tree so the stuff
-        #lower in the tree wins
         self.keymap.interrogate(self)
         self.active_keymap = self.keymap
         self.log = logging.getLogger(

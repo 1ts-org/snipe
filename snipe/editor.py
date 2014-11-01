@@ -613,10 +613,9 @@ class LongPrompt(Editor):
     def __init__(self, *args, callback=lambda x: None, **kw):
         super().__init__(*args, **kw)
         self.callback = callback
-        self.keymap['Control-J'] = self.runcallback
-        self.keymap['Control-C Control-C'] = self.runcallback
         self.cursor = self.buf.mark(len(self.buf))
 
+    @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
         self.callback(str(self.buf))
 
