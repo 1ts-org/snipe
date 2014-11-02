@@ -663,6 +663,7 @@ class ReplyMode:
                 prefix + ('\n' + prefix).join(self.msg.body.splitlines()))
         window.set_mark(m)
 
+
 class GapBuffer:
     CHUNKSIZE = 4096
 
