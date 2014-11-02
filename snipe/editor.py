@@ -39,7 +39,6 @@ import re
 from . import window
 from . import interactive
 from . import keymap
-from . import help
 
 
 @functools.total_ordering
@@ -149,14 +148,17 @@ class Viewer(window.Window, window.PagingMixIn):
         prototype=None,
         chunksize=None,
         content=None,
+        name=None,
         **kw):
 
         if not prototype:
-            self.buf = Buffer(content=content, chunksize=chunksize)
+            self.buf = Buffer(name=name, content=content, chunksize=chunksize)
         else:
             self.buf = prototype.buf
 
         super().__init__(*args, **kw)
+
+        from . import help
         self.keymap['[escape] ?'] = help.help
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))

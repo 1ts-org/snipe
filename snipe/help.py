@@ -34,32 +34,31 @@ from . import window
 from . import keymap
 from . import interactive
 from . import util
+from . import editor
 
 
-class Help(window.Window, window.PagingMixIn):
+class Help(editor.Viewer):
     START = '?: top  b: key bindings  L: License  q: back to what you were doing'
     BANNER = '[pageup/pagedown to scroll]\n'
 
-    def __init__(self, *args, **kw):
-        self.caller = kw['caller']
-        del kw['caller']
+    def __init__(self, *args, caller=None, **kw):
+        self.caller = caller
+        kw.setdefault('name', '*help*')
         super().__init__(*args, **kw)
         self.start()
 
-    def view(self, origin=0, direction='forward'):
-        yield 0, [(('visible'), self.content)]
-
     def display(self, text):
         # should adjust window size or whatnot
-        self.content = text
+        self.cursor.point = 0
+        self.replace(len(self.buf), text)
 
     @keymap.bind('?', '[escape] ?') # really should give increasingly basic help
     def start(self):
-        self.content = self.START
+        self.display(self.START)
 
     @keymap.bind('L')
     def license(self):
-        self.content = self.BANNER + util.LICENSE
+        self.display(self.BANNER + util.LICENSE)
 
     @keymap.bind('q', 'Q', '[Escape] [Escape]')
     def exit_help(self):
@@ -67,7 +66,7 @@ class Help(window.Window, window.PagingMixIn):
 
     @keymap.bind('b')
     def describe_bindings(self):
-        self.content = self.BANNER + str(self.caller.keymap)
+        self.display(self.BANNER + str(self.caller.keymap))
 
 
 
