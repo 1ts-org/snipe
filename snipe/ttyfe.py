@@ -285,7 +285,12 @@ class TTYRenderer:
                 inspect.currentframe().f_back.f_lineno,
                 name,
                 repr(args))
-            getattr(self.w, name)(*args)
+            try:
+                return getattr(self.w, name)(*args)
+            except Exception as e:
+                self.log.exception(
+                    '%s(%s) raised', name, ', '.join(repr(x) for x in args))
+                raise
         return _
     for func in 'addstr', 'move', 'chgat', 'attrset', 'bkgdset':
         locals()[func] = makefunc(func)
