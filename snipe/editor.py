@@ -470,12 +470,15 @@ class Editor(Viewer):
 
         prototype = kw.get('prototype')
         if prototype is None:
-            self.writable = True
+            self._writable = True
         else:
-            self.writable = getattr(prototype, 'writable', True)
+            self._writable = getattr(prototype, '_writable', True)
+
+    def writable(self):
+        return self._writable
 
     def replace(self, count, string, collapsible=False):
-        if not self.writable:
+        if not self.writable():
             self.whine('window is readonly')
             return
         return super().replace(count, string, collapsible)
@@ -574,7 +577,7 @@ class Editor(Viewer):
 
     @keymap.bind('Control-_', 'Control-x u')
     def undo(self, count: interactive.positive_integer_argument=1):
-        if not self.writable:
+        if not self.writable():
             self.whine('window is read-only')
             return
         if self.last_command != 'undo':
@@ -630,7 +633,7 @@ class Editor(Viewer):
 
     @keymap.bind('Control-X Control-Q')
     def toggle_writable(self):
-        self.writable = not self.writable
+        self._writable = not self._writable
 
 
 class LongPrompt(Editor):
