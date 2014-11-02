@@ -51,7 +51,7 @@ class Keymap(dict):
         self.update(d)
 
     def interrogate(self, obj):
-        if hasattr(obj, '__class__'):
+        if hasattr(obj, 'input_char'): # looks like a Window
             # the following somewhat abstruse code attempts to insure
             # that the bindings of a method in a child class override
             # the bindings in the parent class, both when the method
