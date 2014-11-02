@@ -148,16 +148,13 @@ class Viewer(window.Window, window.PagingMixIn):
         *args,
         prototype=None,
         chunksize=None,
-        prompt=None,
         content=None,
         **kw):
 
         if not prototype:
             self.buf = Buffer(content=content, chunksize=chunksize)
-            self.prompt = prompt
         else:
             self.buf = prototype.buf
-            self.prompt = prototype.prompt
 
         super().__init__(*args, **kw)
         self.keymap['[escape] ?'] = help.help
@@ -284,22 +281,18 @@ class Viewer(window.Window, window.PagingMixIn):
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
             l = len(s)
-            if p == 0 and self.prompt: # first line  "this could be a callback"
-                prefix = [(('bold',), self.prompt)]
-            else:
-                prefix = []
             if ((p <= self.cursor.point < p + l)
                 or (self.cursor.point == p + l == len(self.buf))):
                 yield (
                     self.buf.mark(p),
-                    prefix + [
+                    [
                         ((), s[:self.cursor.point - p]),
                         (('cursor', 'visible'), ''),
                         ((), s[self.cursor.point - p:]),
                         ],
                     )
             else:
-                yield self.buf.mark(p), prefix + [((), s)]
+                yield self.buf.mark(p), [((), s)]
             if direction == 'forward':
                 if p == len(self.buf) or s[-1:] != '\n':
                     break
@@ -637,14 +630,19 @@ class Editor(Viewer):
 
 
 class LongPrompt(Editor):
-    def __init__(self, *args, callback=lambda x: None, **kw):
+    def __init__(self, *args, prompt='', callback=lambda x: None, **kw):
+        self.divider = 0
         super().__init__(*args, **kw)
         self.callback = callback
-        self.cursor = self.buf.mark(len(self.buf))
+        self.insert(prompt)
+        self.divider = int(self.cursor)
+
+    def writable(self):
+        return super().writable() and self.cursor >= self.divider
 
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
-        self.callback(str(self.buf))
+        self.callback(self.buf[self.divider:])
 
 
 class ShortPrompt(LongPrompt):
