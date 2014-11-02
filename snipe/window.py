@@ -150,7 +150,9 @@ class Window:
             )
         kw.update(wkw)
 
-        self.fe.popup_window(window(self.fe, **kw), height=height)
+        w = window(self.fe, **kw)
+        self.fe.popup_window(w, height=height)
+        w.renderer.reframe(-1)
         self.fe.redisplay()
 
         yield from f
