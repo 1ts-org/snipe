@@ -62,7 +62,8 @@ class Keymap(dict):
                 for name in dir(klass):
                     unbound = getattr(klass, name)
                     bound = getattr(obj, name)
-                    if hasattr(bound, 'snipe_seqs'):
+                    if hasattr(bound, 'snipe_seqs') and \
+                      unbound.__qualname__.startswith(klass.__name__ + '.'):
                         if name in methods:
                             del methods[name]
                         methods[name] = bound
