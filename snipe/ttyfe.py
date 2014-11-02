@@ -231,7 +231,7 @@ class TTYRenderer:
                                     ' screenlines=%d, remaining=%d',
                                     screenlines,
                                     remaining)
-                    elif remaining == 0:
+                    elif remaining == 0 and self.height >= screenlines: #XXX
                         self.move(self.height - screenlines, 0)
             # XXX I'm not sure the following is _correct_ but it produces the
             # correct result
