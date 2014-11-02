@@ -209,6 +209,7 @@ class Window:
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
     def replhack(self):
         import traceback
+        import pprint
         from . import editor
 
         self.log.debug('entering replhack')
@@ -217,7 +218,7 @@ class Window:
         while True:
             expr = yield from self.read_string(
                 out + ':>> ',
-                height = len(out.splitlines()) + 1,
+                height = len(out.splitlines()) + 2,
                 window = editor.ShortPrompt,
                 )
             if not expr.strip():
@@ -225,7 +226,7 @@ class Window:
             self.log.debug('got expr %s', expr)
             try:
                 ret = eval(expr, globals(), locals())
-                out = repr(ret)
+                out = pprint.pformat(ret)
             except:
                 out = traceback.format_exc()
             if out[:-1] != '\n':
