@@ -140,7 +140,7 @@ class Buffer:
         return self.buf.replace(where, count, string, collapsible)
 
 
-class Editor(window.Window, window.PagingMixIn):
+class Viewer(window.Window, window.PagingMixIn):
     EOL = '\n'
 
     def __init__(
@@ -197,33 +197,8 @@ class Editor(window.Window, window.PagingMixIn):
         self.log.debug('returning hint %s', repr(hint))
         return hint
 
-    @keymap.bind('Meta-T')
-    def insert_test_content(
-            self, count: interactive.positive_integer_argument=80):
-        import itertools
-        self.insert(''.join(
-            itertools.islice(itertools.cycle('1234567890'), count)))
-
-    @keymap.bind(
-        '[tab]', '[linefeed]',
-        *(chr(x) for x in range(ord(' '), ord('~') + 1)))
-    def self_insert(
-            self,
-            key: interactive.keystroke,
-            count: interactive.positive_integer_argument=1):
-        collapsible = True
-        if self.last_command == 'self_insert':
-            if (not self.last_key.isspace()) and key.isspace():
-                collapsible=False
-        for _ in range(count):
-            self.insert(key, collapsible)
-
     def insert(self, s, collapsible=False):
         self.cursor.point += self.replace(0, s, collapsible)
-
-    @keymap.bind('[carriage return]', 'Control-J')
-    def insert_newline(self, count: interactive.positive_integer_argument=1):
-        self.insert('\n' * count)
 
     def delete(self, count):
         self.log.debug('delete %d', count)
@@ -231,17 +206,6 @@ class Editor(window.Window, window.PagingMixIn):
 
     def replace(self, count, string, collapsible=False):
         return self.cursor.replace(count, string, collapsible)
-
-    @keymap.bind('Control-D', '[dc]')
-    def delete_forward(self, count: interactive.integer_argument=1):
-        if count < 0:
-            moved = self.move(count)
-            count = -moved
-        self.delete(count)
-
-    @keymap.bind('Control-H', 'Control-?', '[backspace]')
-    def delete_backward(self, count: interactive.integer_argument=1):
-        self.delete_forward(-count)
 
     @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=1):
@@ -461,23 +425,6 @@ class Editor(window.Window, window.PagingMixIn):
                 if not self.move(-1):
                     return
 
-    @keymap.bind('Control-k')
-    def kill_to_end_of_line(self, count: interactive.integer_argument):
-        m = self.buf.mark(self.cursor)
-        if count is None: #"normal" case
-            self.end_of_line()
-            if m == self.cursor:
-                # at the end of a line, move past it
-                self.move(1)
-            if m == self.cursor:
-                # end of buffer
-                return
-        elif count == 0: # kill to beginning of line?
-            self.beginning_of_line()
-        else:
-            self.line_move(count, False)
-        self.kill_region(mark=m, append=self.last_command.startswith('kill_'))
-
     def region(self, mark=None):
         if mark is None:
             mark = self.the_mark
@@ -487,26 +434,6 @@ class Editor(window.Window, window.PagingMixIn):
         start = min(self.cursor, self.the_mark)
         stop = max(self.cursor, self.the_mark)
         return self.buf[start:stop]
-
-    @keymap.bind('Control-W')
-    def kill_region(self, mark=None, append=False):
-        if mark is None:
-            mark = self.the_mark
-        if mark is None:
-            self.whine('no mark is set')
-            return
-        self.log.debug('kill region %d-%d', self.cursor.point, mark.point)
-
-        if not append:
-            self.context.copy(self.region(mark))
-        else:
-            self.context.copy(self.region(mark), mark < self.cursor)
-
-        count = abs(mark.point - self.cursor.point)
-        self.cursor = min(self.cursor, mark)
-        self.delete(count)
-
-        self.yank_state = 1
 
     @keymap.bind('Meta-w')
     def copy_region(self):
@@ -536,6 +463,96 @@ class Editor(window.Window, window.PagingMixIn):
         self.set_mark()
         self.insert(s)
 
+
+class Editor(Viewer):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        prototype = kw.get('prototype')
+        if prototype is None:
+            self.writable = True
+        else:
+            self.writable = getattr(prototype, 'writable', True)
+
+    def replace(self, count, string, collapsible=False):
+        if not self.writable:
+            self.whine('window is readonly')
+            return
+        return super().replace(count, string, collapsible)
+
+    @keymap.bind('Meta-T')
+    def insert_test_content(
+            self, count: interactive.positive_integer_argument=80):
+        import itertools
+        self.insert(''.join(
+            itertools.islice(itertools.cycle('1234567890'), count)))
+
+    @keymap.bind(
+        '[tab]', '[linefeed]',
+        *(chr(x) for x in range(ord(' '), ord('~') + 1)))
+    def self_insert(
+            self,
+            key: interactive.keystroke,
+            count: interactive.positive_integer_argument=1):
+        collapsible = True
+        if self.last_command == 'self_insert':
+            if (not self.last_key.isspace()) and key.isspace():
+                collapsible=False
+        for _ in range(count):
+            self.insert(key, collapsible)
+
+    @keymap.bind('[carriage return]', 'Control-J')
+    def insert_newline(self, count: interactive.positive_integer_argument=1):
+        self.insert('\n' * count)
+
+    @keymap.bind('Control-D', '[dc]')
+    def delete_forward(self, count: interactive.integer_argument=1):
+        if count < 0:
+            moved = self.move(count)
+            count = -moved
+        self.delete(count)
+
+    @keymap.bind('Control-H', 'Control-?', '[backspace]')
+    def delete_backward(self, count: interactive.integer_argument=1):
+        self.delete_forward(-count)
+
+    @keymap.bind('Control-k')
+    def kill_to_end_of_line(self, count: interactive.integer_argument):
+        m = self.buf.mark(self.cursor)
+        if count is None: #"normal" case
+            self.end_of_line()
+            if m == self.cursor:
+                # at the end of a line, move past it
+                self.move(1)
+            if m == self.cursor:
+                # end of buffer
+                return
+        elif count == 0: # kill to beginning of line?
+            self.beginning_of_line()
+        else:
+            self.line_move(count, False)
+        self.kill_region(mark=m, append=self.last_command.startswith('kill_'))
+
+    @keymap.bind('Control-W')
+    def kill_region(self, mark=None, append=False):
+        if mark is None:
+            mark = self.the_mark
+        if mark is None:
+            self.whine('no mark is set')
+            return
+        self.log.debug('kill region %d-%d', self.cursor.point, mark.point)
+
+        if not append:
+            self.context.copy(self.region(mark))
+        else:
+            self.context.copy(self.region(mark), mark < self.cursor)
+
+        count = abs(mark.point - self.cursor.point)
+        self.cursor = min(self.cursor, mark)
+        self.delete(count)
+
+        self.yank_state = 1
+
     @keymap.bind('Control-Y')
     def yank(self, arg: interactive.argument=None):
         if arg and isinstance(arg, int):
@@ -557,6 +574,9 @@ class Editor(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-_', 'Control-x u')
     def undo(self, count: interactive.positive_integer_argument=1):
+        if not self.writable:
+            self.whine('window is read-only')
+            return
         if self.last_command != 'undo':
             self.undo_state = None
         for _ in range(count):
@@ -607,6 +627,10 @@ class Editor(window.Window, window.PagingMixIn):
                 self.insert(fp.read())
         except Exception as exc:
             self.whine(str(exc))
+
+    @keymap.bind('Control-X Control-Q')
+    def toggle_writable(self):
+        self.writable = not self.writable
 
 
 class LongPrompt(Editor):
