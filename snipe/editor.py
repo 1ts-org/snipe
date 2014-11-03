@@ -619,7 +619,7 @@ class Editor(Viewer):
 
     @keymap.bind('Control-X i')
     def insert_file(self):
-        filename = yield from self.read_string('Filename: ')
+        filename = yield from self.read_filename('Insert File: ')
         try:
             with open(filename) as fp:
                 self.insert(fp.read())
@@ -632,12 +632,29 @@ class Editor(Viewer):
 
 
 class LongPrompt(Editor):
-    def __init__(self, *args, prompt='', callback=lambda x: None, **kw):
+    def __init__(
+            self,
+            *args,
+            prompt='',
+            complete=None,
+            callback=lambda x: None,
+            **kw):
         self.divider = 0
         super().__init__(*args, **kw)
+        self.prompt = prompt
         self.callback = callback
-        self.insert(prompt)
-        self.divider = int(self.cursor)
+        self.complete = complete
+        proto = kw.get('prototype', None)
+        if proto is not None:
+            self.prompt = proto.prompt
+            self.callback = proto.callback
+            self.complete = proto.complete
+            self.divider = proto.divider
+        else:
+            self.cursor.point = 0
+            self.insert(prompt)
+            self.divider = int(self.cursor)
+        self.complete_state = None
 
     def writable(self):
         return super().writable() and self.cursor >= self.divider
@@ -645,6 +662,34 @@ class LongPrompt(Editor):
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
         self.callback(self.buf[self.divider:])
+
+    @keymap.bind('[tab]')
+    def complete(self, key: interactive.keystroke):
+        if self.complete is None:
+            return self.self_insert(key=key)
+
+        if self.cursor < self.divider:
+            self.whine('No completing the prompt')
+            return
+
+        if self.last_command != 'complete' or self.complete_state is None:
+            self.complete_state = self.complete(
+                self.buf[self.divider:self.cursor], self.buf[self.cursor:])
+
+        try:
+            left, right = next(self.complete_state)
+        except StopIteration:
+            self.whine('No more completions')
+            self.complete_state = None
+            self.replace(len(self.buf) - self.cursor.point, '')
+            return
+
+        self.log.debug('complete: %s, %s', repr(left), repr(right))
+
+        c = self.buf.mark(self.cursor)
+        self.cursor.point = self.divider
+        self.replace(len(self.buf) - self.divider, left + right)
+        self.cursor.point += len(left)
 
 
 class ShortPrompt(LongPrompt):

@@ -159,6 +159,25 @@ class Window:
 
         return f.result()
 
+    def read_filename(self, prompt, content=None):
+        def complete_filename(left, right):
+            import os
+
+            path, prefix = os.path.split(left)
+            completions = [
+                name + '/' if os.path.isdir(os.path.join(path, name)) else name
+                for name in os.listdir(path or '.')
+                if name.startswith(prefix)]
+
+            prefix = os.path.commonprefix(completions)
+            for name in completions:
+                yield os.path.join(path, prefix), name[len(prefix):]
+
+        result = yield from self.read_string(
+            prompt, wkw={'complete': complete_filename})
+
+        return result
+
     @keymap.bind('Control-X Control-C')
     def quit(self):
         asyncio.get_event_loop().stop()
