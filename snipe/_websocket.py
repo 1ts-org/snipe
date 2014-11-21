@@ -26,17 +26,17 @@ def websocket(url):
             'CONNECTION': 'Upgrade',
             'SEC-WEBSOCKET-VERSION': '13',
             'SEC-WEBSOCKET-KEY': sec_key.decode(),
-            }, timeout=1.0)
+            })
     try:
         # websocket handshake
         if response.status != 101:
             raise ValueError("Handshake error: Invalid response status")
-        if response.get('upgrade', '').lower() != 'websocket':
+        if response.headers.get('upgrade', '').lower() != 'websocket':
             raise ValueError("Handshake error - Invalid upgrade header")
-        if response.get('connection', '').lower() != 'upgrade':
+        if response.headers.get('connection', '').lower() != 'upgrade':
             raise ValueError("Handshake error - Invalid connection header")
 
-        key = response.get('sec-websocket-accept', '').encode()
+        key = response.headers.get('sec-websocket-accept', '').encode()
         match = base64.b64encode(
             hashlib.sha1(
                 sec_key + aiohttp.websocket.WS_KEY

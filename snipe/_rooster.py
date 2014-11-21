@@ -287,7 +287,10 @@ class Rooster:
         result = []
         while True:
             try:
-                result.append((yield from response.content.read()))
+                x = (yield from response.content.read())
+                if x == b'':
+                    break
+                result.append(x)
             except aiohttp.EofStream:
                 break
 
