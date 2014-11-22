@@ -208,6 +208,9 @@ class SnipeBackend:
     def shutdown(self):
         pass
 
+    def redisplay(self, m1, m2):
+        self.context.ui.redisplay({'messages': (m1, m2)})
+
     def __str__(self):
         return self.name
 

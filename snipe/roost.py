@@ -92,9 +92,6 @@ class Roost(messages.SnipeBackend):
     def principal(self):
         return self.r.principal
 
-    def redisplay(self, m1, m2):
-        self.context.ui.redisplay({'messages': (m1, m2)})
-
     @asyncio.coroutine
     def send(self, paramstr, body):
         import getopt
