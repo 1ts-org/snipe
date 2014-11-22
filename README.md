@@ -1,8 +1,8 @@
 snipe is (will be?) a text-oriented (currently curses-based) "instant"
 messaging client intended for services with persistence.  One such
-service (and the only one snipe supports at the moment) is
-[roost](https://github.com/roost-im), which is a frontend for
-[zephyr](https://github.com/zephyr-im).
+service is [roost](https://github.com/roost-im), which is a frontend
+for [zephyr](https://github.com/zephyr-im).  snipe is also in the
+process of growing support for [IRCCloud](https://www.irccloud.com).
 
 At the moment, to get it working, you need python 3.4 (3.3+asyncio
 _might_ be sufficient but I have not tested it) and the
