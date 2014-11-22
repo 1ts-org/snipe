@@ -35,6 +35,8 @@ Assorted utility functions.
 
 
 import logging
+import sys
+import aiohttp
 
 
 class SnipeException(Exception):
@@ -188,3 +190,6 @@ Welcome to snipe.
 
   snipe is free/open source software.  Type ? L for relevant lawyerese.
 '''
+
+USER_AGENT = 'snipe 0 (development) (python %s) (aiohttp %s)' % (
+    sys.version.split('\n')[0], aiohttp.__version__)
