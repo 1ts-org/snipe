@@ -13,20 +13,24 @@ import struct
 import aiohttp
 import aiohttp.websocket
 
+from . import util
 
 @asyncio.coroutine
-def websocket(url):
+def websocket(url, headers={}):
     sec_key = base64.b64encode(os.urandom(16))
 
+    send_headers = {
+        'UPGRADE': 'WebSocket',
+        'CONNECTION': 'Upgrade',
+        'SEC-WEBSOCKET-VERSION': '13',
+        'SEC-WEBSOCKET-KEY': sec_key.decode(),
+        'USER-AGENT': util.USER_AGENT,
+    }
+
+    send_headers.update(headers)
+
     response = yield from aiohttp.request(
-        'GET',
-        url,
-        headers={
-            'UPGRADE': 'WebSocket',
-            'CONNECTION': 'Upgrade',
-            'SEC-WEBSOCKET-VERSION': '13',
-            'SEC-WEBSOCKET-KEY': sec_key.decode(),
-            })
+        'GET', url, headers=send_headers, read_until_eof=False)
     try:
         # websocket handshake
         if response.status != 101:
