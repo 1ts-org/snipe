@@ -40,6 +40,7 @@ from . import roost
 from . import util
 from . import window
 from . import messager
+from . import irccloud
 
 
 class Context:
@@ -60,6 +61,7 @@ class Context:
                 messages.StartupBackend(self),
 #                messages.SyntheticBackend(self, conf={'count': 100}),
                 self.roost,
+                irccloud.IRCCloud(self),
                 ],)
         self.ui.initial(messager.Messager(self.ui))
 
