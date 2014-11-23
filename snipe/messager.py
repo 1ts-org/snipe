@@ -32,6 +32,8 @@
 
 import time
 import datetime
+import traceback
+import pprint
 
 from . import filters
 from . import roost
@@ -74,11 +76,18 @@ class Messager(window.Window, window.PagingMixIn):
             prev = None
 
         for x in self.walk(origin, direction == 'forward'):
-            decoration = {}
-            for filt, decor in self.rules:
-                if filt(x):
-                    decoration.update(decor)
-            chunk = x.display(decoration)
+            try:
+                decoration = {}
+                for filt, decor in self.rules:
+                    if filt(x):
+                        decoration.update(decor)
+                chunk = x.display(decoration)
+            except:
+                chunk = [
+                    (('bold',), repr(x) + '\n'),
+                    ((), traceback.format_exc()),
+                    ((), pprint.pformat(x.data) + '\n'),
+                    ]
 
             def dateof(m):
                 if m is None or m.time in (float('inf'), float('-inf')):
