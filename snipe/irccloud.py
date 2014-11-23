@@ -45,12 +45,17 @@ IRCCLOUD = 'https://www.irccloud.com'
 
 class IRCCloud(messages.SnipeBackend):
     name = 'irccloud'
+    loglevel = util.Level('log.irccloud', 'IRCCloud')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
         self.messages = []
-        self.task = asyncio.Task(self.do_connect())
+        self.task = asyncio.Task(self.connect())
+        self.connections = {}
+        self.buffers = {}
+        self.channels = {}
+        self.servers = {}
 
     @asyncio.coroutine
     def do_connect(self):
@@ -131,13 +136,46 @@ class IRCCloud(messages.SnipeBackend):
                 self.log.error('Unknown websocket message type from irccloud')
 
     @asyncio.coroutine
-    def incoming(self, m):
-        if m.get('type') == 'oob_include':
+    def process_message(self, msglist, m):
+        mtype = m.get('type')
+        if mtype == 'idle':
+            pass
+        elif mtype in  ('bannned', 'socket_closed'):
+            # the system seems to generate multiple
+            # socket_closed/banned messages with the same eid/time
+            # with distinct cids, which confuses the message list.
+            pass
+        elif mtype in ('num_invites', 'stat_user',):
+            # we can presumably do something useful with this later
+            pass
+        elif mtype in ('header', 'backlog_starts', 'end_of_backlog', 'backlog_complete'):
+            # presumptively useless-to-us metadata
+            pass
+        elif mtype == 'oob_include':
             yield from self.include(m['url'])
+        elif mtype == 'makeserver':
+            self.connections[m['cid']] = m
+        elif mtype == 'server_details_changed':
+            self.connections[m['cid']].update(m)
+        elif mtype == 'status_changed':
+            self.connections[m['cid']]['status'] = m['new_status']
+            self.connections[m['cid']]['fail_info'] = m['fail_info']
+        elif mtype == 'isupport_params':
+            self.servers[m['cid']] = m
+        elif mtype == 'makebuffer':
+            self.buffers[m['bid']] = m
+        elif mtype == 'channel_init':
+            self.channels[m['bid']] = m
+        else:
+            msg = IRCCloudMessage(self, m)
+            msglist.append(msg)
+            return msg
 
-        msg = IRCCloudMessage(self, m)
-        self.messages.append(msg) #XXXXXXXXXXXX ordering problem
-        self.redisplay(msg, msg)
+    @asyncio.coroutine
+    def incoming(self, m):
+        msg = yield from self.process_message(self.messages, m)
+        if msg is not None:
+            self.redisplay(msg, msg)
 
     @asyncio.coroutine
     def include(self, url):
@@ -148,9 +186,7 @@ class IRCCloud(messages.SnipeBackend):
             )
         included = []
         for m in oob_data:
-            if m.get('type') == 'oob_include':
-                yield from self.include(m['url'])
-            included.append(IRCCloudMessage(self, m))
+            yield from self.process_message(included, m)
         included.sort()
 
         if included:
@@ -210,8 +246,56 @@ class IRCCloudMessage(messages.SnipeMessage):
         if 'from' in m and 'from_name' in m and 'from_host' in m:
             self._sender = IRCCloudUser(
                 backend, m['from'], m['from_name'], m['from_host'])
+        elif 'nick' in m and 'from_name' in m and 'from_host' in m:
+            self._sender = IRCCloudUser(
+                backend, m['nick'], m['from_name'], m['from_host'])
         else:
             self._sender = IRCCloudNonAddress(backend, 'system')
+
+    def __str__(self):
+        return str(self.time) + ' ' + repr(self.data)
+
+    def display(self, decoration):
+        timestring = time.strftime('%H:%M', time.localtime(self.time))
+        mtype = self.data.get('type')
+        chan = self.backend.buffers.get(self.data.get('bid', -1), {}).get('name', None)
+
+        s = timestring + ' '
+        if chan is not None:
+            s += chan + ' '
+
+        msgy = {
+            'buffer_msg': ':',
+            'buffer_me_msg': '',
+            'quit': ' [quit irc]',
+#            'user_away': ' [away]',
+            'kicked_channel': ' [kicked]',
+            'notice': ' [notice]',
+            }
+        if mtype in msgy:
+            s += '%s%s %s' % (self.sender, msgy[mtype], self.body)
+        elif mtype == 'joined_channel':
+            s += '+ %s' % (self.sender,)
+        elif mtype == 'parted_channel':
+            s += '- %s: %s' % (self.sender, self.data['msg'])
+        elif mtype == 'nickchange':
+            s += '%s %s -> %s' % (
+                self.sender, self.data['oldnick'], self.data['nick'])
+        else:
+            import pprint
+
+            d = dict(
+                (k, v) for (k,v) in self.data.items()
+                if k not in ('type', 'eid', 'cid', 'bid'))
+            s += '%s [%s] eid %s bid %s cid %s\n%s' % (
+                self.sender,
+                self.data.get('type', '[no type]'),
+                self.data.get('eid', '-'),
+                self.data.get('cid', '-'),
+                self.data.get('bid', '-'),
+                pprint.pformat(d),
+                )
+        return [(self.decotags(decoration), s + '\n')]
 
 
 class IRCCloudUser(messages.SnipeAddress):
