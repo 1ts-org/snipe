@@ -192,7 +192,7 @@ class SnipeBackend:
         self.log.debug('len(self.messages)=%d, point=%d', len(self.messages), point)
 
         while self.messages:
-            self.log.debug(', point=%d')
+            self.log.debug(', point=%d', point)
             if not 0 <= point < len(self.messages):
                 break
             m = self.messages[point]
