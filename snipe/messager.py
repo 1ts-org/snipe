@@ -151,6 +151,11 @@ class Messager(window.Window, window.PagingMixIn):
         self.move(False)
 
     def move(self, forward):
+        self.log.debug(
+            'move %s: curosr: %s',
+            'forward' if forward else 'backward',
+            repr(self.cursor),
+            )
         it = iter(self.walk(self.cursor, forward))
         try:
             intermediate = next(it)
