@@ -59,7 +59,7 @@ class IRCCloud(messages.SnipeBackend):
         except:
             self.log.exception('In IRCCloud.connect')
 
-    @asyncio.coroutine
+    @util.coro_cleanup
     def connect(self):
         try:
             authdata = netrc.netrc().authenticators(

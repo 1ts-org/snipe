@@ -50,6 +50,8 @@ from . import _websocket
 from ._roost_python import krb5
 from ._roost_python import gss
 
+from . import util
+
 class Rooster:
     def __init__(self, url, service):
         self.token = None
@@ -66,7 +68,8 @@ class Rooster:
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
         loop = asyncio.get_event_loop()
         executor = concurrent.futures.ProcessPoolExecutor(1)
-        self.exile = functools.partial(loop.run_in_executor, executor)
+        self.exile = util.coro_cleanup(
+            functools.partial(loop.run_in_executor, executor))
 
     @asyncio.coroutine
     def auth(self, create_user=False):
@@ -182,7 +185,7 @@ class Rooster:
                 'type': 'ping',
                 }))
 
-    @asyncio.coroutine
+    @util.coro_cleanup
     def newmessages(self, coro, pingfrequency=30):
         # will coincidentally ensure_auth
         ms = yield from self.messages(None, 1, reverse=1, inclusive=0)

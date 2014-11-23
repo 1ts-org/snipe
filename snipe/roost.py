@@ -137,7 +137,7 @@ class Roost(messages.SnipeBackend):
                     origin = self.messages[0].time
             asyncio.Task(self.do_backfill(msgid, filter, count, origin))
 
-    @asyncio.coroutine
+    @util.coro_cleanup
     def do_backfill(self, start, mfilter, count, origin):
         yield from asyncio.sleep(.0001)
 

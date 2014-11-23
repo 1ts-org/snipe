@@ -37,6 +37,8 @@ Assorted utility functions.
 import logging
 import sys
 import aiohttp
+import asyncio
+import functools
 
 
 class SnipeException(Exception):
@@ -193,3 +195,20 @@ Welcome to snipe.
 
 USER_AGENT = 'snipe 0 (development) (python %s) (aiohttp %s)' % (
     sys.version.split('\n')[0], aiohttp.__version__)
+
+
+def coro_cleanup(f):
+    @asyncio.coroutine
+    @functools.wraps(f)
+    def catch_and_log(*args, **kw):
+        try:
+            return (yield from asyncio.coroutine(f)(*args, **kw))
+        except asyncio.CancelledError:
+            pass #yay
+        except:
+            if args and hasattr(args[0], 'log'):
+                log = args[0].log
+            else:
+                log = logging.getLogger('coro_cleanup')
+            log.exception('coroutine cleanup')
+    return catch_and_log
