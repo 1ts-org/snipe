@@ -183,6 +183,7 @@ class IRCCloud(messages.SnipeBackend):
             'GET',
             urllib.parse.urljoin(IRCCLOUD, url),
             headers={'Cookie': 'session=%s' % self.session},
+            compress='gzip',
             )
         included = []
         for m in oob_data:
@@ -206,7 +207,7 @@ class IRCCloud(messages.SnipeBackend):
         # so, factoring opportunity!
 
     @asyncio.coroutine
-    def http_json(self, method, url, data=None, headers={}):
+    def http_json(self, method, url, data=None, headers={}, compress=None):
         send_headers = {
             'User-Agent': util.USER_AGENT,
         }
@@ -216,7 +217,7 @@ class IRCCloud(messages.SnipeBackend):
         send_headers.update(headers)
 
         response = yield from aiohttp.request(
-            method, url, data=data, headers=headers)
+            method, url, data=data, compress=compress, headers=headers)
 
         result = []
         while True:
