@@ -161,7 +161,7 @@ class Messager(window.Window, window.PagingMixIn):
 
     def move(self, forward):
         self.log.debug(
-            'move %s: curosr: %s',
+            'move %s: cursor: %s',
             'forward' if forward else 'backward',
             repr(self.cursor),
             )
