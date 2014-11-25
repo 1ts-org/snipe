@@ -151,11 +151,11 @@ class Messager(window.Window, window.PagingMixIn):
         self.log.debug("Fals.e")
         return False
 
-    @keymap.bind('n', 'j', '[down]')
+    @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
         self.move(True)
 
-    @keymap.bind('p', 'k', '[up]')
+    @keymap.bind('Control-p', 'p', 'k', '[up]')
     def prev_message(self):
         self.move(False)
 
