@@ -41,9 +41,16 @@ from . import keymap
 from . import window
 from . import help
 from . import editor
+from . import util
 
 
 class Messager(window.Window, window.PagingMixIn):
+    default_filter = util.Configurable(
+        'default_filter', None,
+        'Default filter for messager windows',
+        validate=filters.validatefilter,
+        )
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.cursor = next(self.fe.context.backends.walk(time.time(), False))
@@ -216,7 +223,7 @@ class Messager(window.Window, window.PagingMixIn):
         yield from self.send(msg.followupstr(), msg)
 
     @keymap.bind('r')
-    def reply(self, k):
+    def reply(self):
         msg = self.replymsg()
         yield from self.send(msg.replystr(), msg)
 
@@ -232,6 +239,9 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_reset(self):
         self.filter = None
         self.filter_stack = []
+
+        if self.default_filter:
+            self.filter = filters.makefilter(self.default_filter)
 
     @keymap.bind('Meta-/ =')
     def filter_edit(self):
@@ -258,7 +268,7 @@ class Messager(window.Window, window.PagingMixIn):
             ]
         self.context.conf['rules'].append((str(self.filter), decoration))
         self.context.conf_write()
-        self.filter = None
+        self.filter_reset()
 
     @keymap.bind('Meta-/ g')
     def filter_foreground_background(self):
@@ -334,6 +344,13 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
         if not self.filter_stack:
-            self.filter = None
+            self.filter_reset()
         else:
             self.filter = self.filter_stack.pop()
+
+    @keymap.bind('Meta-/ S')
+    def save_default_filter(self):
+        if self.filter:
+            self.default_filter = str(self.filter)
+            self.context.conf_write()
+            self.filter_reset()

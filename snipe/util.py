@@ -63,6 +63,8 @@ class Configurable:
         self.registry[key] = self
 
     def __get__(self, instance, owner):
+        if not instance:
+            return
         return instance.context.conf.get('set', {}).get(self.key, self.default)
 
     def __set__(self, instance, v):

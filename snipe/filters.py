@@ -618,8 +618,10 @@ class Parser(PlyShim):
     def p_error(self, p):
         self._errors.append(p)
 
+
 parser = Parser()
 lexer = Lexer()
+
 
 def makefilter(s):
     lexer.reset_errors()
@@ -628,3 +630,11 @@ def makefilter(s):
     if lexer.errors or parser.errors:
         raise SnipeFilterError(lexer.errors, parser.errors)
     return result
+
+
+def validatefilter(s):
+    try:
+        makefilter(s)
+        return True
+    except SnipeFilterError:
+        return False
