@@ -365,7 +365,7 @@ class Viewer(window.Window, window.PagingMixIn):
             self.set_mark(oldpoint)
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
-    def end_of_buffer(self, pct: interactive.argument):
+    def end_of_buffer(self, pct: interactive.argument=None):
         oldpoint = self.cursor.point
         self.log.debug('end_of_buffer: arg, %s oldpoint %s', repr(pct), oldpoint)
         noarg = pct is None
@@ -655,6 +655,7 @@ class LongPrompt(Editor):
             self.insert(prompt)
             self.divider = int(self.cursor)
         self.complete_state = None
+        self.end_of_buffer()
 
     def writable(self):
         return super().writable() and self.cursor >= self.divider
