@@ -309,6 +309,12 @@ class RoostPrincipal(messages.SnipeAddress):
     def __str__(self):
         return self.principal
 
+    def short(self):
+        atrealmlen = len(self.backend.realm) + 1
+        if self.principal[-atrealmlen:] == '@' + self.backend.realm:
+            return self.principal[:-atrealmlen]
+        return self.principal
+
 class RoostTriplet(messages.SnipeAddress):
     def __init__(self, backend, class_, instance, recipient):
         self.class_ = class_

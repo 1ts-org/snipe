@@ -53,6 +53,9 @@ class SnipeAddress:
     def __str__(self):
         return ', '.join([self.backend.name] + self.path)
 
+    def short(self):
+        return str(self)
+
     def __repr__(self):
         return (
             '<' + self.__class__.__name__+ ' '

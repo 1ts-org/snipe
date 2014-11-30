@@ -259,13 +259,14 @@ class IRCCloudMessage(messages.SnipeMessage):
         return str(self.time) + ' ' + repr(self.data)
 
     def display(self, decoration):
+        tags = self.decotags(decoration)
         timestring = time.strftime('%H:%M', time.localtime(self.time))
+        chunk = [((tags + ('right',), timestring + ' '))]
         mtype = self.data.get('type')
         chan = self.backend.buffers.get(self.data.get('bid', -1), {}).get('name', None)
 
-        s = timestring + ' '
         if chan is not None:
-            s += chan + ' '
+            chunk += [((tags + ('bold',)), chan + ' ')]
 
         msgy = {
             'buffer_msg': ':',
@@ -276,29 +277,42 @@ class IRCCloudMessage(messages.SnipeMessage):
             'notice': ' [notice]',
             }
         if mtype in msgy:
-            s += '%s%s %s' % (self.sender, msgy[mtype], self.body)
+            chunk += [
+                (tags + ('bold',), self.sender.short()),
+                (tags, msgy[mtype] + ' ' + self.body),
+                ]
         elif mtype == 'joined_channel':
-            s += '+ %s' % (self.sender,)
+            chunk += [
+                (tags, '+ '),
+                ((tags + ('bold',)), self.sender.short()),
+                ]
         elif mtype == 'parted_channel':
-            s += '- %s: %s' % (self.sender, self.data['msg'])
+            chunk += [
+                (tags, '- '),
+                ((tags + ('bold',)), self.sender.short()),
+                (tags, ': ' + self.body),
+                ]
         elif mtype == 'nickchange':
-            s += '%s %s -> %s' % (
-                self.sender, self.data['oldnick'], self.data['nick'])
+            chunk += [
+                (tags, self.data['oldnick']),
+                (tags, ' -> '),
+                ((tags + ('bold',)), self.sender.short()),
+                ]
         else:
             import pprint
 
             d = dict(
                 (k, v) for (k,v) in self.data.items()
                 if k not in ('type', 'eid', 'cid', 'bid'))
-            s += '%s [%s] eid %s bid %s cid %s\n%s' % (
+            chunk += [(tags, '%s [%s] eid %s bid %s cid %s\n%s' % (
                 self.sender,
                 self.data.get('type', '[no type]'),
                 self.data.get('eid', '-'),
                 self.data.get('cid', '-'),
                 self.data.get('bid', '-'),
                 pprint.pformat(d),
-                )
-        return [(self.decotags(decoration), s + '\n')]
+                ))]
+        return chunk + [(tags, '\n')]
 
 
 class IRCCloudUser(messages.SnipeAddress):
@@ -310,6 +324,9 @@ class IRCCloudUser(messages.SnipeAddress):
 
     def __str__(self):
         return '%s!%s@%s' % (self.nick, self.user, self.host)
+
+    def short(self):
+        return self.nick
 
 
 class IRCCloudNonAddress(messages.SnipeAddress):
