@@ -36,7 +36,12 @@ from . import context
 
 
 def main():
-    logging.basicConfig(filename='/tmp/snipe.log', level=logging.DEBUG)
+    logging.basicConfig(
+        filename='/tmp/snipe.log',
+        level=logging.DEBUG,
+        format='%(asctime)s %(name)s: %(message)s',
+        datefmt='%b %d %H:%M:%S',
+        )
     log = logging.getLogger('Snipe')
     log.warning('snipe starting')
     with ttyfe.TTYFrontend() as ui:
