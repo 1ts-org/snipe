@@ -254,8 +254,20 @@ class Window:
 
     @keymap.bind('Meta-=')
     def set_config(self, arg: interactive.argument):
+        def complete_key(left, right):
+            import os.path
+
+            keys = util.Configurable.registry.keys()
+
+            completions = [k for k in keys if k.startswith(left)]
+
+            prefix = os.path.commonprefix(completions)
+            for completion in completions:
+                yield prefix, completion[len(prefix):]
+
         if not arg:
-            key = yield from self.read_string('Key: ')
+            key = yield from self.read_string(
+                'Key: ', wkw={'complete': complete_key})
             value = yield from self.read_string('Value: ')
             util.Configurable.set(self, key, value)
             self.context.conf_write()
