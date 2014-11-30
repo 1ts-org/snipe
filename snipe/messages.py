@@ -327,3 +327,6 @@ class AggregatorBackend(SnipeBackend):
         for backend in self.backends:
             backend.shutdown()
         super().shutdown()
+
+    def __iter__(self):
+        return iter(self.backends)
