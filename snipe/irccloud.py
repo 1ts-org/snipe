@@ -95,7 +95,9 @@ class IRCCloud(messages.SnipeBackend):
                 'password': password,
                 'token': token,
                 }),
-            {'x-auth-formtoken': token},
+            {'x-auth-formtoken': token,
+             'content-type': 'application/x-www-form-urlencoded',
+            },
             )
         if not result.get('success'):
             self.log.warn('login failed: %s', repr(result))
