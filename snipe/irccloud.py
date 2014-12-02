@@ -281,6 +281,11 @@ class IRCCloudMessage(messages.SnipeMessage):
                 (tags + ('bold',), self.sender.short()),
                 (tags, msgy[mtype] + ' ' + self.body),
                 ]
+        elif mtype in 'channel_topic':
+            chunk += [
+                (tags, self.data['from_name'] + ' set topic to '),
+                (tags + ('bold',), self.data['topic']),
+                ]
         elif mtype == 'joined_channel':
             chunk += [
                 (tags, '+ '),
