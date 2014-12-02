@@ -206,6 +206,8 @@ class Messager(window.Window, window.PagingMixIn):
             content=recipient + '\n' if recipient else '',
             wkw=wkw,
             )
+        if '\n' not in message:
+            message += '\n'
         params, body = message.split('\n', 1)
         yield from self.fe.context.roost.send(params, body)
 
