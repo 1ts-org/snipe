@@ -207,7 +207,7 @@ def coro_cleanup(f):
             return (yield from asyncio.coroutine(f)(*args, **kw))
         except asyncio.CancelledError:
             pass #yay
-        except:
+        except Exception:
             if args and hasattr(args[0], 'log'):
                 log = args[0].log
             else:
