@@ -55,7 +55,7 @@ class Window:
         else:
             self.cursor = prototype.cursor
             self.hints = prototype.renderer.get_hints()
-        self.destroy = destroy
+        self._destroy = destroy
         self.this_command = None
         self.last_command = None
         self.last_key = None
@@ -63,6 +63,9 @@ class Window:
 
     def __repr__(self):
         return '<%s %x>' % (self.__class__.__name__, id(self))
+
+    def destroy(self):
+        self._destroy()
 
     def focus(self):
         pass

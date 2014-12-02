@@ -196,7 +196,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.secondary = self.cursor
             self.cursor = sill
 
-        wkw = {}
+        wkw = {'history': 'send'}
         if msg is not None:
             wkw['modes'] = [editor.ReplyMode(msg)]
 

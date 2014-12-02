@@ -632,12 +632,15 @@ class Editor(Viewer):
 
 
 class LongPrompt(Editor):
+    histories = {}
+
     def __init__(
             self,
             *args,
             prompt='',
             complete=None,
             callback=lambda x: None,
+            history=None,
             **kw):
         self.divider = 0
         super().__init__(*args, **kw)
@@ -656,6 +659,41 @@ class LongPrompt(Editor):
             self.divider = int(self.cursor)
         self.complete_state = None
         self.end_of_buffer()
+        self.histptr = 0
+        self.history = self.histories.setdefault(history, [])
+
+    def destroy(self):
+        self.history.append(self.buf[self.divider:])
+        super().destroy()
+
+    @keymap.bind('Meta-p')
+    def previous_history(self):
+        self.move_history(-1)
+
+    @keymap.bind('Meta-n')
+    def next_history(self):
+        self.move_history(1)
+
+    def move_history(self, offset):
+        new_ptr = self.histptr - offset
+        if new_ptr < 0 or new_ptr > len(self.history):
+            return
+
+        old = self.buf[self.divider:]
+        if self.histptr == 0:
+            self.stash = old
+        else:
+            self.history[-self.histptr] = old
+
+        if new_ptr == 0:
+            new = self.stash
+        else:
+            new = self.history[-new_ptr]
+
+        self.cursor.point = self.divider
+        self.delete(len(old))
+        self.insert(new)
+        self.histptr = new_ptr
 
     def writable(self):
         return super().writable() and self.cursor >= self.divider
