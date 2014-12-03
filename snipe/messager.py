@@ -58,6 +58,11 @@ class Messager(window.Window, window.PagingMixIn):
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
         self.keymap.interrogate(help)
+        # the following will be interesting in the advent of non-singleton
+        # backends; maybe this should just interrogate the modules instead
+        for backend in self.context.backends:
+            self.keymap.interrogate(backend)
+            self.keymap.interrogate(backend.__class__.__module__)
         self.rules = []
         for (filt, decor) in self.context.conf.get('rules', []):
             try:
@@ -356,21 +361,5 @@ class Messager(window.Window, window.PagingMixIn):
             self.default_filter = str(self.filter)
             self.context.conf_write()
             self.filter_reset()
-
-    @keymap.bind('I C')
-    def dump_irccloud_connections(self):
-        from .editor import Viewer
-        backends = [
-            b for b in self.context.backends if b.name.startswith('irccloud')]
-
-        if len(backends) != 1:
-            self.whine('%d irccloud backends' % (len(backends),))
-
-        (irccloud,) = backends
-
-        def show(s):
-            self.fe.split_window(Viewer(self.fe, content=s))
-
-        show(pprint.pformat(irccloud.connections))
 
 

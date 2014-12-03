@@ -35,10 +35,13 @@ import json
 import time
 import netrc
 import urllib.parse
+import itertools
 
 from . import messages
 from . import util
 from . import _websocket
+from . import keymap
+from . import interactive
 
 IRCCLOUD = 'https://www.irccloud.com'
 
@@ -234,6 +237,16 @@ class IRCCloud(messages.SnipeBackend):
         result = result.decode('utf-8')
         result = json.loads(result)
         return result
+
+    @keymap.bind('I C')
+    def dump_irccloud_connections(self, window: interactive.window):
+        import pprint
+        from .editor import Viewer
+
+        def show(s):
+            window.fe.split_window(Viewer(window.fe, content=s))
+
+        show(pprint.pformat(self.connections))
 
 
 class IRCCloudMessage(messages.SnipeMessage):
