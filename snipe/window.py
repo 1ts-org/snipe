@@ -285,7 +285,7 @@ class Window:
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
             self, key: interactive.keystroke, arg: interactive.argument = 0):
-        self.active_keymap = dict(self.keymap)
+        self.active_keymap = keymap.Keymap(self.keymap)
         for i in range(10):
             self.active_keymap[str(i)] = self.decimal_argument
 
@@ -307,7 +307,7 @@ class Window:
         if isinstance(arg, int):
             self.universal_argument = arg # shouldn't do this the second time?
 
-        self.active_keymap = dict(self.keymap)
+        self.active_keymap = keymap.Keymap(self.keymap)
 
         for i in range(10):
             self.active_keymap[str(i)] = self.decimal_argument
