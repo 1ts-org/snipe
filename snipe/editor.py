@@ -594,7 +594,7 @@ class Editor(Viewer):
             self.cursor.point = p
             self.whine('At beginning')
             return
-        s = self.buf[self.cursor:self.cursor + 2]
+        s = self.buf[self.cursor:int(self.cursor) + 2]
         s = ''.join(reversed(s)) # *sigh*
         self.replace(2, s)
         self.move(2)
