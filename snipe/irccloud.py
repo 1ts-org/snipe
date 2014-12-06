@@ -264,55 +264,6 @@ class IRCCloud(messages.SnipeBackend):
         result = json.loads(result)
         return result
 
-    @keymap.bind('I C')
-    def dump_irccloud_connections(self, window: interactive.window):
-        import pprint
-        window.show(pprint.pformat(self.connections))
-
-    @keymap.bind('I B')
-    def dump_irccloud_buffers(self, window: interactive.window):
-        import pprint
-        window.show(pprint.pformat(self.buffers))
-
-    @keymap.bind('I s')
-    def irccloud_say_kludge(self, window: interactive.window):
-        connection = yield from window.read_string(
-            'connection: ',
-            wkw={
-                'complete':
-                interactive.completer(
-                    c['hostname'] for c in self.connections.values()),
-                })
-        connection = connection.strip()
-        for (cid, conndata) in self.connections.items():
-            if conndata['hostname'] == connection:
-                break
-        else:
-            window.whine('no such connection: %s', (connection,))
-            return
-
-        bufname = yield from window.read_string(
-            'buffer: ',
-            wkw={
-                'complete':
-                interactive.completer(
-                    c['name'] for c in self.buffers.values()),
-                })
-        bufname = bufname.strip()
-        for (bid, bufdata) in self.buffers.items():
-            if bufdata['name'] == bufname:
-                break
-        else:
-            window.whine('no such buffer:%s', (bufname,))
-            return
-
-        msg = yield from window.read_string(
-            '%s;%s> ' % (connection, bufname),
-            wkw={'history': 'irccloud_say'},
-            )
-
-        yield from self.say(cid, bufname, msg)
-
     @asyncio.coroutine
     def send(self, paramstr, body):
         params = [s.strip() for s in paramstr.split(';')]
