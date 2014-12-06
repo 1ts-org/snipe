@@ -203,6 +203,11 @@ class Window:
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
+    @keymap.bind('Control-X m')#XXX (?)
+    def split_to_messager(self):
+        from .messager import Messager
+        self.fe.split_window(Messager(self.fe))
+
     @keymap.bind('Control-X c')#XXX
     def split_to_colordemo(self):
         self.fe.split_window(ColorDemo(self.fe))
