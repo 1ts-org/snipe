@@ -163,21 +163,8 @@ class Window:
         return f.result()
 
     def read_filename(self, prompt, content=None):
-        def complete_filename(left, right):
-            import os
-
-            path, prefix = os.path.split(left)
-            completions = [
-                name + '/' if os.path.isdir(os.path.join(path, name)) else name
-                for name in os.listdir(path or '.')
-                if name.startswith(prefix)]
-
-            prefix = os.path.commonprefix(completions)
-            for name in completions:
-                yield os.path.join(path, prefix), name[len(prefix):]
-
         result = yield from self.read_string(
-            prompt, wkw={'complete': complete_filename})
+            prompt, wkw={'complete': interactive.complete_filename})
 
         return result
 
@@ -257,20 +244,12 @@ class Window:
 
     @keymap.bind('Meta-=')
     def set_config(self, arg: interactive.argument):
-        def complete_key(left, right):
-            import os.path
-
-            keys = util.Configurable.registry.keys()
-
-            completions = [k for k in keys if k.startswith(left)]
-
-            prefix = os.path.commonprefix(completions)
-            for completion in completions:
-                yield prefix, completion[len(prefix):]
-
         if not arg:
             key = yield from self.read_string(
-                'Key: ', wkw={'complete': complete_key})
+                'Key: ', wkw={
+                    'complete':
+                    interactive.completer(util.Configurable.registry.keys()),
+                    })
             value = yield from self.read_string('Value: ')
             util.Configurable.set(self, key, value)
             self.context.conf_write()

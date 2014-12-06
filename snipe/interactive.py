@@ -29,6 +29,7 @@
 # SUCH DAMAGE.
 
 import inspect
+import os
 
 
 def context(*args, **kw):
@@ -76,3 +77,25 @@ def call(callable, *args, **kw):
             raise Exception(
                 'insufficient defaults calling %s' % (repr(callable),))
     return callable(**d)
+
+
+def complete_filename(left, right):
+    path, prefix = os.path.split(left)
+    completions = [
+        name + '/' if os.path.isdir(os.path.join(path, name)) else name
+        for name in os.listdir(path or '.')
+        if name.startswith(prefix)]
+
+    prefix = os.path.commonprefix(completions)
+    for name in completions:
+        yield os.path.join(path, prefix), name[len(prefix):]
+
+
+def completer(iterable):
+    completeset = list(iterable)
+    def complete(left, right):
+        completions = [k for k in completeset if k.startswith(left)]
+        prefix = os.path.commonprefix(completions)
+        for completion in completions:
+            yield prefix, completion[len(prefix):]
+    return complete
