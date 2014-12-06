@@ -50,8 +50,17 @@ class IRCCloud(messages.SnipeBackend):
     name = 'irccloud'
     loglevel = util.Level('log.irccloud', 'IRCCloud')
 
+    floodpause = util.Configurable(
+        'irccloud.floodpause',
+        0.5,
+        'time in seconds to wait between lines in a message',
+        coerce = float,
+        )
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+
+        self.reqid_counter = itertools.count()
 
         self.messages = []
         self.task = asyncio.Task(self.connect())
@@ -59,6 +68,23 @@ class IRCCloud(messages.SnipeBackend):
         self.buffers = {}
         self.channels = {}
         self.servers = {}
+
+    @property
+    def reqid(self):
+        return next(self.reqid_counter)
+
+    @asyncio.coroutine
+    def say(self, cid, to, msg):
+        blob = json.dumps(dict(
+            _method='say',
+            _reqid=self.reqid,
+            cid=cid,
+            to=to,
+            msg=msg,
+            ))
+        self.log.debug('sending: %s', blob)
+        self.log.debug('self.writer=%s self.writer.send=%s', repr(self.writer), repr(self.writer.send))
+        self.writer.send(blob)
 
     @asyncio.coroutine
     def do_connect(self):
@@ -241,12 +267,91 @@ class IRCCloud(messages.SnipeBackend):
     @keymap.bind('I C')
     def dump_irccloud_connections(self, window: interactive.window):
         import pprint
-        from .editor import Viewer
+        window.show(pprint.pformat(self.connections))
 
-        def show(s):
-            window.fe.split_window(Viewer(window.fe, content=s))
+    @keymap.bind('I B')
+    def dump_irccloud_buffers(self, window: interactive.window):
+        import pprint
+        window.show(pprint.pformat(self.buffers))
 
-        show(pprint.pformat(self.connections))
+    @keymap.bind('I s')
+    def irccloud_say_kludge(self, window: interactive.window):
+        connection = yield from window.read_string(
+            'connection: ',
+            wkw={
+                'complete':
+                interactive.completer(
+                    c['hostname'] for c in self.connections.values()),
+                })
+        connection = connection.strip()
+        for (cid, conndata) in self.connections.items():
+            if conndata['hostname'] == connection:
+                break
+        else:
+            window.whine('no such connection: %s', (connection,))
+            return
+
+        bufname = yield from window.read_string(
+            'buffer: ',
+            wkw={
+                'complete':
+                interactive.completer(
+                    c['name'] for c in self.buffers.values()),
+                })
+        bufname = bufname.strip()
+        for (bid, bufdata) in self.buffers.items():
+            if bufdata['name'] == bufname:
+                break
+        else:
+            window.whine('no such buffer:%s', (bufname,))
+            return
+
+        msg = yield from window.read_string(
+            '%s;%s> ' % (connection, bufname),
+            wkw={'history': 'irccloud_say'},
+            )
+
+        yield from self.say(cid, bufname, msg)
+
+    @asyncio.coroutine
+    def send(self, paramstr, body):
+        params = [s.strip() for s in paramstr.split(';')]
+
+        if not params:
+            raise util.SnipeException('nowhere to send the message')
+
+        connections = [
+            c['cid'] for c in self.connections.values()
+            if params[0] in c['hostname']]
+
+        if not connections:
+            raise util.SnipeException('unknown server name ' + params[0])
+
+        if len(connections) > 1:
+            raise util.SnipeException(
+                'ambiguous server name %s matches %s', params[0], connections)
+
+        (cid,) = connections
+
+        if len(params) < 2:
+            dest = '*'
+        else:
+            dest = params[1]
+
+        prefix = ''
+        if dest not in [
+                b['name'] for b in self.buffers.values() if b['cid'] == cid]:
+            prefix = '/msg ' + dest + ' '
+            dest = '*'
+
+        lines = body.splitlines()
+        if len(lines) == 1:
+            yield from self.say(cid, dest, prefix + lines[0])
+        else:
+            for line in lines:
+                if line:
+                    yield from self.say(cid, dest, prefix + line)
+                yield from asyncio.sleep(self.floodpause)
 
 
 class IRCCloudMessage(messages.SnipeMessage):
@@ -261,22 +366,45 @@ class IRCCloudMessage(messages.SnipeMessage):
         self.data = m
         if 'from' in m and 'from_name' in m and 'from_host' in m:
             self._sender = IRCCloudUser(
-                backend, m['from'], m['from_name'], m['from_host'])
+                backend,
+                backend.connections[m['cid']]['hostname'],
+                m['from'],
+                m['from_name'],
+                m['from_host'])
         elif 'nick' in m and 'from_name' in m and 'from_host' in m:
             self._sender = IRCCloudUser(
-                backend, m['nick'], m['from_name'], m['from_host'])
+                backend,
+                backend.connections[m['cid']]['hostname'],
+                m['nick'],
+                m['from_name'],
+                m['from_host'])
         else:
             self._sender = IRCCloudNonAddress(backend, 'system')
 
     def __str__(self):
         return str(self.time) + ' ' + repr(self.data)
 
+    @property
+    def channel(self):
+        return self.backend.buffers.get(
+            self.data.get('bid', -1), {}).get('name', None)
+
+    def followup(self):
+        channel = self.channel
+        if not channel:
+            return self.reply()
+        return '; '.join([
+            self.backend.name,
+            self.backend.connections[self.data['cid']]['hostname'],
+            channel,
+            ])
+
     def display(self, decoration):
         tags = self.decotags(decoration)
         timestring = time.strftime('%H:%M', time.localtime(self.time))
         chunk = [((tags + ('right',), timestring + ' '))]
         mtype = self.data.get('type')
-        chan = self.backend.buffers.get(self.data.get('bid', -1), {}).get('name', None)
+        chan = self.channel
 
         if chan is not None:
             chunk += [((tags + ('bold',)), chan + ' ')]
@@ -334,17 +462,21 @@ class IRCCloudMessage(messages.SnipeMessage):
 
 
 class IRCCloudUser(messages.SnipeAddress):
-    def __init__(self, backend, nick, user, host):
+    def __init__(self, backend, server, nick, user, host):
+        self.server = server
         self.nick = nick
         self.user = user
         self.host = host
-        super().__init__(backend, [host, user, nick])
+        super().__init__(backend, [server, host, user, nick])
 
     def __str__(self):
-        return '%s!%s@%s' % (self.nick, self.user, self.host)
+        return '%s; %s; %s!%s@%s' % (self.backend.name, self.server, self.nick, self.user, self.host)
 
     def short(self):
-        return self.nick
+        return str(self.nick)
+
+    def reply(self):
+        return '%s; %s; %s' % (self.backend.name, self.server, self.nick)
 
 
 class IRCCloudNonAddress(messages.SnipeAddress):
