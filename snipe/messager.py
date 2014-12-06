@@ -227,12 +227,12 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('f')
     def followup(self):
         msg = self.replymsg()
-        yield from self.send(msg.followupstr(), msg)
+        yield from self.send(msg.followup(), msg)
 
     @keymap.bind('r')
     def reply(self):
         msg = self.replymsg()
-        yield from self.send(msg.replystr(), msg)
+        yield from self.send(msg.reply(), msg)
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):

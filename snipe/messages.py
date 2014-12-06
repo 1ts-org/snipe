@@ -51,9 +51,12 @@ class SnipeAddress:
         return [self.backend] + self.path
 
     def __str__(self):
-        return ', '.join([self.backend.name] + self.path)
+        return ';'.join([self.backend.name] + self.path)
 
     def short(self):
+        return str(self)
+
+    def reply(self):
         return str(self)
 
     def __repr__(self):
@@ -145,6 +148,12 @@ class SnipeMessage:
 
     def __lt__(self, other):
         return self.time < self._coerce(other)
+
+    def reply(self):
+        return self.sender.reply()
+
+    def followup(self):
+        return self.sender.reply()
 
 
 class SnipeBackend:

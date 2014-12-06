@@ -280,26 +280,29 @@ class RoostMessage(messages.SnipeMessage):
             value = value.lower().strip()
         return value
 
-    def replystr(self):
+    def reply(self):
         l = []
-        if self.data['recipient']:
+        if self.data['recipient'] and self.data['recipient'][0] != '@':
             if self.data['class'].upper() != 'MESSAGE':
                 l += ['-c', self.data['class']]
             if self.data['instance'].upper() != 'PERSONAL':
                 l += ['-i', self.data['instance']]
-        l.append(str(self.sender))
+        l.append(self.sender.short())
 
-        return ' '.join(shlex.quote(s) for s in l)
+        return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
 
-    def followupstr(self):
+    def followup(self):
         l = []
-        if self.data['recipient']:
-            return self.replystr()
+        if self.data['recipient'] and self.data['recipient'][0] != '@':
+            return self.reply()
         if self.data['class'].upper() != 'MESSAGE':
             l += ['-c', self.data['class']]
         if self.data['instance'].upper() != 'PERSONAL':
             l += ['-i', self.data['instance']]
-        return ' '.join(shlex.quote(s) for s in l)
+        if self.data['recipient']:
+            l += [self.data['recipient']] # presumably a there should be a -r?
+        return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
+
 
 class RoostPrincipal(messages.SnipeAddress):
     def __init__(self, backend, principal):
@@ -314,6 +317,10 @@ class RoostPrincipal(messages.SnipeAddress):
         if self.principal[-atrealmlen:] == '@' + self.backend.realm:
             return self.principal[:-atrealmlen]
         return self.principal
+
+    def reply(self):
+        return self.backend.name + '; ' + self.short()
+
 
 class RoostTriplet(messages.SnipeAddress):
     def __init__(self, backend, class_, instance, recipient):
