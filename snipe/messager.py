@@ -362,4 +362,12 @@ class Messager(window.Window, window.PagingMixIn):
             self.context.conf_write()
             self.filter_reset()
 
+    @keymap.bind('Meta-i')
+    def show_message_data(self):
+        from pprint import pformat
+
+        self.show(
+            repr(self.cursor)
+            + '\n'
+            + pformat(getattr(self.cursor, 'data', None)))
 

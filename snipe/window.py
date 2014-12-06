@@ -304,6 +304,10 @@ class Window:
     def reframe(self):
         self.renderer.reframe()
 
+    def show(self, string):
+        from .editor import Viewer
+        self.fe.split_window(Viewer(self.fe, content=string))
+
 
 class PagingMixIn:
     @keymap.bind('[ppage]', 'Meta-v')
