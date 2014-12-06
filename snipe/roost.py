@@ -216,8 +216,7 @@ class RoostMessage(messages.SnipeMessage):
         instance = instance or "''"
         chunk = [
             (tags,
-             time.strftime('%H:%M ', time.localtime(self.data['time'] / 1000))),
-            (tags + ('bold',), self.field('sender')),
+             time.strftime('%H:%M', time.localtime(self.data['time'] / 1000))),
             ]
         if self.personal:
             if self.data['sender'] == self.backend.r.principal:
@@ -240,6 +239,8 @@ class RoostMessage(messages.SnipeMessage):
 
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
+
+        chunk += [(tags, '  ' ), (tags + ('bold',), self.field('sender'))]
 
         if self.data['opcode']:
             chunk += [(tags, ' [' + self.data['opcode'] + ']')]
