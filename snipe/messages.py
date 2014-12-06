@@ -34,6 +34,7 @@ import time
 import logging
 import functools
 import bisect
+import asyncio
 
 from . import util
 
@@ -339,3 +340,13 @@ class AggregatorBackend(SnipeBackend):
 
     def __iter__(self):
         return iter(self.backends)
+
+    @asyncio.coroutine
+    def send(self, paramstr, msg):
+        params = [s.strip() for s in paramstr.split(';', 1)]
+        backends = [b for b in self if b.name.startswith(params[0])]
+        if len(backends) != 1:
+            raise util.SnipeException(
+                'backend query string %s results in %s' % (params[0], backends))
+        yield from backends[0].send(''.join(params[1:]), msg)
+

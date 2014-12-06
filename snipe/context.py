@@ -53,14 +53,11 @@ class Context:
         self.ui.context = self
         self.killring = []
         self.log = logging.getLogger('Snipe')
-        #XXX kludge so the kludged sending can find the roost backend
-        self.roost = roost.Roost(self)
         self.backends = messages.AggregatorBackend(
             self,
             backends = [
                 messages.StartupBackend(self),
-#                messages.SyntheticBackend(self, conf={'count': 100}),
-                self.roost,
+                roost.Roost(self),
                 irccloud.IRCCloud(self),
                 ],)
         self.ui.initial(messager.Messager(self.ui))

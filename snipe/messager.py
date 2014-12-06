@@ -206,7 +206,7 @@ class Messager(window.Window, window.PagingMixIn):
             wkw['modes'] = [editor.ReplyMode(msg)]
 
         message = yield from self.read_string(
-            '[roost] send --> ',
+            'send --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
             wkw=wkw,
@@ -214,7 +214,7 @@ class Messager(window.Window, window.PagingMixIn):
         if '\n' not in message:
             message += '\n'
         params, body = message.split('\n', 1)
-        yield from self.fe.context.roost.send(params, body)
+        yield from self.fe.context.backends.send(params, body)
 
     def replymsg(self):
         replymsg = self.cursor
