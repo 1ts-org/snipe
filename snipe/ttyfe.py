@@ -568,6 +568,7 @@ class TTYFrontend:
         if self.active >= len(self.windows):
             self.active = len(self.windows) - 1
             self.windows[self.active].focus()
+        self.redisplay() # XXX force redisplay?
 
     def switch_window(self, adj):
         self.active = (self.active + adj) % len(self.windows)
