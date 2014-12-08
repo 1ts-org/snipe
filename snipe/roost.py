@@ -219,7 +219,7 @@ class RoostMessage(messages.SnipeMessage):
              time.strftime('%H:%M', time.localtime(self.data['time'] / 1000))),
             ]
         if self.personal:
-            if self.data['sender'] == self.backend.r.principal:
+            if self.outgoing:
                 chunk += [(tags + ('bold',), ' (personal)')]
                 chunk += [(tags + ('bold',), ' -> ')]
                 chunk += [(tags + ('bold',), self.field('recipient'))]
@@ -292,7 +292,10 @@ class RoostMessage(messages.SnipeMessage):
                 l += ['-c', self.data['class']]
             if self.data['instance'].upper() != 'PERSONAL':
                 l += ['-i', self.data['instance']]
-        l.append(self.sender.short())
+        if self.outgoing:
+            l.append(self.data['recipient'])
+        else:
+            l.append(self.sender.short())
 
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
 
