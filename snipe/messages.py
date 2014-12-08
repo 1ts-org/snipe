@@ -141,8 +141,9 @@ class SnipeMessage:
         elif hasattr(other, '__int__'):
             return int(other)
         else:
-            logging.error('comparing %s with %s?', repr(self), repr(other))
-            raise NotImplemented
+            raise NotImplementedError(
+                'unimplemented comparison %s with %s?' % (
+                    repr(self), repr(other)))
 
     def __eq__(self, other):
         return self.time == self._coerce(other)
