@@ -240,7 +240,11 @@ class RoostMessage(messages.SnipeMessage):
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
 
-        chunk += [(tags, '  ' ), (tags + ('bold',), self.field('sender'))]
+        chunk += [
+            (tags, '  <' ),
+            (tags + ('bold',), self.field('sender')),
+            (tags, '>'),
+            ]
 
         if self.data['opcode']:
             chunk += [(tags, ' [' + self.data['opcode'] + ']')]
