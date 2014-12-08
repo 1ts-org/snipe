@@ -39,6 +39,8 @@ import sys
 import aiohttp
 import asyncio
 import functools
+import contextlib
+import time
 
 
 class SnipeException(Exception):
@@ -214,3 +216,12 @@ def coro_cleanup(f):
                 log = logging.getLogger('coro_cleanup')
             log.exception('coroutine cleanup')
     return catch_and_log
+
+
+@contextlib.contextmanager
+def stopwatch(tag, log=None):
+    if log is None:
+        log = logging.getLogger('stopwatch')
+    t0 = time.time()
+    yield
+    log.debug('%s took %fs', tag, time.time() - t0)
