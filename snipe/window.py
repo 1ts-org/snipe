@@ -307,7 +307,8 @@ class Window:
 
     @keymap.bind('Control-L')
     def reframe(self):
-        self.renderer.reframe()
+        if getattr(self, 'renderer', None):
+            self.renderer.reframe()
 
     def show(self, string):
         from .editor import Viewer
