@@ -56,9 +56,9 @@ class Window:
             self.cursor = prototype.cursor
             self.hints = prototype.renderer.get_hints()
         self._destroy = destroy
-        self.this_command = None
-        self.last_command = None
-        self.last_key = None
+        self.this_command = ''
+        self.last_command = ''
+        self.last_key = ''
         self.universal_argument = None
 
     def __repr__(self):
