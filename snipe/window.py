@@ -259,12 +259,8 @@ class Window:
             util.Configurable.set(self, key, value)
             self.context.conf_write()
         else:
-            from . import editor
             import pprint
-            self.fe.split_window(editor.Editor(
-                self.fe,
-                content=pprint.pformat(self.context.conf),
-                ))
+            self.show(pprint.pformat(self.context.conf))
 
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
