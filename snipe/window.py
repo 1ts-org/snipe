@@ -203,10 +203,27 @@ class Window:
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
-    @keymap.bind('Control-X m')#XXX (?)
-    def split_to_messager(self):
+    @keymap.bind('Control-X 4 m')
+    def split_to_messager(self, filter_new=None):
         from .messager import Messager
-        self.fe.split_window(Messager(self.fe))
+        self.fe.split_window(Messager(
+            self.fe,
+            prototype = self if isinstance(self, Messager) else None,
+            filter_new = filter_new,
+            ))
+
+    @keymap.bind('Control-X 4 /')
+    def split_to_messager_filter(self):
+        from . import filters
+        f = getattr(self, 'filter', None)
+        if isinstance(f, filters.Filter):
+            s = str(f)
+        else:
+            s = ''
+
+        s = yield from self.read_string('Filter expression:\n', s, 5)
+
+        self.split_to_messager(filter_new=filters.makefilter(s))
 
     @keymap.bind('Control-X c')#XXX
     def split_to_colordemo(self):

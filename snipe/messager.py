@@ -51,10 +51,20 @@ class Messager(window.Window, window.PagingMixIn):
         validate=filters.validatefilter,
         )
 
-    def __init__(self, *args, **kw):
+    def __init__(self, *args, filter_new = None, prototype=None, **kw):
         super().__init__(*args, **kw)
-        self.cursor = next(self.fe.context.backends.walk(time.time(), False))
-        self.filter_reset()
+
+        if prototype is None:
+            self.cursor = next(self.fe.context.backends.walk(None, False))
+            self.filter_reset()
+        else:
+            self.filter = prototype.filter
+            self.filter_stack = list(prototype.filter_stack)
+            self.cursor = prototype.cursor
+
+        if filter_new is not None:
+            self.filter_replace(filter_new)
+
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
         self.keymap.interrogate(help)
@@ -242,13 +252,22 @@ class Messager(window.Window, window.PagingMixIn):
     def first(self):
         self.cursor = next(self.walk(float('-inf'), True))
 
+    def filter_replace(self, new_filter):
+        self.filter = new_filter
+
+        if self.filter is not None and not self.filter(self.cursor):
+            # if filter is none, self.cursor is valid.
+            with util.stopwatch('finding new cursor for filter'):
+                self.cursor = next(self.walk(self.cursor, True))
+            self.reframe()
+
     @keymap.bind('Meta-/ 0')
     def filter_reset(self):
-        self.filter = None
         self.filter_stack = []
-
-        if self.default_filter:
-            self.filter = filters.makefilter(self.default_filter)
+        self.filter_replace(
+            filters.makefilter(self.default_filter)
+            if self.default_filter
+            else None)
 
     @keymap.bind('Meta-/ =')
     def filter_edit(self):
@@ -256,9 +275,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         s = yield from self.read_string('Filter expression:\n', s, 5)
 
-        self.filter = filters.makefilter(s)
-
-        self.cursor = next(self.walk(self.cursor, True))
+        self.filter_replace(filters.makefilter(s))
 
     @keymap.bind('Meta-/ -')
     def filter_everything(self):
@@ -296,9 +313,7 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_push_and_replace(self, new_filter):
         if self.filter is not None:
             self.filter_stack.append(self.filter)
-        self.filter = new_filter
-
-        self.cursor = next(self.walk(self.cursor, True))
+        self.filter_replace(new_filter)
 
     def filter_push(self, new_filter):
         if self.filter is None:
