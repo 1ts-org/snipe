@@ -39,6 +39,7 @@ import re
 from . import window
 from . import interactive
 from . import keymap
+from . import util
 
 
 @functools.total_ordering
@@ -386,15 +387,29 @@ class Viewer(window.Window, window.PagingMixIn):
         super().input_char(k)
         self.log.debug('after command  %s %s', self.cursor, self.the_mark)
 
+    @staticmethod
+    def iswordchar(c):
+        cat = unicodedata.category(c)
+        return cat[0] == 'L' or cat[0] == 'N' or cat == 'Pc' or c == "'" # sigh
+
     def isword(self, delta=0):
+        return self.ispred(self.iswordchar, delta)
+
+    def isspace(self, delta=0):
+        return self.ispred(
+            (lambda c:
+                (unicodedata.category(c) == 'Zs' and c != '\xa0')
+                or c == '\t' or c == '\n'),
+            delta)
+
+    def ispred(self, pred, delta=0):
         with self.save_excursion():
             if delta and not self.move(delta):
                 return None
             c = self.character_at_point()
             if not c:
                 return False
-            cat = unicodedata.category(c)
-            return cat[0] == 'L' or cat == 'Pc'
+            return pred(c)
 
     @keymap.bind('Meta-f')
     def word_forward(self, count: interactive.integer_argument=1):
@@ -460,8 +475,18 @@ class Viewer(window.Window, window.PagingMixIn):
 
 
 class Editor(Viewer):
-    def __init__(self, *args, **kw):
+    default_fill_column = util.Configurable(
+        'editor.fill_column', 72, 'Default fill column for auto-fill buffers',
+        coerce=int)
+
+    def __init__(self, *args, fill=False, **kw):
         super().__init__(*args, **kw)
+        if fill:
+            self.fill_column = self.default_fill_column
+        else:
+            self.fill_column = 0
+
+        self.column = None
 
         prototype = kw.get('prototype')
         if prototype is None:
@@ -492,12 +517,86 @@ class Editor(Viewer):
             self,
             key: interactive.keystroke,
             count: interactive.positive_integer_argument=1):
+
+        if self.fill_column:
+            if self.last_command != 'self_insert':
+                self.column = None
+            if self.column is None:
+                self.column = self.current_column()
+            self.column += count #XXX tabs, wide characters
+
         collapsible = True
         if self.last_command == 'self_insert':
             if (not self.last_key.isspace()) and key.isspace():
                 collapsible=False
         for _ in range(count):
             self.insert(key, collapsible)
+
+        if self.fill_column and key.isspace() and self.column > self.fill_column:
+            self.log.debug('triggering autofill')
+            self.do_auto_fill()
+
+    def current_column(self):
+        with self.save_excursion():
+            p0 = self.cursor.point
+            self.beginning_of_line()
+            return p0 - self.cursor.point
+
+    def do_auto_fill(self):
+        with self.save_excursion():
+            p0 = self.cursor.point
+
+            self.beginning_of_line()
+            bol = self.cursor.point
+
+            if not self.writable():
+                return # don't wrap prompt lines :-p
+
+            self.move(self.fill_column)
+            if self.cursor.point > p0: # what
+                return
+
+            while not self.isspace(-1):
+                if not self.move(-1):
+                    break
+            word_start = self.cursor.point
+
+            while self.isspace(-1):
+                if not self.move(-1):
+                    break
+
+            if self.cursor.point <= bol:
+                self.log.debug('auto fill goes to beginning of line')
+                self.cursor.point = bol
+                self.move(self.fill_column)
+                while not self.isspace():
+                    if not self.move(1):
+                        break
+                word_end = self.cursor.point
+                while self.isspace():
+                    if not self.move(1):
+                        break
+                if self.cursor.point > p0:
+                    return
+                word_start = self.cursor.point
+                self.cursor.point = word_end
+
+            self.replace(word_start - self.cursor.point, '\n')
+            self.column = None
+
+    @keymap.bind('Control-X f')
+    def set_fill_column(self, column: interactive.argument=None):
+        if column is None:
+            s = yield from self.read_string(
+                'new fill column (current is %d): ' % self.fill_column)
+            try:
+                self.fill_column = int(s)
+            except ValueError as e:
+                self.whine(str(e))
+        elif isinstance(column, int):
+            self.fill_column = column
+        else:
+            self.fill_column = self.current_column
 
     @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(self, count: interactive.positive_integer_argument=1):

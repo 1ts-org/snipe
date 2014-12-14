@@ -126,6 +126,15 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.find_character('c'), 'c')
         self.assertEqual(e.cursor.point, 2)
 
+    def testIsPred(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abcdefghji')
+        e.cursor.point = 0
+        self.assertTrue(e.ispred(lambda c: c == 'a'))
+        self.assertFalse(e.ispred(lambda c: c == 'b'))
+        self.assertFalse(e.ispred(lambda c: c == 'a', 1))
+        self.assertTrue(e.ispred(lambda c: c == 'b', 1))
+
     def testview(self):
         e = snipe.editor.Editor(None)
         lines = [
