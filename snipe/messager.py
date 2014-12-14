@@ -211,16 +211,17 @@ class Messager(window.Window, window.PagingMixIn):
             self.secondary = self.cursor
             self.cursor = sill
 
-        wkw = {'history': 'send'}
+        kw = {}
         if msg is not None:
-            wkw['modes'] = [editor.ReplyMode(msg)]
+            kw['modes'] = [editor.ReplyMode(msg)]
 
         message = yield from self.read_string(
             'send --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
-            wkw=wkw,
-            )
+            history='send',
+            fill=True,
+            **kw)
         if '\n' not in message:
             message += '\n'
         params, body = message.split('\n', 1)

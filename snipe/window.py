@@ -127,7 +127,7 @@ class Window:
         self.log.debug('base redisplay_hint')
         return {'window': self}
 
-    def read_string(self, prompt, content=None, height=1, window=None, wkw={}):
+    def read_string(self, prompt, content=None, height=1, window=None, **kw):
         f = asyncio.Future()
 
         def done_callback(result):
@@ -145,15 +145,16 @@ class Window:
             else:
                 window = ShortPrompt
 
-        kw = dict(
+        wkw = dict(
             prompt=prompt,
             content=content,
             callback=done_callback,
             destroy=destroy_callback,
+            history=self.this_command,
             )
-        kw.update(wkw)
+        wkw.update(kw)
 
-        w = window(self.fe, **kw)
+        w = window(self.fe, **wkw)
         self.fe.popup_window(w, height=height)
         w.renderer.reframe(-1)
         self.fe.redisplay()
@@ -164,7 +165,7 @@ class Window:
 
     def read_filename(self, prompt, content=None):
         result = yield from self.read_string(
-            prompt, wkw={'complete': interactive.complete_filename})
+            prompt, complete=interactive.complete_filename)
 
         return result
 
@@ -268,10 +269,9 @@ class Window:
     def set_config(self, arg: interactive.argument):
         if not arg:
             key = yield from self.read_string(
-                'Key: ', wkw={
-                    'complete':
-                    interactive.completer(util.Configurable.registry.keys()),
-                    })
+                'Key: ',
+                complete=interactive.completer(
+                    util.Configurable.registry.keys()))
             value = yield from self.read_string('Value: ')
             util.Configurable.set(self, key, value)
             self.context.conf_write()
