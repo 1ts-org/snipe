@@ -41,6 +41,7 @@ import unicodedata
 import array
 import termios
 import fcntl
+import textwrap
 
 from . import util
 from . import ttycolor
@@ -112,12 +113,18 @@ class TTYRenderer:
         return 1
 
     @staticmethod
-    def doline(s, width, remaining):
+    def doline(s, width, remaining, fill=False):
         '''string, window width, remaining width ->
         iter([(displayline, remaining), ...])'''
         # turns tabs into spaces at n*8 cell intervals
         #XXX needs initial offset for tab stops
         #and for width after newline
+        if fill:
+            nl = s.endswith('\n')
+            ll = textwrap.wrap(s, remaining)
+            s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:])))
+            if nl:
+                s += '\n'
         out = ''
         col = 0 if remaining is None or remaining <= 0 else width - remaining
         for c in s:
@@ -197,7 +204,8 @@ class TTYRenderer:
                 if 'visible' in tags:
                     visible = True
 
-                textbits = list(self.doline(text, self.width, remaining))
+                textbits = list(self.doline(
+                    text, self.width, remaining, 'fill' in tags))
                 if not textbits:
                     x = 0 if remaining is None else remaining
                     textbits = [('', self.width if x <= 0 else x)]

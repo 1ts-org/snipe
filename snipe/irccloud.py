@@ -371,7 +371,7 @@ class IRCCloudMessage(messages.SnipeMessage):
         if mtype in msgy:
             chunk += [
                 (tags + ('bold',), self.sender.short()),
-                (tags, msgy[mtype] + ' ' + self.body),
+                (tags + ('fill',), msgy[mtype] + ' ' + self.body),
                 ]
         elif mtype in 'channel_topic':
             chunk += [
