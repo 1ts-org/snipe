@@ -43,7 +43,7 @@ class NoColorAssigner:
 
     def __init__(self):
         self.reset()
-        self.log = logging.getLogger('ColorAssigner')
+        self.log = logging.getLogger('ColorAssigner.%x' % (id(self),))
 
     def __call__(self, foreground, background):
         return 0
@@ -65,12 +65,16 @@ class SimpleColorAssigner(NoColorAssigner):
         fg = self.getcolor(fgcolor)
         bg = self.getcolor(bgcolor)
 
-        self.log.debug('fg, bg = %d:%s, %d:%s', fg, fgcolor, bg, bgcolor)
+        if fgcolor or bgcolor:
+            self.log.debug('fg, bg = %d:%s, %d:%s', fg, fgcolor, bg, bgcolor)
 
         if (fg, bg) in self.pairs:
             pair = self.pairs[fg, bg]
-            self.log.debug('returning cached pair %d', pair)
+            if pair:
+                self.log.debug('returning cached pair %d', pair)
             return pair
+        else:
+            self.log.debug('pair cache %s', repr(self.pairs))
 
         if self.next >= curses.COLOR_PAIRS:
             return 0
@@ -143,7 +147,8 @@ class CleverColorAssigner(SimpleColorAssigner):
         rgb = self.strtorgb(name)
 
         if rgb is None:
-            self.log.debug('%s not in color db', repr(name))
+            if name:
+                self.log.debug('%s not in color db', repr(name))
             return -1
 
         if rgb in self.colors:
