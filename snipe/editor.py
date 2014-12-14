@@ -395,13 +395,6 @@ class Viewer(window.Window, window.PagingMixIn):
     def isword(self, delta=0):
         return self.ispred(self.iswordchar, delta)
 
-    def isspace(self, delta=0):
-        return self.ispred(
-            (lambda c:
-                (unicodedata.category(c) == 'Zs' and c != '\xa0')
-                or c == '\t' or c == '\n'),
-            delta)
-
     def ispred(self, pred, delta=0):
         with self.save_excursion():
             if delta and not self.move(delta):
@@ -552,36 +545,16 @@ class Editor(Viewer):
             if not self.writable():
                 return # don't wrap prompt lines :-p
 
-            self.move(self.fill_column)
-            if self.cursor.point > p0: # what
-                return
-
-            while not self.isspace(-1):
-                if not self.move(-1):
-                    break
-            word_start = self.cursor.point
-
-            while self.isspace(-1):
-                if not self.move(-1):
-                    break
-
-            if self.cursor.point <= bol:
-                self.log.debug('auto fill goes to beginning of line')
-                self.cursor.point = bol
-                self.move(self.fill_column)
-                while not self.isspace():
-                    if not self.move(1):
-                        break
-                word_end = self.cursor.point
-                while self.isspace():
-                    if not self.move(1):
-                        break
-                if self.cursor.point > p0:
-                    return
-                word_start = self.cursor.point
-                self.cursor.point = word_end
-
-            self.replace(word_start - self.cursor.point, '\n')
+            import textwrap
+            ll = textwrap.wrap(
+                self.buf[bol:p0], width=self.fill_column, break_long_words=False)
+            s = '\n'.join(ll)
+            if ll:
+                if len(ll[-1]) < self.fill_column:
+                    s += ' '
+                else:
+                    s += '\n'
+            self.replace(p0 - bol, s)
             self.column = None
 
     @keymap.bind('Control-X f')
