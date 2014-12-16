@@ -214,21 +214,19 @@ class RoostMessage(messages.SnipeMessage):
         tags = self.decotags(decoration)
         instance = self.data['instance']
         instance = instance or "''"
-        chunk = [
-            (tags,
-             time.strftime('%H:%M', time.localtime(self.data['time'] / 1000))),
-            ]
+        chunk = []
+
         if self.personal:
             if self.outgoing:
-                chunk += [(tags + ('bold',), ' (personal)')]
-                chunk += [(tags + ('bold',), ' -> ')]
+                chunk += [(tags + ('bold',), '-> ')]
                 chunk += [(tags + ('bold',), self.field('recipient'))]
+                chunk.append((tags, ' '))
             else:
-                chunk += [(tags + ('bold',), ' (personal)')]
+                chunk += [(tags + ('bold',), '(personal) ')]
 
         if not self.personal or self.data['class'].lower() != 'message':
             chunk += [
-                (tags, ' -c '),
+                (tags, '-c '),
                 (tags + ('bold',), self.data['class']),
                 ]
         if instance.lower() != 'personal':
@@ -240,27 +238,33 @@ class RoostMessage(messages.SnipeMessage):
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
 
+        if self.data['opcode']:
+            chunk += [(tags, ' [' + self.data['opcode'] + ']')]
+
         chunk += [
-            (tags, '  <' ),
+            (tags, ' <' ),
             (tags + ('bold',), self.field('sender')),
             (tags, '>'),
             ]
 
-        if self.data['opcode']:
-            chunk += [(tags, ' [' + self.data['opcode'] + ']')]
-        #chunk += [(tags, ' ' + time.ctime(self.data['time'] / 1000) + '\n')]
-        chunk += [(tags, '\n')]
         if self.data['signature'].strip():
             chunk += [
                 (tags, ' '),
                 (tags + ('bold',), self.data['signature'].strip()),
                 (tags, '\n'),
                 ]
+
+
         body = self.body
-        if body[-1:] != '\n':
-            body += '\n'
+        if body[-1:] == '\n':
+            body = body[:-1]
+
         chunk += [(tags, body)]
 
+        chunk.append(
+            (tags + ('right',),
+             time.strftime(
+                ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
         return chunk
 
     class_un = re.compile(r'^(un)*')

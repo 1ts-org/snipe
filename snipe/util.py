@@ -227,3 +227,14 @@ def stopwatch(tag, log=None):
     t0 = time.time()
     yield
     log.debug('%s took %fs', tag, time.time() - t0)
+
+
+def listify(f):
+    '''Decorator that turns a function that returns an iterator into a function
+    that returns a list; because generators are a convenient idiom but
+    sometimes you really want lists.
+    '''
+    @functools.wraps(f)
+    def listifier(*args, **kw):
+        return list(f(*args, **kw))
+    return listifier

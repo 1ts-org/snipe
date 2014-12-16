@@ -352,8 +352,8 @@ class IRCCloudMessage(messages.SnipeMessage):
 
     def display(self, decoration):
         tags = self.decotags(decoration)
-        timestring = time.strftime('%H:%M', time.localtime(self.time))
-        chunk = [((tags + ('right',), timestring + ' '))]
+        timestring = time.strftime(' %H:%M:%S', time.localtime(self.time))
+        chunk = []
         mtype = self.data.get('type')
         chan = self.channel
 
@@ -409,7 +409,9 @@ class IRCCloudMessage(messages.SnipeMessage):
                 self.data.get('bid', '-'),
                 pprint.pformat(d),
                 ))]
-        return chunk + [(tags, '\n')]
+
+        chunk += [((tags + ('right',), timestring))]
+        return chunk
 
 
 class IRCCloudUser(messages.SnipeAddress):

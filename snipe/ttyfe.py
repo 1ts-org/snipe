@@ -99,56 +99,67 @@ class TTYRenderer:
         self.w.noutrefresh()
 
     @staticmethod
-    def width(c):
-        # from http://bugs.python.org/msg155361 http://bugs.python.org/issue12568
-        if (
-            (c < ' ') or
-            (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
-            (unicodedata.category(c) in ('Mn', 'Me', 'Cf') and c != u'\u00ad')
-                                                             # 00ad = soft hyphen
-            ):
-            return 0
-        if unicodedata.east_asian_width(c) in ('F', 'W'):
-            return 2
-        return 1
+    def width(s):
+        def cwidth(c):
+            # from http://bugs.python.org/msg155361
+            # http://bugs.python.org/issue12568
+            if (
+                (c < ' ') or
+                (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
+                (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+                    and c != u'\u00ad') # 00ad = soft hyphen
+                ):
+                return 0
+            if unicodedata.east_asian_width(c) in ('F', 'W'):
+                return 2
+            return 1
+        return sum(cwidth(c) for c in s)
 
     @staticmethod
-    def doline(s, width, remaining, fill=False):
-        '''string, window width, remaining width ->
+    @util.listify
+    def doline(s, width, remaining, tags=()):
+        '''string, window width, remaining width, tags ->
         iter([(displayline, remaining), ...])'''
         # turns tabs into spaces at n*8 cell intervals
-        #XXX needs initial offset for tab stops
-        #and for width after newline
-        if fill:
+
+        right = 'right' in tags
+
+        if 'fill' in tags:
             nl = s.endswith('\n')
             ll = textwrap.wrap(s, remaining)
-            s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:])))
+            s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:]), width))
             if nl:
                 s += '\n'
         out = ''
+        line = 0
         col = 0 if remaining is None or remaining <= 0 else width - remaining
         for c in s:
-            # XXX Unicode width, combining characters, etc.
+            # XXX combining characters, etc.
             if c == '\n':
-                yield out, -1
+                if not right:
+                    yield out, -1 if col < width else 0
+                else:
+                    yield out, width - col
                 out = ''
                 col = 0
-            elif c == '\t':
-                n = (8 - col % 8)
-                if col + n >= width:
-                    yield out, 0
-                    out = ''
-                    col = 0
-                else:
-                    col += n
-                    out += ' ' * n
-            elif c >= ' ':
-                if col >= width:
-                    yield out, 0
-                    out = ''
-                    col = 0
+                line += 1
+            elif c >= ' ' or c == '\t':
+                if c == '\t':
+                    c = ' ' * (8 - col % 8)
+                l = TTYRenderer.width(c)
+                if col + l > width:
+                    if right and line == 0:
+                        yield '', -1
+                        col = remaining
+                    else:
+                        yield out, 0
+                        out = ''
+                        col = 0
+                    line += 1
+                    if len(c) > 1: # it's a TAB
+                        continue
                 out += c
-                col += TTYRenderer.width(c)
+                col += l
             # non printing characters... don't
         if out:
             yield out, width - col
@@ -203,9 +214,10 @@ class TTYRenderer:
                     cursor = self.w.getyx()
                 if 'visible' in tags:
                     visible = True
+                if 'right' in tags:
+                    text = text.rstrip('\n') #XXX chunksize
 
-                textbits = list(self.doline(
-                    text, self.width, remaining, 'fill' in tags))
+                textbits = self.doline(text, self.width, remaining, tags)
                 if not textbits:
                     x = 0 if remaining is None else remaining
                     textbits = [('', self.width if x <= 0 else x)]
@@ -215,6 +227,9 @@ class TTYRenderer:
                     self.attrset(attr)
                     self.bkgdset(attr)
 
+                    if 'right' in tags:
+                        line = ' '*remaining + line
+                        remaining = 0
                     try:
                         if screenlines <= self.height:
                             self.addstr(line)
@@ -345,7 +360,14 @@ class TTYRenderer:
         self.log.debug('reframe, screenlines=%d, head=%s', screenlines, repr(self.head))
 
     def chunksize(self, chunk):
-        return len(list(self.doline(''.join(c[1] for c in chunk), self.width, self.width)))
+        lines = 0
+        remaining = None
+        for tags, text in chunk:
+            for line, remaining in self.doline(text, self.width, remaining, tags):
+                if remaining < 1 or 'right' in tags:
+                    lines += 1
+                lines = max(lines, 1)
+        return lines
 
     def focus(self):
         self.window.focus()

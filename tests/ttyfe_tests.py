@@ -45,22 +45,22 @@ import snipe.ttyfe
 class TestTTYFE(unittest.TestCase):
     def testTTYRendererDoline(self):
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline('abc', 80, 80)),
+            snipe.ttyfe.TTYRenderer.doline('abc', 80, 80),
             [('abc', 77)])
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline("\tabc", 80, 0)),
+            snipe.ttyfe.TTYRenderer.doline("\tabc", 80, 0),
             [('        abc', 69)])
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline('abc\n', 80, 80)),
+            snipe.ttyfe.TTYRenderer.doline('abc\n', 80, 80),
             [('abc', -1)])
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline('a\01bc', 80, 80)),
+            snipe.ttyfe.TTYRenderer.doline('a\01bc', 80, 80),
             [('abc', 77)])
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline('abcdef', 3, 3)),
+            snipe.ttyfe.TTYRenderer.doline('abcdef', 3, 3),
             [('abc', 0), ('def', 0)])
         self.assertEqual(
-            list(snipe.ttyfe.TTYRenderer.doline('ab\tdef', 3, 3)),
+            snipe.ttyfe.TTYRenderer.doline('ab\tdef', 3, 3),
             [('ab', 0), ('def', 0)])
 
     def testMockWindow(self):
@@ -146,6 +146,19 @@ class TestTTYFE(unittest.TestCase):
         m = m.shift(-3)
         self.assertEqual(l.cursor, m.cursor)
         self.assertEqual(l.offset, m.offset)
+
+    def testChunksize(self):
+        w = MockWindow(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl'])
+        ui = MockUI(5)
+        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        doline = snipe.ttyfe.TTYRenderer.doline
+        def _chunksize(chunk): # essentially chunksize classic
+            return len(doline(''.join(c[1] for c in chunk), 24, 24))
+
+        self.assertEqual(renderer.chunksize([((), '')]), _chunksize([((), '')]))
+        self.assertEqual(renderer.chunksize([((), 'one')]), _chunksize([((), 'one')]))
+        self.assertEqual(renderer.chunksize([((), 'one')]), 1)
 
 
 class MockCursesWindow:
