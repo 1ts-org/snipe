@@ -332,13 +332,23 @@ class IRCCloudMessage(messages.SnipeMessage):
         else:
             self._sender = IRCCloudNonAddress(backend, 'system')
 
+        self.channel = self.backend.buffers.get(
+            self.data.get('bid', -1), {}).get('name', None)
+        self.personal = self.channel and not self.channel.startswith('#') #XXX
+        self.outgoing = m.get('self', False)
+
+    def __repr__(self):
+        return (
+            '<' + self.__class__.__name__ + ' '
+            + repr(self.time) + ' '
+            + repr(self.sender) + ' '
+            + str(len(self.body)) + ' chars'
+            + ' ' + str(self.channel)
+            + '>'
+            )
+
     def __str__(self):
         return str(self.time) + ' ' + repr(self.data)
-
-    @property
-    def channel(self):
-        return self.backend.buffers.get(
-            self.data.get('bid', -1), {}).get('name', None)
 
     def followup(self):
         channel = self.channel
