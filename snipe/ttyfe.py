@@ -181,6 +181,8 @@ class TTYRenderer:
                 fg = t[3:]
             if t.startswith('bg:'):
                 bg = t[3:]
+        if 'standout' in tags and not self.active:
+            fg = self.ui.color_assigner.dim(fg)
         attr |= self.ui.color_assigner(fg, bg)
         return attr
 

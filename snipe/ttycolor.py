@@ -54,6 +54,9 @@ class NoColorAssigner:
     def close(self):
         pass
 
+    def dim(self, color):
+        return color
+
 
 class SimpleColorAssigner(NoColorAssigner):
     colors = {
@@ -137,6 +140,12 @@ class CleverColorAssigner(SimpleColorAssigner):
             return tuple(int(x, 16) for x in m.groups())
 
         return None
+
+    def dim(self, name):
+        triplet = self.strtorgb(name)
+        if triplet is None:
+            triplet = (64, 64, 64)
+        return '#%02x%02x%02x' % tuple(x // 2 for x in triplet)
 
     def getcolor(self, name):
         name = name.lower()
