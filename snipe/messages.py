@@ -172,7 +172,7 @@ class SnipeBackend:
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
 
-    def walk(self, start, forward=True, filter=None):
+    def walk(self, start, forward=True, filter=None, backfill=False):
         self.log.debug('walk(%s, %s, %s)', start, forward, filter)
         # I have some concerns that that this depends on the self.messages list
         # being stable over the life of the iterator.  This doesn't seem to be a
@@ -213,7 +213,7 @@ class SnipeBackend:
             if filter(m):
                 yield m
             point = getnext(point)
-        if point < 0:
+        if point < 0 and backfill:
             self.backfill(filter)
 
     def backfill(self, filter):
@@ -246,8 +246,8 @@ class TerminusBackend(SnipeBackend):
             InfoMessage(self, '*', mtime=float('inf')),
             ]
 
-    def walk(self, start, forward=True, filter=None):
-        return super().walk(start, forward, None) # ignore any filters
+    def walk(self, start, forward=True, filter=None, backfill=False):
+        return super().walk(start, forward, None, backfill) # ignore any filters
 
 
 class StartupBackend(SnipeBackend):
@@ -316,7 +316,7 @@ class AggregatorBackend(SnipeBackend):
     def add(self, backend):
         self.backends.append(backend)
 
-    def walk(self, start, forward=True, filter=None):
+    def walk(self, start, forward=True, filter=None, backfill=False):
         # what happends when someone calls .add for an
         # in-progress iteration?
         if hasattr(start, 'backend'):
@@ -329,7 +329,10 @@ class AggregatorBackend(SnipeBackend):
             [
                 backend.walk(
                     start if backend is startbackend else when,
-                    forward, filter)
+                    forward,
+                    filter,
+                    backfill,
+                    )
                 for backend in self.backends
                 ],
             key = lambda m: m.time if forward else -m.time)

@@ -86,8 +86,9 @@ class Messager(window.Window, window.PagingMixIn):
             self.cursor = self.secondary
             self.secondary = None
 
-    def walk(self, origin, direction):
-        return self.fe.context.backends.walk(origin, direction, self.filter)
+    def walk(self, origin, direction, backfill=False):
+        return self.fe.context.backends.walk(
+            origin, direction, self.filter, backfill)
 
     def view(self, origin, direction='forward'):
         it = self.walk(origin, direction != 'forward')
@@ -187,7 +188,7 @@ class Messager(window.Window, window.PagingMixIn):
             'forward' if forward else 'backward',
             repr(self.cursor),
             )
-        it = iter(self.walk(self.cursor, forward))
+        it = iter(self.walk(self.cursor, forward, backfill=True))
         try:
             intermediate = next(it)
             self.log.debug(
