@@ -129,6 +129,11 @@ class TestFilters(unittest.TestCase):
                 Foo='bar',
                 )))
         self.assertFalse(
+            makefilter('not foo = "bar"')(MockMsg(
+                foo='Bar',
+                Foo='bar',
+                )))
+        self.assertFalse(
             makefilter('foo == "bar"')(MockMsg(
                 foo='Bar',
                 Foo='bar',

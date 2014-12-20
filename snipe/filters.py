@@ -92,7 +92,7 @@ class Not(Filter):
         self.p = p
 
     def __call__(self, m):
-        return not self.f(m)
+        return not self.p(m)
 
     def __str__(self):
         return self.gname() + ' ' + self.parenthesize(self.p)
