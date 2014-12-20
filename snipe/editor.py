@@ -352,7 +352,7 @@ class Viewer(window.Window, window.PagingMixIn):
         self.mark_ring = mark_ring
         self.goal_column = goal_column
 
-    @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<')
+    @keymap.bind('Shift-[HOME]', '[SHOME]', 'Meta-<')
     def beginning_of_buffer(self, pct: interactive.argument):
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
         oldpoint = self.cursor.point
@@ -365,7 +365,7 @@ class Viewer(window.Window, window.PagingMixIn):
         if oldpoint != self.cursor.point:
             self.set_mark(oldpoint)
 
-    @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->')
+    @keymap.bind('Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(self, pct: interactive.argument=None):
         oldpoint = self.cursor.point
         self.log.debug('end_of_buffer: arg, %s oldpoint %s', repr(pct), oldpoint)
