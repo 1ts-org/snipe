@@ -247,24 +247,27 @@ class RoostMessage(messages.SnipeMessage):
             (tags, '>'),
             ]
 
-        if self.data['signature'].strip():
+        sig = self.data.get('signature', '').strip()
+        if sig:
+            sigl = sig.split('\n')
+            sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
+            self.backend.log.debug('signature: %s', repr(sig))
             chunk += [
                 (tags, ' '),
-                (tags + ('bold',), self.data['signature'].strip()),
-                (tags, '\n'),
+                (tags + ('bold',), sig),
                 ]
-
-
-        body = self.body
-        if body[-1:] == '\n':
-            body = body[:-1]
-
-        chunk += [(tags, body)]
 
         chunk.append(
             (tags + ('right',),
              time.strftime(
                 ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
+
+        body = self.body
+        if body:
+            if not body.endswith('\n'):
+                body += '\n'
+            chunk += [(tags, body)]
+
         return chunk
 
     class_un = re.compile(r'^(un)*')
