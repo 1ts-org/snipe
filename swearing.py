@@ -72,7 +72,7 @@ def main():
             type(x),
             repr(x),
             repr(x) if isinstance(x, str) else curses.keyname(x),
-            repr(x) if isinstance(x, str) else unkey[x],
+            repr(x) if isinstance(x, str) else unkey.get(x, '???'),
             ))
         if x == curses.KEY_RESIZE:
             maxy, maxx = stdscr.getmaxyx()
