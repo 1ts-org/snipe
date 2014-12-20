@@ -80,7 +80,7 @@ Meta–/ C | push an exact match filter on a specified class
 Meta–/ C | push an exact match filter on a specified class
 Meta–/ p | push a filter on personal messages
 Meta–/ s | push a filter on specified sender
-Meta–/ / | push a filter based on the current message.  More Control-Us increase specificity, if the backend supports it
+Meta–/ / | push a filter based on the current message.  More ^Us increase specificity, if the backend supports it
 Meta–/ Meta–/ | pop the filter stack
 Meta–/ S | Save the current filter as the default (and reset)
 Meta–i | popup a window with gunk about the current message
@@ -133,3 +133,18 @@ Meta-n | next history
 key      | binding
 ---------|----------------
 ^C ^Y | yank replied-to-message with '> ' prefix
+
+Sending
+-------
+
+The "general" form of an address for sending is `backendname;
+address`, where address is a ascii blob entirely determined by the
+backend.  For the `roost` backend, it looks (and behaves) a lot like the arguments
+to zwrite; e.g. `roost; -c kcr -i snipe` or `roost;kcr`.  You can
+abbreviate the backend name to the shortest unique prefix, which in
+the case of `roost` and `irccloud` are, conveniently, `r` and `i`
+respectively.
+
+For the `irccloud` backend, addresses are of the form `irccloud; server.domain.name; recipient`,
+e.g. `irccloud; irc.debian.org; kcr`.  You can use unique substrings of the server name; e.g.
+`i;debian;#debian-devel`.
