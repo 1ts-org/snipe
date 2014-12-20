@@ -87,7 +87,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.cursor = self.secondary
             self.secondary = None
 
-    def walk(self, origin, direction, backfill_to=False):
+    def walk(self, origin, direction, backfill_to=None):
         return self.fe.context.backends.walk(
             origin, direction, self.filter, backfill_to)
 
