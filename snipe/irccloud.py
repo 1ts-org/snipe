@@ -42,6 +42,7 @@ from . import util
 from . import _websocket
 from . import keymap
 from . import interactive
+from . import filters
 
 IRCCLOUD = 'https://www.irccloud.com'
 
@@ -428,6 +429,16 @@ class IRCCloudMessage(messages.SnipeMessage):
 
         chunk += [((tags + ('right',), timestring))]
         return chunk
+
+    def filter(self, specificity=0):
+        if self.channel:
+            nfilter = filters.Compare('=', 'channel', self.channel)
+            if specificity:
+                nfilter = filters.And(
+                    nfilter,
+                    filters.Compare('=', 'sender', self.field('sender')))
+            return nfilter
+        return super().filter(specificity)
 
 
 class IRCCloudUser(messages.SnipeAddress):

@@ -43,6 +43,7 @@ import pwd
 from . import messages
 from . import _rooster
 from . import util
+from . import filters
 
 
 class Roost(messages.SnipeBackend):
@@ -324,6 +325,31 @@ class RoostMessage(messages.SnipeMessage):
         if self.data['recipient']:
             l += [self.data['recipient']] # presumably a there should be a -r?
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
+
+    def filter(self, specificity=0):
+        if self.personal:
+            if str(self.sender) == self.backend.principal:
+                conversant = self.field('recipient')
+            else:
+                conversant = self.field('sender')
+            return filters.And(
+                filters.Truth('personal'),
+                filters.Or(
+                    filters.Compare('=', 'sender', conversant),
+                    filters.Compare('=', 'recipient', conversant)))
+        elif self.field('class'):
+            nfilter = filters.Compare('=', 'class', self.field('class'))
+            if specificity > 0:
+                nfilter = filters.And(
+                    nfilter,
+                    filters.Compare('=', 'instance', self.field('instance')))
+            if specificity > 1:
+                nfilter = filters.And(
+                    nfilter,
+                    filters.Compare('=', 'sender', self.field('sender')))
+            return nfilter
+
+        return super().filter(specificity)
 
 
 class RoostPrincipal(messages.SnipeAddress):

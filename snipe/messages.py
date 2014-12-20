@@ -37,6 +37,7 @@ import bisect
 import asyncio
 
 from . import util
+from . import filters
 
 
 class SnipeAddress:
@@ -160,6 +161,17 @@ class SnipeMessage:
 
     def followup(self):
         return self.sender.reply()
+
+    def filter(self, specificity=0):
+        """Return a filter that would catch this message and others like it.
+
+        As specificity increases the filter should become more specific,
+        if possible.
+
+        In the generic case, it's just specific to the backend.
+        """
+        # all we can do in the generic case
+        return filters.Compare('==', 'backend', self.backend.name)
 
 
 class SnipeBackend:

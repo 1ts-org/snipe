@@ -42,6 +42,7 @@ from . import window
 from . import help
 from . import editor
 from . import util
+from . import interactive
 
 
 class Messager(window.Window, window.PagingMixIn):
@@ -353,24 +354,11 @@ class Messager(window.Window, window.PagingMixIn):
         self.filter_push(filters.Compare('=', 'sender', sender))
 
     @keymap.bind('Meta-/ /')
-    def filter_cleverly(self):
-        message = self.cursor
-        if message.personal:
-            if str(message.sender) == message.backend.principal:
-                conversant = message.field('recipient')
-            else:
-                conversant = message.field('sender')
-            self.filter_push(
-                filters.And(
-                    filters.Truth('personal'),
-                    filters.Or(
-                        filters.Compare('=', 'sender', conversant),
-                        filters.Compare('=', 'recipient', conversant))))
-        elif message.field('class'):
-            self.filter_push(
-                filters.Compare('=', 'class', message.field('class')))
-        else:
-            self.whine("Can't deduce what to filter on")
+    def filter_cleverly(self, arg: interactive.argument=[]):
+        """Push a filter based on the current message.  More Control-Us
+        increase specificity, if the backend supports it.
+        """
+        self.filter_push(self.cursor.filter(len(arg)))
 
     @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
@@ -394,4 +382,3 @@ class Messager(window.Window, window.PagingMixIn):
             repr(self.cursor)
             + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
-
