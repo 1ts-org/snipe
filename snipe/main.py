@@ -47,6 +47,7 @@ def main():
     with ttyfe.TTYFrontend() as ui:
         context_ = context.Context(ui)
         loop = asyncio.get_event_loop()
+        loop.set_debug(True)
         loop.add_reader(0, ui.readable)
         ui.redisplay()
         loop.run_forever()
