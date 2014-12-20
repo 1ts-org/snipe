@@ -232,15 +232,13 @@ class TTYRenderer:
                     if 'right' in tags:
                         line = ' '*remaining + line
                         remaining = 0
-                    try:
-                        if screenlines <= self.height:
-                            self.addstr(line)
-                            self.chgat(attr)
-                    except:
-                        self.log.debug(
-                            'addstr returned ERR'
-                            '; line=%s, remaining=%d, screenlines=%d',
-                            line, remaining, screenlines)
+                    if screenlines <= self.height:
+                        try:
+                            self.w.addstr(line)
+                        except curses.error:
+                            if screenlines != 1 or remaining != 0:
+                                raise
+                        self.chgat(attr)
 
                     if remaining <= 0:
                         screenlines -= 1
