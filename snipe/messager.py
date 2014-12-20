@@ -187,16 +187,34 @@ class Messager(window.Window, window.PagingMixIn):
     def prev_message(self):
         self.move(False)
 
-    def move(self, forward):
+    @keymap.bind('Meta-n') #XXX should be Meta-[down] as well but well, curses
+    def next_messsage_cleverly(self):
+        """Move to the next message that's sort of like the current one."""
+        self.move(True, filters.And(self.filter, self.cursor.filter()))
+
+    @keymap.bind('Meta-p') #XXX should be Meta-[down] as well but well, curses
+    def prev_messsage_cleverly(self):
+        """Move to the last message that's sort of like the current one."""
+        self.move(False, filters.And(self.filter, self.cursor.filter()))
+
+    def move(self, forward, infilter=None):
         self.log.debug(
             'move %s: cursor: %s',
             'forward' if forward else 'backward',
             repr(self.cursor),
             )
-        target=None
+
+        mfilter = infilter
+        if mfilter is None:
+            mfilter = self.filter
+
+        target = None
         if not forward:
-            target=float('-inf')
-        it = iter(self.walk(self.cursor, forward, backfill_to=target))
+            target = float('-inf')
+
+        it = iter(self.fe.context.backends.walk(
+            self.cursor, forward, mfilter, target))
+
         try:
             intermediate = next(it)
             self.log.debug(
@@ -204,7 +222,11 @@ class Messager(window.Window, window.PagingMixIn):
                 'forward' if forward else 'backward',
                 repr(intermediate),
                 )
-            self.cursor = next(it)
+            candidate = next(it)
+            # you don't want to move-with-filter onto the omega message,
+            # but the omega message has code to buypass filters.  meh.
+            if infilter is None or not candidate.omega:
+                self.cursor = candidate
             self.log.debug(
                 'move %s: cursor: %s',
                 'forward' if forward else 'backward',
@@ -216,7 +238,7 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('s')
     def send(self, recipient='', msg=None):
         sill = self.renderer.display_range()[1]
-        if sill.time == float('inf'): #XXX omega message is visible
+        if sill.omega: # We're at the bottom of the message list
             self.secondary = self.cursor
             self.cursor = sill
 

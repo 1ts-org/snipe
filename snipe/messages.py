@@ -74,6 +74,7 @@ class SnipeMessage:
     personal = False
     outgoing = False
     noise = False
+    omega = False
 
     def __init__(self, backend, body='', mtime=None):
         self._sender = None
@@ -259,9 +260,9 @@ class TerminusBackend(SnipeBackend):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        self.messages = [
-            InfoMessage(self, '*', mtime=float('inf')),
-            ]
+        m = InfoMessage(self, '*', mtime=float('inf'))
+        m.omega = True
+        self.messages = [m]
 
     def walk(self, start, forward=True, filter=None, backfill_to=None):
         return super().walk(start, forward, None, backfill_to) # ignore filters
