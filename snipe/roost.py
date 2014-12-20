@@ -259,7 +259,6 @@ class RoostMessage(messages.SnipeMessage):
         if sig:
             sigl = sig.split('\n')
             sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
-            self.backend.log.debug('signature: %s', repr(sig))
             chunk += [
                 (tags, ' '),
                 (tags + ('bold',), sig),
