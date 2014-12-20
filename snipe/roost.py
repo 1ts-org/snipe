@@ -127,7 +127,7 @@ class Roost(messages.SnipeBackend):
         self.messages.append(msg)
         self.redisplay(msg, msg)
 
-    def backfill(self, filter, count=0, origin=None):
+    def backfill(self, filter, target=None, count=0, origin=None):
         if not self.loaded:
             self.log.debug('triggering backfill')
             msgid = None
@@ -135,10 +135,10 @@ class Roost(messages.SnipeBackend):
                 msgid = self.messages[0].data['id']
                 if origin is None:
                     origin = self.messages[0].time
-            asyncio.Task(self.do_backfill(msgid, filter, count, origin))
+            asyncio.Task(self.do_backfill(msgid, filter, target, count, origin))
 
     @util.coro_cleanup
-    def do_backfill(self, start, mfilter, count, origin):
+    def do_backfill(self, start, mfilter, target, count, origin):
         yield from asyncio.sleep(.0001)
 
         @contextlib.contextmanager
@@ -174,9 +174,16 @@ class Roost(messages.SnipeBackend):
             ms.reverse()
             self.messages = ms + self.messages
             self.log.warning('%d messages, total %d', count, len(self.messages))
-            if (count < self.backfill_count
-                and ms and ms[0].time > (origin - self.backfill_length)):
-                self.backfill(mfilter, count, origin)
+
+            # how far back in time to go
+            if target is not None:
+                when = target
+            else:
+                when = origin - self.backfill_length
+
+            if (count < self.backfill_count and ms and ms[0].time > when):
+                self.backfill(mfilter, count=count, origin=origin)
+
             self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')
 

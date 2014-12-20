@@ -33,6 +33,7 @@ import os
 import contextlib
 import logging
 import json
+import time
 
 from . import messages
 from . import ttyfe
@@ -61,6 +62,7 @@ class Context:
                 irccloud.IRCCloud(self),
                 ],)
         self.ui.initial(messager.Messager(self.ui))
+        self.backends.backfill(None, time.time() - 86400)
 
     def conf_read(self):
         path = os.path.join(os.path.expanduser('~'), '.snipe', 'config')

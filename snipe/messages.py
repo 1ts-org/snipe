@@ -176,16 +176,17 @@ class SnipeBackend:
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
 
-    def walk(self, start, forward=True, filter=None, backfill=False):
-        self.log.debug('walk(%s, %s, %s)', start, forward, filter)
+    def walk(self, start, forward=True, mfilter=None, backfill_to=None):
+        self.log.debug('walk(%s, %s, %s, %s)',
+            start, forward, mfilter, backfill_to)
         # I have some concerns that that this depends on the self.messages list
         # being stable over the life of the iterator.  This doesn't seem to be a
         # a problem as of when I write this comment, but defensive coding should
         # address this at some point.   (If you are finding this comment because
         # of weird message list behavior, this might be why...)
 
-        if filter is None:
-            filter = lambda m: True
+        if mfilter is None:
+            mfilter = lambda m: True
 
         if start is not None:
             left = bisect.bisect_left(self.messages, start)
@@ -214,13 +215,13 @@ class SnipeBackend:
             if not 0 <= point < len(self.messages):
                 break
             m = self.messages[point]
-            if filter(m):
+            if mfilter(m):
                 yield m
             point = getnext(point)
-        if point < 0 and backfill:
-            self.backfill(filter)
+        if point < 0 and backfill_to is not None:
+            self.backfill(mfilter, backfill_to)
 
-    def backfill(self, filter):
+    def backfill(self, mfilter, target=None):
         pass
 
     def shutdown(self):
@@ -250,8 +251,8 @@ class TerminusBackend(SnipeBackend):
             InfoMessage(self, '*', mtime=float('inf')),
             ]
 
-    def walk(self, start, forward=True, filter=None, backfill=False):
-        return super().walk(start, forward, None, backfill) # ignore any filters
+    def walk(self, start, forward=True, filter=None, backfill_to=None):
+        return super().walk(start, forward, None, backfill_to) # ignore filters
 
 
 class StartupBackend(SnipeBackend):
@@ -320,7 +321,7 @@ class AggregatorBackend(SnipeBackend):
     def add(self, backend):
         self.backends.append(backend)
 
-    def walk(self, start, forward=True, filter=None, backfill=False):
+    def walk(self, start, forward=True, filter=None, backfill_to=None):
         # what happends when someone calls .add for an
         # in-progress iteration?
         if hasattr(start, 'backend'):
@@ -335,7 +336,7 @@ class AggregatorBackend(SnipeBackend):
                     start if backend is startbackend else when,
                     forward,
                     filter,
-                    backfill,
+                    backfill_to,
                     )
                 for backend in self.backends
                 ],
@@ -358,3 +359,6 @@ class AggregatorBackend(SnipeBackend):
                 'backend query string %s results in %s' % (params[0], backends))
         yield from backends[0].send(''.join(params[1:]), msg)
 
+    def backfill(self, filter, target=None):
+        for backend in self:
+            backend.backfill(filter, target)
