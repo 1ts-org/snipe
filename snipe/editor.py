@@ -404,7 +404,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 return False
             return pred(c)
 
-    @keymap.bind('Meta-f')
+    @keymap.bind('Meta-f') #XXX should also be Meta-right but curses
     def word_forward(self, count: interactive.integer_argument=1):
         if count < 0:
             return self.word_backward(-count)
@@ -416,7 +416,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 if not self.move(1):
                     return
 
-    @keymap.bind('Meta-b')
+    @keymap.bind('Meta-b') #XXX should also be Meta-left but curses
     def word_backward(self, count: interactive.integer_argument=1):
         if count < 0:
             return self.word_forward(-count)
