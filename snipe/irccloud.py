@@ -334,8 +334,12 @@ class IRCCloudMessage(messages.SnipeMessage):
 
         self.channel = self.backend.buffers.get(
             self.data.get('bid', -1), {}).get('name', None)
-        self.personal = self.channel and not self.channel.startswith('#') #XXX
+
+        self.personal = (
+            self.channel and self.channel != '*'
+            and self.channel[:1] not in '#!&:')
         self.outgoing = m.get('self', False)
+        self.noise = m.get('type') not in ('buffer_msg', 'buffer_me_msg')
 
     def __repr__(self):
         return (
@@ -344,6 +348,8 @@ class IRCCloudMessage(messages.SnipeMessage):
             + repr(self.sender) + ' '
             + str(len(self.body)) + ' chars'
             + ' ' + str(self.channel)
+            + (' personal' if self.personal else '')
+            + (' noise' if self.noise else '')
             + '>'
             )
 

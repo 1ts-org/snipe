@@ -70,6 +70,10 @@ class SnipeAddress:
 
 @functools.total_ordering
 class SnipeMessage:
+    personal = False
+    outgoing = False
+    noise = False
+
     def __init__(self, backend, body='', mtime=None):
         self._sender = None
         self.backend = backend
