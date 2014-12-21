@@ -30,22 +30,22 @@
 
 import asyncio
 import logging
+import signal
 
 from . import ttyfe
 from . import context
 
 
 def main():
-    logging.basicConfig(
-        filename='/tmp/snipe.log',
-        level=logging.DEBUG,
-        format='%(asctime)s %(name)s: %(message)s',
-        datefmt='%b %d %H:%M:%S',
-        )
+    handler = context.SnipeLogHandler(logging.DEBUG)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s.%(msecs)03d %(name)s: %(message)s', '%b %d %H:%M:%S'))
+    logging.getLogger().addHandler(handler)
+    signal.signal(signal.SIGUSR1, handler.dump)
     log = logging.getLogger('Snipe')
     log.warning('snipe starting')
     with ttyfe.TTYFrontend() as ui:
-        context_ = context.Context(ui)
+        context_ = context.Context(ui, handler)
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
         loop.add_reader(0, ui.readable)
@@ -53,9 +53,8 @@ def main():
         loop.run_forever()
     print()
     context_.shutdown()
-    logging.shutdown()
     log.warning('snipe ends')
-
+    logging.shutdown()
 
 if __name__ == '__main__':
     main()

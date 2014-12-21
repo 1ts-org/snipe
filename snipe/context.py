@@ -34,6 +34,8 @@ import contextlib
 import logging
 import json
 import time
+import collections
+import asyncio
 
 from . import messages
 from . import ttyfe
@@ -46,10 +48,11 @@ from . import irccloud
 
 class Context:
     # per-session state and abstact control
-    def __init__(self, ui):
+    def __init__(self, ui, handler):
         self.conf = {}
         self.context = self
         self.conf_read()
+        handler.context = self
         self.ui = ui
         self.ui.context = self
         self.killring = []
@@ -107,3 +110,73 @@ class Context:
 
     def shutdown(self):
         self.backends.shutdown()
+
+
+class SnipeLogHandler(logging.Handler):
+    size = util.Configurable(
+        'log.size',
+        1024*1024,
+        'number of log entries to keep in memory',
+        coerce=int)
+    filename = util.Configurable(
+        'log.file',
+        '/tmp/snipe.%d.log' % (os.getuid()),
+        'file to log to when we log',
+        )
+    writing = util.Configurable(
+        'log.write',
+        False,
+        'automatically write out logs',
+        coerce = util.coerce_bool,
+        )
+    interval = util.Configurable(
+        'log.write_interval',
+        1.0,
+        'if log.write, how often',
+        coerce = float,
+        )
+
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+        self.context = None
+        self.buffer = collections.deque(maxlen=self.size)
+        self.task = None
+
+    @contextlib.contextmanager
+    def the_lock(self):
+        self.acquire()
+        yield
+        self.release()
+
+    def emit(self, record):
+        s = self.format(record)
+        with self.the_lock():
+            if self.buffer.maxlen != self.size:
+                self.buffer = collections.deque(
+                    self.buffer[-self.size:], maxlen=self.size)
+            self.buffer.append(s)
+            if self.writing and self.task is None:
+                self.task = asyncio.async(self.writer())
+
+    @staticmethod
+    def opener(file, flags):
+        return os.open(file, flags, mode=0o600)
+
+    def dump(self, *args):
+        with self.the_lock(), open(self.filename, 'a', opener=self.opener) as fp:
+            fp.writelines(s + '\n' for s in self.buffer)
+            self.buffer.clear()
+
+    @asyncio.coroutine
+    def writer(self):
+        yield from asyncio.sleep(self.interval)
+        self.dump()
+        self.task = None
+
+    def shutdown(self):
+        if self.task is not None:
+            self.task.cancel()
+        with contextlib.suppress(Exception):
+            self.task.result()
+
+        self.dump()

@@ -108,6 +108,13 @@ class Configurable:
         obj.__set__(instance, value)
 
 
+def coerce_bool(x):
+    if hasattr(x, 'lower'):
+        return x.lower().strip() in ('true', 'on', 'yes')
+    else:
+        return bool(x)
+
+
 class Level(Configurable):
     def __init__(self, key, logger, default=logging.WARNING, doc=None):
         super().__init__(key, default, doc=doc)

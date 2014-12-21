@@ -140,7 +140,7 @@ class Roost(messages.SnipeBackend):
 
     @util.coro_cleanup
     def do_backfill(self, start, mfilter, target, count, origin):
-        yield from asyncio.sleep(.0001)
+        #yield from asyncio.sleep(.0001)
 
         @contextlib.contextmanager
         def backfillguard():

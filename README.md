@@ -20,9 +20,6 @@ It is known that there are bugs and missing features everywhere.  I
 would mostly characterize this as "demoable" but not yet "usable".  As
 always, if it breaks you get to keep both pieces.
 
-(Currently, also, the debug log goes to /tmp/snipe.log, which is
-world-readable-by default, and is probably a terrible security leak)
-
 Keybindings
 -----------
 
