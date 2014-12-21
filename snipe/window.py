@@ -320,8 +320,16 @@ class Window:
 
     @keymap.bind('Control-L')
     def reframe(self):
-        if getattr(self, 'renderer', None):
-            self.renderer.reframe()
+        if getattr(self, 'renderer', False):
+            if self.last_command != 'reframe':
+                self.reframe_state = 0
+            if self.reframe_state == 0:
+                self.renderer.reframe(None)
+            elif self.reframe_state == 1:
+                self.renderer.reframe(0)
+            elif self.reframe_state == 2:
+                self.renderer.reframe(-1)
+            self.reframe_state = (self.reframe_state + 1) % 3
 
     def show(self, string):
         from .editor import Viewer
