@@ -158,7 +158,25 @@ class TestTTYFE(unittest.TestCase):
 
         self.assertEqual(renderer.chunksize([((), '')]), _chunksize([((), '')]))
         self.assertEqual(renderer.chunksize([((), 'one')]), _chunksize([((), 'one')]))
+        self.assertEqual(renderer.chunksize([((), 'one\n')]), _chunksize([((), 'one\n')]))
         self.assertEqual(renderer.chunksize([((), 'one')]), 1)
+
+        # is this doing what I think it's doing?
+        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b')]), 1)
+        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n')]), _chunksize([((), 'a'), ((), 'b\n')]))
+        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n')]), 1)
+        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]), _chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]))
+        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]), 2)
+
+        # Okay, right text
+        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b')]), 1)
+        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n')]), 1)
+        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]), 2)
+        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]), 2)
+
+        self.assertEqual(renderer.chunksize([((), 'aaaa'), ((''), 'bbbb')]), 2)
+        self.assertEqual(renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb')]), 2)
+        self.assertEqual(renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb\n')]), 2)
 
 
 class MockCursesWindow:

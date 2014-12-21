@@ -362,11 +362,18 @@ class TTYRenderer:
     def chunksize(self, chunk):
         lines = 0
         remaining = None
+        #self.log.debug('chunksize(%s) self.width=%d', repr(chunk), self.width)
         for tags, text in chunk:
             for line, remaining in self.doline(text, self.width, remaining, tags):
-                if remaining < 1 or 'right' in tags:
+                #self.log.debug('lines=%d, doline() => (%s, %d)', lines, line, remaining)
+                if 'right' in tags:
+                    remaining = 0
+                if remaining < 1:
                     lines += 1
-                lines = max(lines, 1)
+        if remaining and remaining > 0 and remaining != self.width:
+            lines += 1
+            #self.log.debug('partial line, rounding up, lines=%d', lines)
+        #self.log.debug('chunksize() => %d', lines)
         return lines
 
     def focus(self):
