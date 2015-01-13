@@ -34,6 +34,12 @@
 # which is by David Benjamin and Copyright © 2013 MIT.  I don't think
 # there's enough of it to count as a derivative work, but credit where
 # credit is due.
+'''
+snipe._rooster
+--------------
+
+A layer of glue between the roost backend and the upstream code.
+'''
 
 import asyncio
 import json

@@ -27,6 +27,10 @@
 # TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
+'''
+snipe.main
+----------
+'''
 
 import asyncio
 import logging
@@ -37,6 +41,7 @@ from . import context
 
 
 def main():
+    '''Main function, does high-level setup and kicks off the main loop.'''
     handler = context.SnipeLogHandler(logging.DEBUG)
     handler.setFormatter(logging.Formatter(
         '%(asctime)s.%(msecs)03d %(name)s: %(message)s', '%b %d %H:%M:%S'))

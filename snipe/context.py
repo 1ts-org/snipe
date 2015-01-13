@@ -28,6 +28,11 @@
 # TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
+'''
+snipe.context
+-------------
+'''
+
 
 import os
 import contextlib
@@ -47,6 +52,9 @@ from . import irccloud
 
 
 class Context:
+    '''
+    Wherein we keep our global state.
+    '''
     # per-session state and abstact control
     def __init__(self, ui, handler):
         self.conf = {}

@@ -3,6 +3,12 @@
 # which is Copyright © 2014 Keepsafe and "offered under the BSD license."
 # I (Karl Ramm) claim no ownership of it.
 # Hopefully it will be contributed back in some form soon.
+'''
+snipe._websocket
+----------------
+
+Websocket setup stuff for aiohttp.  Should be upstreamed.
+'''
 
 import os
 import asyncio
