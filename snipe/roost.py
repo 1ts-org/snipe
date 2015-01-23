@@ -259,8 +259,7 @@ class RoostMessage(messages.SnipeMessage):
                 ]
         if instance.lower() != 'personal':
             chunk += [
-                (tags, ' -i '),
-                (tags + ('bold',), instance),
+                (tags, ' -i ' + instance),
                 ]
 
         if self.data['recipient'] and self.data['recipient'][0] == '@':
@@ -280,8 +279,7 @@ class RoostMessage(messages.SnipeMessage):
             sigl = sig.split('\n')
             sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
             chunk += [
-                (tags, ' '),
-                (tags + ('bold',), sig),
+                (tags, ' ' + sig),
                 ]
 
         chunk.append(
