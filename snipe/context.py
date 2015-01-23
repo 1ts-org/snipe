@@ -35,6 +35,7 @@ snipe.context
 
 
 import os
+import subprocess
 import contextlib
 import logging
 import json
@@ -59,6 +60,7 @@ class Context:
     def __init__(self, ui, handler):
         self.conf = {}
         self.context = self
+        self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
         self.conf_read()
         handler.context = self
         self.ui = ui
@@ -76,7 +78,7 @@ class Context:
         self.backends.backfill(None, time.time() - 86400)
 
     def conf_read(self):
-        path = os.path.join(os.path.expanduser('~'), '.snipe', 'config')
+        path = os.path.join(self.directory, 'config')
         try:
             if os.path.exists(path):
                 self.conf = json.load(open(path))
@@ -84,14 +86,28 @@ class Context:
             util.Configurable.immanentize(self)
 
     def conf_write(self):
-        directory = os.path.join(os.path.expanduser('~'), '.snipe')
         name = 'config'
-        path = os.path.join(directory, name)
-        tmp = os.path.join(directory, ',' + name)
-        backup = os.path.join(directory, name + '~')
+        path = os.path.join(self.directory, name)
+        tmp = os.path.join(self.directory, ',' + name)
+        backup = os.path.join(self.directory, name + '~')
 
-        if not os.path.isdir(directory):
-            os.mkdir(directory)
+        if not os.path.isdir(self.directory):
+            os.mkdir(self.directory)
+            os.chmod(self.directory, 0o700)
+            if self.directory.startswith('/afs/'): #XXX
+                cmd = [
+                    'fs', 'sa', self.directory,
+                    'system:anyuser', 'none', 'system:authuser', 'none',
+                    ]
+                p = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out = p.communicate()[0]
+                if p.returncode:
+                    self.log.error(
+                        '%s (=%d): %s', ' '.join(cmd), p.returncode, out)
+                    #XXX should complain more
+                else:
+                    self.log.debug('%s: %s', ' '.join(cmd), out)
 
         fp = open(tmp, 'w')
         json.dump(self.conf, fp)
