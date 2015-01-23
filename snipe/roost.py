@@ -106,13 +106,16 @@ class Roost(messages.SnipeBackend):
 
         self.log.debug('send paramstr=%s', paramstr)
 
-        flags, recipients = getopt.getopt(shlex.split(paramstr), 'c:i:O:')
+        flags, recipients = getopt.getopt(shlex.split(paramstr), 'Cc:i:O:')
 
         flags = dict(flags)
         self.log.debug('send flags=%s', repr(flags))
 
         if not recipients:
             recipients=['']
+
+        if '-C' in flags and len(recipients) > 1:
+            body = 'CC: ' + ' '.join(recipients) + '\n' + body
 
         for recipient in recipients:
             message = {
@@ -326,7 +329,7 @@ class RoostMessage(messages.SnipeMessage):
                 l += ['-c', self.data['class']]
             if self.data['instance'].upper() != 'PERSONAL':
                 l += ['-i', self.data['instance']]
-        if self.outgoing:
+        if self.outgoing and self.data['recipient']:
             l.append(self.data['recipient'])
         else:
             l.append(self.sender.short())
@@ -336,12 +339,20 @@ class RoostMessage(messages.SnipeMessage):
     def followup(self):
         l = []
         if self.data['recipient'] and self.data['recipient'][0] != '@':
-            return self.reply()
+            if not self.body.startswith('CC: '):
+                return self.reply()
+            else:
+                cc = self.body.splitlines()[0].split()[1:]
+                cc.append(self.sender.short())
+                cc = [self.canon('sender', x) for x in cc] # canonicalize
+                me = self.canon('sender', self.data['recipient'])
+                cc = list(set(cc) - {me}) # uniquify, filter self
+                l += ['-C'] + cc
         if self.data['class'].upper() != 'MESSAGE':
             l += ['-c', self.data['class']]
         if self.data['instance'].upper() != 'PERSONAL':
             l += ['-i', self.data['instance']]
-        if self.data['recipient']:
+        if self.data['recipient'] and self.data['recipient'][0] == '@':
             l += [self.data['recipient']] # presumably a there should be a -r?
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
 
