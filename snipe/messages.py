@@ -211,9 +211,6 @@ class SnipeBackend:
         point = self.startcache.get(cachekey, None)
         self.log.debug('walk(%s) cache: %s', repr(cachekey), repr(point))
 
-        if forward and point is False: # really shoudl do this with cache invalidation
-            point = None
-
         if point is False:
             return
 

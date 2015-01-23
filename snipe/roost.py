@@ -133,6 +133,7 @@ class Roost(messages.SnipeBackend):
     def new_message(self, m):
         msg = RoostMessage(self, m)
         self.messages.append(msg)
+        self.startcache = {}
         self.redisplay(msg, msg)
 
     def backfill(self, filter, target=None, count=0, origin=None):

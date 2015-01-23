@@ -214,6 +214,7 @@ class IRCCloud(messages.SnipeBackend):
     def incoming(self, m):
         msg = yield from self.process_message(self.messages, m)
         if msg is not None:
+            self.startcache = {}
             self.redisplay(msg, msg)
 
     @asyncio.coroutine
@@ -231,6 +232,7 @@ class IRCCloud(messages.SnipeBackend):
 
         if included:
             self.messages = list(messages.merge([self.messages, included]))
+            self.startcache = {}
             self.redisplay(included[0], included[-1])
 
     def shutdown(self):
