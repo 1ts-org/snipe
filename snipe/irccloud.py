@@ -41,6 +41,7 @@ import time
 import netrc
 import urllib.parse
 import itertools
+import os
 
 from . import messages
 from . import util
@@ -102,7 +103,8 @@ class IRCCloud(messages.SnipeBackend):
     @util.coro_cleanup
     def connect(self):
         try:
-            authdata = netrc.netrc().authenticators(
+            authdata = netrc.netrc(
+                os.path.join(self.context.directory, 'netrc')).authenticators(
                 urllib.parse.urlparse(IRCCLOUD).netloc)
         except netrc.NetrcParseError as e:
             self.log.warn(str(e)) # need better notification
