@@ -340,7 +340,7 @@ class RECompare(Comparison):
     def __init__(self, *args):
         super(RECompare, self).__init__(*args)
         try:
-            self.re = re.compile(self.value)
+            self.re = re.compile(self.value, re.DOTALL)
         except:
             self.log.exception('compiling regexp: %s', self.value)
             self.re = None
