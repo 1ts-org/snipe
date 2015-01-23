@@ -49,6 +49,8 @@ from . import messages
 from . import _rooster
 from . import util
 from . import filters
+from . import keymap
+from . import interactive
 
 
 class Roost(messages.SnipeBackend):
@@ -192,6 +194,16 @@ class Roost(messages.SnipeBackend):
 
             self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')
+
+    @keymap.bind('R S')
+    def dump_subscriptions(self, window: interactive.window):
+        import pprint
+
+        subs = yield from self.r.subscriptions()
+        subs = [(x['class'], x['instance'], x['recipient'] or '*') for x in subs]
+        subs.sort()
+        subs = [' '.join(x) for x in subs]
+        window.show('\n'.join(subs))
 
 
 class RoostMessage(messages.SnipeMessage):
