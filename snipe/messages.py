@@ -179,6 +179,9 @@ class SnipeMessage:
         # all we can do in the generic case
         return filters.Compare('==', 'backend', self.backend.name)
 
+    def __hash__(self):
+        return hash(self.time)
+
 
 class SnipeBackend:
     # name of concrete backend
@@ -193,6 +196,7 @@ class SnipeBackend:
         self.conf = conf
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
+        self.startcache = {}
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None):
         self.log.debug('walk(%s, %s, %s, %s)',
@@ -203,27 +207,43 @@ class SnipeBackend:
         # address this at some point.   (If you are finding this comment because
         # of weird message list behavior, this might be why...)
 
+        cachekey = (start, forward, mfilter)
+        point = self.startcache.get(cachekey, None)
+        self.log.debug('walk(%s) cache: %s', repr(cachekey), repr(point))
+
+        if forward and point is False: # really shoudl do this with cache invalidation
+            point = None
+
+        if point is False:
+            return
+
         if mfilter is None:
             mfilter = lambda m: True
 
-        if start is not None:
-            left = bisect.bisect_left(self.messages, start)
-            right = bisect.bisect_right(self.messages, start)
-            try:
-                point = self.messages.index(start, left, right)
-            except ValueError:
-                point = None
-        else:
-            if forward:
-                point = 0
+        needcache = False
+        if point is None:
+            needcache = True
+            if start is not None:
+                left = bisect.bisect_left(self.messages, start)
+                right = bisect.bisect_right(self.messages, start)
+                try:
+                    point = self.messages.index(start, left, right)
+                except ValueError:
+                    point = None
             else:
-                point = len(self.messages) - 1
+                if forward:
+                    point = 0
+                else:
+                    point = len(self.messages) - 1
+
+            if forward:
+                point = point if point is not None else left
+            else:
+                point = point if point is not None else right - 1
 
         if forward:
-            point = point if point is not None else left
             getnext = lambda x: x + 1
         else:
-            point = point if point is not None else right - 1
             getnext = lambda x: x - 1
 
         #self.log.debug('len(self.messages)=%d, point=%d', len(self.messages), point)
@@ -234,6 +254,9 @@ class SnipeBackend:
                 break
             m = self.messages[point]
             if mfilter(m):
+                if needcache:
+                    self.startcache[cachekey] = point
+                    needcache = False
                 yield m
             point = getnext(point)
         if point < 0 and backfill_to is not None:

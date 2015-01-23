@@ -77,6 +77,9 @@ class Certitude(Filter):
     def __eq__(self, other):
         return self.__class__ is other.__class__
 
+    def __hash__(self):
+        return hash(self.__class__)
+
 
 class Yes(Certitude):
     def __call__(self, m):
@@ -106,6 +109,9 @@ class Not(Filter):
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self.p == other.p
 
+    def __hash__(self):
+        return hash((self.__class__, self.p))
+
 
 class Truth(Filter):
     def __init__(self, field):
@@ -123,6 +129,9 @@ class Truth(Filter):
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self.field == other.field
 
+    def __hash__(self):
+        return hash((self.__class__, self.field))
+
 
 class Conjunction(Filter):
     def __init__(self, *args):
@@ -133,6 +142,7 @@ class Conjunction(Filter):
                 self.operands.append(arg)
             else:
                 self.operands += arg.operands
+        self.operands=tuple(self.operands)
 
 
     def __str__(self):
@@ -160,6 +170,10 @@ class Conjunction(Filter):
             return self
         else:
             return self.operands[0]
+
+    def __hash__(self):
+        return hash((self.__class__, self.operands))
+
 
 class And(Conjunction):
     name = 'and'
@@ -211,6 +225,9 @@ class Python(Filter):
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self.string == other.string
 
+    def __hash__(self):
+        return hash((self.__class__, self.string))
+
 
 class FilterLookup(Filter):
     def __init__(self, name):
@@ -242,6 +259,9 @@ class FilterLookup(Filter):
             self.__class__ is other.__class__
             and self.filtername == other.filtername)
 
+    def __hash__(self):
+        return hash((self.__class__, self.filtername))
+
 
 class Comparison(Filter):
     def __init__(self, op, field, value):
@@ -271,6 +291,9 @@ class Comparison(Filter):
             and self.field == other.field
             and self.value == other.value
             )
+
+    def __hash__(self):
+        return hash((self.__class__, self.op, self.field, self.value))
 
     def __str__(self):
         if isinstance(self.value, Identifier):

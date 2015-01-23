@@ -181,6 +181,7 @@ class Roost(messages.SnipeBackend):
             count += len([m for m in ms if mfilter(m)])
             ms.reverse()
             self.messages = ms + self.messages
+            self.startcache = {}
             self.log.warning('%d messages, total %d', count, len(self.messages))
 
             # how far back in time to go
