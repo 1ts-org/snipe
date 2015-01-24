@@ -10,6 +10,9 @@ sufficient but I have not tested it) and the
 [fork](https://github.com/kcr/aiohttp) of aiohttp with minimal debian
 packaging at my github.
 
+M-g in the messager window requires
+[parsedatetime](https://github.com/bear/parsedatetime).
+
 It points itself at roost-api.mit.edu by default.  If you want to
 override that, you can use the roost.url config key.  At the moment,
 you need to set up subscriptions by some other means; import-subs in

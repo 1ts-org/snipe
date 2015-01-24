@@ -409,3 +409,14 @@ class Messager(window.Window, window.PagingMixIn):
             repr(self.cursor)
             + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
+
+    @keymap.bind('Meta-g')
+    def goto(self):
+        import parsedatetime
+        p = parsedatetime.Calendar()
+
+        s = yield from self.read_string('When: ')
+        x, y = p.parse(s)
+        if y:
+            t = time.mktime(x)
+            self.cursor = next(self.walk(t, True))
