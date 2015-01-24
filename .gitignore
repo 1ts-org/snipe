@@ -9,3 +9,4 @@ parser.out
 cover/
 .coverage
 htmlcov/
+parsedatetime*/
