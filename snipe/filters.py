@@ -55,7 +55,10 @@ class Filter(object):
             'filter.%s.%x' % (self.__class__.__name__, id(self),))
 
     def __call__(self, m):
-        raise NotImplemented
+        raise NotImplementedError
+
+    def simplify(self, d):
+        return self
 
     def __str__(self):
         return self.gname()
@@ -85,9 +88,15 @@ class Yes(Certitude):
     def __call__(self, m):
         return True
 
+    def simplify(self, d):
+        return True
+
 
 class No(Certitude):
     def __call__(self, m):
+        return False
+
+    def simplify(self, d):
         return False
 
 
@@ -111,6 +120,12 @@ class Not(Filter):
 
     def __hash__(self):
         return hash((self.__class__, self.p))
+
+    def simplify(self, d):
+        result = self.p.simplify(d)
+        if isinstance(result, bool):
+            return not result
+        return super().simplify(d)
 
 
 class Truth(Filter):
@@ -184,6 +199,23 @@ class And(Conjunction):
                 return False
         return True
 
+    def simplify(self, d):
+        operands = []
+        for p in self.operands:
+            result = p.simplify(d)
+            if not isinstance(result, bool):
+                operands.append(p)
+            elif result is False:
+                return False
+            elif result is True:
+                pass # we can ignore it
+        if len(operands) == 0:
+            return True
+        elif len(operands) == 1:
+            return operands[0]
+        else:
+            return And(*operands)
+
 
 class Or(Conjunction):
     name = 'or'
@@ -193,6 +225,23 @@ class Or(Conjunction):
             if p(m):
                 return True
         return False
+
+    def simplify(self, d):
+        operands = []
+        for p in self.operands:
+            result = p.simplify(d)
+            if not isinstance(result, bool):
+                operands.append(p)
+            elif result is True:
+                return True
+            elif result is False:
+                pass # can ignore
+        if len(operands) == 0:
+            return False
+        elif len(operands) == 1:
+            return operands[0]
+        else:
+            return Or(*operands)
 
 
 class Xor(Conjunction):
@@ -309,6 +358,12 @@ class Comparison(Filter):
             self.op,
             right,
             )
+
+    def simplify(self, d):
+        v = self.value
+        if isinstance(v, Identifier) or self.field not in d:
+            return self
+        return self.do(self.op, d[self.field], v)
 
 
 class Compare(Comparison):

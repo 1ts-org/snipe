@@ -214,6 +214,13 @@ class SnipeBackend:
         if point is False:
             return
 
+        if mfilter is not None:
+            mfilter = mfilter.simplify({'backend': self.name})
+            if mfilter == False:
+                return
+            if mfilter == True:
+                mfilter = None
+
         if mfilter is None:
             mfilter = lambda m: True
 
