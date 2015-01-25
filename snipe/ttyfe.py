@@ -93,13 +93,19 @@ class TTYRenderer:
                 self.reframe(0)
             elif self.window.cursor > self.head.cursor:
                 self.reframe(-1)
+            else:
+                self.log.warning(
+                    '%s, %s: ==? %s',
+                    repr(self.window.cursor), repr(self.head.cursor),
+                    self.window.cursor == self.head.cursor,
+                    )
             visible = self.redisplay_internal()
             if not visible:
                 self.log.error('redisplay, no visibility after clever reframe')
                 self.reframe()
             visible = self.redisplay_internal()
             if not visible:
-                self.log.error('no visibilityafter hail-mary reframe, giving up')
+                self.log.error('no visibility after hail-mary reframe, giving up')
 
         self.w.noutrefresh()
 
