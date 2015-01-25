@@ -271,7 +271,11 @@ class IRCCloud(messages.SnipeBackend):
 
         result = b''.join(result)
         result = result.decode('utf-8')
-        result = json.loads(result)
+        try:
+            result = json.loads(result)
+        except ValueError:
+            self.log.error('json parse failure on %s', repr(result))
+            raise
         return result
 
     @asyncio.coroutine
