@@ -62,11 +62,15 @@ class Messager(window.Window, window.PagingMixIn):
 
         if prototype is None:
             self.cursor = next(self.fe.context.backends.walk(None, False))
+            self.the_mark = None
+            self.mark_ring = []
             self.filter_reset()
         else:
             self.filter = prototype.filter
             self.filter_stack = list(prototype.filter_stack)
             self.cursor = prototype.cursor
+            self.the_mark = prototype.the_mark
+            self.mark_ring = prototype.mark_ring
 
         if filter_new is not None:
             self.filter_replace(filter_new)
@@ -283,11 +287,17 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):
+        old = self.cursor
         self.cursor = next(self.walk(float('inf'), False))
+        if old != self.cursor:
+            self.set_mark(old)
 
     @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
     def first(self):
+        old = self.cursor
         self.cursor = next(self.walk(float('-inf'), True))
+        if old != self.cursor:
+            self.set_mark(old)
 
     def filter_replace(self, new_filter):
         self.filter = new_filter
@@ -420,3 +430,22 @@ class Messager(window.Window, window.PagingMixIn):
         if y:
             t = time.mktime(x)
             self.cursor = next(self.walk(t, True))
+
+    @keymap.bind('Control-[space]')
+    def set_mark(self, where=None, prefix: interactive.argument=None):
+        if prefix is None:
+            self.mark_ring.append(self.the_mark)
+            self.the_mark = where if where is not None else self.cursor
+        else:
+            self.mark_ring.insert(
+                0, (where if where is not None else self.cursor))
+            where = self.the_mark
+            self.the_mark = self.mark_ring.pop()
+            self.cursor = where
+            self.cursor = next(self.walk(self.cursor, True))
+
+    @keymap.bind('Control-X Control-X')
+    def exchange_point_and_mark(self):
+        if self.the_mark is not None:
+            self.cursor, self.the_mark = self.the_mark, self.cursor
+            self.cursor = next(self.walk(self.cursor, True))
