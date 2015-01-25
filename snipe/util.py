@@ -42,6 +42,8 @@ import asyncio
 import functools
 import contextlib
 import time
+import datetime
+import math
 
 
 class SnipeException(Exception):
@@ -246,3 +248,31 @@ def listify(f):
     def listifier(*args, **kw):
         return list(f(*args, **kw))
     return listifier
+
+
+def timestr(t):
+    if t is None:
+        return '[not]'
+
+    try:
+        t = float(t)
+    except:
+        return '[?' + repr(t) + ']'
+
+    try:
+        return '[' + datetime.datetime.fromtimestamp(t).isoformat(' ') + ']'
+    except OverflowError:
+        pass
+
+    if t < 0:
+        if math.isinf(t):
+            return '[immemorial]'
+        else:
+            return '[undefined]'
+    else:
+        if math.isinf(t):
+            return '[omega]'
+        else:
+            return '[unknown]'
+
+    return '[impossible]'
