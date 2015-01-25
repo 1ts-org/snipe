@@ -36,10 +36,12 @@ Utilities and base classes for dealin with messages.
 
 import itertools
 import time
+import datetime
 import logging
 import functools
 import bisect
 import asyncio
+import math
 
 from . import util
 from . import filters
@@ -152,9 +154,7 @@ class SnipeMessage:
         elif hasattr(other, '__int__'):
             return int(other)
         else:
-            raise NotImplementedError(
-                'unimplemented comparison %s with %s?' % (
-                    repr(self), repr(other)))
+            return other # probably will fail :-)
 
     def __eq__(self, other):
         return self.time == self._coerce(other)
@@ -181,6 +181,9 @@ class SnipeMessage:
 
     def __hash__(self):
         return hash(self.time)
+
+    def __float__(self):
+        return self.time
 
 
 class SnipeBackend:
@@ -308,6 +311,70 @@ class StartupBackend(SnipeBackend):
         self.messages = [
             SnipeMessage(self, util.SPLASH + '\n'),
             ]
+
+
+class DateBackend(SnipeBackend):
+    name = 'date'
+    loglevel = util.Level('log.date', 'DateBackend')
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.messages = None
+        self.start = datetime.datetime.now()
+
+    def backfill(self, mfilter, backfill_to):
+        if backfill_to is not None and not math.isinf(float(backfill_to)):
+            self.log.debug('backfill([filter], %s)', util.timestr(backfill_to))
+            self.start = min(
+                self.start,
+                datetime.datetime.fromtimestamp(backfill_to))
+
+    def walk(self, start, forward=True, mfilter=None, backfill_to=None):
+        self.log.debug('walk(%s, %s, [filter], %s)',
+            repr(start), forward, util.timestr(backfill_to))
+
+        self.backfill(mfilter, backfill_to)
+
+        now = datetime.datetime.now()
+
+        if start is None:
+            if forward:
+                start = self.start
+            else:
+                start = now
+        else:
+            start = float(start)
+
+            if math.isinf(start):
+                if start < 0: #-inf
+                    start = self.start
+                else: # +inf
+                    start = now
+            else:
+                start = datetime.datetime.fromtimestamp(start)
+
+        if forward:
+            t = start
+            if t.time() != datetime.time():
+                # compute the next midnight
+                d = start.date() + datetime.timedelta(days=1)
+                t = datetime.datetime.combine(d, datetime.time())
+            delta = datetime.timedelta(days=1)
+        else:
+            # "today" midnight
+            d = start.date()
+            t = datetime.datetime.combine(d, datetime.time())
+            delta = datetime.timedelta(days=-1)
+
+        while now > t >= self.start:
+            yield InfoMessage(
+                self,
+                t.strftime('%A, %B %d, %Y\n\n'),
+                t.timestamp(),
+                )
+            t += delta
+
+        self.log.debug('leaving walk')
 
 
 class SyntheticBackend(SnipeBackend):

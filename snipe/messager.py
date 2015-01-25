@@ -122,17 +122,7 @@ class Messager(window.Window, window.PagingMixIn):
                     ((), pprint.pformat(x.data) + '\n'),
                     ]
 
-            def dateof(m):
-                if m is None or m.time in (float('inf'), float('-inf')):
-                    return None
-                return datetime.datetime.fromtimestamp(m.time).date()
-
-            if x.time != float('inf') and (dateof(prev) != dateof(x)):
-                    yield x, [(
-                    ('bold',),
-                    time.strftime('\n%A, %B %d, %Y\n\n', time.localtime(x.time)))]
-
-            if x is self.cursor or x is self.secondary:
+            if x == self.cursor or x == self.secondary:
                 if not chunk:
                     # this is a bug so it will do the wrong thing sometimes
                     yield x, [(('visible', 'standout'), '\n')]
@@ -159,10 +149,10 @@ class Messager(window.Window, window.PagingMixIn):
                         chunk = [(tags, rest)] + chunk[1:]
                         break
 
-                if x is self.cursor:
+                if x == self.cursor:
                     first = (
                         [(first[0][0] + ('visible',), first[0][1])] + first[1:])
-                if x is self.secondary or self.secondary is None:
+                if x == self.secondary or self.secondary is None:
                     first = [
                         (tags + ('standout',), text) for (tags, text) in first]
                 yield x, first + chunk

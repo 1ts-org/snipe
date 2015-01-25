@@ -71,6 +71,7 @@ class Context:
             self,
             backends = [
                 messages.StartupBackend(self),
+                messages.DateBackend(self),
                 roost.Roost(self),
                 irccloud.IRCCloud(self),
                 ],)
