@@ -464,7 +464,8 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
-        self.cursor, self.the_mark = self.the_mark, self.cursor
+        if self.the_mark is not None:
+            self.cursor, self.the_mark = self.the_mark, self.cursor
 
     def insert_region(self, s):
         self.set_mark()
