@@ -151,6 +151,21 @@ class Roost(messages.SnipeBackend):
                 msgid = self.messages[0].data['id']
                 if origin is None:
                     origin = self.messages[0].time
+            if target is None: # don't
+                return
+
+            if math.isinf(target):
+                if count >= self.backfill_count:
+                    return
+
+                if origin is not None:
+                    backfill_to = origin - self.backfill_length
+                    if self.messages[0].time < backfill_to:
+                        return
+            else:
+                if self.messages and self.messages[0].time < target:
+                    return
+
             asyncio.Task(self.do_backfill(msgid, mfilter, target, count, origin))
 
     @util.coro_cleanup
@@ -197,19 +212,8 @@ class Roost(messages.SnipeBackend):
                 '%d messages, total %d, earliest %s',
                  count, len(self.messages), util.timestr(self.messages[0].time))
 
-            # how far back in time to go
-            if target is not None:
-                when = target
-            else:
-                when = origin - self.backfill_length
-
-            if ((count < self.backfill_count
-                 or target is not None
-                 and math.isfinite(target)) and ms and ms[0].time > when):
-                self.log.debug(
-                    '%s > %s, backfilling some more',
-                    util.timestr(ms[0].time), util.timestr(when))
-                self.backfill(mfilter, when, count=count, origin=origin)
+            # and (maybe) circle around
+            self.backfill(mfilter, target, count=count, origin=origin)
 
             self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')
