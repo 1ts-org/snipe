@@ -194,8 +194,13 @@ class Roost(messages.SnipeBackend):
             else:
                 when = origin - self.backfill_length
 
-            if (count < self.backfill_count and ms and ms[0].time > when):
-                self.backfill(mfilter, count=count, origin=origin)
+            if ((count < self.backfill_count
+                 or target is not None
+                 and math.isfinite(target)) and ms and ms[0].time > when):
+                self.log.debug(
+                    '%s > %s, backfilling some more',
+                    util.timestr(ms[0].time), util.timestr(when))
+                self.backfill(mfilter, when, count=count, origin=origin)
 
             self.redisplay(ms[0], ms[-1])
             self.log.debug('done backfilling')

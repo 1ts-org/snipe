@@ -76,7 +76,6 @@ class Context:
                 irccloud.IRCCloud(self),
                 ],)
         self.ui.initial(messager.Messager(self.ui))
-        self.backends.backfill(None, time.time() - 86400)
 
     def conf_read(self):
         path = os.path.join(self.directory, 'config')

@@ -212,7 +212,10 @@ class SnipeBackend:
 
         cachekey = (start, forward, mfilter)
         point = self.startcache.get(cachekey, None)
-        self.log.debug('walk(%s) cache: %s', repr(cachekey), repr(point))
+
+        if (backfill_to is not None and math.isfinite(backfill_to) and
+            self.messages and self.messages[0].time > backfill_to):
+            self.backfill(mfilter, backfill_to)
 
         if point is False:
             return
@@ -266,8 +269,6 @@ class SnipeBackend:
                     needcache = False
                 yield m
             point = getnext(point)
-        if point < 0 and backfill_to is not None:
-            self.backfill(mfilter, backfill_to)
 
     def backfill(self, mfilter, target=None):
         pass
