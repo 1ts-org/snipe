@@ -330,7 +330,7 @@ class TerminusBackend(SnipeBackend):
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
-        self.log.error('walk(..., search=%s)', search)
+        self.log.debug('walk(..., search=%s)', search)
         if search:
             return
         yield from super().walk(start, forward, None, backfill_to, search)
