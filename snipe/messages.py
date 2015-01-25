@@ -202,6 +202,23 @@ class SnipeBackend:
         self.startcache = {}
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None):
+        """Iterate through a list of messages associated with a backend.
+
+        :param start: Where to start iterating from.
+        :type start: integer, SnipeMessage, float or None
+        :param bool forward: Whether to go forwards or backwards.
+        :param mfilter: Any applicable message filter
+        :type mfilter: Filter or None
+        :param backfill_to: How far the backend should dig
+        :type backfill_to: float or None
+
+        If ``start`` is ``None``, begin at the end ``forward`` would have us
+        moving away from.
+
+        ``backfill_to`` potentially triggers the backend to pull in more
+        messages, but it doesn't guarantee that they'll be visible in this
+        iteration.
+        """
         self.log.debug('walk(%s, %s, [filter], %s)',
             repr(start), forward, util.timestr(backfill_to))
         # I have some concerns that that this depends on the self.messages list
