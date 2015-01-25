@@ -202,8 +202,8 @@ class SnipeBackend:
         self.startcache = {}
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None):
-        self.log.debug('walk(%s, %s, %s, %s)',
-            start, forward, mfilter, backfill_to)
+        self.log.debug('walk(%s, %s, [filter], %s)',
+            repr(start), forward, util.timestr(backfill_to))
         # I have some concerns that that this depends on the self.messages list
         # being stable over the life of the iterator.  This doesn't seem to be a
         # a problem as of when I write this comment, but defensive coding should
@@ -420,10 +420,17 @@ def merge(iterables, key=lambda x: x):
         yield v
 
 
+def logiter(log, x):
+    for n, y in enumerate(x):
+        log.debug('%s[%d]: %s', repr(x), n, repr(y))
+        yield y
+
+
 class AggregatorBackend(SnipeBackend):
     # this won't be used as a /backend/ most of the time, but there's
     # no reason that it shouldn't expose the same API for now
     messages = None
+    loglevel = util.Level('log.aggregator', 'AggregatorBackend')
 
     def __init__(self, context, backends = [], conf = {}):
         super().__init__(context, conf)
@@ -435,6 +442,9 @@ class AggregatorBackend(SnipeBackend):
         self.backends.append(backend)
 
     def walk(self, start, forward=True, filter=None, backfill_to=None):
+        self.log.debug(
+            'walk(%s, forward=%s, [filter], backfill_to=%s',
+            repr(start), forward, util.timestr(backfill_to))
         # what happends when someone calls .add for an
         # in-progress iteration?
         if hasattr(start, 'backend'):
@@ -443,7 +453,7 @@ class AggregatorBackend(SnipeBackend):
         else:
             startbackend = None
             when = start
-        return merge(
+        return logiter(self.log, merge(
             [
                 backend.walk(
                     start if backend is startbackend else when,
@@ -453,7 +463,7 @@ class AggregatorBackend(SnipeBackend):
                     )
                 for backend in self.backends
                 ],
-            key = lambda m: m.time if forward else -m.time)
+            key = lambda m: m.time if forward else -m.time))
 
     def shutdown(self):
         for backend in self.backends:

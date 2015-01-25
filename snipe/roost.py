@@ -44,6 +44,7 @@ import urllib.parse
 import contextlib
 import re
 import pwd
+import math
 
 from . import messages
 from . import _rooster
@@ -139,7 +140,10 @@ class Roost(messages.SnipeBackend):
         self.startcache = {}
         self.redisplay(msg, msg)
 
-    def backfill(self, filter, target=None, count=0, origin=None):
+    def backfill(self, mfilter, target=None, count=0, origin=None):
+        self.log.debug(
+            'backfill([filter], target=%s, count=%s, origin=%s',
+            util.timestr(target), count, util.timestr(origin))
         if not self.loaded:
             self.log.debug('triggering backfill')
             msgid = None
@@ -147,11 +151,14 @@ class Roost(messages.SnipeBackend):
                 msgid = self.messages[0].data['id']
                 if origin is None:
                     origin = self.messages[0].time
-            asyncio.Task(self.do_backfill(msgid, filter, target, count, origin))
+            asyncio.Task(self.do_backfill(msgid, mfilter, target, count, origin))
 
     @util.coro_cleanup
     def do_backfill(self, start, mfilter, target, count, origin):
         #yield from asyncio.sleep(.0001)
+        self.log.debug(
+            'do_backfill(start=%s, [filter], %s, %s, origin=%s)',
+            repr(start), util.timestr(target), repr(count), util.timestr(origin))
 
         @contextlib.contextmanager
         def backfillguard():
@@ -186,7 +193,9 @@ class Roost(messages.SnipeBackend):
             ms.reverse()
             self.messages = ms + self.messages
             self.startcache = {}
-            self.log.warning('%d messages, total %d', count, len(self.messages))
+            self.log.warning(
+                '%d messages, total %d, earliest %s',
+                 count, len(self.messages), util.timestr(self.messages[0].time))
 
             # how far back in time to go
             if target is not None:
