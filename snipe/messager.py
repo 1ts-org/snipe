@@ -420,6 +420,13 @@ class Messager(window.Window, window.PagingMixIn):
             + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
 
+    def goto_time(self, when):
+        self.log.info('going to %s', datetime.datetime.fromtimestamp(when).isoformat(' '))
+        old = self.cursor
+        self.cursor = next(self.walk(when, True, when))
+        if old != self.cursor:
+            self.set_mark(old)
+
     @keymap.bind('Meta-g')
     def goto(self):
         import parsedatetime
@@ -427,9 +434,44 @@ class Messager(window.Window, window.PagingMixIn):
 
         s = yield from self.read_string('When: ')
         x, y = p.parse(s)
+        self.log.debug('parsed date result %d: %s', y, repr(x))
         if y:
             t = time.mktime(x)
-            self.cursor = next(self.walk(t, True))
+            self.goto_time(t)
+
+    @keymap.bind('Control-X [')
+    def prev_day(self, count: interactive.integer_argument=1):
+        if count < 0:
+            return self.next_day(-count)
+
+        if count > 0:
+            if self.cursor.omega:
+                date = datetime.date.today()
+            else:
+                when = datetime.datetime.fromtimestamp(self.cursor.time)
+                date = when.date()
+                if when.time() == datetime.time(0): #midnight
+                    #XXX should check if we're at the first message today
+                    date -= datetime.timedelta(days=1)
+            midnight = datetime.datetime.combine(date, datetime.time())
+            delta = datetime.timedelta(days=count - 1)
+            when = midnight - delta
+            self.goto_time(when.timestamp())
+
+    @keymap.bind('Control-X ]')
+    def next_day(self, count: interactive.integer_argument=1):
+        if count < 0:
+            return self.prev_day(-count)
+
+        if count > 0:
+            if self.cursor.omega:
+                return
+
+            date = datetime.date.fromtimestamp(self.cursor.time)
+            midnight = datetime.datetime.combine(date, datetime.time())
+            delta = datetime.timedelta(days=count)
+            when = midnight + delta
+            self.goto_time(when.timestamp())
 
     @keymap.bind('Control-[space]')
     def set_mark(self, where=None, prefix: interactive.argument=None):

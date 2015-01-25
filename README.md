@@ -69,6 +69,8 @@ f        | followup (publicly, if applicable) to the current message
 r        | reply (privately) to the current message
 Meta–<, ↖, Shift-↖ | First (currently loaded)
 Meta–>, ↘, Shift-↘ | Last message
+^X [     | previous day
+^X ]     | next day
 ^Space, ^@ | set mark
 ^X ^X | exchange point and mark
 Meta-g | goto an absolute time in the message window
