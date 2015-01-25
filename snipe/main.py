@@ -42,24 +42,28 @@ from . import context
 
 def main():
     '''Main function, does high-level setup and kicks off the main loop.'''
-    handler = context.SnipeLogHandler(logging.DEBUG)
-    handler.setFormatter(logging.Formatter(
-        '%(asctime)s.%(msecs)03d %(name)s: %(message)s', '%b %d %H:%M:%S'))
-    logging.getLogger().addHandler(handler)
-    signal.signal(signal.SIGUSR1, handler.dump)
-    log = logging.getLogger('Snipe')
-    log.warning('snipe starting')
-    with ttyfe.TTYFrontend() as ui:
-        context_ = context.Context(ui, handler)
-        loop = asyncio.get_event_loop()
-        loop.set_debug(True)
-        loop.add_reader(0, ui.readable)
-        ui.redisplay()
-        loop.run_forever()
-    print()
-    context_.shutdown()
-    log.warning('snipe ends')
-    logging.shutdown()
+    try:
+        handler = context.SnipeLogHandler(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s.%(msecs)03d %(name)s: %(message)s', '%b %d %H:%M:%S'))
+        logging.getLogger().addHandler(handler)
+        signal.signal(signal.SIGUSR1, handler.dump)
+        log = logging.getLogger('Snipe')
+        log.warning('snipe starting')
+        with ttyfe.TTYFrontend() as ui:
+            context_ = context.Context(ui, handler)
+            loop = asyncio.get_event_loop()
+            loop.set_debug(True)
+            loop.add_reader(0, ui.readable)
+            ui.redisplay()
+            loop.run_forever()
+        print()
+        context_.shutdown()
+        log.warning('snipe ends')
+    finally:
+        if handler.writing:
+            handler.dump()
+        logging.shutdown()
 
 if __name__ == '__main__':
     main()

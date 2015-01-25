@@ -203,4 +203,5 @@ class SnipeLogHandler(logging.Handler):
         with contextlib.suppress(Exception):
             self.task.result()
 
-        self.dump()
+        if self.writing:
+            self.dump()
