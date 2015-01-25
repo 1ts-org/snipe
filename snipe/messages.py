@@ -270,6 +270,10 @@ class SnipeBackend:
                 yield m
             point = getnext(point)
 
+        # specifically catch the situation where we're trying to go off the top
+        if point < 0 and backfill_to is not None:
+            self.backfill(mfilter, backfill_to)
+
     def backfill(self, mfilter, target=None):
         pass
 
