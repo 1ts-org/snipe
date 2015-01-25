@@ -196,7 +196,7 @@ class Window:
 
     @keymap.bind('Control-X 1')
     def popdown(self):
-        self.fe.popdown_window()
+        self.fe.delete_other_windows()
 
     @keymap.bind('Control-X o')
     def other_window(self):

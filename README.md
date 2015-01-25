@@ -36,7 +36,7 @@ key      | binding
 ^Z    | Suspend
 ^X 2  | Split current window
 ^X 0  | delete current window
-^X 1  | delete top popup*
+^X 1  | delete other windows
 ^X o  | switch windows
 ^X e  | pop up an empty editor window
 ^X 4 m | split to a messager window

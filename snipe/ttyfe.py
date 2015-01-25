@@ -556,6 +556,7 @@ class TTYFrontend:
         if self.popstack and self.popstack[-1][0] is victim.window:
             self.popstack.pop()
         victim.window.destroy()
+        fixup = n < self.active
         if n == 0:
             u = self.windows[0]
             self.windows[0] = TTYRenderer(
@@ -567,9 +568,20 @@ class TTYFrontend:
             if self.active == n:
                 self.active -= 1
                 self.windows[self.active].focus()
+        if fixup: # n < self.active before the above mayhem
+            self.active -= 1
 
     def delete_current_window(self):
         self.delete_window(self.active)
+
+    def delete_other_windows(self):
+        # clear the popstack
+        for window, height in self.popstack[:-1]:
+            window.destroy()
+        del self.popstack[:-1]
+        for n in range(len(self.windows) - 1, -1, -1):
+            if n != self.active:
+                self.delete_window(n)
 
     def popup_window(self, new, height=1, select=True):
         r = self.windows[-1]
