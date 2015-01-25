@@ -69,6 +69,9 @@ f        | followup (publicly, if applicable) to the current message
 r        | reply (privately) to the current message
 Meta–<, ↖, Shift-↖ | First (currently loaded)
 Meta–>, ↘, Shift-↘ | Last message
+^Space, ^@ | set mark
+^X ^X | exchange point and mark
+Meta-g | goto an absolute time in the message window
 Meta–/ 0 | Reset the filter to the default
 Meta–/ = | Edit the current filter
 Meta–- | Filter everything
@@ -84,6 +87,7 @@ Meta–/ / | push a filter based on the current message.  More ^Us increase spec
 Meta–/ Meta–/ | pop the filter stack
 Meta–/ S | Save the current filter as the default (and reset)
 Meta–i | popup a window with gunk about the current message
+R S | dump roost subscriptions into a window
 
 ### "Editor" windows
 
