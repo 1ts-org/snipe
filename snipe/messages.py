@@ -201,7 +201,8 @@ class SnipeBackend:
             '%s.%x' % (self.__class__.__name__, id(self),))
         self.startcache = {}
 
-    def walk(self, start, forward=True, mfilter=None, backfill_to=None):
+    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+            search=False):
         """Iterate through a list of messages associated with a backend.
 
         :param start: Where to start iterating from.
@@ -211,6 +212,7 @@ class SnipeBackend:
         :type mfilter: Filter or None
         :param backfill_to: How far the backend should dig
         :type backfill_to: float or None
+        :param bool search: Whether this is being called from a search
 
         If ``start`` is ``None``, begin at the end ``forward`` would have us
         moving away from.
@@ -218,9 +220,13 @@ class SnipeBackend:
         ``backfill_to`` potentially triggers the backend to pull in more
         messages, but it doesn't guarantee that they'll be visible in this
         iteration.
+
+        ``search`` lets backends behave differently when not called from the
+        redisplay, for data headers and such that want to bypass filters on
+        display.
         """
-        self.log.debug('walk(%s, %s, [filter], %s)',
-            repr(start), forward, util.timestr(backfill_to))
+        self.log.debug('walk(%s, %s, [filter], %s, %s)',
+            repr(start), forward, util.timestr(backfill_to), search)
         # I have some concerns that that this depends on the self.messages list
         # being stable over the life of the iterator.  This doesn't seem to be a
         # a problem as of when I write this comment, but defensive coding should
@@ -314,6 +320,7 @@ class InfoMessage(SnipeMessage):
 
 class TerminusBackend(SnipeBackend):
     name = 'terminus'
+    loglevel = util.Level('log.terminus', 'TerminusBackend')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -321,8 +328,12 @@ class TerminusBackend(SnipeBackend):
         m.omega = True
         self.messages = [m]
 
-    def walk(self, start, forward=True, filter=None, backfill_to=None):
-        return super().walk(start, forward, None, backfill_to) # ignore filters
+    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+            search=False):
+        self.log.error('walk(..., search=%s)', search)
+        if search:
+            return
+        yield from super().walk(start, forward, None, backfill_to, search)
 
 
 class StartupBackend(SnipeBackend):
@@ -351,11 +362,16 @@ class DateBackend(SnipeBackend):
                 self.start,
                 datetime.datetime.fromtimestamp(backfill_to))
 
-    def walk(self, start, forward=True, mfilter=None, backfill_to=None):
-        self.log.debug('walk(%s, %s, [filter], %s)',
-            repr(start), forward, util.timestr(backfill_to))
+    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+            search=False):
+        # Note that this ignores mfilter
+        self.log.debug('walk(%s, %s, [filter], %s, %s)',
+            repr(start), forward, util.timestr(backfill_to), search)
 
         self.backfill(mfilter, backfill_to)
+
+        if search:
+            return
 
         now = datetime.datetime.now()
 
@@ -462,10 +478,11 @@ class AggregatorBackend(SnipeBackend):
     def add(self, backend):
         self.backends.append(backend)
 
-    def walk(self, start, forward=True, filter=None, backfill_to=None):
+    def walk(self, start, forward=True, filter=None, backfill_to=None,
+            search=False):
         self.log.debug(
-            'walk(%s, forward=%s, [filter], backfill_to=%s',
-            repr(start), forward, util.timestr(backfill_to))
+            'walk(%s, forward=%s, [filter], backfill_to=%s, search=%s',
+            repr(start), forward, util.timestr(backfill_to), search)
         # what happends when someone calls .add for an
         # in-progress iteration?
         if hasattr(start, 'backend'):
@@ -481,6 +498,7 @@ class AggregatorBackend(SnipeBackend):
                     forward,
                     filter,
                     backfill_to,
+                    search,
                     )
                 for backend in self.backends
                 ],
