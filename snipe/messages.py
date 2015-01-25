@@ -194,7 +194,7 @@ class SnipeBackend:
     messages = []
     principal = None
 
-    def __init__(self, context,  conf = {}):
+    def __init__(self, context, conf = {}):
         self.context = context
         self.conf = conf
         self.log = logging.getLogger(
