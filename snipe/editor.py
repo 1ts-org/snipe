@@ -486,6 +486,8 @@ class Editor(Viewer):
 
         self.column = None
 
+        self.keymap.default = self.self_insert
+
         prototype = kw.get('prototype')
         if prototype is None:
             self._writable = True

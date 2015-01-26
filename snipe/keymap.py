@@ -49,10 +49,18 @@ def bind(*seqs):
     return decorate
 
 
-class Keymap(dict):
+class Keymap(collections.defaultdict):
     def __init__(self, d={}):
         super().__init__()
         self.update(d)
+        self.default = None
+
+    def __missing__(self, key):
+        if (self.default is not None
+                and isinstance(key, str)
+                and ord(key) > ord(' ')): # not a number, not a control character
+            return self.default
+        raise KeyError
 
     def interrogate(self, obj):
         if hasattr(obj, 'input_char'): # looks like a Window
