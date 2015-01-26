@@ -75,7 +75,8 @@ class Context:
                 roost.Roost(self),
                 irccloud.IRCCloud(self),
                 ],)
-        self.ui.initial(messager.Messager(self.ui))
+        self.status = window.StatusLine(self.ui)
+        self.ui.initial(messager.Messager(self.ui), statusline=self.status)
 
     def conf_read(self):
         path = os.path.join(self.directory, 'config')

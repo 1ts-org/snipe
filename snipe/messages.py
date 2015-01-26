@@ -309,6 +309,13 @@ class SnipeBackend:
     def __str__(self):
         return self.name
 
+    def count(self):
+        """Return the number of messages stored (locally) in this backend."""
+        if self.messages is not None:
+            return len(self.messages)
+        else:
+            return 0
+
 
 class InfoMessage(SnipeMessage):
     def __str__(self):
@@ -524,3 +531,6 @@ class AggregatorBackend(SnipeBackend):
     def backfill(self, filter, target=None):
         for backend in self:
             backend.backfill(filter, target)
+
+    def count(self):
+        return sum(backend.count() for backend in self.backends)

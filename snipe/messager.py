@@ -95,6 +95,7 @@ class Messager(window.Window, window.PagingMixIn):
         if self.secondary is not None:
             self.cursor = self.secondary
             self.secondary = None
+        return True
 
     def walk(self, origin, direction, backfill_to=None, search=False):
         self.log.debug('walk(%s, forward=%s, %s)', repr(origin), repr(direction), util.timestr(backfill_to))

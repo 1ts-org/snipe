@@ -438,12 +438,20 @@ class TTYFrontend:
         signal.signal(signal.SIGWINCH, self.doresize)
         return self
 
-    def initial(self, win):
+    def initial(self, win, statusline=None):
         if self.windows or self.active is not None:
             raise ValueError
-        self.active = 0
-        self.windows = [TTYRenderer(self, 0, self.maxy, win)]
-        self.windows[self.active].w.refresh()
+        if statusline is None:
+            self.active = 0
+            self.windows = [TTYRenderer(self, 0, self.maxy, win)]
+        else:
+            self.active = 1
+            self.windows = [
+                TTYRenderer(self, 0, 1, statusline),
+                TTYRenderer(self, 1, self.maxy - 1, win),
+                ]
+        for r in self.windows:
+            r.w.refresh()
         self.stdscr.refresh()
 
     def __exit__(self, type, value, tb):
@@ -581,7 +589,8 @@ class TTYFrontend:
             window.destroy()
         del self.popstack[:-1]
         for n in range(len(self.windows) - 1, -1, -1):
-            if n != self.active:
+            if (n != self.active
+                    and self.windows[n].window != self.context.status):
                 self.delete_window(n)
 
     def popup_window(self, new, height=1, select=True):
@@ -632,8 +641,13 @@ class TTYFrontend:
         self.redisplay() # XXX force redisplay?
 
     def switch_window(self, adj):
-        self.active = (self.active + adj) % len(self.windows)
-        self.windows[self.active].focus()
+        current = self.active
+        while True:
+            self.active = (self.active + adj) % len(self.windows)
+            if self.active == current:
+                break
+            if self.windows[self.active].window.focus():
+                break
 
 
 class Location:

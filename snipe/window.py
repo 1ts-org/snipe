@@ -71,7 +71,7 @@ class Window:
         self._destroy()
 
     def focus(self):
-        pass
+        return True
 
     @property
     def context(self):
@@ -360,3 +360,21 @@ class ColorDemo(Window):
             (('fg:bisque',), ' bisque '),
             (('bg:#f00',), '#f00'),
             ]
+
+
+class StatusLine(Window):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        import itertools
+        self.count = itertools.count().__next__
+    def view(self, origin=0, direction='forward'):
+        yield 0, [
+            (('visible', ), ''),
+            (('right', ), '%d' % (self.context.backends.count(),)),
+            ]
+
+    def focus(self):
+        return False
+
+    def check_redisplay_hint(self, hint):
+        return True
