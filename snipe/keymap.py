@@ -80,7 +80,6 @@ class Keymap(dict):
                     for seq in f.snipe_seqs:
                         self[seq] = f
 
-
     def update(self, d):
         for k, v in d.items():
             if hasattr(v, 'items'):

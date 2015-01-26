@@ -393,6 +393,7 @@ class TTYRenderer:
     def display_range(self):
         return self.head.cursor, self.sill.cursor
 
+
 unkey = dict(
     (getattr(curses, k), k[len('KEY_'):])
     for k in dir(curses)
