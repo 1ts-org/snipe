@@ -64,6 +64,9 @@ class Window:
         self.last_key = ''
         self.universal_argument = None
 
+        self.noactive = False
+        self.noresize = False
+
     def __repr__(self):
         return '<%s %x>' % (self.__class__.__name__, id(self))
 
@@ -365,8 +368,9 @@ class ColorDemo(Window):
 class StatusLine(Window):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        import itertools
-        self.count = itertools.count().__next__
+        self.noactive = True
+        self.noresize = True
+
     def view(self, origin=0, direction='forward'):
         yield 0, [
             (('visible', ), ''),

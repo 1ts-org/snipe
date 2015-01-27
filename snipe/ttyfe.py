@@ -482,27 +482,42 @@ class TTYFrontend:
 
         oldy = self.maxy
         self.maxy, self.maxx = self.stdscr.getmaxyx()
-        if self.maxy < len(self.windows):
-            # we don't have vertical room for them all
-            # drop the ones on top
-            if self.active is not None:
-                self.active -= len(self.windows) - self.maxy
-            orphans = self.windows[:-self.maxy]
-            self.windows = self.windows[-self.maxy:]
-            for victim in orphans: # it sounds terrible when you put it that way
-                with contextlib.suppress(ValueError):
-                    self.popstack.remove(victim)
-                victim.window.destroy()
-        neww = []
+
+        new = []
+        orphans = []
         remaining = self.maxy
-        for victim in reversed(self.windows[1:]):
-            # from the bottom
-            newheight = max(1, int(victim.height * (self.maxy / oldy)))
-            remaining -= newheight
-            neww.append(TTYRenderer(self, remaining, newheight, victim.window))
-        neww.reverse()
-        self.windows = \
-            [TTYRenderer(self, 0, remaining, self.windows[0].window)] + neww
+        for (i, victim) in enumerate(self.windows):
+            if victim.window.noresize:
+                height = victim.height
+            else:
+                # should get proportional chunk of remaining? think harder later.
+                height = max(1, int(victim.height * (self.maxy / oldy)))
+            if height > remaining:
+                orphans.append(victim)
+            else:
+                new.append([
+                    victim.window,
+                    self.maxy - remaining,
+                    height,
+                    i == self.active,
+                    ])
+            remaining -= height
+        if remaining:
+            new[-1][2] += remaining
+
+        for victim in orphans: # it sounds terrible when you put it that way
+            with contextlib.suppress(ValueError):
+                self.popstack.remove(victim)
+            victim.window.destroy()
+
+        self.active = 0
+        self.windows = []
+        for (i, (window, y, height, active)) in enumerate(new):
+            self.windows.append(TTYRenderer(self, y, height, window))
+            if active:
+                self.active = i
+
+        self.windows[i].window.focus()
         self.log.debug('RESIZED %d windows', len(self.windows))
         self.redisplay()
 
@@ -557,7 +572,7 @@ class TTYFrontend:
         self.redisplay({'window': new})
 
     def delete_window(self, n):
-        if len(self.windows) == 1:
+        if len(self.windows) == 2:
             raise Exception('attempt to delete only window')
 
         victim = self.windows[n]
@@ -585,6 +600,8 @@ class TTYFrontend:
 
     def delete_other_windows(self):
         # clear the popstack
+        if self.popstack and self.windows[self.active] == self.popstack[-1][0]:
+            return
         for window, height in self.popstack[:-1]:
             window.destroy()
         del self.popstack[:-1]
