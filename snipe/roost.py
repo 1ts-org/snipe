@@ -136,6 +136,8 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def new_message(self, m):
         msg = RoostMessage(self, m)
+        if self.messages and msg.time <= self.messages[-1].time:
+            msg.time = self.messages[-1].time + .00001
         self.messages.append(msg)
         self.startcache = {}
         self.redisplay(msg, msg)
@@ -205,6 +207,15 @@ class Roost(messages.SnipeBackend):
                 self.loaded = True
             ms = [RoostMessage(self, m) for m in chunk['messages']]
             count += len([m for m in ms if mfilter(m)])
+            # Make sure ordering is stable
+            # XXX really assuming messages are millisecond unique si dumb
+            anchor = []
+            if self.messages:
+                anchor = [(self.messages[0], ms[0])]
+            for (nextmsg, prevmsg) in itertools.chain(anchor, zip(ms, ms[1:])):
+                # walking backwards through time
+                if nextmsg.time == prevmsg.time:
+                    prevmsg.time = nextmsg.time - .00001
             ms.reverse()
             self.messages = ms + self.messages
             self.startcache = {}
