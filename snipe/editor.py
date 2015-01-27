@@ -187,6 +187,9 @@ class Viewer(window.Window, window.PagingMixIn):
 
             self.goal_column = prototype.goal_column
 
+    def movable(self, point, interactive):
+        return point
+
     def check_redisplay_hint(self, hint):
         self.log.debug('checking hint %s', repr(hint))
         if super().check_redisplay_hint(hint):
@@ -213,53 +216,59 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=1):
-        self.move(count)
+        self.move(count, True)
 
     @keymap.bind('Control-B', '[left]')
     def move_backward(self, count: interactive.integer_argument=1):
-        self.move(-count)
+        self.move(-count, True)
 
-    def move(self, delta):
+    def move(self, delta, interactive=False):
         '''.move(delta, mark=None) -> actual distance moved
         Move the point by delta.
         '''
         z = self.cursor.point
-        self.cursor.point += delta # the setter does appropriate clamping
+        # the setter does appropriate clamping
+        self.cursor.point = self.movable(self.cursor.point + delta, interactive)
         self.goal_column = None
         return self.cursor.point - z
 
     @keymap.bind('Control-N', '[down]')
     def line_next(self, count: interactive.integer_argument=1):
-        self.line_move(count)
+        self.line_move(count, interactive=True)
 
     @keymap.bind('Control-P', '[up]')
     def line_previous(self, count: interactive.integer_argument=1):
-        self.line_move(-count)
+        self.line_move(-count, interactive=True)
 
-    def line_move(self, delta, track_column=True):
-        count = abs(delta)
-        goal_column = self.goal_column
-        if goal_column is None:
+    def line_move(self, delta, track_column=True, interactive=False):
+        where = self.buf.mark(self.cursor)
+        with self.save_excursion(where):
+            count = abs(delta)
+            goal_column = self.goal_column
+            if goal_column is None:
+                with self.save_excursion():
+                    p = self.cursor.point
+                    self.beginning_of_line()
+                    goal_column = p - self.cursor.point
+            for _ in range(count):
+                if delta < 0:
+                    self.beginning_of_line()
+                    self.move(-1)
+                    self.beginning_of_line()
+                elif delta > 0:
+                    self.end_of_line()
+                    if not self.move(1):
+                        self.beginning_of_line()
             with self.save_excursion():
                 p = self.cursor.point
-                self.beginning_of_line()
-                goal_column = p - self.cursor.point
-        for _ in range(count):
-            if delta < 0:
-                self.beginning_of_line()
-                self.move(-1)
-                self.beginning_of_line()
-            elif delta > 0:
                 self.end_of_line()
-                if not self.move(1):
-                    self.beginning_of_line()
-        with self.save_excursion():
-            p = self.cursor.point
-            self.end_of_line()
-            line_length = self.cursor.point - p
-        if track_column:
-            self.move(min(goal_column, line_length))
-            self.goal_column = goal_column
+                line_length = self.cursor.point - p
+            if track_column:
+                self.move(min(goal_column, line_length))
+                self.goal_column = goal_column
+        oldpoint = self.cursor.point
+        self.cursor.point = self.movable(where.point, interactive)
+        return self.cursor.point - oldpoint
 
     def extract_current_line(self):
         p = self.cursor.point
@@ -320,24 +329,42 @@ class Viewer(window.Window, window.PagingMixIn):
         return ''
 
     @keymap.bind('Control-A', '[home]')
-    def beginning_of_line(self, count: interactive.integer_argument=None):
-        if count is not None:
-            self.line_move(count - 1)
-        if self.cursor.point == 0:
-            return
-        with self.save_excursion():
-            self.move(-1)
-            if self.character_at_point() == self.EOL:
+    def beginning_of_line(
+            self,
+            count: interactive.integer_argument=None,
+            interactive: interactive.isinteractive=False,
+            ):
+        where = self.buf.mark(self.cursor)
+        with self.save_excursion(where):
+            if count is not None:
+                self.line_move(count - 1)
+            if self.cursor.point == 0:
                 return
-        if self.find_character(self.EOL, -1):
-            self.move(1)
+            with self.save_excursion():
+                self.move(-1)
+                if self.character_at_point() == self.EOL:
+                    return
+            if self.find_character(self.EOL, -1):
+                self.move(1)
+        oldpoint = self.cursor.point
+        self.cursor.point = self.movable(where.point, interactive)
+        return self.cursor.point - oldpoint
 
     @keymap.bind('Control-E', '[end]')
-    def end_of_line(self, count: interactive.integer_argument=None):
-        if count is not None:
-            self.line_move(count - 1)
-        if not self.character_at_point() == self.EOL:
-            self.find_character(self.EOL)
+    def end_of_line(
+            self,
+            count: interactive.integer_argument=None,
+            interactive: interactive.isinteractive=False,
+            ):
+        where = self.buf.mark(self.cursor)
+        with self.save_excursion(where):
+            if count is not None:
+                self.line_move(count - 1)
+            if not self.character_at_point() == self.EOL:
+                self.find_character(self.EOL)
+        oldpoint = self.cursor.point
+        self.cursor.point = self.movable(where.point, interactive)
+        return self.cursor.point - oldpoint
 
     @contextlib.contextmanager
     def save_excursion(self, where=None):
@@ -357,34 +384,51 @@ class Viewer(window.Window, window.PagingMixIn):
         self.goal_column = goal_column
 
     @keymap.bind('Shift-[HOME]', '[SHOME]', 'Meta-<')
-    def beginning_of_buffer(self, pct: interactive.argument):
+    def beginning_of_buffer(
+            self,
+            pct: interactive.argument,
+            interactive: interactive.isinteractive=False,
+            ):
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
+        where = self.buf.mark(self.cursor)
         oldpoint = self.cursor.point
-        if not isinstance(pct, int):
-            pct = 0
-        if pct < 0:
-            return self.end_of_buffer(-pct)
-        self.cursor.point = min(pct * len(self.buf) // 10, len(self.buf))
-        self.beginning_of_line()
-        if oldpoint != self.cursor.point:
-            self.set_mark(oldpoint)
+        with self.save_excursion(where):
+            if not isinstance(pct, int):
+                pct = 0
+            if pct < 0:
+                return self.end_of_buffer(-pct)
+            self.cursor.point = min(pct * len(self.buf) // 10, len(self.buf))
+            self.beginning_of_line()
+            if oldpoint != self.cursor.point:
+                self.set_mark(oldpoint)
+        self.cursor.point = self.movable(where.point, interactive)
+        return self.cursor.point - oldpoint
 
     @keymap.bind('Shift-[END]', '[SEND]', 'Meta->')
-    def end_of_buffer(self, pct: interactive.argument=None):
+    def end_of_buffer(
+            self,
+            pct: interactive.argument=None,
+            interactive: interactive.isinteractive=False,
+            ):
+        self.log.debug(
+            'end_of_buffer: arg, %s oldpoint %s', repr(pct), self.cursor.point)
+        where = self.buf.mark(self.cursor)
         oldpoint = self.cursor.point
-        self.log.debug('end_of_buffer: arg, %s oldpoint %s', repr(pct), oldpoint)
-        noarg = pct is None
-        if not isinstance(pct, int):
-            pct = 0
-        if pct < 0:
-            return self.beginning_of_buffer(-pct)
-        self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
-        if not noarg:
-            self.beginning_of_line()
-        self.log.debug('end_of_buffer: newpoint %s', self.cursor.point)
-        if oldpoint != self.cursor.point:
-            self.log.debug('end_of_buffer: setting mark %s', oldpoint)
-            self.set_mark(oldpoint)
+        with self.save_excursion(where):
+            noarg = pct is None
+            if not isinstance(pct, int):
+                pct = 0
+            if pct < 0:
+                return self.beginning_of_buffer(-pct)
+            self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
+            if not noarg:
+                self.beginning_of_line()
+            self.log.debug('end_of_buffer: newpoint %s', self.cursor.point)
+            if oldpoint != self.cursor.point:
+                self.log.debug('end_of_buffer: setting mark %s', oldpoint)
+                self.set_mark(oldpoint)
+        self.cursor.point = self.movable(where.point, interactive)
+        return self.cursor.point - oldpoint
 
     def input_char(self, k):
         self.log.debug('before command %s %s', self.cursor, self.the_mark)
@@ -409,27 +453,35 @@ class Viewer(window.Window, window.PagingMixIn):
             return pred(c)
 
     @keymap.bind('Meta-f') #XXX should also be Meta-right but curses
-    def word_forward(self, count: interactive.integer_argument=1):
+    def word_forward(
+            self,
+            count: interactive.integer_argument=1,
+            interactive: interactive.isinteractive=False,
+            ):
         if count < 0:
-            return self.word_backward(-count)
+            return self.word_backward(-count, interactive=interactive)
         for _ in range(count):
             while not self.isword():
-                if not self.move(1):
+                if not self.move(1, interactive):
                     return
             while self.isword():
-                if not self.move(1):
+                if not self.move(1, interactive):
                     return
 
     @keymap.bind('Meta-b') #XXX should also be Meta-left but curses
-    def word_backward(self, count: interactive.integer_argument=1):
+    def word_backward(
+            self,
+            count: interactive.integer_argument=1,
+            interactive: interactive.isinteractive=False,
+            ):
         if count < 0:
-            return self.word_forward(-count)
+            return self.word_forward(-count, interactive=interactive)
         for _ in range(count):
             while not self.isword(-1):
-                if not self.move(-1):
+                if not self.move(-1, interactive):
                     return
             while self.isword(-1):
-                if not self.move(-1):
+                if not self.move(-1, interactive):
                     return
 
     def region(self, mark=None):
@@ -776,6 +828,11 @@ class LongPrompt(Editor):
 
     def writable(self):
         return super().writable() and self.cursor >= self.divider
+
+    def movable(self, point, interactive):
+        if interactive and point < self.divider:
+            return self.divider
+        return super().movable(point, interactive)
 
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):

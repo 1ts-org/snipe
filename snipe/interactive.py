@@ -64,6 +64,10 @@ def positive_integer_argument(*args, **kw):
     return abs(arg)
 
 
+def isinteractive(*args, **kw):
+    return True
+
+
 def call(callable, *args, **kw):
     d = {}
     parameters = inspect.signature(callable).parameters
