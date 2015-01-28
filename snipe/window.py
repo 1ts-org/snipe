@@ -83,11 +83,13 @@ class Window:
         return self.fe.context
 
     def input_char(self, k):
+        self.context.clear()
         try:
             self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
             try:
                 v = self.active_keymap[k]
             except KeyError:
+                self.context.message('no such key in map')
                 self.active_keymap = self.keymap
                 self.log.error('no such key in map')
                 self.whine(k)
@@ -112,7 +114,8 @@ class Window:
                     def catch_and_log(coro):
                         try:
                             yield from coro
-                        except:
+                        except Exception as e:
+                            self.context.message(str(e))
                             self.log.exception('Executing complex command')
                             self.whine(k)
                         self.fe.redisplay(self.redisplay_hint())
@@ -120,6 +123,7 @@ class Window:
                     t = asyncio.Task(catch_and_log(ret))
 
         except Exception as e:
+            self.context.message(str(e))
             self.log.exception('executing command from keymap')
             self.whine(k)
             self.active_keymap = self.keymap
@@ -329,6 +333,7 @@ class Window:
         if getattr(self, 'renderer', False):
             if self.last_command != 'reframe':
                 self.reframe_state = 0
+            self.log.debug('reframe_state=%d', self.reframe_state)
             if self.reframe_state == 0:
                 self.renderer.reframe(None)
             elif self.reframe_state == 1:
@@ -370,12 +375,20 @@ class StatusLine(Window):
         super().__init__(*args, **kw)
         self.noactive = True
         self.noresize = True
+        self.clear()
 
     def view(self, origin=0, direction='forward'):
         yield 0, [
-            (('visible', ), ''),
+            (('visible', ), self._message),
             (('right', ), '%d' % (self.context.backends.count(),)),
             ]
+
+    def message(self, s):
+        self._message = str(s)
+        self.fe.redisplay(self.redisplay_hint())
+
+    def clear(self):
+        self.message('')
 
     def focus(self):
         return False

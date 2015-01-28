@@ -77,6 +77,7 @@ class Context:
                 ],)
         self.status = window.StatusLine(self.ui)
         self.ui.initial(messager.Messager(self.ui), statusline=self.status)
+        self.messagelog = []
 
     def conf_read(self):
         path = os.path.join(self.directory, 'config')
@@ -135,6 +136,13 @@ class Context:
 
     def shutdown(self):
         self.backends.shutdown()
+
+    def message(self, s):
+        self.messagelog.append(s)
+        self.status.message(s)
+
+    def clear(self):
+        self.status.clear()
 
 
 class SnipeLogHandler(logging.Handler):
