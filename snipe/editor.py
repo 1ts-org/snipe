@@ -834,6 +834,28 @@ class LongPrompt(Editor):
             return self.divider
         return super().movable(point, interactive)
 
+    def view(self, *args, **kw):
+        for mark, chunk in super().view(*args, **kw):
+            if mark.point > self.divider:
+                yield mark, chunk
+            else:
+                newchunk = []
+                off = mark.point
+                for tags, string in chunk:
+                    if off < self.divider:
+                        if off + len(string) > self.divider:
+                            newchunk.append(
+                                (tags + ('bold',), string[:self.divider - off]))
+                            newchunk.append(
+                                (tags, string[self.divider - off:]))
+                        else: # string is all before the divider
+                            newchunk.append(
+                                ((tags + ('bold',)), string))
+                    else:
+                        newchunk.append((tags, string))
+                    off += len(string)
+                yield mark, newchunk
+
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
         self.callback(self.buf[self.divider:])
