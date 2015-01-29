@@ -132,7 +132,10 @@ class Context:
                 self.killring[-1] = data + self.killring[-1]
 
     def yank(self, off=1):
-        return self.killring[-(1 + (off - 1) % len(self.killring))]
+        if self.killring:
+            return self.killring[-(1 + (off - 1) % len(self.killring))]
+        else:
+            return ''
 
     def shutdown(self):
         self.backends.shutdown()
