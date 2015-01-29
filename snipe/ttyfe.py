@@ -365,10 +365,10 @@ class TTYRenderer:
             if screenlines <= 0:
                 break
             self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
-        self.head = Location(self, mark, max(0, (- screenlines) - 1))
-        self.log.debug('reframe, post-loop,   mark=%x, /offset=%d: %s', id(mark), max(0, -screenlines), repr(self.head))
+        self.head = Location(self, mark, max(0, -screenlines))
 
-        self.log.debug('reframe, screenlines=%d, head=%s', screenlines, repr(self.head))
+        self.log.debug('reframe, post-loop,   mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+        self.log.debug('reframe, post-loop, screenlines=%d, head=%s', screenlines, repr(self.head))
 
     def chunksize(self, chunk):
         lines = 0
