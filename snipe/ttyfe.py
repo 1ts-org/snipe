@@ -354,18 +354,28 @@ class TTYRenderer:
         self.head = Location(self, cursor)
         self.log.debug('reframe, initial,     mark=%x: %s', id(cursor), repr(self.head))
 
-        for mark, chunk in self.window.view(self.window.cursor, 'backward'):
-            # this should only drop stuff off the first chunk...
-            chunk = itertools.takewhile(
-                lambda x: 'visible' not in x[0],
-                chunk)
-            chunklines = self.chunksize(chunk)
-            self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
-            screenlines -= chunklines
-            if screenlines <= 0:
-                break
-            self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
-        self.head = Location(self, mark, max(0, -screenlines))
+        view = self.window.view(self.window.cursor, 'backward')
+
+        mark, chunk = next(view)
+        chunk = itertools.takewhile(
+            lambda x: 'visible' not in x[0],
+            chunk)
+        chunklines = self.chunksize(chunk)
+        self.log.debug('reframe cursor chunk, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
+        screenlines -= chunklines
+        self.log.debug('reframe cursor chunk, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+
+        if screenlines <= 0:
+            self.head = Location(self, mark, max(0, -screenlines - 1))
+        else:
+            for mark, chunk in view:
+                chunklines = self.chunksize(chunk)
+                self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
+                screenlines -= chunklines
+                if screenlines <= 0:
+                    break
+                self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+            self.head = Location(self, mark, max(0, -screenlines))
 
         self.log.debug('reframe, post-loop,   mark=%x, /offset=%d', id(mark), max(0, -screenlines))
         self.log.debug('reframe, post-loop, screenlines=%d, head=%s', screenlines, repr(self.head))
