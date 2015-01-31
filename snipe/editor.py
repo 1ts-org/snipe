@@ -81,7 +81,10 @@ class Mark:
         return self.point
 
     def __eq__(self, other):
-        return self.point == int(other)
+        try:
+            return self.point == int(other)
+        except (ValueError, TypeError):
+            return False
 
     def __lt__(self, other):
         return self.point < int(other)
