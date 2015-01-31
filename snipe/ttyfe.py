@@ -47,6 +47,7 @@ import array
 import termios
 import fcntl
 import textwrap
+import ctypes
 
 from . import util
 from . import ttycolor
@@ -114,20 +115,7 @@ class TTYRenderer:
 
     @staticmethod
     def width(s):
-        def cwidth(c):
-            # from http://bugs.python.org/msg155361
-            # http://bugs.python.org/issue12568
-            if (
-                (c < ' ') or
-                (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
-                (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
-                    and c != u'\u00ad') # 00ad = soft hyphen
-                ):
-                return 0
-            if unicodedata.east_asian_width(c) in ('F', 'W'):
-                return 2
-            return 1
-        return sum(cwidth(c) for c in s)
+        return sum(wcwidth(c) for c in s)
 
     @staticmethod
     @util.listify
@@ -728,3 +716,30 @@ class Location:
                 print (cursor, lines, delta)
             print (cursor, lines, delta)
             return Location(self.fe, cursor, max(0, lines + delta))
+
+
+def setup_wcwidth():
+    LIBC='libc.so.6' # XXX current versions of linux
+    try:
+        ctypes.cdll.LoadLibrary(LIBC)
+        libc = ctypes.CDLL(LIBC)
+        os_wcwidth = libc.wcwidth
+        def wcwidth(c):
+            return os_wcwidth(ord(c))
+    except (OSError, AttributeError):
+        def wcwidth(c):
+            # from http://bugs.python.org/msg155361
+            # http://bugs.python.org/issue12568
+            if (
+                (c < ' ') or
+                (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
+                (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+                    and c != u'\u00ad') # 00ad = soft hyphen
+                ):
+                return 0
+            if unicodedata.east_asian_width(c) in ('F', 'W'):
+                return 2
+            return 1
+    return wcwidth
+
+wcwidth = setup_wcwidth()
