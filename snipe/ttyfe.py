@@ -72,6 +72,9 @@ class TTYRenderer:
         self.sill = self.window.hints.get('sill')
         self.window.hints = {}
 
+        self.reframe_state = 'hard'
+        self.old_cursor = None
+
     def get_hints(self):
         return {'head': self.head, 'sill': self.sill}
 
@@ -89,7 +92,7 @@ class TTYRenderer:
         visible = self.redisplay_internal()
         if not visible:
             self.log.warning('redisplay, no visibility, firing reframe')
-            if self.window.cursor < self.head.cursor:
+            if (self.window.cursor, 0) < (self.head.cursor, self.head.offset):
                 self.reframe(0)
             elif self.window.cursor > self.head.cursor:
                 self.reframe(-1)
@@ -205,6 +208,10 @@ class TTYRenderer:
             repr(self.head),
             )
 
+        if self.window.cursor != self.old_cursor:
+            self.reframe_state = 'hard'
+            self.old_cursor = self.window.cursor
+
         self.w.erase()
         self.w.move(0,0)
 
@@ -225,7 +232,9 @@ class TTYRenderer:
                 attr = self.compute_attr(tags)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
-                if 'visible' in tags:
+                if 'visible' in tags and (
+                        screenlines <= self.height
+                        or self.reframe_state == 'soft'):
                     visible = True
                 if 'right' in tags:
                     text = text.rstrip('\n') #XXX chunksize
@@ -336,6 +345,8 @@ class TTYRenderer:
         if action == 'pagedown':
             self.head = self.sill
             self.log.debug('reframe pagedown to %s', self.head)
+            self.reframe_state = 'soft'
+            self.old_cursor = self.window.cursor
             return
         elif action == 'pageup':
             screenlines = self.height - 2 - self.head.offset
