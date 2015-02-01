@@ -445,7 +445,9 @@ class IRCCloudMessage(messages.SnipeMessage):
 
     def filter(self, specificity=0):
         if self.channel:
-            nfilter = filters.Compare('=', 'channel', self.channel)
+            nfilter = filters.And(
+                filters.Compare('==', 'backend', self.backend.name),
+                filters.Compare('=', 'channel', self.channel))
             if specificity:
                 nfilter = filters.And(
                     nfilter,

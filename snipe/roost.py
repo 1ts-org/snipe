@@ -433,18 +433,22 @@ class RoostMessage(messages.SnipeMessage):
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
 
     def filter(self, specificity=0):
+        nfilter = filters.Compare('==', 'backend', self.backend.name)
         if self.personal:
             if str(self.sender) == self.backend.principal:
                 conversant = self.field('recipient')
             else:
                 conversant = self.field('sender')
             return filters.And(
+                nfilter,
                 filters.Truth('personal'),
                 filters.Or(
                     filters.Compare('=', 'sender', conversant),
                     filters.Compare('=', 'recipient', conversant)))
         elif self.field('class'):
-            nfilter = filters.Compare('=', 'class', self.field('class'))
+            nfilter = filters.And(
+                nfilter,
+                filters.Compare('=', 'class', self.field('class')))
             if specificity > 0:
                 nfilter = filters.And(
                     nfilter,
