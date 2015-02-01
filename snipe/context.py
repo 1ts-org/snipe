@@ -96,7 +96,7 @@ class Context:
         if not os.path.isdir(self.directory):
             os.mkdir(self.directory)
             os.chmod(self.directory, 0o700)
-            if self.directory.startswith('/afs/'): #XXX
+            if os.path.realpath(self.directory).startswith('/afs/'): #XXX
                 cmd = [
                     'fs', 'sa', self.directory,
                     'system:anyuser', 'none', 'system:authuser', 'none',
