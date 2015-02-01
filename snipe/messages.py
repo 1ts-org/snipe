@@ -233,16 +233,6 @@ class SnipeBackend:
         # address this at some point.   (If you are finding this comment because
         # of weird message list behavior, this might be why...)
 
-        cachekey = (start, forward, mfilter)
-        point = self.startcache.get(cachekey, None)
-
-        if (backfill_to is not None and math.isfinite(backfill_to) and
-            self.messages and self.messages[0].time > backfill_to):
-            self.backfill(mfilter, backfill_to)
-
-        if point is False:
-            return
-
         if mfilter is not None:
             mfilter = mfilter.simplify({'backend': self.name})
             if mfilter == False:
@@ -252,6 +242,16 @@ class SnipeBackend:
 
         if mfilter is None:
             mfilter = lambda m: True
+
+        cachekey = (start, forward, mfilter)
+        point = self.startcache.get(cachekey, None)
+
+        if (backfill_to is not None and math.isfinite(backfill_to) and
+            self.messages and self.messages[0].time > backfill_to):
+            self.backfill(mfilter, backfill_to)
+
+        if point is False:
+            return
 
         needcache = False
         if point is None:
