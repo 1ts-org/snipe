@@ -98,7 +98,9 @@ class Messager(window.Window, window.PagingMixIn):
         return True
 
     def walk(self, origin, direction, backfill_to=None, search=False):
-        self.log.debug('walk(%s, forward=%s, %s)', repr(origin), repr(direction), util.timestr(backfill_to))
+        self.log.debug(
+            'walk(%s, forward=%s, backfill_to=%s, search=%s)',
+            repr(origin), repr(direction), util.timestr(backfill_to), repr(search))
         return self.fe.context.backends.walk(
             origin, direction, self.filter, backfill_to, search)
 
@@ -108,10 +110,13 @@ class Messager(window.Window, window.PagingMixIn):
         try:
             next(it)
             prev = next(it)
+            backfill_to = prev.time
         except StopIteration:
             prev = None
+            backfill_to = None
 
-        for x in self.walk(origin, direction == 'forward'):
+        for x in self.walk(
+                origin, direction == 'forward', backfill_to=backfill_to):
             try:
                 decoration = {}
                 for filt, decor in self.rules:

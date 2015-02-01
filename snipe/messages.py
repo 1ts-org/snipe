@@ -377,6 +377,8 @@ class DateBackend(SnipeBackend):
 
         self.backfill(mfilter, backfill_to)
 
+        self.log.debug('self.start = %s', util.timestr(self.start.timestamp()))
+
         if search:
             return
 
@@ -398,6 +400,8 @@ class DateBackend(SnipeBackend):
             else:
                 start = datetime.datetime.fromtimestamp(start)
 
+        self.log.debug('start = %s', util.timestr(start.timestamp()))
+
         if forward:
             t = start
             if t.time() != datetime.time():
@@ -411,7 +415,10 @@ class DateBackend(SnipeBackend):
             t = datetime.datetime.combine(d, datetime.time())
             delta = datetime.timedelta(days=-1)
 
+        self.log.debug('t = %s, delta = %s', util.timestr(t.timestamp()), repr(delta))
+
         while now > t >= self.start:
+            self.log.debug('date header at %s', util.timestr(t.timestamp()))
             yield InfoMessage(
                 self,
                 t.strftime('%A, %B %d, %Y\n\n'),
