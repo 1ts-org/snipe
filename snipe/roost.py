@@ -78,6 +78,8 @@ class Roost(messages.SnipeBackend):
     signature = util.Configurable(
         'roost.signature', pwd.getpwuid(os.getuid()).pw_gecos.split(',')[0],
         'Name-ish field on messages')
+    subunify = util.Configurable(
+        'roost.subunify', False, 'un-ify subscriptions')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -240,31 +242,50 @@ class Roost(messages.SnipeBackend):
 
     @staticmethod
     def spec_to_triplets(params):
-        flags, recipients = getopt.getopt(shlex.split(params.strip()), 'c:i:r:')
+        flags, rest = getopt.getopt(shlex.split(params.strip()), 'c:i:r:')
         flags = dict(flags)
 
-        if not recipients:
-            recipients = ['']
-
-        class_ = flags.get('-c', 'MESSAGE')
         instance = flags.get('-i', '*')
         realm = flags.get('-r', '')
         if realm and not realm.startswith('@'):
             realm = '@' + realm
 
-        return [(class_, instance, rec + realm) for rec in recipients]
+        if '-c' in flags or not rest:
+            class_ = flags['-c']
+            recipients = rest
+
+            return [(class_, instance, rec + realm) for rec in recipients]
+        else:
+            return [(class_, instance, realm) for class_ in rest]
+
+    @staticmethod
+    @util.listify
+    def do_subunify(subs):
+        for (class_, instance, recipient) in subs:
+            for (i, j) in itertools.product(range(4), range(4)):
+                yield ('un' * i + class_ + '.d' * j, instance, recipient)
 
     @keymap.bind('R s')
     def subscribe(self, window: interactive.window):
         spec = yield from window.read_string('subscribe to: ')
         if spec.strip():
-            yield from self.r.subscribe(self.spec_to_triplets(spec))
+            subs = self.spec_to_triplets(spec)
+            if self.subunify:
+                subs = self.do_subunify(subs)
+            self.log.debug('subbing to %s', repr(subs))
+            yield from self.r.subscribe(subs)
 
     @keymap.bind('R u')
     def unsubscribe(self, window: interactive.window):
         spec = yield from window.read_string('unsubscribe from: ')
         if spec.strip():
-            yield from self.r.unsubscribe(self.spec_to_triplets(spec))
+            subs = self.spec_to_triplets(spec)
+            if self.subunify:
+                subs = self.do_subunify(subs)
+            self.log.debug('unsubbing from %s', repr(subs))
+            yield from self.r.unsubscribe(subs)
+
+
 
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
