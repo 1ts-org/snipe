@@ -4,7 +4,7 @@ client intended for services with persistence.  One such service is
 [zephyr](https://github.com/zephyr-im).  snipe is also has
 minimal support for [IRCCloud](https://www.irccloud.com).
 
-At the moment, to get it working, you need python 3.4 _might_ be
+At the moment, to get it working, you need python 3.4. (3.3 _might_ be
 sufficient but I have not tested it) and the
 [aiohttp](https://github.com/KeepSafe/aiohttp) library; there is a
 [fork](https://github.com/kcr/aiohttp) of aiohttp with minimal debian
