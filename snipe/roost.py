@@ -45,6 +45,7 @@ import contextlib
 import re
 import pwd
 import math
+import getopt
 
 from . import messages
 from . import _rooster
@@ -103,8 +104,6 @@ class Roost(messages.SnipeBackend):
 
     @asyncio.coroutine
     def send(self, paramstr, body):
-        import getopt
-
         self.log.debug('send paramstr=%s', paramstr)
 
         flags, recipients = getopt.getopt(shlex.split(paramstr), 'Cc:i:O:')
@@ -239,6 +238,33 @@ class Roost(messages.SnipeBackend):
         subs = [' '.join(x) for x in subs]
         window.show('\n'.join(subs))
 
+    @staticmethod
+    def spec_to_triplets(params):
+        flags, recipients = getopt.getopt(shlex.split(params.strip()), 'c:i:r:')
+        flags = dict(flags)
+
+        if not recipients:
+            recipients = ['']
+
+        class_ = flags.get('-c', 'MESSAGE')
+        instance = flags.get('-i', '*')
+        realm = flags.get('-r', '')
+        if realm and not realm.startswith('@'):
+            realm = '@' + realm
+
+        return [(class_, instance, rec + realm) for rec in recipients]
+
+    @keymap.bind('R s')
+    def subscribe(self, window: interactive.window):
+        spec = yield from window.read_string('subscribe to: ')
+        if spec.strip():
+            yield from self.r.subscribe(self.spec_to_triplets(spec))
+
+    @keymap.bind('R u')
+    def unsubscribe(self, window: interactive.window):
+        spec = yield from window.read_string('unsubscribe from: ')
+        if spec.strip():
+            yield from self.r.unsubscribe(self.spec_to_triplets(spec))
 
 class RoostMessage(messages.SnipeMessage):
     def __init__(self, backend, m):

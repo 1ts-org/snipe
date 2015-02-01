@@ -137,9 +137,33 @@ class Rooster:
                         'instance': instance,
                         'recipient': recipient if recipient != '*' else '',
                         } for (class_, instance, recipient) in subs],
-                'credentials': self.zephyr_creds(),
+                'credentials': (yield from self.exile(
+                    trampoline, get_zephyr_creds)),
                 },
             ))
+
+    @asyncio.coroutine
+    def unsubscribe(self, subs):
+        yield from self.ensure_auth()
+
+        # Why does /v1/subscribe take a list while /v1/unsubscribe
+        # take a single triplet?  Who can say?  According to the
+        # dictionary, "literally" means "figuratively", which means
+        # nothing means anything anything means nothing.  Fix it in
+        # the client library.
+        for (class_, instance, recipient) in subs:
+            result = (yield from self.http(
+                '/v1/unsubscribe', {
+                    'subscription': {
+                        'class': class_,
+                        'instance': instance,
+                        'recipient': recipient if recipient != '*' else '',
+                        },
+                    'credentials': (yield from self.exile(
+                        trampoline, get_zephyr_creds)),
+                    },
+                ))
+        return result
 
     @asyncio.coroutine
     def check_zephyrcreds(self):

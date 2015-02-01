@@ -89,7 +89,9 @@ Meta–/ / | push a filter based on the current message.  More ^Us increase spec
 Meta–/ Meta–/ | pop the filter stack
 Meta–/ S | Save the current filter as the default (and reset)
 Meta–i | popup a window with gunk about the current message
-R S | dump roost subscriptions into a window
+R S | dump zephyr (roost) subscriptions into a window
+R s | subscribe to a zephyr class
+R u | unsubscribe from a zephyr class
 
 ### "Editor" windows
 
