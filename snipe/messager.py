@@ -395,6 +395,13 @@ class Messager(window.Window, window.PagingMixIn):
         """
         self.filter_push(self.cursor.filter(len(arg)))
 
+    @keymap.bind('Meta-/ .')
+    def filter_cleverly_negative(self, arg: interactive.argument=[]):
+        """Push a negative filter based on the current message.  More
+        Control-Us increase specificity, if the backend supports it.
+        """
+        self.filter_push(filters.Not(self.cursor.filter(len(arg))))
+
     @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
         if not self.filter_stack:
