@@ -46,6 +46,7 @@ import re
 import pwd
 import math
 import getopt
+import traceback
 
 from . import messages
 from . import _rooster
@@ -88,16 +89,31 @@ class Roost(messages.SnipeBackend):
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
-        self.new_task = asyncio.Task(self.r.newmessages(self.new_message))
+        self.new_task = asyncio.async(self.error_message(
+            'getting new messages', self.r.newmessages, self.new_message))
+        self.backfillers = []
 
-    def shutdown(self):
-        self.new_task.cancel()
-        # this is kludgy, but make sure the task runs a tick to
-        # process its cancellation
+    @asyncio.coroutine
+    def error_message(self, activity, func, *args):
+        """run a coroutine, creating a message with a traceback if it raises"""
         try:
-            asyncio.get_event_loop().run_until_complete(self.new_task)
+            return (yield from func(*args))
         except asyncio.CancelledError:
             pass
+        except:
+            self.log.exception(activity)
+            msg = messages.SnipeMessage(
+                self, activity + ':\n' + traceback.format_exc())
+            self.messages.append(msg)
+            self.startcache = {}
+            self.redisplay(msg, msg)
+
+    def shutdown(self):
+        for t in [self.new_task] + self.backfillers:
+            t.cancel()
+            # this is kludgy, but make sure the task runs a tick to
+            # process its cancellation
+            asyncio.get_event_loop().run_until_complete(t)
         super().shutdown()
 
     @property
@@ -147,11 +163,12 @@ class Roost(messages.SnipeBackend):
         self.log.debug(
             'backfill([filter], target=%s, count=%s, origin=%s',
             util.timestr(target), count, util.timestr(origin))
-        if not self.loaded:
+        # if we're not gettting new messages, don't try to get old ones
+        if not self.loaded and not self.new_task.done():
             self.log.debug('triggering backfill')
             msgid = None
             if self.messages:
-                msgid = self.messages[0].data['id']
+                msgid = self.messages[0].data.get('id')
                 if origin is None:
                     origin = self.messages[0].time
             if target is None: # don't
@@ -169,9 +186,13 @@ class Roost(messages.SnipeBackend):
                 if self.messages and self.messages[0].time < target:
                     return
 
-            asyncio.Task(self.do_backfill(msgid, mfilter, target, count, origin))
+            self.backfillers = [t for t in self.backfillers if not t.done()]
+            self.backfillers.append(
+                asyncio.async(self.error_message(
+                    'backfilling',
+                    self.do_backfill, msgid, mfilter, target, count, origin)))
 
-    @util.coro_cleanup
+    @asyncio.coroutine
     def do_backfill(self, start, mfilter, target, count, origin):
         #yield from asyncio.sleep(.0001)
         self.log.debug(

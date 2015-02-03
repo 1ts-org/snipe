@@ -56,8 +56,6 @@ from . import _websocket
 from ._roost_python import krb5
 from ._roost_python import gss
 
-from . import util
-
 class Rooster:
     def __init__(self, url, service):
         self.token = None
@@ -222,7 +220,7 @@ class Rooster:
                 'type': 'ping',
                 }))
 
-    @util.coro_cleanup
+    @asyncio.coroutine
     def newmessages(self, coro, pingfrequency=30):
         # will coincidentally ensure_auth
         ms = yield from self.messages(None, 1, reverse=1, inclusive=0)
