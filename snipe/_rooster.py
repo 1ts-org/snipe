@@ -72,16 +72,26 @@ class Rooster:
         self.ccache = None
         self.tailid = 0
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
+        self.executor = concurrent.futures.ProcessPoolExecutor(1)
+
+    def run_in_exile(self, *args):
         loop = asyncio.get_event_loop()
-        executor = concurrent.futures.ProcessPoolExecutor(1)
-        self.exile = util.coro_cleanup(
-            functools.partial(loop.run_in_executor, executor))
+        try:
+            return (yield from loop.run_in_executor(
+                self.executor, trampoline, *args))
+        except ExileException as e:
+            self.log.error(e.error)
+            raise
+
+    @asyncio.coroutine
+    def credentials(self):
+        return (yield from self.run_in_exile(get_zephyr_creds))
 
     @asyncio.coroutine
     def auth(self, create_user=False):
         loop = asyncio.get_event_loop()
-        self.principal, token = yield from self.exile(
-            trampoline, get_auth_token, self.service)
+        self.principal, token = yield from self.run_in_exile(
+            get_auth_token, self.service)
 
         result = yield from self.http(
             '/v1/auth',
@@ -110,8 +120,7 @@ class Rooster:
         return (yield from self.http(
             '/v1/zwrite', {
                 'message': message,
-                'credentials': (yield from self.exile(
-                    trampoline, get_zephyr_creds))
+                'credentials': (yield from self.credentials()),
                 },
             ))
 
@@ -137,8 +146,7 @@ class Rooster:
                         'instance': instance,
                         'recipient': recipient if recipient != '*' else '',
                         } for (class_, instance, recipient) in subs],
-                'credentials': (yield from self.exile(
-                    trampoline, get_zephyr_creds)),
+                'credentials': (yield from self.credentials()),
                 },
             ))
 
@@ -159,8 +167,7 @@ class Rooster:
                         'instance': instance,
                         'recipient': recipient if recipient != '*' else '',
                         },
-                    'credentials': (yield from self.exile(
-                        trampoline, get_zephyr_creds)),
+                    'credentials': (yield from self.credentials()),
                     },
                 ))
         return result
@@ -340,12 +347,27 @@ class Rooster:
         return result
 
 
+class ExileException(Exception):
+    def __init__(self, gloss, error):
+        self.gloss = gloss
+        self.error = error
+
+    def __str__(self):
+        return self.gloss
+
+    def __repr__(self):
+        return '<%s: %s\n%s\n>' % (
+            self.__class__.__name__,
+            self.gloss,
+            self.error)
+
+
 def trampoline(f, *args, **kwargs):
     import traceback
     try:
         return f(*args, **kwargs)
-    except:
-        raise Exception(traceback.format_exc()) from None
+    except BaseException as e:
+        raise ExileException(str(e), str(traceback.format_exc())) from None
 
 
 def get_auth_token(service):
