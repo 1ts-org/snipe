@@ -584,25 +584,52 @@ class TTYFrontend:
         if len(self.windows) == 2:
             raise Exception('attempt to delete only window')
 
+        if self.windows[n].window == self.context.status:
+            raise Exception('attempt to delete status line')
+
         victim = self.windows[n]
-        del self.windows[n]
+
         if self.popstack and self.popstack[-1][0] is victim.window:
-            self.popstack.pop()
+            self.popdown_window()
+            return
+
+        potentials = [
+            (i + n + (1 if n == 0 else -1)) % len(self.windows)
+            for i in range(len(self.windows))]
+        potentials = [
+            i for i in potentials
+            if not self.windows[i].window.noresize and i != n]
+
+        if not potentials:
+            raise Exception('attempt to delete sole resizeable window')
+
+        beneficiary = potentials[0]
+
         victim.window.destroy()
-        fixup = n < self.active
-        if n == 0:
-            u = self.windows[0]
-            self.windows[0] = TTYRenderer(
-                self, 0, victim.height + u.height, u.window)
-        else:
-            u = self.windows[n-1]
-            self.windows[n-1] = TTYRenderer(
-                self, u.y, victim.height + u.height, u.window)
-            if self.active == n:
-                self.active -= 1
-                self.windows[self.active].focus()
-        if fixup: # n < self.active before the above mayhem
+
+        if n < beneficiary:
+            tomove = range(n + 1, beneficiary)
+            moveby = -victim.height
+            bmoveby = -victim.height
+        elif n > beneficiary:
+            tomove = range(n - 1, beneficiary, -1)
+            moveby = victim.height
+            bmoveby = 0
+
+        for i in tomove:
+            u = self.windows[i]
+            self.windows[i] = TTYRenderer(self, u.y + moveby, u.height, u.window)
+
+        u = self.windows[beneficiary]
+        self.windows[beneficiary] = TTYRenderer(
+            self, u.y + bmoveby, u.height + victim.height, u.window)
+
+        del self.windows[n]
+
+        if n <= self.active:
             self.active -= 1
+        if not self.windows[self.active].window.focus():
+            self.switch_window(self, 1)
 
     def delete_current_window(self):
         self.delete_window(self.active)
