@@ -74,7 +74,7 @@ class Window:
         self._destroy()
 
     def focus(self):
-        return True
+        return not self.noactive
 
     @property
     def context(self):
@@ -389,9 +389,6 @@ class StatusLine(Window):
 
     def clear(self):
         self.message('')
-
-    def focus(self):
-        return False
 
     def check_redisplay_hint(self, hint):
         return True
