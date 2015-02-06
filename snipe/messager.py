@@ -480,16 +480,19 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-[space]')
     def set_mark(self, where=None, prefix: interactive.argument=None):
-        if prefix is None:
-            self.mark_ring.append(self.the_mark)
-            self.the_mark = where if where is not None else self.cursor
-        else:
+        if prefix is not None or \
+          (self.last_command == 'set_mark' and self.set_mark_state == 1):
             self.mark_ring.insert(
                 0, (where if where is not None else self.cursor))
             where = self.the_mark
             self.the_mark = self.mark_ring.pop()
             self.cursor = where
             self.cursor = next(self.walk(self.cursor, True))
+            self.set_mark_state = 1
+        else:
+            self.mark_ring.append(self.the_mark)
+            self.the_mark = where if where is not None else self.cursor
+            self.set_mark_state = 0
 
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
