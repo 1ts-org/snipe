@@ -480,6 +480,16 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-[space]')
     def set_mark(self, where=None, prefix: interactive.argument=None):
+        """Without a ^U before*, set the mark (append it to the mark ring).
+
+        With a ^U, stick the current point at the current beginning of the
+        mark ring, and set the point to the current end of the mark ring.
+
+        * repeating the command after a ^U will continue to jump around
+        rather than setting the mark.
+        """
+        #XXX this documentation is weak and this could share a lot of code
+        #with the same command over in the editor
         if prefix is not None or \
           (self.last_command == 'set_mark' and self.set_mark_state == 1):
             self.mark_ring.insert(
