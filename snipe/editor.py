@@ -571,13 +571,6 @@ class Editor(Viewer):
             return
         return super().replace(count, string, collapsible)
 
-    @keymap.bind('Meta-T')
-    def insert_test_content(
-            self, count: interactive.positive_integer_argument=80):
-        import itertools
-        self.insert(''.join(
-            itertools.islice(itertools.cycle('1234567890'), count)))
-
     @keymap.bind(
         '[tab]', '[linefeed]',
         *(chr(x) for x in range(ord(' '), ord('~') + 1)))

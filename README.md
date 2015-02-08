@@ -114,7 +114,6 @@ Meta–w | copy region
 ^X ^X | exchange point and mark
 ^D, ⌦ | delete character forward
 ^H, ^?, ⌫ | delete character barckward
-Meta-T | insert test content
 ^X f | set fill column
 ^K | kill to end of line
 ^W | kill region
