@@ -195,14 +195,25 @@ class Messager(window.Window, window.PagingMixIn):
         self.move(False)
 
     @keymap.bind('Meta-n') #XXX should be Meta-[down] as well but well, curses
-    def next_messsage_cleverly(self):
-        """Move to the next message that's sort of like the current one."""
-        self.move(True, filters.And(self.filter, self.cursor.filter()))
+    def next_messsage_cleverly(self, arg: interactive.argument=[]):
+        """Move to the next message that's sort of like the current one.
+        Control-Us increase specificity if the backend supports it.  Repeated
+        "clever" movement commands will retain the specificity."""
+        self.move_cleverly(True, arg)
 
     @keymap.bind('Meta-p') #XXX should be Meta-[down] as well but well, curses
-    def prev_messsage_cleverly(self):
-        """Move to the last message that's sort of like the current one."""
-        self.move(False, filters.And(self.filter, self.cursor.filter()))
+    def prev_messsage_cleverly(self, arg: interactive.argument=[]):
+        """Move to the last message that's sort of like the current one.
+        Repeated "clever" movement commands will retain the specificity."""
+        self.move_cleverly(False, arg)
+
+    def move_cleverly(self, forward, arg):
+        self.this_command = 'move_cleverly'
+        if self.last_command != 'move_cleverly':
+            self.move_cleverly_state = len(arg)
+        self.move(forward, filters.And(
+            self.filter,
+            self.cursor.filter(self.move_cleverly_state)))
 
     def move(self, forward, infilter=None):
         self.log.debug(
