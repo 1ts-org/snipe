@@ -784,7 +784,7 @@ class LongPrompt(Editor):
     def __init__(
             self,
             *args,
-            prompt='',
+            prompt='> ',
             complete=None,
             callback=lambda x: None,
             history=None,
