@@ -96,7 +96,7 @@ class Buffer:
     registry = {}
 
     def __init__(self, name=None, content=None, chunksize=None):
-        if name is None:
+        if not name:
             name = '*x%x*' % (id(self),)
         self.name = self.register(name)
 
@@ -108,7 +108,7 @@ class Buffer:
             self.registry[name]  = self
             return name
 
-        r = re.compile(r'^%s(?:|\[(\d+)\])$' % (name,))
+        r = re.compile(r'^%s(?:|\[(\d+)\])$' % (re.escape(name),))
         competition = filter(
             None, (r.match(bufname) for bufname in self.registry))
         competition = [m.group(1) for m in competition]
