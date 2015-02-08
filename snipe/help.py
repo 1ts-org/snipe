@@ -61,22 +61,32 @@ class Help(editor.Viewer):
 
     @keymap.bind('?', '[escape] ?') # really should give increasingly basic help
     def start(self):
+        """Go to the help splash screen."""
+
         self.display(self.START)
 
     @keymap.bind('L')
     def license(self):
+        """Display the license."""
+
         self.display(self.BANNER + util.LICENSE)
 
     @keymap.bind('q', 'Q', '[Escape] [Escape]')
     def exit_help(self):
+        """Exit help."""
+
         self.fe.popdown_window()
 
     @keymap.bind('b')
     def describe_bindings(self):
+        """Describe the bindings of the window we entered help from."""
+
         self.display(self.BANNER + str(self.caller.keymap))
 
     @keymap.bind('k')
     def describe_key(self):
+        """Read a keysequence and display its documentation."""
+
         keystrokes, func = yield from self.read_keyseq(
             'Describe key? ', self.caller.keymap)
         keyseq = ' '.join(self.keymap.unkey(k) for k in keystrokes) 
@@ -93,6 +103,8 @@ class Help(editor.Viewer):
 
 @keymap.bind('?', '[escape] ?')
 def help(window: interactive.window):
+    """Help."""
+
     window.fe.popup_window(Help(window.fe, caller=window), height=10)
     window.fe.redisplay()
 
