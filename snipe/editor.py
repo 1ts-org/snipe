@@ -911,6 +911,25 @@ class ShortPrompt(LongPrompt):
         self.keymap['[carriage return]'] = self.runcallback
 
 
+class KeySeqPrompt(LongPrompt):
+    def __init__(self, *args, keymap=None, **kw):
+        super().__init__(*args, **kw)
+        self.keymap = keymap
+        self.active_keymap = keymap
+        self.intermediate_action = self.echo_keystroke
+        self.keymap_action = self.runcallback
+        self.keyerror_action = self.runcallback
+        self.keystrokes = []
+
+    def echo_keystroke(self, keystroke):
+        self.keystrokes.append(keystroke)
+        self.insert(self.keymap.unkey(keystroke) + ' ')
+        self.fe.redisplay(self.redisplay_hint())
+
+    def runcallback(self, func=None, *args, **kw):
+        self.callback((self.keystrokes, func))
+
+
 class ReplyMode:
     def __init__(self, msg):
         self.msg = msg

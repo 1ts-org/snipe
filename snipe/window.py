@@ -63,6 +63,9 @@ class Window:
         self.last_command = ''
         self.last_key = ''
         self.universal_argument = None
+        self.keymap_action = interactive.call
+        self.intermediate_action = None
+        self.keyerror_action = None
 
         self.noactive = False
         self.noresize = False
@@ -89,19 +92,24 @@ class Window:
             try:
                 v = self.active_keymap[k]
             except KeyError:
-                self.context.message('no such key in map')
-                self.active_keymap = self.keymap
-                self.log.error('no such key in map')
-                self.whine(k)
+                if self.keyerror_action is not None:
+                    self.keyerror_action()
+                else:
+                    self.context.message('no such key in map')
+                    self.active_keymap = self.keymap
+                    self.log.error('no such key in map')
+                    self.whine(k)
                 return
 
+            if self.intermediate_action is not None:
+                self.intermediate_action(keystroke = k)
             if not callable(v):
                 self.active_keymap = v
             else:
                 self.active_keymap = self.keymap
                 arg, self.universal_argument = self.universal_argument, None
                 self.this_command = getattr(v, '__name__', '?')
-                ret = interactive.call(
+                ret = self.keymap_action(
                     v,
                     context = self.context,
                     window = self,
@@ -178,6 +186,11 @@ class Window:
             prompt, complete=interactive.complete_filename)
 
         return result
+
+    def read_keyseq(self, prompt, keymap):
+        from .editor import KeySeqPrompt
+        return (yield from self.read_string(
+            prompt, window=KeySeqPrompt, keymap=keymap))
 
     @keymap.bind('Control-X Control-C')
     def quit(self):

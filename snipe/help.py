@@ -33,6 +33,7 @@ snipe.help
 ----------
 '''
 
+import inspect
 
 from . import window
 from . import keymap
@@ -42,8 +43,10 @@ from . import editor
 
 
 class Help(editor.Viewer):
-    START = '?: top  b: key bindings  L: License  q: back to what you were doing'
-    BANNER = '[pageup/pagedown to scroll]\n'
+    START = (
+        '?: top  b: key bindings  k: describe key  L: License\n' +
+        'q: back to what you were doing')
+    BANNER = '[pageup/pagedown to scroll, q to quit]\n'
 
     def __init__(self, *args, caller=None, **kw):
         self.caller = caller
@@ -72,10 +75,25 @@ class Help(editor.Viewer):
     def describe_bindings(self):
         self.display(self.BANNER + str(self.caller.keymap))
 
+    @keymap.bind('k')
+    def describe_key(self):
+        keystrokes, func = yield from self.read_keyseq(
+            'Describe key? ', self.caller.keymap)
+        keyseq = ' '.join(self.keymap.unkey(k) for k in keystrokes) 
+        if func is None:
+            out = '"%s" is not bound to anything' % (keyseq,)
+        else:
+            out = '"%s" is bound to %s' % (
+                keyseq, getattr(func, '__name__', '???'))
+            if hasattr(func, '__doc__'):
+                out += '\n\n' + inspect.getdoc(func)
+        self.display(self.BANNER + out)
+
 
 
 @keymap.bind('?', '[escape] ?')
 def help(window: interactive.window):
     window.fe.popup_window(Help(window.fe, caller=window), height=10)
     window.fe.redisplay()
+
 
