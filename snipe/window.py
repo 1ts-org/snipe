@@ -253,13 +253,6 @@ class Window:
     def split_to_colordemo(self):
         self.fe.split_window(ColorDemo(self.fe))
 
-    @keymap.bind('Control-X t')#XXX
-    def test_ui(self):
-        streeng = yield from self.read_string('floop> ', content='zoge')
-        self.log.debug(
-            'AAAA %s',
-            ''.join(reversed(streeng)),
-            )
 
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
     def replhack(self):
