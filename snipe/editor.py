@@ -219,16 +219,22 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=1):
+        """Move the point forward a character.  Given a count, move forward n
+        characters."""
+
         self.move(count, True)
 
     @keymap.bind('Control-B', '[left]')
     def move_backward(self, count: interactive.integer_argument=1):
+        """Move the point backward a character.  Given a count, move backward n
+        characters."""
+
         self.move(-count, True)
 
     def move(self, delta, interactive=False):
-        '''.move(delta, mark=None) -> actual distance moved
-        Move the point by delta.
-        '''
+        """.move(delta, mark=None) -> actual distance moved
+        Move the point by delta."""
+
         z = self.cursor.point
         # the setter does appropriate clamping
         self.cursor.point = self.movable(self.cursor.point + delta, interactive)
@@ -237,10 +243,16 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-N', '[down]')
     def line_next(self, count: interactive.integer_argument=1):
+        """Move the point down a line.  Given a count, move down n lines.
+        Attempts to keep the cursor at the same column."""
+
         self.line_move(count, interactive=True)
 
     @keymap.bind('Control-P', '[up]')
     def line_previous(self, count: interactive.integer_argument=1):
+        """Move the point up a line.  Given a count, move up n lines.
+        Attempts to keep the cursor at the same column."""
+
         self.line_move(-count, interactive=True)
 
     def line_move(self, delta, track_column=True, interactive=False):
@@ -337,7 +349,10 @@ class Viewer(window.Window, window.PagingMixIn):
             count: interactive.integer_argument=None,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point to the beginning of the line.  Given a count, move the
+        point to the beginning of the n-1th line down."""
         where = self.buf.mark(self.cursor)
+
         with self.save_excursion(where):
             if count is not None:
                 self.line_move(count - 1)
@@ -359,6 +374,9 @@ class Viewer(window.Window, window.PagingMixIn):
             count: interactive.integer_argument=None,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point to the end of the line.  Given a count, move the
+        point to the beginning of the n-1th line down."""
+
         where = self.buf.mark(self.cursor)
         with self.save_excursion(where):
             if count is not None:
@@ -371,6 +389,10 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @contextlib.contextmanager
     def save_excursion(self, where=None):
+        """Context manager that saves the current cursor and mark state.
+        If called with a mark, set the cursor to that mark at he beginning,
+        and set the mark to the inside-cursor state at the end."""
+
         cursor = self.buf.mark(self.cursor)
         mark = self.buf.mark(self.the_mark or self.cursor)
         mark_ring = self.mark_ring
@@ -392,6 +414,10 @@ class Viewer(window.Window, window.PagingMixIn):
             pct: interactive.argument,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point to the beginning of the buffer.  With a single-digit
+        count, move the point to the beginning of a line somewhere around n*10 %
+        of the way through the buffer."""
+
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
         where = self.buf.mark(self.cursor)
         oldpoint = self.cursor.point
@@ -413,6 +439,10 @@ class Viewer(window.Window, window.PagingMixIn):
             pct: interactive.argument=None,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point to the end of the buffer.  With a single-digit count,
+        move the point to the beginning of a line somewhere around n*10 %
+        of the way from the end of the buffer."""
+
         self.log.debug(
             'end_of_buffer: arg, %s oldpoint %s', repr(pct), self.cursor.point)
         where = self.buf.mark(self.cursor)
@@ -461,6 +491,10 @@ class Viewer(window.Window, window.PagingMixIn):
             count: interactive.integer_argument=1,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point forward to the location after the current word.  Given
+        a count, do this n times.  Given a negative count, hand off to
+        word_backward."""
+
         if count < 0:
             return self.word_backward(-count, interactive=interactive)
         for _ in range(count):
@@ -477,6 +511,10 @@ class Viewer(window.Window, window.PagingMixIn):
             count: interactive.integer_argument=1,
             interactive: interactive.isinteractive=False,
             ):
+        """Move the point backward to the beginning of the the previous word.
+        Given a count, do this n times.  Given a negative count, hand off to
+        word_forward."""
+
         if count < 0:
             return self.word_forward(-count, interactive=interactive)
         for _ in range(count):
@@ -499,6 +537,9 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-w')
     def copy_region(self):
+        """Copy (do not delete) the region (between the point and the mark) into
+        the kill ring."""
+
         if self.the_mark is None:
             self.whine('no mark is set')
             return
@@ -517,6 +558,7 @@ class Viewer(window.Window, window.PagingMixIn):
         """
         #XXX this documentation is weak and this could share a lot of code
         #with the same command over in the messager
+
         if prefix is not None or \
           (self.last_command == 'set_mark' and self.set_mark_state == 1):
             self.mark_ring.insert(
@@ -532,6 +574,9 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
+        """Move the point to where the mark is, and set the mark where the point
+        used to be."""
+
         if self.the_mark is not None:
             self.cursor, self.the_mark = self.the_mark, self.cursor
 
@@ -578,6 +623,8 @@ class Editor(Viewer):
             self,
             key: interactive.keystroke,
             count: interactive.positive_integer_argument=1):
+        """Insert the last keystroke of the triggering key sequence into the
+        buffer."""
 
         if self.fill_column:
             if self.last_command != 'self_insert':
@@ -627,6 +674,10 @@ class Editor(Viewer):
 
     @keymap.bind('Control-X f')
     def set_fill_column(self, column: interactive.argument=None):
+        """Set the current fill column.  With a non-numeric prefix argument, set
+        it to the current column.  With a numeric prefix argument, set it to the
+        given number.  Otherwise, ask."""
+
         if column is None:
             s = yield from self.read_string(
                 'new fill column (current is %d): ' % self.fill_column)
@@ -641,10 +692,15 @@ class Editor(Viewer):
 
     @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(self, count: interactive.positive_integer_argument=1):
+        """Insert a newline, or n newlines."""
+
         self.insert('\n' * count)
 
     @keymap.bind('Control-D', '[dc]')
     def delete_forward(self, count: interactive.integer_argument=1):
+        """Delete characters after the point, one by default, n if
+        specified."""
+
         if count < 0:
             moved = self.move(count)
             count = -moved
@@ -652,10 +708,20 @@ class Editor(Viewer):
 
     @keymap.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, count: interactive.integer_argument=1):
+        """Delete characters before the point, one by default, n if specified."""
+
         self.delete_forward(-count)
 
     @keymap.bind('Control-k')
     def kill_to_end_of_line(self, count: interactive.integer_argument):
+        """Kill (delete and copy to the kill ring) the text until the end of the
+        line.  If the point is at the end of the line already, kill the line
+        boundary.  Given a count of zero, kill to the beginning of the line,
+        otherwise kill that many lines.
+
+        If the previous command was a kill command, append the killed text to the
+        text on the end of the kill ring."""
+
         m = self.buf.mark(self.cursor)
         if count is None: #"normal" case
             self.end_of_line()
@@ -673,6 +739,11 @@ class Editor(Viewer):
 
     @keymap.bind('Control-W')
     def kill_region(self, mark=None, append=False):
+        """Kill (delete and copy to the kill ring) the current region.
+
+        If the previous command was a kill command, append the killed text to the
+        text on the end of the kill ring."""
+
         if mark is None:
             mark = self.the_mark
         if mark is None:
@@ -693,6 +764,11 @@ class Editor(Viewer):
 
     @keymap.bind('Control-Y')
     def yank(self, arg: interactive.argument=None):
+        """Insert a copy of the the top of the kill ring to the buffer and leave
+        the mark set at the top of what was just inserted.  With an integer
+        argument, rotate the kill ring by n first.  With just a prexix argument,
+        exchange the point and the mark afterwards."""
+
         if arg and isinstance(arg, int):
             self.yank_state += arg - 1
         self.insert_region(self.context.yank(self.yank_state))
@@ -701,6 +777,10 @@ class Editor(Viewer):
 
     @keymap.bind('Meta-y')
     def yank_pop(self, arg: interactive.integer_argument=1):
+        """After a yank, rotate the kill ring by one (or n if specified) and
+        replace the just-yanked text with whatever's now at the top of the kill
+        ring."""
+
         if self.last_command not in ('yank', 'yank_pop'):
             self.whine('last command was not a yank')
             return
@@ -712,6 +792,9 @@ class Editor(Viewer):
 
     @keymap.bind('Control-_', 'Control-x u')
     def undo(self, count: interactive.positive_integer_argument=1):
+        """Undo previous changes.   Repeat to undo more.  An integer argument
+        is a repeat count."""
+
         if not self.writable():
             self.whine('window is read-only')
             return
@@ -726,6 +809,9 @@ class Editor(Viewer):
 
     @keymap.bind('Control-T')
     def transpose_chars(self):
+        """Transpose the characters around the point, moving forward one
+        character."""
+
         off = 1
         p = self.cursor.point
         if p == len(self.buf):
@@ -741,24 +827,34 @@ class Editor(Viewer):
 
     @keymap.bind('Control-O')
     def open_line(self, count: interactive.positive_integer_argument=1):
+        """Insert a newline (perhaps n newlines) ahead of the point."""
+
         with self.save_excursion():
             self.insert('\n' * count)
 
     @keymap.bind(
         'Meta-[backspace]', 'Meta-Control-H', 'Meta-[dc]', 'Meta-[del]')
     def kill_word_backward(self, count: interactive.integer_argument=1):
+        """Delete the word before the point.  With an integer argument, delete
+        n words before the point."""
+
         mark = self.buf.mark(self.cursor)
         self.word_backward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
     @keymap.bind('Meta-d')
     def kill_word_forward(self, count: interactive.integer_argument=1):
+        """Delete the word after the point.  With an integer argument, delete
+        n words after the point."""
+
         mark = self.buf.mark(self.cursor)
         self.word_forward(count)
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
     @keymap.bind('Control-X i')
     def insert_file(self):
+        """Read a file name and then insert the contents in to the buffer."""
+
         filename = yield from self.read_filename('Insert File: ')
         try:
             with open(filename) as fp:
@@ -768,6 +864,8 @@ class Editor(Viewer):
 
     @keymap.bind('Control-X Control-Q')
     def toggle_writable(self):
+        """Toggle the readonly flag on the buffer."""
+
         self._writable = not self._writable
 
 
@@ -808,10 +906,14 @@ class LongPrompt(Editor):
 
     @keymap.bind('Meta-p')
     def previous_history(self):
+        """Move back by one in the current history list."""
+
         self.move_history(-1)
 
     @keymap.bind('Meta-n')
     def next_history(self):
+        """Move forward by one in the current history list."""
+
         self.move_history(1)
 
     def move_history(self, offset):
@@ -867,10 +969,14 @@ class LongPrompt(Editor):
 
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
+        """Complete whatever action this prompt is for."""
+
         self.callback(self.buf[self.divider:])
 
     @keymap.bind('[tab]')
     def complete(self, key: interactive.keystroke):
+        """If there is a completer set for the buffer, complete at the point."""
+
         if self.complete is None:
             return self.self_insert(key=key)
 
@@ -929,6 +1035,9 @@ class ReplyMode:
 
     @keymap.bind('Control-C Control-Y')
     def yank_original(self, window: interactive.window):
+        """Yank the contents of the message being replied to, with a > line
+        prefix."""
+
         m = window.buf.mark(window.cursor)
         prefix = '> '
         with window.save_excursion(m):
