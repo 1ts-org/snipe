@@ -194,6 +194,8 @@ class Window:
 
     @keymap.bind('Control-X Control-C')
     def quit(self):
+        """Quiet snipe."""
+
         asyncio.get_event_loop().stop()
 
     def whine(self, k):
@@ -201,6 +203,7 @@ class Window:
 
     @keymap.bind('Control-Z')
     def stop(self):
+        """Suspend snipe."""
         self.fe.sigtstp(None, None)
 
     def view(self, origin=None, direction=None):
@@ -208,27 +211,39 @@ class Window:
 
     @keymap.bind('Control-X 2')
     def split_window(self):
+        """Split current window."""
+
         self.fe.split_window(self.__class__(self.fe, prototype=self))
 
     @keymap.bind('Control-X 0')
     def delete_window(self):
+        """Delete the current window."""
+
         self.fe.delete_current_window()
 
     @keymap.bind('Control-X 1')
-    def popdown(self):
+    def delete_other_windows(self):
+        """Delete windows that aren't the current window."""
+
         self.fe.delete_other_windows()
 
     @keymap.bind('Control-X o')
     def other_window(self):
+        """Switch to other window."""
+
         self.fe.switch_window(1)
 
     @keymap.bind('Control-X e')#XXX
     def split_to_editor(self):
+        """Split to a new editor window."""
+
         from .editor import Editor
         self.fe.split_window(Editor(self.fe))
 
     @keymap.bind('Control-X 4 m')
     def split_to_messager(self, filter_new=None):
+        """Split to a new messager window."""
+
         from .messager import Messager
         self.fe.split_window(Messager(
             self.fe,
@@ -238,6 +253,8 @@ class Window:
 
     @keymap.bind('Control-X 4 /')
     def split_to_messager_filter(self):
+        """Split to a new messager window with a specified filter."""
+
         from . import filters
         f = getattr(self, 'filter', None)
         if isinstance(f, filters.Filter):
@@ -251,11 +268,14 @@ class Window:
 
     @keymap.bind('Control-X c')#XXX
     def split_to_colordemo(self):
-        self.fe.split_window(ColorDemo(self.fe))
+        """Split to a color demo window."""
 
+        self.fe.split_window(ColorDemo(self.fe))
 
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
     def replhack(self):
+        """Evaluate python expressions.   Mostly useful for debugging."""
+
         import traceback
         import pprint
         from . import editor
@@ -283,6 +303,9 @@ class Window:
 
     @keymap.bind('Meta-=')
     def set_config(self, arg: interactive.argument):
+        """Set a config key.  With a prefix-argument, dump the corrent
+        configuration dict to a window."""
+
         if not arg:
             key = yield from self.read_string(
                 'Key: ',
@@ -298,6 +321,8 @@ class Window:
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
             self, key: interactive.keystroke, arg: interactive.argument = 0):
+        """Start a decimal argument."""
+
         self.active_keymap = keymap.Keymap(self.keymap)
         for i in range(10):
             self.active_keymap[str(i)] = self.decimal_argument
@@ -317,6 +342,9 @@ class Window:
     @keymap.bind('Control-U')
     def start_universal_argument(
             self, arg: interactive.argument, key: interactive.keystroke):
+        """Universal argument.  Followed by digits sets an integer argument.
+        Without digits is interpreted as a four when an integer is needed.  More
+        ^Us multiply by four each time.""" #XXX revisit this
         if isinstance(arg, int):
             self.universal_argument = arg # shouldn't do this the second time?
 
@@ -336,6 +364,10 @@ class Window:
 
     @keymap.bind('Control-L')
     def reframe(self):
+        """Reframe so that the cursor is in the middle of the window.  Repeating
+        it tries to put the cursor in the at the top, then the bottom, and then
+        cycles."""
+
         if getattr(self, 'renderer', False):
             if self.last_command != 'reframe':
                 self.reframe_state = 0
@@ -356,11 +388,13 @@ class Window:
 class PagingMixIn:
     @keymap.bind('[ppage]', 'Meta-v')
     def pageup(self):
+        """Scroll up a windowful."""
         self.cursor = self.renderer.display_range()[0]
         self.renderer.reframe(action='pageup')
 
     @keymap.bind('[npage]', 'Control-v')
     def pagedown(self):
+        """Scroll down a windowful."""
         self.cursor = self.renderer.display_range()[1]
         self.renderer.reframe(action='pagedown')
 
