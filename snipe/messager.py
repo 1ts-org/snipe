@@ -188,10 +188,14 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
+        """Move to the next message."""
+
         self.move(True)
 
     @keymap.bind('Control-p', 'p', 'k', '[up]')
     def prev_message(self):
+        """Move to the previous message."""
+
         self.move(False)
 
     @keymap.bind('Meta-n') #XXX should be Meta-[down] as well but well, curses
@@ -199,12 +203,14 @@ class Messager(window.Window, window.PagingMixIn):
         """Move to the next message that's sort of like the current one.
         Control-Us increase specificity if the backend supports it.  Repeated
         "clever" movement commands will retain the specificity."""
+
         self.move_cleverly(True, arg)
 
     @keymap.bind('Meta-p') #XXX should be Meta-[down] as well but well, curses
     def prev_messsage_cleverly(self, arg: interactive.argument=[]):
         """Move to the last message that's sort of like the current one.
         Repeated "clever" movement commands will retain the specificity."""
+
         self.move_cleverly(False, arg)
 
     def move_cleverly(self, forward, arg):
@@ -255,6 +261,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('s')
     def send(self, recipient='', msg=None):
+        """Start composing a message."""
+
         sill = self.renderer.display_range()[1]
         if sill.omega: # We're at the bottom of the message list
             self.secondary = self.cursor
@@ -286,16 +294,22 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('f')
     def followup(self):
+        """Followup (wide-reply) to a message."""
+
         msg = self.replymsg()
         yield from self.send(msg.followup(), msg)
 
     @keymap.bind('r')
     def reply(self):
+        """Replay (narrow-reply) to a message."""
+
         msg = self.replymsg()
         yield from self.send(msg.reply(), msg)
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):
+        """Move to the last message."""
+
         old = self.cursor
         self.cursor = next(self.walk(float('inf'), False))
         if old != self.cursor:
@@ -303,6 +317,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
     def first(self):
+        """Move to the first (currently loaded) message."""
+
         old = self.cursor
         self.cursor = next(self.walk(float('-inf'), True))
         if old != self.cursor:
@@ -319,6 +335,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ 0')
     def filter_reset(self):
+        """Clear the filter stack and go back to the default filter."""
+
         self.filter_stack = []
         self.filter_replace(
             filters.makefilter(self.default_filter)
@@ -327,6 +345,9 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ =')
     def filter_edit(self):
+        """Edit the text representation of the current filter and push the
+        result."""
+
         s = '' if self.filter is None else str(self.filter)
 
         s = yield from self.read_string('Filter expression:\n', s, 5)
@@ -335,6 +356,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ -')
     def filter_everything(self):
+        """Filter everything."""
+
         self.filter_push_and_replace(filters.No())
 
     def filter_clear_decorate(self, decoration):
@@ -352,17 +375,25 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ g')
     def filter_foreground_background(self):
+        """Take the current filter and set a foreground and background color for
+        messages that match it."""
         fg = yield from self.read_string('Foreground: ')
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @keymap.bind('Meta-/ f')
     def filter_foreground(self):
+        """Take the current filter and set a foreground color for messages that
+        match it."""
+
         fg = yield from self.read_string('Foreground: ')
         self.filter_clear_decorate({'foreground': fg})
 
     @keymap.bind('Meta-/ b')
     def filter_background(self):
+        """Take the current filter and set a background color for messages that
+        match it."""
+
         bg = yield from self.read_string('Background: ')
         self.filter_clear_decorate({'background': bg})
 
@@ -379,22 +410,30 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ c')
     def filter_class(self):
+        """Push a filter for a canonicalized zephyr class."""
+
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class'))
         self.filter_push(filters.Compare('=', 'class', class_))
 
     @keymap.bind('Meta-/ C')
     def filter_class_exactly(self):
+        """Push a filter for an uncanonicalized zephyr class."""
+
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class', False))
         self.filter_push(filters.Compare('==', 'class', class_))
 
     @keymap.bind('Meta-/ p')
     def filter_personals(self):
+        """Push a filter to only personal messages."""
+
         self.filter_push(filters.Truth('personal'))
 
     @keymap.bind('Meta-/ s')
     def filter_sender(self):
+        """Push a filter to a sender."""
+
         sender = yield from self.read_string(
             'Sender: ', self.cursor.field('sender'))
         self.filter_push(filters.Compare('=', 'sender', sender))
@@ -402,19 +441,22 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('Meta-/ /')
     def filter_cleverly(self, arg: interactive.argument=[]):
         """Push a filter based on the current message.  More Control-Us
-        increase specificity, if the backend supports it.
-        """
+        increase specificity, if the backend supports it."""
+
         self.filter_push(self.cursor.filter(len(arg)))
 
     @keymap.bind('Meta-/ .')
     def filter_cleverly_negative(self, arg: interactive.argument=[]):
         """Push a negative filter based on the current message.  More
-        Control-Us increase specificity, if the backend supports it.
-        """
+        Control-Us increase specificity, if the backend supports it."""
+
         self.filter_push(filters.Not(self.cursor.filter(len(arg))))
 
     @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
+        """Pop the current filter, replacing it with the next one on the
+        stack."""
+
         if not self.filter_stack:
             self.filter_reset()
         else:
@@ -422,6 +464,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-/ S')
     def save_default_filter(self):
+        """Save current the filter as the default."""
+
         if self.filter:
             self.default_filter = str(self.filter)
             self.context.conf_write()
@@ -429,6 +473,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-i')
     def show_message_data(self):
+        """Dump the current message data into a window."""
+
         from pprint import pformat
 
         self.show(
@@ -445,6 +491,9 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Meta-g')
     def goto(self):
+        """Go to a specified time, backfilling as appropriate.  Date-time
+        parsing is unfortunately adhoc and idiosyncractic."""
+
         import parsedatetime
         p = parsedatetime.Calendar()
 
@@ -457,6 +506,10 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X [')
     def prev_day(self, count: interactive.integer_argument=1):
+        """Jump to the previous midnight, backfilling as appropriate.
+
+        Integer argument specifies multiple days."""
+
         if count < 0:
             return self.next_day(-count)
 
@@ -476,6 +529,10 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X ]')
     def next_day(self, count: interactive.integer_argument=1):
+        """Jump to the next midnight.
+
+        Integer argument specifies multiple days."""
+
         if count < 0:
             return self.prev_day(-count)
 
@@ -517,6 +574,9 @@ class Messager(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
+        """Move the point to where the mark is, and set the mark where the point
+        used to be."""
+
         if self.the_mark is not None:
             self.cursor, self.the_mark = self.the_mark, self.cursor
             self.cursor = next(self.walk(self.cursor, True))
