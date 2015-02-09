@@ -379,6 +379,7 @@ class Window:
             elif self.reframe_state == 2:
                 self.renderer.reframe(-1)
             self.reframe_state = (self.reframe_state + 1) % 3
+        self.fe.force_repaint()
 
     def show(self, string):
         from .editor import Viewer

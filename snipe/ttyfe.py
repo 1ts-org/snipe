@@ -549,6 +549,11 @@ class TTYFrontend:
                 else:
                     self.redisplay()
 
+    def force_repaint(self):
+        self.stdscr.clearok(1)
+        self.stdscr.refresh()
+        self.full_redisplay = True
+
     def redisplay(self, hint=None):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
 
