@@ -562,7 +562,10 @@ class TTYFrontend:
             hint = None
             self.full_redisplay = False
 
-        self.color_assigner.reset()
+        if hint is None:
+            # only reset the color map if we're redrawing everything
+            self.color_assigner.reset()
+
         active = None
         for i, w in enumerate(self.windows):
             if i == self.active:
