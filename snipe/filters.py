@@ -153,7 +153,9 @@ class Conjunction(Filter):
         super().__init__()
         self.operands = []
         for arg in args:
-            if not isinstance(arg, self.__class__):
+            if arg is None:
+                pass
+            elif not isinstance(arg, self.__class__):
                 self.operands.append(arg)
             else:
                 self.operands += arg.operands
