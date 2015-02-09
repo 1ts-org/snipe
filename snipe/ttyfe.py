@@ -48,6 +48,7 @@ import termios
 import fcntl
 import textwrap
 import ctypes
+import select
 
 from . import util
 from . import ttycolor
@@ -423,6 +424,7 @@ class TTYFrontend:
             id(self),
             ))
         self.popstack = []
+        self.full_redisplay = False
 
     def __enter__(self):
         locale.setlocale(locale.LC_ALL, '')
@@ -549,6 +551,17 @@ class TTYFrontend:
 
     def redisplay(self, hint=None):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
+
+        # short circuit the redisplay if there's pending input.
+        readable, _, _ = select.select([0], [], [], 0)
+        if readable:
+            self.full_redisplay = True
+            return
+
+        if self.full_redisplay:
+            hint = None
+            self.full_redisplay = False
+
         self.color_assigner.reset()
         active = None
         for i, w in enumerate(self.windows):
