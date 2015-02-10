@@ -208,6 +208,8 @@ class IRCCloud(messages.SnipeBackend):
         else:
             msg = IRCCloudMessage(self, m)
             msglist.append(msg)
+            if len(msglist) > 1 and msglist[-1] < msglist[-2]:
+                msglist.sort()
             return msg
 
     @asyncio.coroutine
