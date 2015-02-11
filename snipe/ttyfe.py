@@ -97,7 +97,7 @@ class TTYRenderer:
             if (self.window.cursor, 0) < (self.head.cursor, self.head.offset):
                 self.reframe(0)
             elif self.window.cursor > self.head.cursor:
-                self.reframe(-1)
+                self.reframe(action='clever-down')
             else:
                 self.log.warning(
                     '%s, %s: ==? %s',
@@ -331,6 +331,9 @@ class TTYRenderer:
 
     def reframe(self, target=None, action=None):
         self.log.debug('reframe(target=%s, action=%s)', repr(target), repr(action))
+
+        cursor, chunk = next(self.window.view(self.window.cursor, 'backward'))
+
         if action == 'pagedown':
             self.head = self.sill
             self.log.debug('reframe pagedown to %s', self.head)
@@ -340,6 +343,8 @@ class TTYRenderer:
         elif action == 'pageup':
             screenlines = self.height - 2 - self.head.offset
             self.log.debug('reframe pageup, screenline=%d', screenlines)
+        elif action == 'clever-down':
+            screenlines = max(self.height - self.chunksize(chunk), 0)
         elif target is None:
             screenlines = self.height // 2
         elif target >= 0:
@@ -350,7 +355,6 @@ class TTYRenderer:
         self.log.debug('reframe, previous frame=%s', repr(self.head))
         self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
 
-        cursor, _ = next(self.window.view(self.window.cursor, 'backward'))
         self.head = Location(self, cursor)
         self.log.debug('reframe, initial,     mark=%x: %s', id(cursor), repr(self.head))
 
