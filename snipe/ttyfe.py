@@ -341,7 +341,7 @@ class TTYRenderer:
             self.old_cursor = self.window.cursor
             return
         elif action == 'pageup':
-            screenlines = self.height - 2 - self.head.offset
+            screenlines = self.height - 1 - self.head.offset
             self.log.debug('reframe pageup, screenline=%d', screenlines)
         elif action == 'clever-down':
             screenlines = max(self.height - self.chunksize(chunk), 0)
