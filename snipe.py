@@ -29,7 +29,13 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+import sys
+import os
+
 import snipe.main
 
 if __name__ == '__main__':
+    sys.path[0:0] = [
+        os.path.join(os.path.realpath(os.path.dirname(__file__)), 'lib')]
+
     snipe.main.main()
