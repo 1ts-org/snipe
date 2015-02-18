@@ -1,8 +1,10 @@
+NOSETESTS=nosetests3 -w tests
+
 all:
-	nosetests3
+	$(NOSETESTS)
 
 coverage:
-	nosetests3 --with-coverage
+	$(NOSETESTS) --with-coverage
 	python3-coverage html
 
 clean:
