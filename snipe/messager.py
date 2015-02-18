@@ -39,6 +39,7 @@ import time
 import datetime
 import traceback
 import pprint
+import asyncio
 
 from . import filters
 from . import roost
@@ -412,17 +413,21 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_class(self):
         """Push a filter for a canonicalized zephyr class."""
 
-        class_ = yield from self.read_string(
-            'Class: ', self.cursor.field('class'))
-        self.filter_push(filters.Compare('=', 'class', class_))
+        yield from self.do_filter_class('=')
 
     @keymap.bind('Meta-/ C')
     def filter_class_exactly(self):
         """Push a filter for an uncanonicalized zephyr class."""
 
+        yield from self.do_filter_class('==')
+
+    @asyncio.coroutine
+    def do_filter_class(self, op):
         class_ = yield from self.read_string(
             'Class: ', self.cursor.field('class', False))
-        self.filter_push(filters.Compare('==', 'class', class_))
+        self.filter_push(filters.And(
+            filters.Compare('==', 'backend', 'roost'),
+            filters.Compare(op, 'class', class_)))
 
     @keymap.bind('Meta-/ p')
     def filter_personals(self):
