@@ -80,6 +80,9 @@ class Mark:
     def __int__(self):
         return self.point
 
+    def __index__(self):
+        return self.point
+
     def __eq__(self, other):
         try:
             return self.point == int(other)
@@ -125,13 +128,10 @@ class Buffer:
         return self.buf.size
 
     def __getitem__(self, k):
-        if hasattr(k, 'start'): # slice object, ignore the step
-            start = k.start if k.start is not None else 0
-            stop = k.stop if k.stop is not None else len(self)
-            if start < 0:
-                start = len(self) - start
-            if stop < 0:
-                stop = len(self) - start
+        if hasattr(k, 'start'):
+            start, stop, step = k.indices(len(self))
+            if step != 1:
+                raise ValueError('cannot step through a buffer')
             return self.buf.textrange(start, stop)
         else:
             if k < 0:
