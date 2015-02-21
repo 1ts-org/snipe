@@ -157,7 +157,7 @@ class Window:
                 f.set_exception(Exception('Operation Aborted'))
 
         if window is None:
-            from .editor import ShortPrompt, LongPrompt
+            from .prompt import ShortPrompt, LongPrompt
             if height > 2:
                 window = LongPrompt
             else:
@@ -188,7 +188,7 @@ class Window:
         return result
 
     def read_keyseq(self, prompt, keymap):
-        from .editor import KeySeqPrompt
+        from .prompt import KeySeqPrompt
         return (yield from self.read_string(
             prompt, window=KeySeqPrompt, keymap=keymap))
 
@@ -278,7 +278,7 @@ class Window:
 
         import traceback
         import pprint
-        from . import editor
+        from .promp import ShortPrompt
 
         self.log.debug('entering replhack')
 
@@ -287,7 +287,7 @@ class Window:
             expr = yield from self.read_string(
                 out + ':>> ',
                 height = len(out.splitlines()) + 2,
-                window = editor.ShortPrompt,
+                window = ShortPrompt,
                 )
             if not expr.strip():
                 break

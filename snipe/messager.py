@@ -47,6 +47,7 @@ from . import keymap
 from . import window
 from . import help
 from . import editor
+from . import prompt
 from . import util
 from . import interactive
 
@@ -271,7 +272,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         kw = {}
         if msg is not None:
-            kw['modes'] = [editor.ReplyMode(msg)]
+            kw['modes'] = [prompt.ReplyMode(msg)]
 
         message = yield from self.read_string(
             'send --> ',
