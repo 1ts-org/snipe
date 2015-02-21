@@ -32,8 +32,6 @@ snipe.editor
 ------------
 '''
 
-import array
-import weakref
 import contextlib
 import logging
 import functools
@@ -44,6 +42,7 @@ from . import window
 from . import interactive
 from . import keymap
 from . import util
+from . import gap
 
 
 @functools.total_ordering
@@ -103,7 +102,7 @@ class Buffer:
             name = '*x%x*' % (id(self),)
         self.name = self.register(name)
 
-        self.buf = UndoableGapBuffer(content=content, chunksize=chunksize)
+        self.buf = gap.UndoableGapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
 
     def register(self, name):
@@ -1045,181 +1044,3 @@ class ReplyMode:
                 prefix + ('\n' + prefix).join(self.msg.body.splitlines()))
         window.set_mark(m)
 
-
-class GapBuffer:
-    CHUNKSIZE = 4096
-
-    def __init__(self, content=None, chunksize=None):
-        super().__init__()
-        self.log = logging.getLogger(
-            '%s.%x' % ('GapBuffer', id(self),))
-        self.chunksize = chunksize or self.CHUNKSIZE
-        self.marks = weakref.WeakSet()
-        self.buf = self._array(self.chunksize)
-        self.gapstart = 0
-        self.gapend = len(self.buf)
-
-        if content is not None:
-            self.replace(0, 0, content)
-
-    def __repr__(self):
-        return '<%s size=%d:%d %d-%d>' % (
-            self.__class__.__name__,
-            self.size, len(self.buf),
-            self.gapstart, self.gapend,
-            )
-
-    def _array(self, size):
-        return array.array('u', u' ' * size)
-
-    @property
-    def size(self):
-        return len(self.buf) - self.gaplength
-
-    @property
-    def text(self):
-        return (
-            self.buf[:self.gapstart].tounicode()
-            + self.buf[self.gapend:].tounicode())
-
-    def textrange(self, beg, end):
-        beg = self.pointtopos(beg)
-        end = self.pointtopos(end)
-        l = []
-        if beg <= self.gapstart:
-            l.append(self.buf[beg:min(self.gapstart, end)].tounicode())
-        if end > self.gapstart:
-            l.append(self.buf[max(self.gapend, beg):end].tounicode())
-        return ''.join(l)
-
-    @property
-    def gaplength(self):
-        return self.gapend - self.gapstart
-
-    def pointtopos(self, point):
-        point = int(point)
-        if point < 0:
-            return 0
-        if point <= self.gapstart:
-            return point
-        if point < self.size:
-            return point + self.gaplength
-        return len(self.buf)
-
-    def postopoint(self, pos):
-        if pos < self.gapstart:
-            return pos
-        elif pos <= self.gapend:
-            return self.gapstart
-        else:
-            return pos - self.gaplength
-
-    def movegap(self, pos, size):
-        # convert marks to point coordinates
-        for mark in self.marks:
-            mark.pos = mark.point
-        point = self.postopoint(pos)
-
-        # expand the gap if necessary
-        if size > self.gaplength:
-            increase = (
-                ((size - self.gaplength) // self.chunksize + 1) * self.chunksize)
-            self.buf[self.gapstart:self.gapstart] = self._array(increase)
-            self.gapend += increase
-
-        pos = self.pointtopos(point)
-        # okay, now we move the gap.
-        if pos < self.gapstart:
-            # If we're moving it towards the top of the buffer
-            newend = pos + self.gaplength
-            self.buf[newend:self.gapend] = self.buf[pos:self.gapstart]
-            self.gapstart = pos
-            self.gapend = newend
-        elif pos > self.gapend:
-            # towards the bottom
-            newstart = pos - self.gaplength
-            self.buf[self.gapstart:newstart] = self.buf[self.gapend:pos]
-            self.gapstart = newstart
-            self.gapend = pos
-        # turns marks back to pos coordinates
-        for mark in self.marks:
-            mark.point = mark.pos
-
-    def replace(self, where, size, string, collapsible=None):
-        assert size >= 0
-        if hasattr(where, 'pos'):
-            where = where.pos
-        else:
-            where = self.pointtopos(where)
-        length = len(string)
-        self.movegap(where, length - size)
-        self.gapend += size
-        newstart = self.gapstart + length
-        self.buf[self.gapstart:newstart] = array.array('u', string)
-        self.gapstart = newstart
-        return length
-
-    def mark(self, where):
-        if where is None:
-            return None
-        return GapMark(self, where)
-
-
-class UndoableGapBuffer(GapBuffer):
-    def __init__(self, *args, **kw):
-        self.undolog = []
-        super().__init__(*args, **kw)
-
-    def replace(self, where, size, string, collapsible=False):
-        self.log.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
-        if self.undolog:
-            self.log.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
-        if collapsible and self.undolog \
-          and where == self.undolog[-1][0] + self.undolog[-1][1] \
-          and string != '' and self.undolog[-1][2] == '':
-            #XXX only "collapses" inserts
-            self.log.debug('collapse %s', repr(self.undolog[-1]))
-            self.undolog[-1] = (self.undolog[-1][0], len(string) + self.undolog[-1][1], '')
-        else:
-            self.undolog.append(
-                (int(where), len(string), self.textrange(where, int(where) + size)))
-        return super().replace(where, size, string)
-
-    def undo(self, which):
-        if not self.undolog:
-            return None
-        if which is not None:
-            off = which
-        else:
-            off = len(self.undolog) - 1
-        where, size, string = self.undolog[off]
-        self.replace(where, size, string)
-        return (off - 1) % len(self.undolog), where + len(string)
-
-
-class GapMark:
-    def __init__(self, buf, point):
-        self.buf = buf
-        self.buf.marks.add(self)
-        self.pos = self.buf.pointtopos(point)
-
-    @property
-    def point(self):
-        """The value of the mark in external coordinates"""
-        return self.buf.postopoint(self.pos)
-
-    @point.setter
-    def point(self, val):
-        self.pos = self.buf.pointtopos(val)
-
-    def __repr__(self):
-        return '<%s %x (%x) %d (%d)>' % (
-            self.__class__.__name__,
-            id(self),
-            id(self.buf),
-            self.pos,
-            self.point,
-            )
-
-    def __int__(self):
-        return self.point
