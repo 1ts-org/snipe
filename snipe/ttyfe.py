@@ -654,7 +654,7 @@ class TTYFrontend:
         if n <= self.active:
             self.active -= 1
         if not self.windows[self.active].window.focus():
-            self.switch_window(self, 1)
+            self.switch_window(1)
 
     def delete_current_window(self):
         self.delete_window(self.active)
