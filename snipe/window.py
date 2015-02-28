@@ -278,7 +278,7 @@ class Window:
 
         import traceback
         import pprint
-        from .promp import ShortPrompt
+        from .prompt import ShortPrompt
 
         self.log.debug('entering replhack')
 
