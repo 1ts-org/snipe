@@ -32,10 +32,11 @@
 import sys
 import os
 
-import snipe.main
-
 if __name__ == '__main__':
     sys.path[0:0] = [
         os.path.join(os.path.realpath(os.path.dirname(__file__)), 'lib')]
 
+import snipe.main
+
+if __name__ == '__main__':
     snipe.main.main()
