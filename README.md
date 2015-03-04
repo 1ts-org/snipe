@@ -86,7 +86,7 @@ Meta–/ p | push a filter on personal messages
 Meta–/ s | push a filter on specified sender
 Meta–/ / | push a filter based on the current message.  More ^Us increase specificity, if the backend supports it
 Meta–/ Meta–/ | pop the filter stack
-Meta–/ S | Save the current filter as the default (and reset)
+Meta–/ S | Save the current filter (with a prefix, save as the default)
 Meta–i | popup a window with gunk about the current message
 R S | dump zephyr (roost) subscriptions into a window
 R s | subscribe to a zephyr class

@@ -234,7 +234,10 @@ class SnipeBackend:
         # of weird message list behavior, this might be why...)
 
         if mfilter is not None:
-            mfilter = mfilter.simplify({'backend': self.name})
+            mfilter = mfilter.simplify({
+                'backend': self.name,
+                'context': self.context,
+                })
             if mfilter == False:
                 return
             if mfilter == True:

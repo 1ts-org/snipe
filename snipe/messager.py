@@ -346,15 +346,33 @@ class Messager(window.Window, window.PagingMixIn):
             else None)
 
     @keymap.bind('Meta-/ =')
-    def filter_edit(self):
+    def filter_edit(self, arg: interactive.argument=[]):
         """Edit the text representation of the current filter and push the
-        result."""
+        result.
 
-        s = '' if self.filter is None else str(self.filter)
+        With a prefix, ask for a named filter to edit."""
 
-        s = yield from self.read_string('Filter expression:\n', s, 5)
+        if not arg:
+            s = '' if self.filter is None else str(self.filter)
 
-        self.filter_replace(filters.makefilter(s))
+            s = yield from self.read_string('Filter expression:\n', s, 5)
+
+            self.filter_replace(filters.makefilter(s))
+        else:
+            conf = self.context.conf
+            name = yield from self.read_string(
+                'filter name: ',
+                complete=interactive.completer(conf.get('filter', {}).keys()))
+            name = name.strip()
+            s = conf.get('filter', {}).get(name, '')
+            s = yield from self.read_string(
+                'Filter expression %s:\n' % (name,), s, 5)
+            if not s.strip():
+                if name in conf.get('filter', {}).get(name, ''):
+                    del conf['filter'][name]
+            else:
+                f = filters.makefilter(s)
+                conf.setdefault('filter', {})[name] = str(f)
 
     @keymap.bind('Meta-/ -')
     def filter_everything(self):
@@ -469,11 +487,22 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter = self.filter_stack.pop()
 
     @keymap.bind('Meta-/ S')
-    def save_default_filter(self):
-        """Save current the filter as the default."""
+    def filter_save(self, arg: interactive.argument=[]):
+        """Save current the filter to a named filter.  With a prefix,
+        save to the default filter."""
 
         if self.filter:
-            self.default_filter = str(self.filter)
+
+            if arg:
+                self.default_filter = str(self.filter)
+            else:
+                conf = self.context.conf
+                name = yield from self.read_string(
+                    'target filter name: ',
+                    complete=interactive.completer(
+                            conf.get('filter', {}).keys()))
+                name = name.strip()
+                conf.setdefault('filter', {})[name] = str(self.filter)
             self.context.conf_write()
             self.filter_reset()
 

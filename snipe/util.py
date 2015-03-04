@@ -157,6 +157,7 @@ for userspace_name, program_name in [
     ('log.gapbuffer', 'GapBuffer'),
     ('log.backend.terminus', 'TerminusBackend'),
     ('log.backend.startup', 'StartupBackend'),
+    ('log.filter', 'filter'),
     ]:
     Level(
         userspace_name,
