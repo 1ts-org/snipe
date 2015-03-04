@@ -32,8 +32,8 @@
 # This was written while looking at
 # https://github.com/roost-im/roost-python/blob/master/lib/roost.py
 # which is by David Benjamin and Copyright © 2013 MIT.  I don't think
-# there's enough of it to count as a derivative work, but credit where
-# credit is due.
+# there's enough of it in this for this to count as a derivative work,
+# but credit where credit is due.
 '''
 snipe._rooster
 --------------
