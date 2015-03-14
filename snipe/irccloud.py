@@ -124,8 +124,7 @@ class IRCCloud(messages.SnipeBackend):
         token = result['token']
 
         self.log.debug('retrieving logging in')
-        backoff = 1/16
-        while True:
+        for backoff in ((1/16) * 2**min(i, 9) for i in itertools.count()):
             try:
                 result = yield from self.http_json(
                     'POST',
@@ -143,8 +142,6 @@ class IRCCloud(messages.SnipeBackend):
             except ValueError:
                 self.log.exception('logging in, sleeping then trying again')
                 yield from asyncio.sleep(backoff)
-                if backoff < 32:
-                    backoff *= 2
 
         if not result.get('success'):
             self.log.warn('login failed: %s', repr(result))
