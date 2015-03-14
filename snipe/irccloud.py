@@ -124,18 +124,28 @@ class IRCCloud(messages.SnipeBackend):
         token = result['token']
 
         self.log.debug('retrieving logging in')
-        result = yield from self.http_json(
-            'POST',
-            urllib.parse.urljoin(IRCCLOUD, '/chat/login'),
-            urllib.parse.urlencode({
-                'email': username,
-                'password': password,
-                'token': token,
-                }),
-            {'x-auth-formtoken': token,
-             'content-type': 'application/x-www-form-urlencoded',
-            },
-            )
+        backoff = 1/16
+        while True:
+            try:
+                result = yield from self.http_json(
+                    'POST',
+                    urllib.parse.urljoin(IRCCLOUD, '/chat/login'),
+                    urllib.parse.urlencode({
+                        'email': username,
+                        'password': password,
+                        'token': token,
+                        }),
+                    {'x-auth-formtoken': token,
+                     'content-type': 'application/x-www-form-urlencoded',
+                    },
+                    )
+                break
+            except ValueError:
+                self.log.exception('logging in, sleeping then trying again')
+                yield from asyncio.sleep(backoff)
+                if backoff < 32:
+                    backoff *= 2
+
         if not result.get('success'):
             self.log.warn('login failed: %s', repr(result))
             return
