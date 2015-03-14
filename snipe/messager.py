@@ -368,11 +368,12 @@ class Messager(window.Window, window.PagingMixIn):
             s = yield from self.read_string(
                 'Filter expression %s:\n' % (name,), s, 5)
             if not s.strip():
-                if name in conf.get('filter', {}).get(name, ''):
+                if name in conf.get('filter', {}):
                     del conf['filter'][name]
             else:
                 f = filters.makefilter(s)
                 conf.setdefault('filter', {})[name] = str(f)
+            self.context.conf_write()
 
     @keymap.bind('Meta-/ -')
     def filter_everything(self):
