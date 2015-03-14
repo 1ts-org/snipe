@@ -58,7 +58,26 @@ class Context:
     '''
     # per-session state and abstact control
     def __init__(self, ui, handler):
-        self.conf = {}
+        self.conf = {
+            'filter': {
+                'personal': 'personal',
+                'auto':
+                    'backend == "startup"'
+                    ' or (backend == "roost" and opcode = "auto")',
+                'error': 'error',
+                },
+            'rule': [
+                ['filter personal', {
+                    'background': 'blue',
+                    'foreground': 'white'}],
+                ['filter error', {
+                    'background': 'red',
+                    'foreground': 'white'}],
+                ['filter auto', {
+                    'background': 'grey24',
+                    }],
+                ],
+            }
         self.context = self
         self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
         self.conf_read()
