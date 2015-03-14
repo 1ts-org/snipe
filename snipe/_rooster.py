@@ -56,6 +56,11 @@ from . import _websocket
 from ._roost_python import krb5
 from ._roost_python import gss
 
+
+class RoosterException(Exception):
+    pass
+
+
 class Rooster:
     def __init__(self, url, service):
         self.token = None
@@ -338,8 +343,9 @@ class Rooster:
         result = result.decode('utf-8')
         try:
             result = json.loads(result)
-        except:
-            self.log.exception('de-jsoning response: %s', result)
+        except ValueError as e:
+            if result: # then it's probably an error message
+                raise RoosterException(result) from e
             raise
 
         return result

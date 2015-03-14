@@ -100,10 +100,9 @@ class Roost(messages.SnipeBackend):
             return (yield from func(*args))
         except asyncio.CancelledError:
             pass
-        except:
+        except Exception as e:
             self.log.exception(activity)
-            msg = messages.SnipeMessage(
-                self, activity + ':\n' + traceback.format_exc())
+            msg = RoostErrorMessage(self, activity, e, traceback.format_exc())
             self.messages.append(msg)
             self.startcache = {}
             self.redisplay(msg, msg)
@@ -481,6 +480,14 @@ class RoostMessage(messages.SnipeMessage):
             return nfilter
 
         return super().filter(specificity)
+
+
+class RoostErrorMessage(messages.SnipeMessage):
+    def __init__(self, backend, activity, exception, tracebackstr):
+        body = '%s: %s' % (activity, str(exception))
+        if not isinstance(exception, _rooster.RoosterException):
+            body += '\n' + tracebackstr
+        super().__init__(backend, body)
 
 
 class RoostPrincipal(messages.SnipeAddress):
