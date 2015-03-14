@@ -82,6 +82,7 @@ class SnipeMessage:
     outgoing = False
     noise = False
     omega = False
+    error = False
 
     def __init__(self, backend, body='', mtime=None):
         self._sender = None

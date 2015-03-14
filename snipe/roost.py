@@ -488,6 +488,7 @@ class RoostErrorMessage(messages.SnipeMessage):
         if not isinstance(exception, _rooster.RoosterException):
             body += '\n' + tracebackstr
         super().__init__(backend, body)
+        self.error = True
 
 
 class RoostPrincipal(messages.SnipeAddress):
