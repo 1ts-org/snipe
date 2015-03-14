@@ -86,7 +86,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.keymap.interrogate(backend)
             self.keymap.interrogate(backend.__class__.__module__)
         self.rules = []
-        for (filt, decor) in self.context.conf.get('rules', []):
+        for (filt, decor) in self.context.conf.get('rule', []):
             try:
                 self.rules.append((filters.makefilter(filt), decor))
             except:
@@ -385,12 +385,12 @@ class Messager(window.Window, window.PagingMixIn):
         self.rules = [
             (filt, decor) for (filt, decor) in self.rules if filt != self.filter]
         self.rules.append((self.filter, decoration))
-        self.context.conf['rules'] = [
+        self.context.conf['rule'] = [
             (filts, decor)
-            for (filts, decor) in self.context.conf.get('rules', [])
+            for (filts, decor) in self.context.conf.get('rule', [])
             if filts != str(self.filter)
             ]
-        self.context.conf['rules'].append((str(self.filter), decoration))
+        self.context.conf['rule'].append((str(self.filter), decoration))
         self.context.conf_write()
         self.filter_reset()
 

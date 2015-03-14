@@ -62,6 +62,12 @@ class Context:
         self.context = self
         self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
         self.conf_read()
+
+        if 'rules' in self.conf:
+            self.conf['rule'] = self.conf['rules']
+            del self.conf['rules']
+            self.conf_write()
+
         handler.context = self
         self.ui = ui
         self.ui.context = self
