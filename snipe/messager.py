@@ -275,7 +275,7 @@ class Messager(window.Window, window.PagingMixIn):
             kw['modes'] = [prompt.ReplyMode(msg)]
 
         message = yield from self.read_string(
-            'send --> ',
+            'compose (Control-J to send) --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
             history='send',
@@ -355,7 +355,8 @@ class Messager(window.Window, window.PagingMixIn):
         if not arg:
             s = '' if self.filter is None else str(self.filter)
 
-            s = yield from self.read_string('Filter expression:\n', s, 5)
+            s = yield from self.read_string(
+                'Filter expression (Control-J when finished):\n', s, 5)
 
             self.filter_replace(filters.makefilter(s))
         else:
@@ -366,7 +367,7 @@ class Messager(window.Window, window.PagingMixIn):
             name = name.strip()
             s = conf.get('filter', {}).get(name, '')
             s = yield from self.read_string(
-                'Filter expression %s:\n' % (name,), s, 5)
+                'Filter expression %s (Control-J when finished):\n' % (name,), s, 5)
             if not s.strip():
                 if name in conf.get('filter', {}):
                     del conf['filter'][name]

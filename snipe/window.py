@@ -262,7 +262,8 @@ class Window:
         else:
             s = ''
 
-        s = yield from self.read_string('Filter expression:\n', s, 5)
+        s = yield from self.read_string(
+            'Filter expression (Control-J when finished):\n', s, 5)
 
         self.split_to_messager(filter_new=filters.makefilter(s))
 
