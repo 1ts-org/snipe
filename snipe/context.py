@@ -65,6 +65,7 @@ class Context:
                     'backend == "startup"'
                     ' or (backend == "roost" and opcode = "auto")',
                 'error': 'error',
+                'default': 'yes',
                 },
             'rule': [
                 ['filter personal', {
@@ -77,6 +78,9 @@ class Context:
                     'background': 'grey24',
                     }],
                 ],
+            'set': {
+                'default_filter': 'filter default',
+                }
             }
         self.context = self
         self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
