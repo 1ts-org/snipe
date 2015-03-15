@@ -517,6 +517,13 @@ class Messager(window.Window, window.PagingMixIn):
         self.show(
             repr(self.cursor)
             + '\n'
+            + ', '.join(
+                ('' if getattr(self.cursor, field) else 'not ') + field
+                for field in ('personal', 'outgoing', 'noise', 'omega', 'error'))
+            + '\n'
+            + 'sender: ' + repr(str(self.cursor.sender)) + '\n'
+            + 'body: ' + '\n '.join(pformat(self.cursor.body).split('\n'))
+             + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
 
     def goto_time(self, when):
