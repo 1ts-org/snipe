@@ -351,7 +351,7 @@ class Rooster:
         return result
 
 
-class ExileException(Exception):
+class ExileException(RoosterException):
     def __init__(self, gloss, error):
         self.gloss = gloss
         self.error = error
