@@ -72,6 +72,7 @@ class LongPrompt(editor.Editor):
         self.end_of_buffer()
         self.histptr = 0
         self.history = self.histories.setdefault(history, [])
+        self.keymap['Control-G'] = self.delete_window
 
     def destroy(self):
         self.history.append(self.buf[self.divider:])

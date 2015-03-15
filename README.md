@@ -130,7 +130,7 @@ Meta-d | kill word forwards
 key      | binding
 ---------|----------------
 ^J, ^C ^C | send message, complete operation
-^X 0 | delete current window & abort operation
+^X 0, ^G | delete current window & abort operation
 Meta-p | previous history
 Meta-n | next history
 [tab] | where appropriate, complete
