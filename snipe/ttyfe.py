@@ -453,7 +453,8 @@ class TTYFrontend:
         signal.signal(signal.SIGWINCH, self.doresize)
         return self
 
-    def initial(self, win, statusline=None):
+    def initial(self, winfactory, statusline=None):
+        self.default_window=winfactory
         if self.windows or self.active is not None:
             raise ValueError
         if statusline is None:
@@ -463,7 +464,7 @@ class TTYFrontend:
             self.active = 1
             self.windows = [
                 TTYRenderer(self, 0, 1, statusline),
-                TTYRenderer(self, 1, self.maxy - 1, win),
+                TTYRenderer(self, 1, self.maxy - 1, winfactory()),
                 ]
         for r in self.windows:
             r.w.refresh()
@@ -706,13 +707,24 @@ class TTYFrontend:
         if self.popstack:
             new_window, new_height = self.popstack[-1]
             dheight = new_height - victim.height
-            self.windows[-1:] = [
-                TTYRenderer(self, adj.y, adj.height - dheight, adj.window),
-                TTYRenderer(self, victim.y - dheight, new_height, new_window),
-                ]
+            if adj.window.noresize:
+                self.window.append(TTYRenderer(
+                    self, victim.y, victim.height, new_window))
+            else:
+                self.windows[-1:] = [
+                    TTYRenderer(
+                        self, adj.y, adj.height - dheight, adj.window),
+                    TTYRenderer(
+                        self, victim.y - dheight, new_height, new_window),
+                    ]
         else:
-            self.windows[-1] = TTYRenderer(
-                self, adj.y, adj.height + victim.height, adj.window)
+            if adj.window.noactive:
+                self.windows.append(
+                    TTYRenderer(
+                        self, victim.y, victim.height, self.default_window()))
+            else:
+                self.windows[-1] = TTYRenderer(
+                    self, adj.y, adj.height + victim.height, adj.window)
         if self.active >= len(self.windows):
             self.active = len(self.windows) - 1
             self.windows[self.active].focus()

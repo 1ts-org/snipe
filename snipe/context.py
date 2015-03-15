@@ -101,7 +101,8 @@ class Context:
                 irccloud.IRCCloud(self),
                 ],)
         self.status = window.StatusLine(self.ui)
-        self.ui.initial(messager.Messager(self.ui), statusline=self.status)
+        self.ui.initial(
+            lambda: messager.Messager(self.ui), statusline=self.status)
         self.messagelog = []
 
     def conf_read(self):
