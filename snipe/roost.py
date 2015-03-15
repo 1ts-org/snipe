@@ -490,6 +490,17 @@ class RoostErrorMessage(messages.SnipeMessage):
         super().__init__(backend, body)
         self.error = True
 
+    def filter(self, specificity=0):
+        nfilter = filters.And(
+            filters.Compare('==', 'backend', self.backend.name),
+            filters.Truth('error'),
+            )
+        if specificity:
+            nfilter = filters.And(
+                nfilter,
+                filters.Compare('==', 'body', self.body))
+        return nfilter
+
 
 class RoostPrincipal(messages.SnipeAddress):
     def __init__(self, backend, principal):
