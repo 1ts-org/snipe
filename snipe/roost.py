@@ -162,6 +162,7 @@ class Roost(messages.SnipeBackend):
         self.log.debug(
             'backfill([filter], target=%s, count=%s, origin=%s',
             util.timestr(target), count, util.timestr(origin))
+
         # if we're not gettting new messages, don't try to get old ones
         if not self.loaded and not self.new_task.done():
             self.log.debug('triggering backfill')
@@ -302,7 +303,6 @@ class Roost(messages.SnipeBackend):
                 subs = self.do_subunify(subs)
             self.log.debug('unsubbing from %s', repr(subs))
             yield from self.r.unsubscribe(subs)
-
 
 
 class RoostMessage(messages.SnipeMessage):
