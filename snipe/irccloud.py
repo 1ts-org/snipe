@@ -42,6 +42,9 @@ import netrc
 import urllib.parse
 import itertools
 import os
+import pprint
+import math
+
 
 from . import messages
 from . import util
@@ -75,6 +78,7 @@ class IRCCloud(messages.SnipeBackend):
         self.buffers = {}
         self.channels = {}
         self.servers = {}
+        self.backfillers = []
 
     @property
     def reqid(self):
@@ -213,6 +217,9 @@ class IRCCloud(messages.SnipeBackend):
         elif mtype == 'channel_init':
             self.channels[m['bid']] = m
         else:
+            buf = self.buffers[m['bid']]
+            if 'have_eid' not in buf or m['eid'] < buf['have_eid']:
+                buf['have_eid'] = m['eid']
             msg = IRCCloudMessage(self, m)
             msglist.append(msg)
             if len(msglist) > 1 and msglist[-1] < msglist[-2]:
@@ -326,6 +333,98 @@ class IRCCloud(messages.SnipeBackend):
                 if line:
                     yield from self.say(cid, dest, prefix + line)
                 yield from asyncio.sleep(self.floodpause)
+
+    @keymap.bind('I C')
+    def dump_connections(self, window: interactive.window):
+        window.show(pprint.pformat(self.connections))
+
+    @keymap.bind('I c')
+    def dump_channels(self, window: interactive.window):
+        window.show(pprint.pformat(self.channels))
+
+    @keymap.bind('I B')
+    def dump_buffers(self, window: interactive.window):
+        window.show(pprint.pformat(self.buffers))
+
+    @keymap.bind('I S')
+    def dump_servers(self, window: interactive.window):
+        window.show(pprint.pformat(self.servers))
+
+    def backfill(self, mfilter, target=None):
+        self.log.debug('backfill([filter], %s)', repr(target))
+        live = [
+            b for b in self.buffers.values()
+            if not b['deferred'] and b['have_eid'] > b['min_eid']]
+        if target is None:
+            target = min(b.get('have_eid', 0) for b in live) - 1
+        elif math.isfinite(target):
+            target = int(target * 1000000)
+        live = [b for b in live if b['have_eid'] > target]
+        self.backfillers = [t for t in self.backfillers if not t.done()]
+        if not self.backfillers:
+            for b in live:
+                self.backfillers.append(
+                    asyncio.async(self.backfill_buffer(b, target)))
+
+    @asyncio.coroutine
+    def backfill_buffer(self, buf, target):
+        self.log.debug('backfill_buffer([%s %s], %s)', buf['bid'], buf.get('have_eid'), target)
+        try:
+            oob_data = yield from self.http_json(
+                'GET',
+                urllib.parse.urljoin(
+                    IRCCLOUD,
+                    '/chat/backlog?' + urllib.parse.urlencode([
+                        ('cid', buf['cid']),
+                        ('bid', buf['bid']),
+                        ('num', 256),
+                        ('beforeid', buf['have_eid'] - 1),
+                        ])
+                ),
+                headers={'Cookie': 'session=%s' % self.session},
+                compress='gzip',
+                )
+            included = []
+
+            if isinstance(oob_data, dict):
+                raise Exception(str(oob_data))
+
+            oldest = buf['have_eid']
+            self.log.debug('t = %f', oldest / 1000000)
+
+            for m in oob_data:
+                if m['bid'] == -1:
+                    self.log.error('? %s', repr(m))
+                    continue
+                yield from self.process_message(included, m)
+
+            included.sort()
+            self.log.debug('processed %d messages', len(included))
+
+            clip = None
+            included.reverse()
+            for i, m in enumerate(included):
+                if m.data['eid'] >= oldest:
+                    clip = i
+                    self.log.debug('BETRAYAL %d %f %s', i, m.data['eid'] / 1000000, repr(m.data))
+            if clip is not None:
+                included = included[clip + 1:]
+            included.reverse()
+
+            if included:
+                self.log.debug('merging %d messages', len(included))
+                l = len(self.messages)
+                self.messages = list(messages.merge([self.messages, included]))
+                self.log.debug('len(self.messages): %d -> %d', l, len(self.messages))
+                self.startcache = {}
+                self.redisplay(included[0], included[-1])
+
+        except:
+            log.exception('backfilling %s', buf)
+            return
+
+        if target < buf['have_eid'] and buf['have_eid'] > buf['min_eid']:
+            yield from self.backfill_buffer(buf, target)
 
 
 class IRCCloudMessage(messages.SnipeMessage):
