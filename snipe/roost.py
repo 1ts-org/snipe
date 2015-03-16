@@ -252,8 +252,6 @@ class Roost(messages.SnipeBackend):
 
     @keymap.bind('R S')
     def dump_subscriptions(self, window: interactive.window):
-        import pprint
-
         subs = yield from self.r.subscriptions()
         subs = [(x['class'], x['instance'], x['recipient'] or '*') for x in subs]
         subs.sort()
