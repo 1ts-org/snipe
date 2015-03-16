@@ -250,8 +250,7 @@ class SnipeBackend:
         cachekey = (start, forward, mfilter)
         point = self.startcache.get(cachekey, None)
 
-        if (backfill_to is not None and math.isfinite(backfill_to) and
-            self.messages and self.messages[0].time > backfill_to):
+        if backfill_to is not None and math.isfinite(backfill_to):
             self.backfill(mfilter, backfill_to)
 
         if point is False:
