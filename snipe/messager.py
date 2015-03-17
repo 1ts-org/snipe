@@ -221,7 +221,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.move_cleverly_state = len(arg)
         self.move(forward, filters.And(
             self.filter,
-            self.cursor.filter(self.move_cleverly_state)))
+            self.replymsg().filter(self.move_cleverly_state)))
 
     def move(self, forward, infilter=None):
         self.log.debug(
@@ -242,13 +242,14 @@ class Messager(window.Window, window.PagingMixIn):
             self.cursor, forward, mfilter, target, infilter is not None))
 
         try:
-            intermediate = next(it)
+            candidate = next(it)
             self.log.debug(
                 'move %s: intermediate: %s',
                 'forward' if forward else 'backward',
-                repr(intermediate),
+                repr(candidate),
                 )
-            candidate = next(it)
+            if candidate == self.cursor:
+                candidate = next(it)
             # you don't want to move-with-filter onto the omega message,
             # but the omega message has code to buypass filters.  meh.
             if infilter is None or not candidate.omega:
@@ -445,7 +446,7 @@ class Messager(window.Window, window.PagingMixIn):
     @asyncio.coroutine
     def do_filter_class(self, op):
         class_ = yield from self.read_string(
-            'Class: ', self.cursor.field('class', False))
+            'Class: ', self.replymsg().field('class', False))
         self.filter_push(filters.And(
             filters.Compare('==', 'backend', 'roost'),
             filters.Compare(op, 'class', class_)))
@@ -461,7 +462,7 @@ class Messager(window.Window, window.PagingMixIn):
         """Push a filter to a sender."""
 
         sender = yield from self.read_string(
-            'Sender: ', self.cursor.field('sender'))
+            'Sender: ', self.replymsg().field('sender'))
         self.filter_push(filters.Compare('=', 'sender', sender))
 
     @keymap.bind('Meta-/ /')
@@ -469,14 +470,14 @@ class Messager(window.Window, window.PagingMixIn):
         """Push a filter based on the current message.  More Control-Us
         increase specificity, if the backend supports it."""
 
-        self.filter_push(self.cursor.filter(len(arg)))
+        self.filter_push(self.replymsg().filter(len(arg)))
 
     @keymap.bind('Meta-/ .')
     def filter_cleverly_negative(self, arg: interactive.argument=[]):
         """Push a negative filter based on the current message.  More
         Control-Us increase specificity, if the backend supports it."""
 
-        self.filter_push(filters.Not(self.cursor.filter(len(arg))))
+        self.filter_push(filters.Not(self.replymsg().filter(len(arg))))
 
     @keymap.bind("Meta-/ Meta-/")
     def filter_pop(self):
