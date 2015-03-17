@@ -296,7 +296,7 @@ class IRCCloud(messages.SnipeBackend):
 
     @asyncio.coroutine
     def send(self, paramstr, body):
-        params = [s.strip() for s in paramstr.split(';')]
+        params = paramstr.split()
 
         if not params:
             raise util.SnipeException('nowhere to send the message')
@@ -482,11 +482,11 @@ class IRCCloudMessage(messages.SnipeMessage):
         channel = self.channel
         if not channel:
             return self.reply()
-        return '; '.join([
+        return '%s; %s %s' % (
             self.backend.name,
             self.backend.connections[self.data['cid']]['hostname'],
             channel,
-            ])
+            )
 
     def display(self, decoration):
         tags = self.decotags(decoration)
@@ -573,13 +573,13 @@ class IRCCloudUser(messages.SnipeAddress):
         super().__init__(backend, [server, host, user, nick])
 
     def __str__(self):
-        return '%s; %s; %s!%s@%s' % (self.backend.name, self.server, self.nick, self.user, self.host)
+        return '%s; %s %s!%s@%s' % (self.backend.name, self.server, self.nick, self.user, self.host)
 
     def short(self):
         return str(self.nick)
 
     def reply(self):
-        return '%s; %s; %s' % (self.backend.name, self.server, self.nick)
+        return '%s; %s %s' % (self.backend.name, self.server, self.nick)
 
 
 class IRCCloudNonAddress(messages.SnipeAddress):
