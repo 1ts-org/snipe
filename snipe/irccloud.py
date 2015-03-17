@@ -354,7 +354,7 @@ class IRCCloud(messages.SnipeBackend):
         self.log.debug('backfill([filter], %s)', repr(target))
         live = [
             b for b in self.buffers.values()
-            if not b['deferred'] and b['have_eid'] > b['min_eid']]
+            if not b.get('deferred', False) and b['have_eid'] > b['min_eid']]
         if target is None:
             target = min(b.get('have_eid', 0) for b in live) - 1
         elif math.isfinite(target):
