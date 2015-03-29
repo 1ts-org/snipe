@@ -65,8 +65,8 @@ class Roost(messages.SnipeBackend):
         ' unless you hit the time limit',
         coerce=int)
     backfill_length = util.Configurable(
-        'roost.backfill_length', 24 * 3600 * 7,
-        'only backfill this looking for roost.backfill_count messages',
+        'roost.backfill_length', 24 * 3600,
+        'only backfill this far looking for roost.backfill_count messages',
         coerce=int)
     url = util.Configurable(
         'roost.url', 'https://roost-api.mit.edu')
@@ -160,37 +160,34 @@ class Roost(messages.SnipeBackend):
 
     def backfill(self, mfilter, target=None, count=0, origin=None):
         self.log.debug(
-            'backfill([filter], target=%s, count=%s, origin=%s',
+            'backfill([filter], target=%s, count=%s, origin=%s)',
             util.timestr(target), count, util.timestr(origin))
 
         # if we're not gettting new messages, don't try to get old ones
-        if not self.loaded and not self.new_task.done():
-            self.log.debug('triggering backfill')
-            msgid = None
-            if self.messages:
-                msgid = self.messages[0].data.get('id')
-                if origin is None:
-                    origin = self.messages[0].time
-            if target is None: # don't
-                return
+        if self.loaded or self.new_task.done() or target is None:
+            return
 
-            if math.isinf(target):
-                if count >= self.backfill_count:
-                    return
+        filledpoint = self.messages[0].time if self.messages else time.time()
 
-                if origin is not None:
-                    backfill_to = origin - self.backfill_length
-                    if self.messages[0].time < backfill_to:
-                        return
-            else:
-                if self.messages and self.messages[0].time < target:
-                    return
+        if filledpoint < target:
+            self.log.debug('%s < %s', util.timestr(filledpoint), util.timestr(target))
+            return
 
-            self.backfillers = [t for t in self.backfillers if not t.done()]
-            self.backfillers.append(
-                asyncio.async(self.error_message(
-                    'backfilling',
-                    self.do_backfill, msgid, mfilter, target, count, origin)))
+        target = max(target, filledpoint - self.backfill_length)
+
+        self.log.debug('triggering backfill, target=%s', util.timestr(target))
+
+        msgid = None
+        if self.messages:
+            msgid = self.messages[0].data.get('id')
+            if origin is None:
+                origin = filledpoint
+
+        self.backfillers = [t for t in self.backfillers if not t.done()]
+        self.backfillers.append(
+            asyncio.async(self.error_message(
+                'backfilling',
+                self.do_backfill, msgid, mfilter, target, count, origin)))
 
     @asyncio.coroutine
     def do_backfill(self, start, mfilter, target, count, origin):
@@ -246,6 +243,7 @@ class Roost(messages.SnipeBackend):
                  count, len(self.messages), util.timestr(self.messages[0].time))
 
             # and (maybe) circle around
+            yield from asyncio.sleep(.1)
             self.backfill(mfilter, target, count=count, origin=origin)
 
             self.redisplay(ms[0], ms[-1])

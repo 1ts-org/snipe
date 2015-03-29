@@ -67,6 +67,11 @@ class IRCCloud(messages.SnipeBackend):
         coerce = float,
         )
 
+    backfill_length = util.Configurable(
+        'irccloud.backfill_length', 24 * 3600,
+        'only backfill this far at a time (seconds)',
+        coerce=int)
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
@@ -252,13 +257,16 @@ class IRCCloud(messages.SnipeBackend):
             self.redisplay(included[0], included[-1])
 
     def shutdown(self):
-        self.task.cancel()
-        # this is kludgy, but make sure the task runs a tick to
-        # process its cancellation
-        try:
-            asyncio.get_event_loop().run_until_complete(self.task)
-        except asyncio.CancelledError:
-            pass
+        for t in [self.task] + self.backfillers:
+            t.cancel()
+            # this is kludgy, but make sure the task runs a tick to
+            # process its cancellation
+            try:
+                asyncio.get_event_loop().run_until_complete(t)
+            except asyncio.CancelledError:
+                pass
+            except:
+                self.log.exception('while shutting down')
         super().shutdown()
         # this is also nigh-identical to a function in snipe.roost.Roost,
         # so, factoring opportunity!
@@ -370,6 +378,9 @@ class IRCCloud(messages.SnipeBackend):
     def backfill_buffer(self, buf, target):
         self.log.debug('backfill_buffer([%s %s], %s)', buf['bid'], buf.get('have_eid'), target)
         try:
+            target = max(
+                target, buf['have_eid'] - self.backfill_length * 1000000)
+
             oob_data = yield from self.http_json(
                 'GET',
                 urllib.parse.urljoin(
@@ -419,11 +430,16 @@ class IRCCloud(messages.SnipeBackend):
                 self.startcache = {}
                 self.redisplay(included[0], included[-1])
 
+        except asyncio.CancelledError:
+            return
         except:
-            log.exception('backfilling %s', buf)
+            self.log.exception('backfilling %s', buf)
             return
 
-        if target < buf['have_eid'] and buf['have_eid'] > buf['min_eid']:
+        if math.isfinite(target) \
+          and target < buf['have_eid'] \
+          and buf['have_eid'] > buf['min_eid']:
+            yield from asyncio.sleep(.1)
             yield from self.backfill_buffer(buf, target)
 
 
