@@ -203,7 +203,11 @@ class IRCCloud(messages.SnipeBackend):
         elif mtype in ('num_invites', 'stat_user',):
             # we can presumably do something useful with this later
             pass
-        elif mtype in ('header', 'backlog_starts', 'end_of_backlog', 'backlog_complete'):
+        elif mtype in (
+                'header', 'backlog_starts', 'end_of_backlog', 'backlog_complete',
+                'you_joined_channel', 'self_details', 'your_unique_id', 'cap_ls',
+                'cap_req', 'cap_ack', 'user_account',
+                ):
             # presumptively useless-to-us metadata
             pass
         elif mtype == 'oob_include':
@@ -222,9 +226,10 @@ class IRCCloud(messages.SnipeBackend):
         elif mtype == 'channel_init':
             self.channels[m['bid']] = m
         else:
-            buf = self.buffers[m['bid']]
-            if 'have_eid' not in buf or m['eid'] < buf['have_eid']:
-                buf['have_eid'] = m['eid']
+            if 'bid' in m:
+                buf = self.buffers[m['bid']]
+                if 'have_eid' not in buf or m['eid'] < buf['have_eid']:
+                    buf['have_eid'] = m['eid']
             msg = IRCCloudMessage(self, m)
             msglist.append(msg)
             if len(msglist) > 1 and msglist[-1] < msglist[-2]:
@@ -451,7 +456,13 @@ class IRCCloudMessage(messages.SnipeMessage):
         else:
             when = when / 1000000
 
-        super().__init__(backend, m.get('msg', repr(m)), when)
+        mtype = m.get('type')
+
+        body = m.get('msg', repr(m))
+        if mtype == 'motd_response':
+            body = '\n'.join([m['start']] + m['lines'] + [body])
+
+        super().__init__(backend, body, when)
         self.data = m
         if 'from' in m and 'from_name' in m and 'from_host' in m:
             self._sender = IRCCloudUser(
@@ -477,7 +488,20 @@ class IRCCloudMessage(messages.SnipeMessage):
             self.channel and self.channel != '*'
             and self.channel[:1] not in '#!&:')
         self.outgoing = m.get('self', False)
-        self.noise = m.get('type') not in ('buffer_msg', 'buffer_me_msg')
+        self.noise = mtype not in ('buffer_msg', 'buffer_me_msg')
+        self.unformatted = mtype not in (
+            'buffer_msg', 'buffer_me_msg', 'quit', 'kicked_channel', 'notice',
+            'channel_topic', 'joined_channel', 'parted_channel', 'nickchange',
+            'user_channel_mode', 'channel_mode_is', 'user_mode', 'motd_response',
+            'server_luserconns', 'server_n_global', 'server_n_local',
+            'server_luserme', 'server_luserchannels', 'server_luserunknown',
+            'server_luserop', 'server_luserclient', 'server_created',
+            'server_yourhost', 'server_welcome', 'services_down', 'myinfo',
+            'channel_mode_list_change', 'connecting_failed', 'logged_in_as',
+            'sasl_success', 'hidden_host_set', 'channel_url', 'channel_mode',
+            'error', 'quit_server', 'nickname_in_use', 'sasl_aborted',
+            'you_nickchange', 'banned',
+            )
 
     def __repr__(self):
         return (
@@ -527,11 +551,86 @@ class IRCCloudMessage(messages.SnipeMessage):
                 (tags + ('bold',), self.sender.short()),
                 (tags + ('fill',), msgy[mtype] + ' ' + self.body),
                 ]
-        elif mtype in 'channel_topic':
+        elif mtype in (
+                'motd_response', 'server_luserconns', 'server_n_global',
+                'server_n_local', 'server_luserme', 'server_luserchannels',
+                'server_luserunknown', 'server_luserop', 'server_luserclient',
+                'server_created', 'server_yourhost', 'server_welcome',
+                'services_down', 'logged_in_as', 'sasl_success', 'sasl_aborted',
+                'error', 'nickname_in_use',
+                ):
+            chunk.append((
+                tags,
+                (self.data['server'] + ': ' if 'server' in self.data else '')
+                + self.body))
+        elif mtype == 'banned':
+            chunk.append(
+                (tags, self.data['server'] + ': ' + self.data['reason']))
+        elif mtype == 'hidden_host_set':
+            chunk.append((
+                tags,
+                self.data['server'] + ': '
+                + self.data['hidden_host'] + ' ' + self.body))
+        elif mtype == 'myinfo':
+            chunk.append((
+                tags,
+                self.data['server']
+                + ': ' + self.data['version']
+                + ', user modes: ' + self.data['user_modes']
+                + ', channel modes: ' + ''.join(sorted(
+                    self.data['channel_modes'] + self.data['rest']))))
+        elif mtype == 'connecting_failed':
+            chunk.append((
+                tags,
+                '%s:%s%s connection failed: %s' % (
+                    self.data['hostname'],
+                    self.data['port'],
+                    ' (ssl)' if self.data['ssl'] else '',
+                    self.data['reason'])))
+        elif mtype == 'quit_server':
+            chunk.append((
+                tags,
+                '%s:%s%s %s quit%s' % (
+                    self.data['hostname'],
+                    self.data['port'],
+                    ' (ssl)' if self.data['ssl'] else '',
+                    self.data['nick'],
+                    ': ' + self.data['msg'] if self.data['msg'] else '')))
+        elif mtype == 'you_nickchange':
+            chunk.append((
+                tags,
+                'you are now %s (née %s)' % (
+                    self.data['newnick'], self.data['oldnick'])))
+        elif mtype == 'channel_topic':
             chunk += [
                 (tags, self.data['from_name'] + ' set topic to '),
                 (tags + ('bold',), self.data['topic']),
                 ]
+        elif mtype == 'channel_timestamp':
+            chunk += [(tags, 'created ' + time.ctime(self.data['timestamp']))]
+        elif mtype == 'user_channel_mode':
+            chunk.append((tags, self.data['from_name'] + ' set '))
+            out = []
+            for prefix, operation in [('+', 'add'), ('-', 'remove')]:
+                for action in self.data['ops'][operation]:
+                    out.append(
+                        '%s%s %s' % (prefix, action['mode'], action['param']))
+            chunk.append((tags + ('bold',), ' '.join(out)))
+        elif mtype == 'user_mode':
+            chunk += [
+                (tags, self.data['from'] + ' set '),
+                (tags + ('bold',), self.data['diff']),
+                (tags, ' ('),
+                (tags + ('bold',), self.data['newmode']),
+                (tags, ') on you'),
+                ]
+        elif mtype in ('channel_mode_is', 'channel_mode'):
+            chunk += [(tags, 'mode ',), (tags + ('bold',), self.data['diff'])]
+        elif mtype == 'channel_url':
+            chunk += [(tags, 'url: '), (tags + ('bold',), self.data['url'])]
+        elif mtype == 'channel_mode_list_change':
+            chunk += [
+                (tags, 'channel mode '), (tags + ('bold',), self.data['diff'])]
         elif mtype == 'joined_channel':
             chunk += [
                 (tags, '+ '),
