@@ -151,6 +151,6 @@ abbreviate the backend name to the shortest unique prefix, which in
 the case of `roost` and `irccloud` are, conveniently, `r` and `i`
 respectively.
 
-For the `irccloud` backend, addresses are of the form `irccloud; server.domain.name; recipient`,
-e.g. `irccloud; irc.debian.org; kcr`.  You can use unique substrings of the server name; e.g.
-`i;debian;#debian-devel`.
+For the `irccloud` backend, addresses are of the form `irccloud; server.domain.name recipient`,
+e.g. `irccloud; irc.debian.org kcr`.  You can use unique substrings of the server name; e.g.
+`i;debian #debian-devel`.
