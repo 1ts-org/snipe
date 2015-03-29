@@ -81,6 +81,10 @@ class Roost(messages.SnipeBackend):
         'Name-ish field on messages')
     subunify = util.Configurable(
         'roost.subunify', False, 'un-ify subscriptions')
+    indent = util.Configurable(
+        'roost.barnowl_indent_body_string', '',
+        'Indent message bodies with this string (barnowl expats may '
+        'wish to set it to eight spaces)')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -385,6 +389,7 @@ class RoostMessage(messages.SnipeMessage):
                 ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
 
         body = self.body
+        body = '\n'.join(self.backend.indent + line for line in body.split('\n'))
         if body:
             if not body.endswith('\n'):
                 body += '\n'
