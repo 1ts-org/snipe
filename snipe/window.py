@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
-# Copyright © 2014 Karl Ramm
+# Copyright © 2014 the Snipe contributors
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
