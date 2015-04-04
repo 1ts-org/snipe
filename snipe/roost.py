@@ -442,7 +442,7 @@ class RoostMessage(messages.SnipeMessage):
                 cc = self.body.splitlines()[0].split()[1:]
                 cc.append(self.sender.short())
                 cc = [self.canon('sender', x) for x in cc] # canonicalize
-                me = self.canon('sender', self.data['recipient'])
+                me = self.canon('sender', self.backend.r.principal)
                 cc = list(set(cc) - {me}) # uniquify, filter self
                 l += ['-C'] + cc
         if self.data['class'].upper() != 'MESSAGE':
