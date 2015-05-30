@@ -127,12 +127,13 @@ class TTYRenderer:
 
         right = 'right' in tags
 
-        if 'fill' in tags:
+        if 'fill' in tags and s:
             nl = s.endswith('\n')
             ll = textwrap.wrap(s, remaining)
             s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:]), width))
             if nl:
                 s += '\n'
+
         out = ''
         line = 0
         col = 0 if remaining is None or remaining <= 0 else width - remaining
