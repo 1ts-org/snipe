@@ -187,7 +187,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 try:
                     yield from self.incoming(m)
                 except:
-                    self.log.exception('Processing incoming message')
+                    self.log.exception('Processing incoming message: %s', repr(m))
             else:
                 self.log.error('Unknown websocket message type from irccloud')
 
