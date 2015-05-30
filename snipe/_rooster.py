@@ -53,6 +53,7 @@ import aiohttp
 import aiohttp.websocket
 
 from . import _websocket
+from . import util
 from ._roost_python import krb5
 from ._roost_python import gss
 
@@ -61,7 +62,7 @@ class RoosterException(Exception):
     pass
 
 
-class Rooster:
+class Rooster(util.HTTP_JSONmixin):
     def __init__(self, url, service):
         self.token = None
         self.expires = None
@@ -308,47 +309,20 @@ class Rooster:
 
     @asyncio.coroutine
     def http(self, url, data=None, params=None):
-        method = 'GET' if data is None else 'POST'
-
-        if data is not None:
-            data = json.dumps(data)
-
+        url = self.url + url
         headers = {}
-        if method == 'POST':
-            headers['Content-Type'] = 'application/json'
+        method = 'GET'
+
         if self.token is not None:
             headers['Authorization'] = 'Bearer ' + self.token
 
-        response = yield from aiohttp.request(
-            method,
-            self.url + url,
-            data = data,
-            params = params,
-            headers = headers,
-            )
+        if data is not None:
+            method = 'POST'
+            headers['Content-Type'] = 'application/json'
+            data = json.dumps(data)
 
-        result = []
-        while True:
-            try:
-                x = (yield from response.content.read())
-                if x == b'':
-                    break
-                result.append(x)
-            except aiohttp.EofStream:
-                break
-
-        response.close()
-
-        result = b''.join(result)
-        result = result.decode('utf-8')
-        try:
-            result = json.loads(result)
-        except ValueError as e:
-            if result: # then it's probably an error message
-                raise RoosterException(result) from e
-            raise
-
-        return result
+        return self.http_json(
+            method, url, data=data, params=params, headers=headers)
 
 
 class ExileException(RoosterException):

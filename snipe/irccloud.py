@@ -56,7 +56,7 @@ from . import filters
 IRCCLOUD = 'https://www.irccloud.com'
 
 
-class IRCCloud(messages.SnipeBackend):
+class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'irccloud'
     loglevel = util.Level('log.irccloud', 'IRCCloud')
 
@@ -143,8 +143,9 @@ class IRCCloud(messages.SnipeBackend):
                         'password': password,
                         'token': token,
                         }),
-                    {'x-auth-formtoken': token,
-                     'content-type': 'application/x-www-form-urlencoded',
+                    headers={
+                        'x-auth-formtoken': token,
+                        'content-type': 'application/x-www-form-urlencoded',
                     },
                     )
                 break
@@ -275,37 +276,6 @@ class IRCCloud(messages.SnipeBackend):
         super().shutdown()
         # this is also nigh-identical to a function in snipe.roost.Roost,
         # so, factoring opportunity!
-
-    @asyncio.coroutine
-    def http_json(self, method, url, data=None, headers={}, compress=None):
-        send_headers = {
-            'User-Agent': util.USER_AGENT,
-        }
-        if data is not None:
-            data = data.encode('UTF-8')
-            headers['Content-Length'] = str(len(data))
-        send_headers.update(headers)
-
-        response = yield from aiohttp.request(
-            method, url, data=data, compress=compress, headers=headers)
-
-        result = []
-        while True:
-            data = yield from response.content.read()
-            if data == b'':
-                break
-            result.append(data)
-
-        response.close()
-
-        result = b''.join(result)
-        result = result.decode('utf-8')
-        try:
-            result = json.loads(result)
-        except ValueError:
-            self.log.error('json parse failure on %s', repr(result))
-            raise
-        return result
 
     @asyncio.coroutine
     def send(self, paramstr, body):

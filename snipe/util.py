@@ -44,6 +44,7 @@ import contextlib
 import time
 import datetime
 import math
+import json
 
 
 class SnipeException(Exception):
@@ -277,3 +278,50 @@ def timestr(t):
             return '[unknown]'
 
     return '[impossible]'
+
+
+class HTTP_JSONmixin:
+    # object must have a .log attribute
+    @asyncio.coroutine
+    def http_json(
+            self, method, url,
+            data=None, params=None, headers=None, compress=None,
+            ):
+        self.log.error(
+            'http_json(%s, %s, %s, %s, %s, %s)',
+            repr(method), repr(url), repr(data), repr(params), repr(headers), repr(compress))
+
+        if headers is None:
+            headers = {}
+
+        send_headers = {
+            'User-Agent': USER_AGENT,
+        }
+
+        if data is not None:
+            data = data.encode('UTF-8')
+            headers['Content-Length'] = str(len(data))
+        send_headers.update(headers)
+
+        response = yield from aiohttp.request(
+            method, url,
+            data=data, params=params, compress=compress, headers=headers,
+        )
+
+        result = []
+        while True:
+            data = yield from response.content.read()
+            if data == b'':
+                break
+            result.append(data)
+
+        response.close()
+
+        result = b''.join(result)
+        result = result.decode('utf-8')
+        try:
+            result = json.loads(result)
+        except ValueError:
+            self.log.error('json parse failure on %s', repr(result))
+            raise
+        return result
