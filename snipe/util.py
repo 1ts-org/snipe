@@ -212,7 +212,7 @@ Welcome to snipe.
 '''
 
 USER_AGENT = 'snipe 0 (development) (python %s) (aiohttp %s)' % (
-    sys.version.split('\n')[0], aiohttp.__version__)
+    sys.version.split('\n')[0].strip(), aiohttp.__version__)
 
 
 def coro_cleanup(f):
