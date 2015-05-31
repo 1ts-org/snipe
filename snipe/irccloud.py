@@ -91,23 +91,13 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def say(self, cid, to, msg):
-        blob = json.dumps(dict(
+        self.websocket.write(dict(
             _method='say',
             _reqid=self.reqid,
             cid=cid,
             to=to,
             msg=msg,
-            ))
-        self.log.debug('sending: %s', blob)
-        self.log.debug('self.writer=%s self.writer.send=%s', repr(self.writer), repr(self.writer.send))
-        self.writer.send(blob)
-
-    @asyncio.coroutine
-    def do_connect(self):
-        try:
-            yield from self.connect()
-        except:
-            self.log.exception('In IRCCloud.connect')
+        ))
 
     @util.coro_cleanup
     def connect(self):
@@ -159,7 +149,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.session = result['session']
 
         self.log.debug('connecting to websocket')
-        reader, self.writer, response = yield from _websocket.websocket(
+        self.websocket = util.JSONWebSocket(self.log)
+        yield from self.websocket.connect(
             IRCCLOUD,
             {
                 'Origin': IRCCLOUD,
@@ -168,28 +159,12 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             )
 
         while True:
-            message = yield from reader.read()
-            self.log.debug('message: %s', repr(message))
-
-            if message.tp == aiohttp.websocket.MSG_PING:
-                self.writer.pong()
-            elif message.tp == aiohttp.websocket.MSG_CLOSE:
-                break
-            elif message.tp == aiohttp.websocket.MSG_BINARY:
-                self.log.error(
-                    'Unknown binary message: %s', repr(message))
-            elif message.tp == aiohttp.websocket.MSG_TEXT:
-                try:
-                    m = json.loads(message.data)
-                except:
-                    self.log.exception('Decoding json')
-                    continue
-                try:
-                    yield from self.incoming(m)
-                except:
-                    self.log.exception('Processing incoming message: %s', repr(m))
-            else:
-                self.log.error('Unknown websocket message type from irccloud')
+            m = yield from self.websocket.read()
+            self.log.debug('message: %s', repr(m))
+            try:
+                yield from self.incoming(m)
+            except:
+                self.log.exception('Processing incoming message: %s', repr(m))
 
     @asyncio.coroutine
     def process_message(self, msglist, m):

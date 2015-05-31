@@ -19,7 +19,6 @@ import struct
 import aiohttp
 import aiohttp.websocket
 
-from . import util
 
 @asyncio.coroutine
 def websocket(url, headers={}):
@@ -30,7 +29,6 @@ def websocket(url, headers={}):
         'CONNECTION': 'Upgrade',
         'SEC-WEBSOCKET-VERSION': '13',
         'SEC-WEBSOCKET-KEY': sec_key.decode(),
-        'USER-AGENT': util.USER_AGENT,
     }
 
     send_headers.update(headers)

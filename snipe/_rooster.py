@@ -218,13 +218,13 @@ class Rooster(util.HTTP_JSONmixin):
             ))
 
     @asyncio.coroutine
-    def _pinger(self, writer, pingfrequency):
+    def _pinger(self, ws, pingfrequency):
         while True:
             yield from asyncio.sleep(pingfrequency)
             self.log.debug('ping')
-            writer.send(json.dumps({
+            ws.write({
                 'type': 'ping',
-                }))
+                })
 
     @asyncio.coroutine
     def newmessages(self, coro, pingfrequency=30):
@@ -239,73 +239,56 @@ class Rooster(util.HTTP_JSONmixin):
 
         pingtask = None
 
-        reader, writer, response = (
-            yield from _websocket.websocket(self.url + '/v1/socket/websocket'))
-
         try:
-            writer.send(json.dumps({
-                'type': 'auth',
-                'token': self.token,
-                }))
+            with util.JSONWebSocket(self.log) as ws:
+                yield from ws.connect(self.url + '/v1/socket/websocket')
+                ws.write({
+                    'type': 'auth',
+                    'token': self.token,
+                    })
 
-            state = 'start'
-            msgcount = 1
-            tailid = self.tailid
-            self.tailid += 1
+                state = 'start'
+                msgcount = 1
+                tailid = self.tailid
+                self.tailid += 1
 
-            while True:
-                msg = yield from reader.read()
-
-                if msg.tp == aiohttp.websocket.MSG_PING:
-                    writer.pong()
-                    # Eventually, 99% of Internet traffic will be
-                    # keepalive packets of some sort
-                elif msg.tp == aiohttp.websocket.MSG_CLOSE:
-                    break
-                elif msg.tp == aiohttp.websocket.MSG_TEXT:
-                    m = json.loads(msg.data)
+                while True:
+                    m = yield from ws.read()
                     assert 'type' in m
                     if state == 'start':
                         assert m['type'] == 'ready'
                         self.log.debug('authed, starting tail %d', tailid)
-                        writer.send(json.dumps({
+                        ws.write({
                             'type': 'new-tail',
                             'id': tailid,
                             'start': startid,
                             'inclusive': False,
-                            }))
-                        writer.send(json.dumps({
+                            })
+                        ws.write({
                             'type': 'extend-tail',
                             'id': tailid,
                             'count': msgcount,
-                            }))
+                            })
                         state = 'go'
                         pingtask = asyncio.Task(
-                            self._pinger(writer, pingfrequency))
+                            self._pinger(ws, pingfrequency))
                     elif state == 'go':
                         if m['type'] == 'pong':
                             self.log.debug('pong')
                         elif m['type'] == 'messages':
                             msgcount += 1
-                            writer.send(json.dumps({
+                            ws.write({
                                 'type': 'extend-tail',
                                 'id': tailid,
                                 'count': msgcount,
-                                }))
-                            ## if m['id'] != tailid:
-                            ##     continue
+                                })
                             for msg in m['messages']:
                                 yield from coro(msg)
                         else:
                             self.log.debug('unknown message type: %s', repr(m))
-
-        except aiohttp.EofStream:
-            pass
-
         finally:
             if pingtask is not None:
                 pingtask.cancel()
-            response.close()
 
     @asyncio.coroutine
     def http(self, url, data=None, params=None):

@@ -46,6 +46,8 @@ import datetime
 import math
 import json
 
+from . import _websocket
+
 
 class SnipeException(Exception):
     pass
@@ -325,3 +327,58 @@ class HTTP_JSONmixin:
             self.log.error('json parse failure on %s', repr(result))
             raise
         return result
+
+
+class JSONWebSocket:
+    def __init__(self, log):
+        self.resp = None
+        self.url = None
+        self.log = log
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.resp is not None:
+            self.resp.close()
+            self.resp = None
+        return False
+
+    @asyncio.coroutine
+    def connect(self, url, headers=None):
+        if headers is None:
+            headers = {}
+        headers['User-Agent'] = USER_AGENT
+        self.url = url
+        self.reader, self.writer, self.resp = yield from _websocket.websocket(
+            url, headers)
+
+        return self.resp
+
+    def write(self, data):
+        assert self.resp is not None
+        return self.writer.send(json.dumps(data))
+
+    @asyncio.coroutine
+    def read(self):
+        assert self.resp is not None
+
+        while True:
+            message = yield from self.reader.read()
+
+            if message.tp == aiohttp.websocket.MSG_PING:
+                self.writer.pong()
+            elif message.tp == aiohttp.websocket.MSG_CLOSE:
+                break
+            elif message.tp == aiohttp.websocket.MSG_BINARY:
+                self.log.error(
+                    'Unknown binary message: %s', repr(message))
+            elif message.tp == aiohttp.websocket.MSG_TEXT:
+                try:
+                    m = json.loads(message.data)
+                except:
+                    self.log.exception('Decoding json: %s', repr(message.data))
+                    continue
+                return m
+            else:
+                self.log.error('Unknown websocket message type from irccloud')
