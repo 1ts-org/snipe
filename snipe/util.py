@@ -161,6 +161,7 @@ for userspace_name, program_name in [
     ('log.backend.terminus', 'TerminusBackend'),
     ('log.backend.startup', 'StartupBackend'),
     ('log.filter', 'filter'),
+    ('log.websocket', 'WebSocket'),
     ]:
     Level(
         userspace_name,

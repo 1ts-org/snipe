@@ -15,13 +15,22 @@ import asyncio
 import base64
 import hashlib
 import struct
+import logging
+import pprint
 
 import aiohttp
 import aiohttp.websocket
 
+log = logging.getLogger('WebSocket')
 
 @asyncio.coroutine
 def websocket(url, headers={}):
+    log.debug('url=%s', url)
+    log.debug('headers=%s', repr(headers))
+    if url.startswith('ws'):
+        url = 'http' + url[2:]
+        log.debug('url=%s', url)
+
     sec_key = base64.b64encode(os.urandom(16))
 
     send_headers = {
@@ -33,12 +42,23 @@ def websocket(url, headers={}):
 
     send_headers.update(headers)
 
+    log.debug('%s', repr(send_headers))
+
     response = yield from aiohttp.request(
         'GET', url, headers=send_headers, read_until_eof=False)
+    log.debug('%s', repr(dir(response)))
+    log.debug('%s', response.url)
     try:
+        log.debug(
+            'status %d headers: %s',
+            response.status,
+            pprint.pformat(response.headers.items()))
         # websocket handshake
         if response.status != 101:
-            raise ValueError("Handshake error: Invalid response status")
+            data = yield from response.content.read()
+            raise ValueError(
+                "Handshake error: Invalid response status %d: %s" % (
+                    response.status, data.decode('ISO8859-1')))
         if response.headers.get('upgrade', '').lower() != 'websocket':
             raise ValueError("Handshake error - Invalid upgrade header")
         if response.headers.get('connection', '').lower() != 'upgrade':
