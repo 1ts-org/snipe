@@ -182,7 +182,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif mtype in (
                 'header', 'backlog_starts', 'end_of_backlog', 'backlog_complete',
                 'you_joined_channel', 'self_details', 'your_unique_id', 'cap_ls',
-                'cap_req', 'cap_ack', 'user_account',
+                'cap_req', 'cap_ack', 'user_account', 'heartbeat_echo',
                 ):
             # presumptively useless-to-us metadata
             pass
