@@ -312,7 +312,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('backfill([filter], %s)', repr(target))
         live = [
             b for b in self.buffers.values()
-            if not b.get('deferred', False) and b['have_eid'] > b['min_eid']]
+            if (not b.get('deferred', False)
+                and ('min_eid' not in b or b['have_eid'] > b['min_eid']))]
         if target is None:
             target = min(b.get('have_eid', 0) for b in live) - 1
         elif math.isfinite(target):
@@ -349,6 +350,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             if isinstance(oob_data, dict):
                 raise Exception(str(oob_data))
+
+            if not included:
+                buf['min_eid'] = buf['have_eid']
+                return
 
             oldest = buf['have_eid']
             self.log.debug('t = %f', oldest / 1000000)
@@ -388,7 +393,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         if math.isfinite(target) \
           and target < buf['have_eid'] \
-          and buf['have_eid'] > buf['min_eid']:
+          and ('min_eid' not in buf or buf['have_eid'] > buf['min_eid']):
             yield from asyncio.sleep(.1)
             yield from self.backfill_buffer(buf, target)
 
