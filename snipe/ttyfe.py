@@ -451,6 +451,7 @@ class TTYFrontend:
                 self.color_assigner = ttycolor.StaticColorAssigner()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
+        self.main_pid = os.getpid()
         signal.signal(signal.SIGWINCH, self.doresize)
         return self
 
@@ -493,6 +494,8 @@ class TTYFrontend:
         pass #XXX put a warning here or a debug log or something
 
     def doresize(self, signum, frame):
+        if os.getpid() != self.main_pid:
+            return # sigh
         winsz = array.array('H', [0] * 4) # four unsigned shorts per tty_ioctl(4)
         fcntl.ioctl(0, termios.TIOCGWINSZ, winsz, True)
         curses.resizeterm(winsz[0], winsz[1])
