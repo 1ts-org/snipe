@@ -765,3 +765,9 @@ class Messager(window.Window, window.PagingMixIn):
         m.transform(
             'rot13' if m.transformed is None else None,
             codecs.encode(m.body, 'rot13'))
+
+    @keymap.bind('L')
+    def list_destinations(self):
+        self.show(
+            '\n'.join(d.reply() for d in self.context.backends.destinations()))
+

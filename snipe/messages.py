@@ -378,6 +378,9 @@ class SnipeBackend:
         """Send a message"""
         raise NotImplementedError('No such recipient')
 
+    def destinations(self):
+        return set()
+
 
 class SinkBackend(SnipeBackend):
     name = 'sink'
@@ -595,3 +598,7 @@ class AggregatorBackend(SnipeBackend):
 
     def count(self):
         return sum(backend.count() for backend in self.backends)
+
+    def destinations(self):
+        return set().union(
+            *(backend.destinations() for backend in self.backends))
