@@ -27,6 +27,7 @@ from . import interactive
 SLACKDOMAIN = 'slack.com'
 SLACKAPI = '/api/'
 
+
 class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
     loglevel = util.Level('log.slack', 'Slack')
@@ -78,10 +79,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.users = {u['id']: u for u in self.data['users']}
 
             self.dests = dict(
-                [(u['id'], ('user', u)) for u in self.data['users']] +
-                [(i['id'], ('im', i)) for i in self.data['ims']] +
-                [(g['id'], ('group', g)) for g in self.data['groups']] +
-                [(c['id'], ('channel', c)) for c in self.data['channels']])
+                [(u['id'], SlackDest('user', u)) for u in self.data['users']] +
+                [(i['id'], SlackDest('im', i)) for i in self.data['ims']] +
+                [(g['id'], SlackDest('group', g)) for g in self.data['groups']] +
+                [(c['id'], SlackDest('channel', c)) for c in self.data['channels']])
 
             self.log.debug('websocket url is %s', url)
 
@@ -110,16 +111,16 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.users[u['id']] = u
         elif t == 'channel_created':
             c = m['channel']
-            self.dests[c['id']] = ('channel', c)
+            self.dests[c['id']] = SlackDest('channel', c)
         elif t in ('channel_rename', 'group_rename'):
             c = m['channel']
-            self.dests[c['id']][1].update(c)
+            self.dests[c['id']].update(c)
         elif t == 'group_joined':
             c = m['channel']
-            self.dests[c['id']] = ('group', c)
+            self.dests[c['id']] = SlackDest('group', c)
         elif t == 'im_created':
             c = m['channel']
-            self.dests[c['id']] = ('im', c)
+            self.dests[c['id']] = SlackDest('im', c)
         msg = SlackMessage(self, m)
         if self.messages and msg.time <= self.messages[-1].time:
             msg.time = self.messages[-1].time + .000001
@@ -137,6 +138,22 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def backfill(self, mfilter, target=None):
         pass
 
+
+class SlackDest:
+    def __init__(self, type_, data):
+        self.type = type_
+        self.data = data
+
+    def update(self, data):
+        self.data.update(data)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(\n    ' \
+          + repr(self.type) + ',\n    ' \
+          + '\n    '.join(pprint.pformat(self.data).split('\n')) \
+          + '\n    )'
+
+
 class SlackUser(messages.SnipeAddress):
     def __init__(self, backend, identifier):
         self.id = identifier
@@ -144,6 +161,7 @@ class SlackUser(messages.SnipeAddress):
 
     def __str__(self):
         return self.backend.users[self.id]['name']
+
 
 class SlackMessage(messages.SnipeMessage):
     def __init__(self, backend, m):
@@ -181,21 +199,21 @@ class SlackMessage(messages.SnipeMessage):
                         else:
                             self.body += s
             self.channel = self.displayname(m['channel'])
-            if self.backend.dests.get(m['channel'], (None,))[0] == 'im':
+            if self.backend.dests.get(m['channel'], SlackDest('_', {})).type == 'im':
                 self.personal = True
         elif t == 'presence_change':
             self.body = backend.users[m['user']]['name'] + ' is ' + m['presence']
             self.noise = True
 
     def displayname(self, s):
-        t, d = self.backend.dests.get(s, (None, None))
-        if t is None:
+        d = self.backend.dests.get(s)
+        if d is None:
             return s
-        prefix = {'im': '@', 'user': '@', 'group': '+', 'channel': '#'}[t]
-        if t == 'im':
-            return prefix + self.backend.users[d['user']]['name']
+        prefix = {'im': '@', 'user': '@', 'group': '+', 'channel': '#'}[d.type]
+        if d.type == 'im':
+            return prefix + self.backend.users[d.data['user']]['name']
         else:
-            return prefix + d['name']
+            return prefix + d.data['name']
 
     def display(self, decoration):
         tags = self.decotags(decoration)
