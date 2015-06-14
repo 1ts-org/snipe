@@ -218,6 +218,7 @@ class SnipeBackend:
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
         self.startcache = {}
+        self.tasks = []
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
@@ -321,7 +322,14 @@ class SnipeBackend:
         pass
 
     def shutdown(self):
-        pass
+        for t in self.tasks:
+            t.cancel()
+            try:
+                asyncio.get_event_loop().run_until_complete(t)
+            except asyncio.CancelledError:
+                pass #expected
+            except:
+                self.log.exception('while shutting down')
 
     def redisplay(self, m1, m2):
         try:
