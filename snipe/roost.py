@@ -483,24 +483,12 @@ class RoostMessage(messages.SnipeMessage):
         return super().filter(specificity)
 
 
-class RoostErrorMessage(messages.SnipeMessage):
+class RoostErrorMessage(messages.SnipeErrorMessage):
     def __init__(self, backend, activity, exception, tracebackstr):
         body = '%s: %s' % (activity, str(exception))
         if not isinstance(exception, _rooster.RoosterException):
             body += '\n' + tracebackstr
         super().__init__(backend, body)
-        self.error = True
-
-    def filter(self, specificity=0):
-        nfilter = filters.And(
-            filters.Compare('==', 'backend', self.backend.name),
-            filters.Truth('error'),
-            )
-        if specificity:
-            nfilter = filters.And(
-                nfilter,
-                filters.Compare('==', 'body', self.body))
-        return nfilter
 
 
 class RoostPrincipal(messages.SnipeAddress):

@@ -187,6 +187,23 @@ class SnipeMessage:
         return self.time
 
 
+class SnipeErrorMessage(SnipeMessage):
+    def __init__(self, backend, body):
+        super().__init__(backend, body)
+        self.error = True
+
+    def filter(self, specificity=0):
+        nfilter = filters.And(
+            filters.Compare('==', 'backend', self.backend.name),
+            filters.Truth('error'),
+            )
+        if specificity:
+            nfilter = filters.And(
+                nfilter,
+                filters.Compare('==', 'body', self.body))
+        return nfilter
+
+
 class SnipeBackend:
     # name of concrete backend
     name = None
