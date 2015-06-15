@@ -323,8 +323,8 @@ class SnipeBackend:
 
     def shutdown(self):
         for t in self.tasks:
-            t.cancel()
             try:
+                t.cancel()
                 asyncio.get_event_loop().run_until_complete(t)
             except asyncio.CancelledError:
                 pass #expected
