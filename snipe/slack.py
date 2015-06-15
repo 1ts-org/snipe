@@ -15,6 +15,7 @@ import urllib.parse
 import aiohttp
 import json
 import pprint
+import contextlib
 
 import asyncio
 
@@ -38,6 +39,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         super().__init__(*args, **kw)
         self.name = Slack.name + '.' + slackname
         self.tasks.append(asyncio.Task(self.connect(slackname)))
+        self.backfilling = False
+        self.dests = {}
 
     @asyncio.coroutine
     def connect(self, slackname):
@@ -54,19 +57,21 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.warn(str(e))
                 return
 
-            token = authdata[2]
+            self.token = authdata[2]
 
-            url = 'https://' + SLACKDOMAIN + SLACKAPI
+            self.url = 'https://' + SLACKDOMAIN + SLACKAPI
 
             self.log.debug('about to rtm.start')
 
             self.data = yield from self.http_json(
                 'GET',
-                url + 'rtm.start?' + urllib.parse.urlencode(dict(token=token)))
+                self.url + 'rtm.start?' + urllib.parse.urlencode({
+                    'token': self.token,
+                    }))
 
             if not self.data['ok']:
                 self.messages.append(
-                    SnipeErrorMessage(
+                    messages.SnipeErrorMessage(
                         self,
                         'connecting to %s: %s' % (
                             slackname,
@@ -103,6 +108,15 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.exception('connecting to slack')
 
     def incoming(self, m):
+        msg = self.process_message(self.messages, m)
+        if msg is not None:
+            self.redisplay(msg, msg)
+
+    def process_message(self, messagelist, m):
+        if 'reply_to' in m:
+            #XXX we'll want to do something more intelligent once we have
+            #sending but for now we don't want the "reconnect" reply
+            return
         t = m['type'].lower()
         if t in ('hello', 'user_typing', 'channel_marked'):
             return
@@ -122,10 +136,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             c = m['channel']
             self.dests[c['id']] = SlackDest('im', c)
         msg = SlackMessage(self, m)
-        if self.messages and msg.time <= self.messages[-1].time:
-            msg.time = self.messages[-1].time + .000001
-        self.messages.append(msg)
-        self.redisplay(msg, msg)
+        if messagelist and msg.time <= messagelist[-1].time:
+            msg.time = messagelist[-1].time + .000001
+        messagelist.append(msg)
+        return msg
 
     @keymap.bind('S U')
     def dump_users(self, window: interactive.window):
@@ -135,14 +149,94 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def dump_dests(self, window: interactive.window):
         window.show(pprint.pformat(self.dests))
 
-    def backfill(self, mfilter, target=None):
-        pass
+    @contextlib.contextmanager
+    def backfill_guard(self):
+        if self.backfilling:
+            yield True
+        else:
+            self.log.debug('entering guard')
+            self.backfilling = True
+            yield False
+            self.backfilling = False
+            self.log.debug('leaving guard')
 
+    def backfill(self, mfilter, target=None):
+        self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
+
+    @asyncio.coroutine
+    def do_backfill(self, mfilter, target):
+        self.log.debug('backfill([filter], %s)', repr(target))
+        with self.backfill_guard() as already:
+            if already:
+                self.log.debug('already backfilling')
+                return
+
+            backfillers = [
+                asyncio.Task(self.do_backfill_dest(dest, mfilter, target))
+                for dest in self.dests if self.dests[dest].type != 'user']
+            self.tasks += backfillers
+            yield from asyncio.gather(*backfillers, return_exceptions=True)
+
+    @asyncio.coroutine
+    def do_backfill_dest(self, dest, mfilter, target):
+        d = self.dests[dest]
+
+        if d.loaded:
+            return
+
+        d.loaded=True
+
+        q = {
+            'token': self.token,
+            'channel': dest,
+            }
+
+        if d.oldest is not None:
+            q['latest'] = d.oldest
+
+        verb = {
+            'channel': 'channels.history',
+            'im': 'im.history',
+            'group': 'groups.history',
+            }[d.type]
+
+        data = yield from self.http_json(
+            'GET',
+            self.url + verb + '?' + urllib.parse.urlencode(q))
+        self.log.debug('%s: backfill got: %s', dest, pprint.pformat(data))
+        if not data['ok']:
+            self.messages.append(
+                messages.SnipeErrorMessage(
+                    self,
+                    'backfilling %s %s: %s' % (
+                        dest,
+                        d.data,
+                        data['error'],
+                    )))
+            return
+        messagelist = []
+        for m in reversed(data['messages']):
+            m['channel'] = dest
+            try:
+                msg = self.process_message(messagelist, m)
+                if d.oldest is None or d.oldest > msg.time:
+                    d.oldest = msg.time
+            except:
+                self.log.exception('processing message: %s', pprint.pformat(m))
+                raise
+        self.log.debug('%s: got %d messages', dest, len(messagelist))
+        self.messages = list(messages.merge([self.messages, messagelist]))
+        self.startcache = {}
+        if messagelist:
+            self.redisplay(messagelist[0], messagelist[-1])
 
 class SlackDest:
     def __init__(self, type_, data):
         self.type = type_
         self.data = data
+
+        self.oldest = None
+        self.loaded = False
 
     def update(self, data):
         self.data.update(data)
