@@ -290,7 +290,7 @@ class HTTP_JSONmixin:
             self, method, url,
             data=None, params=None, headers=None, compress=None,
             ):
-        self.log.error(
+        self.log.debug(
             'http_json(%s, %s, %s, %s, %s, %s)',
             repr(method), repr(url), repr(data), repr(params), repr(headers), repr(compress))
 
