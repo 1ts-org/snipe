@@ -84,10 +84,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.users = {u['id']: u for u in self.data['users']}
 
             self.dests = dict(
-                [(u['id'], SlackDest('user', u)) for u in self.data['users']] +
-                [(i['id'], SlackDest('im', i)) for i in self.data['ims']] +
-                [(g['id'], SlackDest('group', g)) for g in self.data['groups']] +
-                [(c['id'], SlackDest('channel', c)) for c in self.data['channels']])
+                [(u['id'], SlackDest(self, 'user', u)) for u in self.data['users']] +
+                [(i['id'], SlackDest(self, 'im', i)) for i in self.data['ims']] +
+                [(g['id'], SlackDest(self, 'group', g)) for g in self.data['groups']] +
+                [(c['id'], SlackDest(self, 'channel', c)) for c in self.data['channels']])
 
             self.log.debug('websocket url is %s', url)
 
@@ -125,16 +125,16 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.users[u['id']] = u
         elif t == 'channel_created':
             c = m['channel']
-            self.dests[c['id']] = SlackDest('channel', c)
+            self.dests[c['id']] = SlackDest(self, 'channel', c)
         elif t in ('channel_rename', 'group_rename'):
             c = m['channel']
             self.dests[c['id']].update(c)
         elif t == 'group_joined':
             c = m['channel']
-            self.dests[c['id']] = SlackDest('group', c)
+            self.dests[c['id']] = SlackDest(self, 'group', c)
         elif t == 'im_created':
             c = m['channel']
-            self.dests[c['id']] = SlackDest('im', c)
+            self.dests[c['id']] = SlackDest(self, 'im', c)
         msg = SlackMessage(self, m)
         if messagelist and msg.time <= messagelist[-1].time:
             msg.time = messagelist[-1].time + .000001
@@ -230,8 +230,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if messagelist:
             self.redisplay(messagelist[0], messagelist[-1])
 
+
 class SlackDest:
-    def __init__(self, type_, data):
+    def __init__(self, backend, type_, data):
+        self.backend = backend
         self.type = type_
         self.data = data
 
@@ -247,14 +249,24 @@ class SlackDest:
           + '\n    '.join(pprint.pformat(self.data).split('\n')) \
           + '\n    )'
 
+    def __str__(self):
+        prefix = {
+            'im': '@', 'user': '', 'group': '+', 'channel': '#',
+            }[self.type]
+        if self.type == 'im':
+            return prefix + self.backend.users[self.data['user']]['name']
+        else:
+            return prefix + self.data['name']
 
-class SlackUser(messages.SnipeAddress):
+
+class SlackAddress(messages.SnipeAddress):
     def __init__(self, backend, identifier):
+        self.backend = backend
         self.id = identifier
-        super().__init__(backend, ['USER', identifier])
+        super().__init__(backend, [self.backend.dests[identifier].type, identifier])
 
     def __str__(self):
-        return self.backend.users[self.id]['name']
+        return str(self.backend.dests[self.id])
 
 
 class SlackMessage(messages.SnipeMessage):
@@ -272,9 +284,11 @@ class SlackMessage(messages.SnipeMessage):
 
         if 'user' in m:
             if isinstance(m['user'], dict):
-                self._sender = SlackUser(backend, m['user']['id'])
+                self._sender = SlackAddress(backend, m['user']['id'])
             else:
-                self._sender = SlackUser(backend, m['user'])
+                self._sender = SlackAddress(backend, m['user'])
+        elif 'channel' in m:
+            self._sender = SlackAddress(backend, m['channel'])
 
         self.channel = None
 
@@ -292,22 +306,17 @@ class SlackMessage(messages.SnipeMessage):
                             self.body += self.displayname(s[1:])
                         else:
                             self.body += s
-            self.channel = self.displayname(m['channel'])
-            if self.backend.dests.get(m['channel'], SlackDest('_', {})).type == 'im':
+
+            ch = m['channel']
+            self.channel = self.displayname(ch)
+            if ch in self.backend.dests and self.backend.dests[ch].type == 'im':
                 self.personal = True
         elif t == 'presence_change':
             self.body = backend.users[m['user']]['name'] + ' is ' + m['presence']
             self.noise = True
 
     def displayname(self, s):
-        d = self.backend.dests.get(s)
-        if d is None:
-            return s
-        prefix = {'im': '@', 'user': '@', 'group': '+', 'channel': '#'}[d.type]
-        if d.type == 'im':
-            return prefix + self.backend.users[d.data['user']]['name']
-        else:
-            return prefix + d.data['name']
+        return str(self.backend.dests.get(s, s))
 
     def display(self, decoration):
         tags = self.decotags(decoration)
@@ -318,7 +327,7 @@ class SlackMessage(messages.SnipeMessage):
 
         t = self.data['type']
         t_ = self.data.get('subtype')
-        if t == 'message' and t_ in (None, 'me_message'):
+        if t == 'message' and 'text' in self.data:
             chunk += [(tags + ('bold',), self.sender.short())]
             if t_ != 'me_message':
                 chunk += [(tags, ': ')]
@@ -331,13 +340,13 @@ class SlackMessage(messages.SnipeMessage):
                     chunk += [(tags, s)]
                 else:
                     if '|' in s:
-                        chunk += [(tags + ('bold',), s.split('!', 1)[-1])]
+                        chunk += [(tags + ('bold',), s.split('|', 1)[-1])]
                     else:
                         if s[:2] in ('#C', '@U'):
-                            chunk += [(
-                                tags + ('bold',),
-                                self.displayname(s[1:]),
-                                )]
+                            nametext = self.displayname(s[1:])
+                            if s[1] == 'U':
+                                nametext = '@' + nametext
+                            chunk += [(tags + ('bold',), nametext)]
                         else:
                             chunk += [(tags + ('bold',), s)]
             chunk += [(tags + ('right',), timestring)]
