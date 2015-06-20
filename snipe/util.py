@@ -113,6 +113,11 @@ class Configurable:
         obj = self.registry[key]
         obj.__set__(instance, value)
 
+    @classmethod
+    def get(self, instance, key):
+        obj = self.registry[key]
+        return obj.__get__(instance, None)
+
 
 def coerce_bool(x):
     if hasattr(x, 'lower'):

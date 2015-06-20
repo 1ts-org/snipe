@@ -312,7 +312,9 @@ class Window:
                 'Key: ',
                 complete=interactive.completer(
                     util.Configurable.registry.keys()))
-            value = yield from self.read_string('Value: ')
+            value = yield from self.read_string(
+                'Value: ',
+                content=str(util.Configurable.get(self, key)))
             util.Configurable.set(self, key, value)
             self.context.conf_write()
         else:
