@@ -345,7 +345,9 @@ class SlackMessage(messages.SnipeMessage):
             bodylist = re.split(r'<(.*)>', self.data['text'])
             for (n, s) in enumerate(bodylist):
                 if n%2 == 0:
-                    chunk += [(tags, s)]
+                    chunk += [
+                        (tags, s.replace('&lt;', '<').replace('&gt;', '>')),
+                        ]
                 else:
                     if '|' in s:
                         chunk += [(tags + ('bold',), s.split('|', 1)[-1])]
