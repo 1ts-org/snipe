@@ -7,6 +7,9 @@ snipe.slack
 Backend for talking to `Slack <https://slack.com>`.
 '''
 
+_backend = 'Slack'
+
+
 import os
 import time
 import re

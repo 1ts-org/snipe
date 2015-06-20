@@ -33,6 +33,8 @@ snipe.irccloud
 Backend for talking to `IRCCloud <https://irccloud.com>`.
 '''
 
+_backend = 'IRCCloud'
+
 
 import asyncio
 import aiohttp

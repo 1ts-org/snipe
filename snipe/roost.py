@@ -33,6 +33,8 @@ snipe.roost
 Backend for talking to `roost <https://github.com/roost-im>`_
 '''
 
+_backend = 'Roost'
+
 
 import asyncio
 import collections

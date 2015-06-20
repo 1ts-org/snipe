@@ -42,14 +42,13 @@ import json
 import time
 import collections
 import asyncio
+import importlib
 
 from . import messages
 from . import ttyfe
-from . import roost
 from . import util
 from . import window
 from . import messager
-from . import irccloud
 
 
 class Context:
@@ -57,6 +56,11 @@ class Context:
     Wherein we keep our global state.
     '''
     # per-session state and abstact control
+
+    DEFAULT_BACKENDS = '.roost; .irccloud'
+
+    backend_spec = util.Configurable('backends', DEFAULT_BACKENDS)
+
     def __init__(self, ui, handler):
         self.conf = {
             'filter': {
@@ -101,13 +105,36 @@ class Context:
             backends = [
                 messages.StartupBackend(self),
                 messages.DateBackend(self),
-                roost.Roost(self),
-                irccloud.IRCCloud(self),
-                ],)
+                ] + self.startbackends(),)
         self.status = window.StatusLine(self.ui)
         self.ui.initial(
             lambda: messager.Messager(self.ui), statusline=self.status)
         self.messagelog = []
+
+    def startbackends(self):
+        started = []
+        backends = self.backend_spec.split(';')
+        backends = [backend.strip() for backend in backends]
+        for string in backends:
+            try:
+                line = string.split()
+                if not line:
+                    continue #XXX should complain
+                kwargs = {}
+                if len(line) > 1:
+                    for arg in line[1:]:
+                        kv = arg.split('=')
+                        if len(kv) != 2:
+                            self.log.error('invalid argument %s', kv)
+                            continue
+                        kwargs[kv[0]] = kv[1]
+                self.log.debug('starting backend %s', string)
+                module = importlib.import_module(line[0], __package__)
+                backend = getattr(module, module._backend)(self, **kwargs)
+                started.append(backend)
+            except:
+                self.log.exception('starting backend %s', string)
+        return started
 
     def conf_read(self):
         path = os.path.join(self.directory, 'config')
