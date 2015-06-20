@@ -36,11 +36,12 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
     loglevel = util.Level('log.slack', 'Slack')
 
-    def __init__(self, *args, **kw):
-        slackname = kw['slackname']
-        del kw['slackname']
-        super().__init__(*args, **kw)
-        self.name = Slack.name + '.' + slackname
+    def __init__(self, context, slackname=None, **kw):
+        super().__init__(context, **kw)
+        if slackname is None and self.name != self.__class__.name:
+            slackname = self.name
+        if self.name == self.__class__.name:
+            self.name = Slack.name + '.' + slackname
         self.tasks.append(asyncio.Task(self.connect(slackname)))
         self.backfilling = False
         self.dests = {}

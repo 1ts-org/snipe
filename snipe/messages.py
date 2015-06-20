@@ -212,8 +212,10 @@ class SnipeBackend:
     messages = ()
     principal = None
 
-    def __init__(self, context, conf = {}):
+    def __init__(self, context, name=None, conf={}):
         self.context = context
+        if name is not None:
+            self.name = name
         self.conf = conf
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
