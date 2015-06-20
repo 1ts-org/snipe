@@ -45,6 +45,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.backfilling = False
         self.dests = {}
         self.connected = False
+        self.messages = []
 
     @asyncio.coroutine
     def connect(self, slackname):
