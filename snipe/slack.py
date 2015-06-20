@@ -41,6 +41,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.tasks.append(asyncio.Task(self.connect(slackname)))
         self.backfilling = False
         self.dests = {}
+        self.connected = False
 
     @asyncio.coroutine
     def connect(self, slackname):
@@ -93,6 +94,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.websocket = util.JSONWebSocket(self.log)
             yield from self.websocket.connect(url)
+
+            self.connected = True
 
             while True:
                 m = yield from self.websocket.read()
@@ -161,6 +164,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.debug('leaving guard')
 
     def backfill(self, mfilter, target=None):
+        if not self.connected:
+            return
         self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
 
     @asyncio.coroutine
