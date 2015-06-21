@@ -72,20 +72,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.log.debug('about to rtm.start')
 
-            self.data = yield from self.http_json(
-                'GET',
-                self.url + 'rtm.start?' + urllib.parse.urlencode({
-                    'token': self.token,
-                    }))
-
-            if not self.data['ok']:
-                self.messages.append(
-                    messages.SnipeErrorMessage(
-                        self,
-                        'connecting to %s: %s' % (
-                            slackname,
-                            self.data['error']
-                        )))
+            self.data = yield from self.method('rtm.start')
+            if not self.check_ok(self.data, 'connecting to %s', slackname):
                 return
 
             url = self.data['url']
@@ -212,34 +200,18 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         d.loaded=True
 
-        q = {
-            'token': self.token,
-            'channel': dest,
-            }
+        data = yield from self.method(
+            {
+                'channel': 'channels.history',
+                'im': 'im.history',
+                'group': 'groups.history',
+            }[d.type],
+            channel=dest,
+            **({'latest': d.oldest} if d.oldest is not None else {}))
 
-        if d.oldest is not None:
-            q['latest'] = d.oldest
-
-        verb = {
-            'channel': 'channels.history',
-            'im': 'im.history',
-            'group': 'groups.history',
-            }[d.type]
-
-        data = yield from self.http_json(
-            'GET',
-            self.url + verb + '?' + urllib.parse.urlencode(q))
-        self.log.debug('%s: backfill got: %s', dest, pprint.pformat(data))
-        if not data['ok']:
-            self.messages.append(
-                messages.SnipeErrorMessage(
-                    self,
-                    'backfilling %s %s: %s' % (
-                        dest,
-                        d.data,
-                        data['error'],
-                    )))
+        if not self.check_ok(data, 'backfilling %s', dest):
             return
+
         messagelist = []
         for m in reversed(data['messages']):
             m['channel'] = dest
@@ -257,9 +229,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.redisplay(messagelist[0], messagelist[-1])
 
     @asyncio.coroutine
-    def send(self, recipient, body):
-        recipient = recipient.strip()
-        recipient = recipient.lstrip('+#@')
+    def send(self, inrecipient, body):
+        inrecipient = inrecipient.strip()
+        recipient = inrecipient.lstrip('+#@')
 
         user = None
         for d in self.dests.values():
@@ -279,50 +251,46 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             if user is None:
                 raise Exception('cannot find recipient')
             # we need to open a dm session
-            response = yield from self.http_json(
-                'GET',
-                self.url + 'im.open',
-                params = {'token': self.token, 'user': user.data['id']},
-                )
+            response = yield from self.method('im.open', user=user.data['id'])
 
-            if not response['ok']:
-                self.messages.append(
-                    messages.SnipeErrorMessage(
-                        self,
-                        'opening dm session with %s: %s' % (
-                            user.data['id'],
-                            response['error'],
-                            )))
+            if not self.check_ok(response, 'opening DM session'):
                 return
+
             recipient = response['channel']['id']
 
         body = body.replace('&', '&amp;')
         body = body.replace('<', '&lt;')
         body = body.replace('>', '&gt;')
 
-        msg = {
-            'token': self.token,
-            'as_user': True,
-            'channel': recipient,
-            'text': body,
-            }
+        response = yield from self.method(
+            'chat.postMessage',
+            as_user=True,
+            channel=recipient,
+            text=body,
+            )
 
+        self.check_ok(response, 'sending message to %s', inrecipient)
+
+    @asyncio.coroutine
+    def method(self, method, **kwargs):
+        msg = dict(kwargs)
+        msg['token'] = self.token
         response = yield from self.http_json(
             'POST',
-            self.url + 'chat.postMessage',
+            self.url + method,
             headers={'Content-type': 'application/x-www-form-urlencoded'},
             data = urllib.parse.urlencode(msg),
             )
+        return response
 
+    def check_ok(self, response, context, *args):
+        # maybe should be doing this with exceptions
         if not response['ok']:
             self.messages.append(
                 messages.SnipeErrorMessage(
-                    self,
-                    'sending message to %s: %s' % (
-                        recipient,
-                        response['error'],
-                        )))
-
+                    '%s: %s: %s' % (context % args, method, response['error'])))
+            return False
+        return True
 
 class SlackDest:
     def __init__(self, backend, type_, data):
