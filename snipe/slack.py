@@ -261,33 +261,68 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         recipient = recipient.strip()
         recipient = recipient.lstrip('+#@')
 
+        user = None
         for d in self.dests.values():
-            if 'name' in d.data:
+            if d.type == 'user' and d.data['name'] == recipient:
+                user = d
+            elif 'name' in d.data:
                 if d.data['name'] == recipient:
                     recipient = d.data['id']
                     break
             elif 'user' in d.data:
+                self.log.debug('1: %s', pprint.pformat(d))
+                self.log.debug('2: %s', pprint.pformat(self.users[d.data['user']]))
                 if self.users[d.data['user']]['name'] == recipient:
                     recipient = d.data['id']
                     break
         else:
-            raise Exception('cannot find recipient')
-            # ?
+            if user is None:
+                raise Exception('cannot find recipient')
+            # we need to open a dm session
+            response = yield from self.http_json(
+                'GET',
+                self.url + 'im.open',
+                params = {'token': self.token, 'user': user.data['id']},
+                )
+
+            if not response['ok']:
+                self.messages.append(
+                    messages.SnipeErrorMessage(
+                        self,
+                        'opening dm session with %s: %s' % (
+                            user.data['id'],
+                            response['error'],
+                            )))
+                return
+            recipient = response['channel']['id']
 
         body = body.replace('&', '&amp;')
         body = body.replace('<', '&lt;')
         body = body.replace('>', '&gt;')
 
         msg = {
-            'id': self.nextid(),
-            'type': 'message',
+            'token': self.token,
+            'as_user': True,
             'channel': recipient,
             'text': body,
             }
 
-        self.websocket.write(msg)
+        response = yield from self.http_json(
+            'POST',
+            self.url + 'chat.postMessage',
+            headers={'Content-type': 'application/x-www-form-urlencoded'},
+            data = urllib.parse.urlencode(msg),
+            )
 
-        self.unacked[msg['id']] = msg
+        if not response['ok']:
+            self.messages.append(
+                messages.SnipeErrorMessage(
+                    self,
+                    'sending message to %s: %s' % (
+                        recipient,
+                        response['error'],
+                        )))
+
 
 class SlackDest:
     def __init__(self, backend, type_, data):
