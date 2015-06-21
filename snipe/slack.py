@@ -19,6 +19,7 @@ import aiohttp
 import json
 import pprint
 import contextlib
+import itertools
 
 import asyncio
 
@@ -47,6 +48,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.dests = {}
         self.connected = False
         self.messages = []
+        self.nextid = itertools.count().__next__
+        self.unacked = {}
 
     @asyncio.coroutine
     def connect(self, slackname):
@@ -122,9 +125,18 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     def process_message(self, messagelist, m):
         if 'reply_to' in m:
-            #XXX we'll want to do something more intelligent once we have
-            #sending but for now we don't want the "reconnect" reply
-            return
+            self.log.debug('reply_to_message: %s', pprint.pformat(m))
+
+            msgid = m['reply_to']
+            if msgid not in self.unacked:
+                # this is probably a response from a previous session
+                return
+
+            m.update(self.unacked[msgid])
+            if 'user' not in m:
+                m['user'] = self.data['self']['id']
+            # because they don't include the actual message for some reason
+
         t = m['type'].lower()
         if t in ('hello', 'user_typing', 'channel_marked'):
             return
@@ -156,6 +168,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     @keymap.bind('S D')
     def dump_dests(self, window: interactive.window):
         window.show(pprint.pformat(self.dests))
+
+    @keymap.bind('S M')
+    def dump_meta(self, window: interactive.window):
+        window.show(pprint.pformat(self.data))
 
     @contextlib.contextmanager
     def backfill_guard(self):
@@ -240,6 +256,38 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if messagelist:
             self.redisplay(messagelist[0], messagelist[-1])
 
+    @asyncio.coroutine
+    def send(self, recipient, body):
+        recipient = recipient.strip()
+        recipient = recipient.lstrip('+#@')
+
+        for d in self.dests.values():
+            if 'name' in d.data:
+                if d.data['name'] == recipient:
+                    recipient = d.data['id']
+                    break
+            elif 'user' in d.data:
+                if self.users[d.data['user']]['name'] == recipient:
+                    recipient = d.data['id']
+                    break
+        else:
+            raise Exception('cannot find recipient')
+            # ?
+
+        body = body.replace('&', '&amp;')
+        body = body.replace('<', '&lt;')
+        body = body.replace('>', '&gt;')
+
+        msg = {
+            'id': self.nextid(),
+            'type': 'message',
+            'channel': recipient,
+            'text': body,
+            }
+
+        self.websocket.write(msg)
+
+        self.unacked[msg['id']] = msg
 
 class SlackDest:
     def __init__(self, backend, type_, data):
@@ -277,6 +325,10 @@ class SlackAddress(messages.SnipeAddress):
 
     def __str__(self):
         return str(self.backend.dests[self.id])
+
+    def reply(self):
+        return self.backend.name + '; ' + str(self)
+
 
 
 class SlackMessage(messages.SnipeMessage):
@@ -377,3 +429,8 @@ class SlackMessage(messages.SnipeMessage):
         else:
             return super().display(decoration)
         return chunk
+
+    def followup(self):
+        if self.channel is None:
+            return self.reply()
+        return self.backend.name + '; ' + self.channel
