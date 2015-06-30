@@ -236,6 +236,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         user = None
         for d in self.dests.values():
             if d.type == 'user' and d.data['name'] == recipient:
+                self.log.debug('stashing user %s', repr(d))
                 user = d
             elif 'name' in d.data:
                 if d.data['name'] == recipient:
@@ -251,6 +252,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             if user is None:
                 raise Exception('cannot find recipient')
             # we need to open a dm session
+            self.log.debug('opening dm session with %s', repr(d))
             response = yield from self.method('im.open', user=user.data['id'])
 
             if not self.check_ok(response, 'opening DM session'):
