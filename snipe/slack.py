@@ -28,6 +28,7 @@ from . import _websocket
 from . import util
 from . import keymap
 from . import interactive
+from . import filters
 
 SLACKDOMAIN = 'slack.com'
 SLACKAPI = '/api/'
@@ -441,3 +442,15 @@ class SlackMessage(messages.SnipeMessage):
         if self.channel is None:
             return self.reply()
         return self.backend.name + '; ' + self.channel
+
+    def filter(self, specificity=0):
+        terms = [filters.Compare('==', 'backend', self.backend.name)]
+        if self.channel:
+            terms.append(filters.Compare('==', 'channel', self.channel))
+        if not self.channel or specificity > 0:
+            terms.append(filters.Compare('==', 'sender', self.field('sender')))
+        if len(terms) > 1:
+            return filters.And(*terms)
+        else:
+            return terms[0]
+
