@@ -335,6 +335,8 @@ class SlackAddress(messages.SnipeAddress):
 
 
 class SlackMessage(messages.SnipeMessage):
+    SLACKMARKUP = re.compile(r'<(.*?)>')
+
     def __init__(self, backend, m):
         import pprint
         backend.log.debug('message: %s', pprint.pformat(m))
@@ -358,7 +360,7 @@ class SlackMessage(messages.SnipeMessage):
         self.channel = None
 
         if t == 'message' and 'text' in m:
-            bodylist = re.split(r'<(.*)>', m['text'])
+            bodylist = self.SLACKMARKUP.split(m['text'])
             self.body = ''
             for (n, s) in enumerate(bodylist):
                 if n%2 == 0:
@@ -399,7 +401,7 @@ class SlackMessage(messages.SnipeMessage):
             else:
                 chunk += [(tags, ' ')]
 
-            bodylist = re.split(r'<(.*)>', self.data['text'])
+            bodylist = self.SLACKMARKUP.split(self.data['text'])
             for (n, s) in enumerate(bodylist):
                 if n%2 == 0:
                     s = s.replace('&lt;', '<')
