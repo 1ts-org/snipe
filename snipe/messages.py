@@ -324,7 +324,11 @@ class SnipeBackend:
         pass
 
     def redisplay(self, m1, m2):
-        self.context.ui.redisplay({'messages': (m1, m2)})
+        try:
+            self.context.ui.redisplay({'messages': (m1, m2)})
+        except:
+            self.log.exception('triggering redisplay')
+            # do not let this propagate into the backend
 
     def __str__(self):
         return self.name
