@@ -530,8 +530,8 @@ class Viewer(window.Window, window.PagingMixIn):
         if mark is None:
             return None
 
-        start = min(self.cursor, self.the_mark)
-        stop = max(self.cursor, self.the_mark)
+        start = min(self.cursor, mark)
+        stop = max(self.cursor, mark)
         return self.buf[start:stop]
 
     @keymap.bind('Meta-w')
@@ -734,6 +734,9 @@ class Editor(Viewer):
             self.beginning_of_line()
         else:
             self.line_move(count, False)
+        self.log.debug(
+            'kill_to_end_of_line, mark=%d, cursor=%d, last_command=%s',
+            m, self.cursor, self.last_command)
         self.kill_region(mark=m, append=self.last_command.startswith('kill_'))
 
     @keymap.bind('Control-W')
