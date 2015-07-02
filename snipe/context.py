@@ -106,6 +106,11 @@ class Context:
                 messages.StartupBackend(self),
                 messages.DateBackend(self),
                 ] + self.startbackends(),)
+
+        # This is called by conf_read, except we need to do it again because
+        # we may have just newly imported a backend
+        util.Configurable.immanentize(self)
+
         self.status = window.StatusLine(self.ui)
         self.ui.initial(
             lambda: messager.Messager(self.ui), statusline=self.status)
