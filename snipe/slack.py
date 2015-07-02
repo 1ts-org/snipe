@@ -196,6 +196,17 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def do_backfill_dest(self, dest, mfilter, target):
         d = self.dests[dest]
 
+        self.log.debug(
+            'do_backfill_dest(%s, target=%s); oldest=%s, loaded=%s',
+            str(d),
+            util.timestr(target),
+            d.oldest,
+            d.loaded,
+            )
+
+        if target is not None and d.oldest is not None and target > d.oldest:
+            return
+
         if d.loaded:
             return
 
