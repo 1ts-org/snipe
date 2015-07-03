@@ -141,11 +141,14 @@ class LongPrompt(editor.Editor):
                     off += len(string)
                 yield mark, newchunk
 
+    def input(self):
+        return self.buf[self.divider:]
+
     @keymap.bind('Control-J', 'Control-C Control-C')
     def runcallback(self):
         """Complete whatever action this prompt is for."""
 
-        self.callback(self.buf[self.divider:])
+        self.callback(self.input())
 
     @keymap.bind('[tab]')
     def complete(self, key: interactive.keystroke):
@@ -219,3 +222,47 @@ class ReplyMode:
                 prefix + ('\n' + prefix).join(self.msg.body.splitlines()))
         window.set_mark(m)
 
+
+class LeapPrompt(ShortPrompt):
+    def __init__(self, *args, candidates=[], **kw):
+        super().__init__(*args, **kw)
+        self.candidates = list(candidates)
+        self.keymap['[carriage return]'] = self.complete_and_finish
+
+    def view(self, *args, **kw):
+        v = list(super().view(*args, **kw))
+        self.log.error('v: %s, %d', repr(v), len(v))
+        self.log.error('before first yield')
+        yield from v[:-1]
+        self.log.error('after first yield')
+        mark, chunks = v[-1]
+        sofar = self.input()
+        if sofar:
+            chunks = chunks + [((), ' {' + ','.join(self.tails()) + '}')]
+        self.log.error('now %s', repr(chunks))
+        yield mark, chunks
+
+    @keymap.bind('Control-S')
+    def roll_forward(self):
+        self.candidates = self.candidates[1:] + self.candidates[:1]
+
+    @keymap.bind('Control-R')
+    def roll_backward(self):
+        self.candidates = self.candidates[-1:] + self.candidates[:-1]
+
+    def tails(self):
+        sofar = self.input()
+        return (
+            c[len(sofar):]
+            for c in self.candidates
+            if c.startswith(sofar))
+
+    def complete_and_finish(self):
+        """Append the tail of the first candidate and complete whatever action
+        this prompt is for"""
+        self.log.error('complete_and_finish()')
+        tails = list(self.tails())
+        if tails:
+            self.end_of_buffer()
+            self.insert(tails[0])
+        self.runcallback()

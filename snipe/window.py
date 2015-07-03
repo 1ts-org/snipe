@@ -307,9 +307,14 @@ class Window:
         """Set a config key.  With a prefix-argument, dump the corrent
         configuration dict to a window."""
 
+        from .prompt import LeapPrompt
+
         if not arg:
             key = yield from self.read_string(
                 'Key: ',
+                window=LeapPrompt,
+                height=2,
+                candidates=util.Configurable.registry.keys(),
                 complete=interactive.completer(
                     util.Configurable.registry.keys()))
             value = yield from self.read_string(
