@@ -214,11 +214,13 @@ class SnipeBackend:
 
     def __init__(self, context, name=None, conf={}):
         self.context = context
+        logname = self.__class__.__name__
         if name is not None:
             self.name = name
+            logname += '.' + name
+        logname += '.%x' % (id(self),)
+        self.log = logging.getLogger(logname)
         self.conf = conf
-        self.log = logging.getLogger(
-            '%s.%x' % (self.__class__.__name__, id(self),))
         self.startcache = {}
         self.tasks = []
 
@@ -518,7 +520,7 @@ class AggregatorBackend(SnipeBackend):
     loglevel = util.Level('log.aggregator', 'AggregatorBackend')
 
     def __init__(self, context, backends = [], conf = {}):
-        super().__init__(context, conf)
+        super().__init__(context, conf=conf)
         self.backends = [TerminusBackend(self.context)]
         for backend in backends:
             self.add(backend)
