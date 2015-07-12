@@ -547,13 +547,13 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-[space]')
     def set_mark(self, where=None, prefix: interactive.argument=None):
-        """Without a ^U before*, set the mark (append it to the mark ring).
+        """Without a ^U before [#]_, set the mark (append it to the mark ring).
 
         With a ^U, stick the current point at the current beginning of the
         mark ring, and set the point to the current end of the mark ring.
 
-        * repeating the command after a ^U will continue to jump around
-        rather than setting the mark.
+        .. [#] repeating the command after a ^U will continue to jump around
+            rather than setting the mark.
         """
         #XXX this documentation is weak and this could share a lot of code
         #with the same command over in the messager
