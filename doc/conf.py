@@ -261,3 +261,4 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance']
+autodoc_member_order = 'bysource'

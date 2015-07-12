@@ -42,10 +42,22 @@ from . import util
 
 
 class Window:
+    """
+    Abstract chunk of screen real estate that displays things and can
+    potentially take input.
+
+    :param frontend: front-object to be associated with
+    :param prototype: Window object to copy state from
+    :type prototype: Window or None
+    :param destroy: cleanup callback
+    :type destroy: function with no arguments
+    :param modes: behavior-modifying mixins
+    """
+
     def __init__(self, frontend, prototype=None, destroy=lambda: None, modes=[]):
         self.fe = frontend
-        self.renderer = None
-        self.keymap = keymap.Keymap()
+        self.renderer = None #: associated renderer object
+        self.keymap = keymap.Keymap() #: assciated keymap
         self.keymap.interrogate(self)
         for mode in modes:
             self.keymap.interrogate(mode)
@@ -53,39 +65,55 @@ class Window:
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
         if prototype is None:
-            self.cursor = None
+            self.cursor = None #: current location
             self.hints = {}
         else:
             self.cursor = prototype.cursor
             self.hints = prototype.renderer.get_hints()
         self._destroy = destroy
-        self.this_command = ''
-        self.last_command = ''
-        self.last_key = ''
-        self.universal_argument = None
+        self.this_command = '' #: name of currently executing command
+        self.last_command = '' #: name of previous command
+        self.last_key = '' #: last key stroke processed
+        self.universal_argument = None #: current universal argument
+        #: callback for completed keysequence in kyempa
         self.keymap_action = interactive.call
+        #: callback for keystroke in incomplete keysequence
         self.intermediate_action = None
+        #: callback for completed keysequence not in keymap
         self.keyerror_action = None
 
-        self.noactive = False
-        self.noresize = False
+        self.noactive = False #: don't let this window get focus
+        self.noresize = False #: don't resize this window
+
+    # Programmatic interface:
 
     def __repr__(self):
         return '<%s %x>' % (self.__class__.__name__, id(self))
 
     def destroy(self):
+        """Called by the frontend when the window is removed from the UI.
+        Calls the cleanup callback."""
+
         self._destroy()
 
     def focus(self):
+        """Called by the frontend when the window is focused.  Returns False."""
+
         return not self.noactive
 
     @property
     def context(self):
+        """The global context object."""
+
         if self.fe is None:
             return None
         return self.fe.context
 
     def input_char(self, k):
+        """Called by the frontend for every keystroke from the user.
+
+        :param k: The incoming keystroke."""
+
         self.context.clear()
         try:
             self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
@@ -137,15 +165,60 @@ class Window:
             self.active_keymap = self.keymap
 
     def check_redisplay_hint(self, hint):
+        """See if a redisplay hint dict applies to this window.  Called by the
+        frontend to see if something has triggered an applicable redisplay.
+
+        :param dict hint: The hint in question
+        """
+
         ret = hint.get('window', None) is self
         self.log.debug('redisplay hint %s -> %s', repr(hint), repr(ret))
         return ret
 
     def redisplay_hint(self):
+        """Return an appropriate redisplay hint."""
+
         self.log.debug('base redisplay_hint')
         return {'window': self}
 
+    def view(self, origin=None, direction=None):
+        """Called by the frontend to iterate through the visible contents of the
+        window.
+
+        :param origin: a cursor object saying where to start
+        :param direction: which direction to walk
+        :type direction: 'forward' or 'backward'
+
+        Yields tuple pairs of ``cursor, chunk``
+
+        Where ``cursor`` is a possible value for ``origin`` or the ``cursor``
+        instance variable, and chunk is a list of tuple-pairs of lists of
+        attributes (themselves) represented as strings, and strings to be
+        displayed, e.g.
+
+        .. code-block:: python
+
+             [(('bold', 'visible'), 'some bold text, '), ((), 'Some normal text\\n')]
+
+        Each chunk may be assumed to end a line.
+        """
+        yield 0, [(('visible',), '')]
+
+    # Convenience functions for interacting with the user
+
+    def whine(self, k):
+        """Tell the frontend to flash the screen."""
+        self.fe.notify()
+
     def read_string(self, prompt, content=None, height=1, window=None, **kw):
+        """Pop a prompt window to read a string from the user.
+
+        :param str prompt: The prompt string
+        :param str content: The initial contents of the input
+        :param int height: Height of the input area
+        :param Window window: Type of window object to use
+        """
+
         f = asyncio.Future()
 
         def done_callback(result):
@@ -182,15 +255,34 @@ class Window:
         return f.result()
 
     def read_filename(self, prompt, content=None):
+        """Use self.read_string to read a filename from the user.
+
+        :param str prompt: The prompt string
+        :param str content: The initial contents of the input
+        """
+
         result = yield from self.read_string(
             prompt, complete=interactive.complete_filename)
 
         return result
 
     def read_keyseq(self, prompt, keymap):
+        """Read a keymap key sequence from the user.
+
+        :param str prompt: The prompt string
+        :param str keymap: The keymap read the sequence for
+        """
         from .prompt import KeySeqPrompt
         return (yield from self.read_string(
             prompt, window=KeySeqPrompt, keymap=keymap))
+
+    def show(self, string):
+        """Display a string in a popup Viewer window."""
+        from .editor import Viewer
+        self.fe.split_window(Viewer(self.fe, content=string))
+
+    # Commands the user can run that should be more or less present in
+    # all windows.
 
     @keymap.bind('Control-X Control-C')
     def quit(self):
@@ -198,16 +290,10 @@ class Window:
 
         asyncio.get_event_loop().stop()
 
-    def whine(self, k):
-        self.fe.notify()
-
     @keymap.bind('Control-Z')
     def stop(self):
         """Suspend snipe."""
         self.fe.sigtstp(None, None)
-
-    def view(self, origin=None, direction=None):
-        yield 0, [(('visible',), '')]
 
     @keymap.bind('Control-X 2')
     def split_window(self):
@@ -388,10 +474,6 @@ class Window:
                 self.renderer.reframe(-1)
             self.reframe_state = (self.reframe_state + 1) % 3
         self.fe.force_repaint()
-
-    def show(self, string):
-        from .editor import Viewer
-        self.fe.split_window(Viewer(self.fe, content=string))
 
 
 class PagingMixIn:
