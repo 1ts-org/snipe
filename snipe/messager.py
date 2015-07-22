@@ -40,6 +40,7 @@ import datetime
 import traceback
 import pprint
 import asyncio
+import bisect
 
 from . import filters
 from . import roost
@@ -67,12 +68,14 @@ class Messager(window.Window, window.PagingMixIn):
             self.the_mark = None
             self.mark_ring = []
             self.filter_reset()
+            self.starks = []
         else:
             self.filter = prototype.filter
             self.filter_stack = list(prototype.filter_stack)
             self.cursor = prototype.cursor
             self.the_mark = prototype.the_mark
             self.mark_ring = prototype.mark_ring
+            self.starks = prototype.starks
 
         if filter_new is not None:
             self.filter_replace(filter_new)
@@ -187,6 +190,13 @@ class Messager(window.Window, window.PagingMixIn):
                 return True
         self.log.debug("Fals.e")
         return False
+
+    def after_command(self):
+        super().after_command()
+        if self.cursor.omega:
+            m = self.replymsg()
+            if not self.starks or self.starks[-1] < m:
+                self.starks.append(m)
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
@@ -631,3 +641,34 @@ class Messager(window.Window, window.PagingMixIn):
         if self.the_mark is not None:
             self.cursor, self.the_mark = self.the_mark, self.cursor
             self.cursor = next(self.walk(self.cursor, True))
+
+    @keymap.bind('[')
+    def previous_stark(self):
+        """Move to the previous Stark point."""
+        if not self.starks:
+            return
+        i = bisect.bisect_left(self.starks, self.cursor.time) - 1
+        if i >= 0:
+            self.goto_time(self.starks[i].time)
+
+    @keymap.bind(']')
+    def next_stark(self):
+        """Move to the next Stark point, or if there isn't one, the omega
+        message."""
+        i = bisect.bisect_left(self.starks, self.cursor.time)
+        if not self.starks or self.starks[i] == self.cursor:
+            i += 1
+        if i >= len(self.starks):
+            self.last()
+        elif i >= 0:
+            self.goto_time(self.starks[i].time)
+
+    @keymap.bind('.')
+    def set_stark(self):
+        """Set a Stark point."""
+        if self.cursor not in self.starks:
+            #XXX I have doubts about the complexity of the following but I'm
+            #betting that the array will never get particularly large
+            #and it's after my bedtime.
+            self.starks.append(self.cursor)
+            self.starks.sort()
