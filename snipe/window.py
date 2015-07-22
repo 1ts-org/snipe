@@ -137,15 +137,19 @@ class Window:
                 self.active_keymap = self.keymap
                 arg, self.universal_argument = self.universal_argument, None
                 self.this_command = getattr(v, '__name__', '?')
-                ret = self.keymap_action(
-                    v,
-                    context = self.context,
-                    window = self,
-                    keystroke = k,
-                    argument = arg,
-                    )
-                self.last_command = self.this_command
-                self.last_key = k
+                try:
+                    ret = self.keymap_action(
+                        v,
+                        context = self.context,
+                        window = self,
+                        keystroke = k,
+                        argument = arg,
+                        )
+                finally:
+                    self.after_command()
+                    self.last_command = self.this_command
+                    self.last_key = k
+
                 if asyncio.iscoroutine(ret):
                     def catch_and_log(coro):
                         try:
@@ -203,6 +207,10 @@ class Window:
         Each chunk may be assumed to end a line.
         """
         yield 0, [(('visible',), '')]
+
+    def after_command(self):
+        """Executed after an interactive command."""
+        pass
 
     # Convenience functions for interacting with the user
 
