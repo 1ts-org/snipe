@@ -231,15 +231,15 @@ class LeapPrompt(ShortPrompt):
 
     def view(self, *args, **kw):
         v = list(super().view(*args, **kw))
-        self.log.error('v: %s, %d', repr(v), len(v))
-        self.log.error('before first yield')
+        self.log.debug('v: %s, %d', repr(v), len(v))
+        self.log.debug('before first yield')
         yield from v[:-1]
-        self.log.error('after first yield')
+        self.log.debug('after first yield')
         mark, chunks = v[-1]
         sofar = self.input()
         if sofar:
             chunks = chunks + [((), ' {' + ','.join(self.tails()) + '}')]
-        self.log.error('now %s', repr(chunks))
+        self.log.debug('now %s', repr(chunks))
         yield mark, chunks
 
     @keymap.bind('Control-S')
@@ -260,7 +260,7 @@ class LeapPrompt(ShortPrompt):
     def complete_and_finish(self):
         """Append the tail of the first candidate and complete whatever action
         this prompt is for"""
-        self.log.error('complete_and_finish()')
+        self.log.debug('complete_and_finish()')
         tails = list(self.tails())
         if tails:
             self.end_of_buffer()
