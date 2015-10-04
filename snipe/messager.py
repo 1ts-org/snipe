@@ -195,7 +195,8 @@ class Messager(window.Window, window.PagingMixIn):
         super().after_command()
         if self.cursor.omega:
             m = self.replymsg()
-            if not self.starks or self.starks[-1] < m:
+            if m is not None and (
+                    not self.starks or self.starks[-1] < m):
                 self.starks.append(m)
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
