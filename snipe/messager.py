@@ -306,9 +306,12 @@ class Messager(window.Window, window.PagingMixIn):
     def replymsg(self):
         replymsg = self.cursor
         if replymsg.omega:
-            it = self.walk(self.cursor, False)
-            next(it)
-            replymsg = next(it)
+            try:
+                it = self.walk(self.cursor, False)
+                next(it)
+                replymsg = next(it)
+            except StopIteration:
+                replymsg = None
         return replymsg
 
     @keymap.bind('f')
