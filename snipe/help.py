@@ -89,7 +89,7 @@ class Help(editor.Viewer):
 
         keystrokes, func = yield from self.read_keyseq(
             'Describe key? ', self.caller.keymap)
-        keyseq = ' '.join(self.keymap.unkey(k) for k in keystrokes) 
+        keyseq = ' '.join(self.keymap.unkey(k) for k in keystrokes)
         if func is None:
             out = '"%s" is not bound to anything' % (keyseq,)
         else:

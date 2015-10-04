@@ -306,6 +306,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             return False
         return True
 
+
 class SlackDest:
     def __init__(self, backend, type_, data):
         self.backend = backend
