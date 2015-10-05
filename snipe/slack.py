@@ -121,6 +121,19 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if msg is not None:
             self.redisplay(msg, msg)
 
+    def find_message(self, when, m):
+        try:
+            msg = next(self.walk(when))
+        except StopIteration:
+            self.log.debug('%s for unknown message %s', m['type'], repr(m))
+            return None
+        if msg.time != when:
+            self.log.debug(
+                '%s found message %s for message %s',
+                m['type'], msg, repr(m))
+            return None
+        return msg
+
     def process_message(self, messagelist, m):
         if 'reply_to' in m:
             self.log.debug('reply_to_message: %s', pprint.pformat(m))
@@ -139,21 +152,38 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if t in self.IGNORED_TYPES:
             return
         elif t == 'message' and m.get('subtype') == 'message_changed':
-            when = float(m['message']['ts'])
-            try:
-                msg = next(self.walk(when))
-            except StopIteration:
-                self.log.debug('message_changed for unknown message %s', repr(m))
-                return
-            if msg.time != when:
-                self.log.debug(
-                    'message_changed, found message %s for message %s',
-                    msg, repr(m))
+            msg = self.find_message(float(m['message']['ts']), m)
+            if msg is None:
                 return
             data = dict(m['message'])
             data['_old'] = msg.data
             data['_new'] = m
             msg.data = data
+            return msg
+        elif t in ('reaction_removed', 'reaction_added'):
+            msg = self.find_message(float(m['item']['ts']), m)
+            if msg is None:
+                return
+            for i, reaction in enumerate(msg.data.get('reactions', [])):
+                if reaction['name'] == m['reaction']:
+                    break
+            else:
+                if t == 'reaction_added':
+                    reaction = {'name': m['reaction'], 'count': 0, 'users': []}
+                    msg.data.setdefault('reactions', []).append(reaction)
+                else: # 'reaction_removed', but not found
+                    return None
+            if t == 'reaction_added':
+                reaction['count'] += 1
+                if m['user'] not in reaction['users']: # unreliable, but...
+                    reaction['users'].append(m['user'])
+            elif t == 'reaction_removed':
+                reaction['count'] -= 1
+                if reaction['count'] == 0:
+                    del msg.data['reactions'][i] # leftover from that for loop
+                else:
+                    if m['user'] in reaction['users']:
+                        reaction['users'].remove(m['user'])
             return msg
         elif t in ('team_join', 'user_change'):
             u = m['user']
@@ -482,7 +512,7 @@ class SlackMessage(messages.SnipeMessage):
 
             chunk += self.slackmarkup(self.data['text'], tags)
 
-            if 'reactions' in self.data:
+            if self.data.get('reactions'):
                 chunk += [
                     (tags, '\n' + ''.join(
                         ':%s: %d' % (reaction['name'], reaction['count'])
