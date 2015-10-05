@@ -42,6 +42,11 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
     loglevel = util.Level('log.slack', 'Slack')
 
+    IGNORED_TYPES = (
+        'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
+        'file_shared', 'file_created', 'accounts_changed',
+        )
+
     def __init__(self, context, slackname=None, **kw):
         super().__init__(context, **kw)
         if slackname is None and self.name != self.__class__.name:
@@ -131,10 +136,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             # because they don't include the actual message for some reason
 
         t = m['type'].lower()
-        if t in (
-            'hello', 'user_typing', 'channel_marked', 'pref_change',
-            'file_public', 'file_shared', 'file_created',
-                ):
+        if t in self.IGNORED_TYPES:
             return
         elif t == 'message' and m.get('subtype') == 'message_changed':
             when = float(m['message']['ts'])
