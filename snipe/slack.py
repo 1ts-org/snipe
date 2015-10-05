@@ -136,6 +136,23 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             'file_public', 'file_shared', 'file_created',
                 ):
             return
+        elif t == 'message' and m.get('subtype') == 'message_changed':
+            when = float(m['message']['ts'])
+            try:
+                msg = next(self.walk(when))
+            except StopIteration:
+                self.log.debug('message_changed for unknown message %s', repr(m))
+                return
+            if msg.time != when:
+                self.log.debug(
+                    'message_changed, found message %s for message %s',
+                    msg, repr(m))
+                return
+            data = dict(m['message'])
+            data['_old'] = msg.data
+            data['_new'] = m
+            msg.data = data
+            return msg
         elif t in ('team_join', 'user_change'):
             u = m['user']
             self.users[u['id']] = u
