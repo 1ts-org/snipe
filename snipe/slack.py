@@ -131,7 +131,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             # because they don't include the actual message for some reason
 
         t = m['type'].lower()
-        if t in ('hello', 'user_typing', 'channel_marked'):
+        if t in (
+            'hello', 'user_typing', 'channel_marked', 'pref_change',
+            'file_public', 'file_shared', 'file_created',
+                ):
             return
         elif t in ('team_join', 'user_change'):
             u = m['user']
