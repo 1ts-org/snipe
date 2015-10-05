@@ -504,6 +504,9 @@ class SlackMessage(messages.SnipeMessage):
                     chunk += left + [(tags + ('bold',)), field['title']]
                     chunk += left + [tags, field['value']]
 
+            if 'file' in self.data and 'url' in self.data['file']:
+                chunk += [(tags, ('\n' + self.data['file']['url']))]
+
             chunk += [(tags + ('right',), timestring)]
         elif t == 'presence_change':
             if self.data['presence'] == 'active':
