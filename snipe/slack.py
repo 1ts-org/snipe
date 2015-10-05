@@ -33,6 +33,10 @@ from . import filters
 SLACKDOMAIN = 'slack.com'
 SLACKAPI = '/api/'
 
+# The documentation for attachment color says that hex color
+# codes start with a #.  Don't believe their lies.
+HEXCOLOR = re.compile(r'^([0-9a-fA-F]{3}|([0-9a-fA-F][0-9a-fA-F]){3})$')
+
 
 class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
@@ -397,8 +401,37 @@ class SlackMessage(messages.SnipeMessage):
             self.body = backend.users[m['user']]['name'] + ' is ' + m['presence']
             self.noise = True
 
+        self.unhandled = False
+        if (t == 'message' and 'text' not in self.data) or t not in ('message', 'presence_change',):
+            self.unhandled = True
+
     def displayname(self, s):
         return str(self.backend.dests.get(s, s))
+
+    def slackmarkup(self, text, tags):
+        chunk = []
+        bodylist = self.SLACKMARKUP.split(text)
+        for (n, s) in enumerate(bodylist):
+            if n%2 == 0:
+                s = s.replace('&lt;', '<')
+                s = s.replace('&gt;', '>')
+                s = s.replace('&amp;', '&')
+                chunk += [
+                    (tags, s),
+                    ]
+            else:
+                if '|' in s:
+                    chunk += [(tags + ('bold',), s.split('|', 1)[-1])]
+                else:
+                    if s[:2] in ('#C', '@U'):
+                        nametext = self.displayname(s[1:])
+                        if s[1] == 'U':
+                            nametext = '@' + nametext
+                        chunk += [(tags + ('bold',), nametext)]
+                    else:
+                        chunk += [(tags + ('bold',), s)]
+
+        return chunk
 
     def display(self, decoration):
         tags = self.decotags(decoration)
@@ -406,6 +439,15 @@ class SlackMessage(messages.SnipeMessage):
         chunk = []
         if self.channel is not None:
             chunk += [((tags + ('bold',)), self.channel + ' ')]
+
+        if 'edited' in self.data:
+            chunk += [(tags, '~')]
+
+        if self.data.get('is_starred', False):
+            chunk += [(tags, '*')]
+
+        if self.data.get('pinned_to', False):
+            chunk += [(tags, '+')]
 
         t = self.data['type']
         t_ = self.data.get('subtype')
@@ -416,26 +458,52 @@ class SlackMessage(messages.SnipeMessage):
             else:
                 chunk += [(tags, ' ')]
 
-            bodylist = self.SLACKMARKUP.split(self.data['text'])
-            for (n, s) in enumerate(bodylist):
-                if n%2 == 0:
-                    s = s.replace('&lt;', '<')
-                    s = s.replace('&gt;', '>')
-                    s = s.replace('&amp;', '&')
-                    chunk += [
-                        (tags, s),
+            chunk += self.slackmarkup(self.data['text'], tags)
+
+            if 'reactions' in self.data:
+                chunk += [
+                    (tags, '\n' + ''.join(
+                        ':%s: %d' % (reaction['name'], reaction['count'])
+                        for reaction in self.data['reactions']))]
+
+            for attachment in self.data.get('attachments', []):
+                left = [(tags, '\n> ')]
+                color = attachment.get('color', '')
+                if color:
+                    cmap = {
+                        'good': 'green',
+                        'warning': 'yellow',
+                        'danger': 'red',
+                        }
+                    if color.lower() in cmap:
+                        color = cmap[color.lower()]
+                    elif HEXCOLOR.match(color):
+                        color = '#' + color
+
+                    left = [
+                        (tags, '\n'),
+                        (tags + (('bg:%s' % color),), ' '),
+                        (tags, ' '),
                         ]
-                else:
-                    if '|' in s:
-                        chunk += [(tags + ('bold',), s.split('|', 1)[-1])]
-                    else:
-                        if s[:2] in ('#C', '@U'):
-                            nametext = self.displayname(s[1:])
-                            if s[1] == 'U':
-                                nametext = '@' + nametext
-                            chunk += [(tags + ('bold',), nametext)]
-                        else:
-                            chunk += [(tags + ('bold',), s)]
+
+                for (field, markup) in [
+                        #('fallback', ()),
+                        ('pretext', ('bold',)),
+                        ('author_name', ()),
+                        ('author_link', ()),
+                        ('title', ('bold',)),
+                        ('title_link', ()),
+                        ]:
+                    if field in attachment:
+                        chunk += left + [((tags + markup), attachment[field])]
+
+                if 'text' in attachment:
+                    chunk += left + self.slackmarkup(attachment['text'], tags)
+
+                for field in attachment.get('fields', []):
+                    chunk += left + [(tags + ('bold',)), field['title']]
+                    chunk += left + [tags, field['value']]
+
             chunk += [(tags + ('right',), timestring)]
         elif t == 'presence_change':
             if self.data['presence'] == 'active':
