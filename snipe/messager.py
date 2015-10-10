@@ -95,6 +95,8 @@ class Messager(window.Window, window.PagingMixIn):
             except:
                 self.log.exception(
                     'error in filter %s for decor %s', filt, decor)
+        self.real_keymap = self.keymap
+        self.install_per_message_keymap()
 
     def focus(self):
         if self.secondary is not None:
@@ -191,6 +193,12 @@ class Messager(window.Window, window.PagingMixIn):
         self.log.debug("Fals.e")
         return False
 
+    def install_per_message_keymap(self):
+        self.active_keymap = keymap.Keymap(self.active_keymap)
+        if self.cursor is not None:
+            self.active_keymap.interrogate(self.cursor)
+        self.log.error('self.cursor is %s', repr(self.cursor))
+
     def after_command(self):
         super().after_command()
         if self.cursor.omega:
@@ -198,6 +206,7 @@ class Messager(window.Window, window.PagingMixIn):
             if m is not None and (
                     not self.starks or self.starks[-1] < m):
                 self.starks.append(m)
+        self.install_per_message_keymap()
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
