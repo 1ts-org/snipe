@@ -590,3 +590,29 @@ class SlackMessage(messages.SnipeMessage):
         else:
             return terms[0]
 
+    @keymap.bind('e')
+    def edit_message(self, window: interactive.window):
+        self.backend.log.error('self is %s, body is %s', repr(self), self.body)
+        self.backend.log.error('window->cursor is %s', repr(window.cursor))
+
+        text = yield from window.read_string(
+            'edit -> (destination ignored)',
+            height=10,
+            content=self.followup() + '\n' + self.body,
+            history='send',
+            fill=True,
+            )
+
+        try:
+            _, text = text.split('\n', 1)
+        except ValueError:
+            raise Exception('no body in message')
+
+        response = yield from self.backend.method(
+            'chat.update',
+            channel=self.data['channel'],
+            ts=self.data['ts'],
+            text=text,
+            )
+
+        self.backend.check_ok(response, 'editing message to %s', self.followup())
