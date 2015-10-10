@@ -359,7 +359,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if not response['ok']:
             self.messages.append(
                 messages.SnipeErrorMessage(
-                    '%s: %s: %s' % (context % args, method, response['error'])))
+                    self,'%s: %s' % (context % args, response['error'])))
             return False
         return True
 
