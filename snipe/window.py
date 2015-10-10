@@ -117,6 +117,10 @@ class Window:
         self.context.clear()
         try:
             self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
+
+            if self.intermediate_action is not None:
+                self.intermediate_action(keystroke = k)
+
             try:
                 v = self.active_keymap[k]
             except KeyError:
@@ -129,8 +133,6 @@ class Window:
                     self.whine(k)
                 return
 
-            if self.intermediate_action is not None:
-                self.intermediate_action(keystroke = k)
             if not callable(v):
                 self.active_keymap = v
             else:
