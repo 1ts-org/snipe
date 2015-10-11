@@ -612,7 +612,7 @@ class Editor(Viewer):
     def replace(self, count, string, collapsible=False):
         if not self.writable():
             self.whine('window is readonly')
-            return
+            return 0
         return super().replace(count, string, collapsible)
 
     @keymap.bind(
