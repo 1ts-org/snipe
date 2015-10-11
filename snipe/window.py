@@ -403,16 +403,11 @@ class Window:
         """Set a config key.  With a prefix-argument, dump the corrent
         configuration dict to a window."""
 
-        from .prompt import LeapPrompt
-
         if not arg:
-            key = yield from self.read_string(
+            key = yield from self.read_oneof(
                 'Key: ',
-                window=LeapPrompt,
-                height=2,
-                candidates=util.Configurable.registry.keys(),
-                complete=interactive.completer(
-                    util.Configurable.registry.keys()))
+                util.Configurable.registry.keys(),
+                height=2)
             value = yield from self.read_string(
                 'Value: ',
                 content=str(util.Configurable.get(self, key)))
@@ -421,6 +416,18 @@ class Window:
         else:
             import pprint
             self.show(pprint.pformat(self.context.conf))
+
+    @asyncio.coroutine
+    def read_oneof(self, prompt, these, height=1):
+        from .prompt import LeapPrompt
+
+        return (yield from self.read_string(
+            prompt,
+            window=LeapPrompt,
+            height=height,
+            candidates=these,
+            complete=interactive.completer(these),
+            ))
 
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
