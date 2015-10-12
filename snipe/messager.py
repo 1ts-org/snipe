@@ -197,7 +197,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.active_keymap = keymap.Keymap(self.active_keymap)
         if self.cursor is not None:
             self.active_keymap.interrogate(self.cursor)
-        self.log.error('self.cursor is %s', repr(self.cursor))
+        self.log.debug('self.cursor is %s', repr(self.cursor))
 
     def after_command(self):
         super().after_command()
