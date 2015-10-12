@@ -288,6 +288,20 @@ class Messager(window.Window, window.PagingMixIn):
         except StopIteration:
             self.whine('No more messages')
 
+    def cursor_set_walk(self, origin, direction, backfill_to=None):
+        """Set the cursor by getting the first result from a walk"""
+
+        self.cursor = next(self.walk(origin, direction, backfill_to))
+
+    def cursor_set_walk_mark(self, origin, direction, backfill_to=None):
+        """Set the cursor by getting the first result from a walk, and set the
+        mark if it changes."""
+
+        old = self.cursor
+        self.cursor_set_walk(origin, direction, backfill_to)
+        if old != self.cursor:
+            self.set_mark(old)
+
     @keymap.bind('s')
     def send(self, recipient='', msg=None):
         """Start composing a message."""
@@ -342,19 +356,13 @@ class Messager(window.Window, window.PagingMixIn):
     def last(self):
         """Move to the last message."""
 
-        old = self.cursor
-        self.cursor = next(self.walk(float('inf'), False))
-        if old != self.cursor:
-            self.set_mark(old)
+        self.cursor_set_walk_mark(float('inf'), False)
 
     @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
     def first(self):
         """Move to the first (currently loaded) message."""
 
-        old = self.cursor
-        self.cursor = next(self.walk(float('-inf'), True))
-        if old != self.cursor:
-            self.set_mark(old)
+        self.cursor_set_walk_mark(float('-inf'), True)
 
     def filter_replace(self, new_filter):
         self.filter = new_filter
@@ -362,7 +370,7 @@ class Messager(window.Window, window.PagingMixIn):
         if self.filter is not None and not self.filter(self.cursor):
             # if filter is none, self.cursor is valid.
             with util.stopwatch('finding new cursor for filter'):
-                self.cursor = next(self.walk(self.cursor, True))
+                self.cursor_set_walk(self.cursor, True)
             self.reframe()
 
     @keymap.bind('Meta-/ 0')
@@ -558,10 +566,7 @@ class Messager(window.Window, window.PagingMixIn):
 
     def goto_time(self, when):
         self.log.info('going to %s', datetime.datetime.fromtimestamp(when).isoformat(' '))
-        old = self.cursor
-        self.cursor = next(self.walk(when, True, when))
-        if old != self.cursor:
-            self.set_mark(old)
+        self.cursor_set_walk_mark(when, True, when)
 
     @keymap.bind('Meta-g')
     def goto(self):
@@ -638,8 +643,7 @@ class Messager(window.Window, window.PagingMixIn):
                 0, (where if where is not None else self.cursor))
             where = self.the_mark
             self.the_mark = self.mark_ring.pop()
-            self.cursor = where
-            self.cursor = next(self.walk(self.cursor, True))
+            self.cursor_set_walk(where, True)
             self.set_mark_state = 1
         else:
             self.mark_ring.append(self.the_mark)
@@ -652,8 +656,8 @@ class Messager(window.Window, window.PagingMixIn):
         used to be."""
 
         if self.the_mark is not None:
-            self.cursor, self.the_mark = self.the_mark, self.cursor
-            self.cursor = next(self.walk(self.cursor, True))
+            where, self.the_mark = self.the_mark, self.cursor
+            self.cursor_set_walk(where, True)
 
     @keymap.bind('[')
     def previous_stark(self):
