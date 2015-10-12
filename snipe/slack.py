@@ -609,19 +609,22 @@ class SlackMessage(messages.SnipeMessage):
 
     @keymap.bind('+')
     def add_reaction(self, window: interactive.window):
+        """Add a reaction to a message."""
         yield from self.react(window, 'reactions.add')
 
     @keymap.bind('-')
     def remove_reaction(self, window: interactive.window):
+        """Remove a reaction to a message."""
         yield from self.react(window, 'reactions.remove')
 
     @keymap.bind('e')
     def edit_message(self, window: interactive.window):
+        """Edit a message."""
         self.backend.log.error('self is %s, body is %s', repr(self), self.body)
         self.backend.log.error('window->cursor is %s', repr(window.cursor))
 
         text = yield from window.read_string(
-            'edit -> (destination ignored)',
+            'edit (destination ignored) -> ',
             height=10,
             content=self.followup() + '\n' + self.body,
             history='send',
