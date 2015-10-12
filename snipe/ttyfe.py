@@ -679,7 +679,8 @@ class TTYFrontend:
     def popup_window(self, new, height=1, select=True):
         r = self.windows[-1]
 
-        if r.height <= height and r.window != self.popstack[-1][0]:
+        if r.height <= height and self.popstack and \
+          r.window != self.popstack[-1][0]:
             self.popstack.append((r.window, r.height))
 
         if self.popstack and r.window == self.popstack[-1][0]:
@@ -688,6 +689,8 @@ class TTYFrontend:
             self.windows[-1] = TTYRenderer(
                 self, r.y, r.height, new)
         else:
+            # don't eat the entire bottom window
+            height = min(height, r.height - 1)
             # shrink bottom window
             self.windows[-1] = TTYRenderer(
                 self, r.y, r.height - height, r.window)
