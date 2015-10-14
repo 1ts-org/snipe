@@ -61,6 +61,8 @@ class Context:
 
     backend_spec = util.Configurable('backends', DEFAULT_BACKENDS)
 
+    stark_file = util.Configurable('starkfile', 'starks')
+
     def __init__(self, ui, handler):
         self.conf = {
             'filter': {
@@ -117,6 +119,12 @@ class Context:
         self.messagelog = []
 
         self.starks = []
+        try:
+            with open(self.stark_path()) as fp:
+                self.starks = [float(f) for f in fp.read().splitlines()]
+                self.log.debug('loaded starks: %s', repr(self.starks))
+        except:
+            self.log.exception('reading starks')
 
     def startbackends(self):
         started = []
@@ -203,6 +211,14 @@ class Context:
 
     def clear(self):
         self.status.clear()
+
+    def stark_path(self):
+        return os.path.join(self.directory, self.stark_file)
+
+    def write_starks(self):
+        self.ensure_directory()
+        with util.safe_write(self.stark_path()) as fp:
+            fp.write(''.join('%f\n' % (f,) for f in self.starks[-16:]))
 
 
 class SnipeLogHandler(logging.Handler):

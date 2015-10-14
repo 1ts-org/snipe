@@ -204,7 +204,11 @@ class Messager(window.Window, window.PagingMixIn):
             if m is not None and (
                     not self.context.starks or self.context.starks[-1] < m.time):
                 self.context.starks.append(m.time)
+                self.context.write_starks()
         self.install_per_message_keymap()
+
+    def quit_hook(self):
+        self.set_stark()
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
@@ -685,7 +689,7 @@ class Messager(window.Window, window.PagingMixIn):
         m = self.replymsg()
         if m is None:
             return
-        t = m.time
-        i = bisect.bisect_left(self.context.starks, t)
-        if not self.context.starks or self.context.starks[i] != t:
-            self.context.starks.insert(i, t)
+        i = bisect.bisect_left(self.context.starks, m.time)
+        if i >= len(self.context.starks) or self.context.starks[i] != m.time:
+            self.context.starks.insert(i, m.time)
+            self.context.write_starks()

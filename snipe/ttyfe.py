@@ -746,6 +746,9 @@ class TTYFrontend:
             if self.windows[self.active].window.focus():
                 break
 
+    def get_windows(self):
+        return (w.window for w in self.windows)
+
 
 class Location:
     """Abstraction for a pointer into whatever the window is displaying."""

@@ -214,6 +214,10 @@ class Window:
         """Executed after an interactive command."""
         pass
 
+    def quit_hook(self):
+        """Called on visible windows just before quitting."""
+        pass
+
     # Convenience functions for interacting with the user
 
     def whine(self, k):
@@ -296,7 +300,10 @@ class Window:
 
     @keymap.bind('Control-X Control-C')
     def quit(self):
-        """Quiet snipe."""
+        """Quit snipe."""
+
+        for w in self.fe.get_windows():
+            w.quit_hook()
 
         asyncio.get_event_loop().stop()
 
