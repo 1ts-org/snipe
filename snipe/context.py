@@ -116,6 +116,8 @@ class Context:
             lambda: messager.Messager(self.ui), statusline=self.status)
         self.messagelog = []
 
+        self.starks = []
+
     def startbackends(self):
         started = []
         backends = self.backend_spec.split(';')

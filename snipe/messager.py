@@ -68,14 +68,12 @@ class Messager(window.Window, window.PagingMixIn):
             self.the_mark = None
             self.mark_ring = []
             self.filter_reset()
-            self.starks = []
         else:
             self.filter = prototype.filter
             self.filter_stack = list(prototype.filter_stack)
             self.cursor = prototype.cursor
             self.the_mark = prototype.the_mark
             self.mark_ring = prototype.mark_ring
-            self.starks = prototype.starks
 
         if filter_new is not None:
             self.filter_replace(filter_new)
@@ -204,8 +202,8 @@ class Messager(window.Window, window.PagingMixIn):
         if self.cursor.omega:
             m = self.replymsg()
             if m is not None and (
-                    not self.starks or self.starks[-1] < m.time):
-                self.starks.append(m.time)
+                    not self.context.starks or self.context.starks[-1] < m.time):
+                self.context.starks.append(m.time)
         self.install_per_message_keymap()
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
@@ -662,23 +660,23 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('[')
     def previous_stark(self):
         """Move to the previous Stark point."""
-        if not self.starks:
+        if not self.context.starks:
             return
-        i = bisect.bisect_left(self.starks, self.cursor.time) - 1
+        i = bisect.bisect_left(self.context.starks, self.cursor.time) - 1
         if i >= 0:
-            self.goto_time(self.starks[i])
+            self.goto_time(self.context.starks[i])
 
     @keymap.bind(']')
     def next_stark(self):
         """Move to the next Stark point, or if there isn't one, the omega
         message."""
-        i = bisect.bisect_left(self.starks, self.cursor.time)
-        if not self.starks or self.starks[i] == self.cursor.time:
+        i = bisect.bisect_left(self.context.starks, self.cursor.time)
+        if not self.context.starks or self.context.starks[i] == self.cursor.time:
             i += 1
-        if i >= len(self.starks):
+        if i >= len(self.context.starks):
             self.last()
         elif i >= 0:
-            self.goto_time(self.starks[i])
+            self.goto_time(self.context.starks[i])
 
     @keymap.bind('.')
     def set_stark(self):
@@ -688,6 +686,6 @@ class Messager(window.Window, window.PagingMixIn):
         if m is None:
             return
         t = m.time
-        i = bisect.bisect_left(self.starks, t)
-        if not self.starks or self.starks[i] != t:
-            self.starks.insert(i, t)
+        i = bisect.bisect_left(self.context.starks, t)
+        if not self.context.starks or self.context.starks[i] != t:
+            self.context.starks.insert(i, t)
