@@ -393,12 +393,14 @@ class JSONWebSocket:
 
 
 @contextlib.contextmanager
-def safe_write(path):
+def safe_write(path, mode=0o600):
+    """Open a file for writing without letting go with both hands."""
     directory, name = os.path.split(path)
     tmp = os.path.join(directory, ',' + name)
     backup = os.path.join(directory, name + '~')
 
-    fp = open(tmp, 'w')
+    opener = lambda file, flags: os.open(file, flags, mode=mode)
+    fp = open(tmp, 'w', opener=opener)
 
     yield fp
 
