@@ -666,21 +666,26 @@ class Messager(window.Window, window.PagingMixIn):
         """Move to the previous Stark point."""
         if not self.context.starks:
             return
-        i = bisect.bisect_left(self.context.starks, self.cursor.time) - 1
-        if i >= 0:
+        where = self.cursor
+        index = bisect.bisect_left(self.context.starks, where.time)
+        for i in range(index - 1, -1, -1):
             self.goto_time(self.context.starks[i])
+            if self.cursor != where:
+                break
 
     @keymap.bind(']')
     def next_stark(self):
         """Move to the next Stark point, or if there isn't one, the omega
         message."""
-        i = bisect.bisect_left(self.context.starks, self.cursor.time)
-        if not self.context.starks or self.context.starks[i] == self.cursor.time:
-            i += 1
-        if i >= len(self.context.starks):
-            self.last()
-        elif i >= 0:
+        where = self.cursor
+        index = bisect.bisect_left(self.context.starks, self.cursor.time)
+        count = len(self.context.starks)
+        for i in range(index, count):
             self.goto_time(self.context.starks[i])
+            if self.cursor != where:
+                break
+        else:
+            self.last()
 
     @keymap.bind('.')
     def set_stark(self):
