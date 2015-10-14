@@ -204,8 +204,8 @@ class Messager(window.Window, window.PagingMixIn):
         if self.cursor.omega:
             m = self.replymsg()
             if m is not None and (
-                    not self.starks or self.starks[-1] < m):
-                self.starks.append(m)
+                    not self.starks or self.starks[-1] < m.time):
+                self.starks.append(m.time)
         self.install_per_message_keymap()
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
@@ -666,26 +666,28 @@ class Messager(window.Window, window.PagingMixIn):
             return
         i = bisect.bisect_left(self.starks, self.cursor.time) - 1
         if i >= 0:
-            self.goto_time(self.starks[i].time)
+            self.goto_time(self.starks[i])
 
     @keymap.bind(']')
     def next_stark(self):
         """Move to the next Stark point, or if there isn't one, the omega
         message."""
         i = bisect.bisect_left(self.starks, self.cursor.time)
-        if not self.starks or self.starks[i] == self.cursor:
+        if not self.starks or self.starks[i] == self.cursor.time:
             i += 1
         if i >= len(self.starks):
             self.last()
         elif i >= 0:
-            self.goto_time(self.starks[i].time)
+            self.goto_time(self.starks[i])
 
     @keymap.bind('.')
     def set_stark(self):
         """Set a Stark point."""
-        if self.cursor not in self.starks:
-            #XXX I have doubts about the complexity of the following but I'm
-            #betting that the array will never get particularly large
-            #and it's after my bedtime.
-            self.starks.append(self.cursor)
-            self.starks.sort()
+
+        m = self.replymsg()
+        if m is None:
+            return
+        t = m.time
+        i = bisect.bisect_left(self.starks, t)
+        if not self.starks or self.starks[i] != t:
+            self.starks.insert(i, t)
