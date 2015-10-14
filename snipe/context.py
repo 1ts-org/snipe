@@ -152,38 +152,31 @@ class Context:
             util.Configurable.immanentize(self)
 
     def conf_write(self):
-        name = 'config'
-        path = os.path.join(self.directory, name)
-        tmp = os.path.join(self.directory, ',' + name)
-        backup = os.path.join(self.directory, name + '~')
+        self.ensure_directory()
+        with util.safe_write(os.path.join(self.directory, 'config')) as fp:
+            json.dump(self.conf, fp)
+            fp.write('\n')
 
-        if not os.path.isdir(self.directory):
-            os.mkdir(self.directory)
-            os.chmod(self.directory, 0o700)
-            if os.path.realpath(self.directory).startswith('/afs/'): #XXX
-                cmd = [
-                    'fs', 'sa', self.directory,
-                    'system:anyuser', 'none', 'system:authuser', 'none',
-                    ]
-                p = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                out = p.communicate()[0]
-                if p.returncode:
-                    self.log.error(
-                        '%s (=%d): %s', ' '.join(cmd), p.returncode, out)
-                    #XXX should complain more
-                else:
-                    self.log.debug('%s: %s', ' '.join(cmd), out)
+    def ensure_directory(self):
+        if os.path.isdir(self.directory):
+            return
 
-        fp = open(tmp, 'w')
-        json.dump(self.conf, fp)
-        fp.write('\n')
-        fp.close()
-        if os.path.exists(path):
-            with contextlib.suppress(OSError):
-                os.unlink(backup)
-            os.link(path, backup)
-        os.rename(tmp, path)
+        os.mkdir(self.directory)
+        os.chmod(self.directory, 0o700)
+        if os.path.realpath(self.directory).startswith('/afs/'): #XXX
+            cmd = [
+                'fs', 'sa', self.directory,
+                'system:anyuser', 'none', 'system:authuser', 'none',
+                ]
+            p = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out = p.communicate()[0]
+            if p.returncode:
+                self.log.error(
+                    '%s (=%d): %s', ' '.join(cmd), p.returncode, out)
+                #XXX should complain more
+            else:
+                self.log.debug('%s: %s', ' '.join(cmd), out)
 
     # kill ring
     def copy(self, data, append=None):

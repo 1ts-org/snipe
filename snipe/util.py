@@ -35,9 +35,9 @@ Assorted utility functions.
 '''
 
 
-import logging
 import sys
-import aiohttp
+import os
+import logging
 import asyncio
 import functools
 import contextlib
@@ -45,6 +45,8 @@ import time
 import datetime
 import math
 import json
+
+import aiohttp
 
 from . import _websocket
 
@@ -388,3 +390,23 @@ class JSONWebSocket:
                 return m
             else:
                 self.log.error('Unknown websocket message type from irccloud')
+
+
+@contextlib.contextmanager
+def safe_write(path):
+    directory, name = os.path.split(path)
+    tmp = os.path.join(directory, ',' + name)
+    backup = os.path.join(directory, name + '~')
+
+    fp = open(tmp, 'w')
+
+    yield fp
+
+    fp.close()
+    # TODO consider checking that the size of the file matches what was written
+
+    if os.path.exists(path):
+        with contextlib.suppress(OSError):
+            os.unlink(backup)
+        os.link(path, backup)
+    os.rename(tmp, path)
