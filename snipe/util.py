@@ -74,7 +74,7 @@ class Configurable:
 
     def __get__(self, instance, owner):
         if not instance:
-            return
+            return self
         if not instance.context:
             return self.default
         return instance.context.conf.get('set', {}).get(self.key, self.default)
