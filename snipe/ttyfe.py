@@ -176,6 +176,7 @@ class TTYRenderer:
                 curses.A_REVERSE | (curses.A_BOLD if self.active else 0)
                 ),
             'reverse': curses.A_REVERSE,
+            'underline': curses.A_UNDERLINE,
             }
         attr = 0
         fg, bg = '', ''
