@@ -293,7 +293,7 @@ class Window:
     def show(self, string):
         """Display a string in a popup Viewer window."""
         from .editor import Viewer
-        self.fe.split_window(Viewer(self.fe, content=string))
+        self.fe.split_window(Viewer(self.fe, content=string), True)
 
     # Commands the user can run that should be more or less present in
     # all windows.
@@ -341,18 +341,21 @@ class Window:
         """Split to a new editor window."""
 
         from .editor import Editor
-        self.fe.split_window(Editor(self.fe))
+        self.fe.split_window(Editor(self.fe), True)
 
     @keymap.bind('Control-X 4 m')
     def split_to_messager(self, filter_new=None):
         """Split to a new messager window."""
 
         from .messager import Messager
-        self.fe.split_window(Messager(
-            self.fe,
-            prototype = self if isinstance(self, Messager) else None,
-            filter_new = filter_new,
-            ))
+        self.fe.split_window(
+            Messager(
+                self.fe,
+                prototype = self if isinstance(self, Messager) else None,
+                filter_new = filter_new,
+                ),
+            True,
+            )
 
     @keymap.bind('Control-X 4 /')
     def split_to_messager_filter(self):

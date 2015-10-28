@@ -598,7 +598,7 @@ class TTYFrontend:
         else:
             curses.beep()
 
-    def split_window(self, new):
+    def split_window(self, new, select=False):
         r = self.windows[self.active]
         nh = r.height // 2
 
@@ -609,6 +609,8 @@ class TTYFrontend:
             TTYRenderer(self, r.y, nh, r.window),
             TTYRenderer(self, r.y + nh, r.height - nh, new),
             ]
+        if select:
+            self.switch_window(1)
         self.redisplay({'window': new})
 
     def delete_window(self, n):
