@@ -410,7 +410,7 @@ class Viewer(window.Window, window.PagingMixIn):
     @keymap.bind('Shift-[HOME]', '[SHOME]', 'Meta-<')
     def beginning_of_buffer(
             self,
-            pct: interactive.argument,
+            pct: interactive.argument=None,
             interactive: interactive.isinteractive=False,
             ):
         """Move the point to the beginning of the buffer.  With a single-digit
