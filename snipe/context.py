@@ -69,7 +69,8 @@ class Context:
                 'personal': 'personal',
                 'auto':
                     'backend == "startup"'
-                    ' or (backend == "roost" and opcode = "auto")',
+                    ' or (backend == "roost" and opcode = "auto")'
+                    ' or noise',
                 'error': 'error',
                 'default': 'yes',
                 },
