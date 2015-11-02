@@ -48,9 +48,9 @@ Setup
 Setting up the slack backend is slightly more involved because it's not enabled
 by default, requires you get an API key from Slack, _and_ requires that you give
 the backend instance a name (e.g. myslack for myslack.slack.com).  You
-add *``.slack name=myname``* to the *``backends``* configuration variable (which is *``;``*
-separated), and get an api key from *``https://api.slack.com/web``* and put it in
-*``~/.snipe/netrc``* like so: ::
+add ``.slack name=myname`` to the ``backends`` configuration variable (which is ``;``
+separated), and get an api key from ``https://api.slack.com/web`` and put it in
+``~/.snipe/netrc`` like so: ::
 
  machine myslack.slack.com login myself@example.com password frob-9782504613-8396512704-9784365210-7960cf
 

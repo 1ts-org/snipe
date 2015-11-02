@@ -168,90 +168,16 @@ class HelpBrowser(editor.Viewer):
                 docutils.io.StringInput, text, None, docutils.io.NullOutput, None, None,
                 None, 'standalone', None, 'restructuredtext', None, 'null', None, None,
                 {}, None, None)
-            allchunks = self.render(pub.writer.document)
 
-            refs = {}
-            off = 0
-            chunks = []
-            links = []
+            renderer = Renderer()
+            renderer.process(pub.writer.document)
 
-            for tags, text in allchunks:
-                if 'section' in tags:
-                    refs[text] = off
-                elif 'link' in tags:
-                    (lengthtag,) = [t for t in tags if t.startswith('length:')]
-                    length = int(lengthtag[len('length:'):])
-                    links.append((off, length, text))
-                else:
-                    off += len(text)
-                    chunks.append((tags, text))
-
-            flat = ''.join(text for (tags, text) in chunks)
-            self.pages[label] = (chunks, flat, refs, links)
+            self.pages[label] = (
+                renderer.output,
+                renderer.flat(),
+                renderer.targets,
+                renderer.links)
             self.toclines[:0] = self.gettoclines(pub.writer.document, label)
-
-    @staticmethod
-    def render(node):
-        #XXX this function (render) is terrible and more importantly
-        # its output is terrible
-
-        def addtag(chunk, tag):
-            result = []
-            for tags, text in chunk:
-                if tag not in tags:
-                    tags += (tag,)
-                result.append((tags, text))
-            return result
-
-        if isinstance(node, docutils.nodes.Text):
-            return [((), node.astext())]
-        elif isinstance(node, docutils.nodes.comment):
-            return []
-
-        chunks = []
-
-        if isinstance(node, docutils.nodes.title):
-            chunks += [(('section',), ''.join(node.astext().split()))]
-
-        for x in node.children:
-            chunks += HelpBrowser.render(x)
-
-        if chunks and isinstance(node, docutils.nodes.reference):
-            chunks = addtag(chunks, 'fg:#6666ff')
-            chunks = addtag(chunks, 'underline')
-            l = sum(len(txt) for (tags, txt) in chunks if 'section' not in tags)
-            chunks = [(('link', 'length:%d' % (l,)), node['refuri'])] + chunks
-
-        if chunks and isinstance(node, docutils.nodes.Titular):
-            #chunks = addtag(chunks, 'fill')
-            chunks = addtag(chunks, 'bold')
-            chunks += [((), '\n\n')]
-
-        if node.__class__.__name__ in ('emphasis', 'literal_block'):
-            chunks = addtag(chunks, 'bold')
-
-        if isinstance(node, docutils.nodes.literal_block):
-            chunks += [((), '\n\n')]
-
-        if isinstance(node, docutils.nodes.paragraph):
-            #chunks = addtag(chunks, 'fill')
-            chunks += [((), '\n\n')]
-
-        if isinstance(node, docutils.nodes.term):
-            chunks += [((), '\n')]
-
-        #result.append(((node.__class__.__name__,), ''))
-
-        result, oldtags = [], None
-        for tags, text in chunks + [((), '')]:
-            tags = tuple(sorted(tags))
-            if tags != oldtags:
-                if (tags, text) != ((), ''):
-                    result.append((tags, text))
-            else:
-                result[-1] = (tags, result[-1][1] + text)
-
-        return result
 
     @staticmethod
     def gettoclines(doc, label):
@@ -279,11 +205,7 @@ class HelpBrowser(editor.Viewer):
         self.log.debug('refs: %s', repr(self.refs))
         self.log.debug('links: %s', repr(self.links))
         self.replace(len(self.buf), flat)
-        self.index = []
-        off = 0
-        for tags, text in self.chunks:
-            self.index.append(off)
-            off += len(text)
+
         self.beginning_of_buffer()
         self.log.debug('looking for %s in %s', repr(anchor), repr(self.refs))
         if anchor and anchor in self.refs:
@@ -291,19 +213,37 @@ class HelpBrowser(editor.Viewer):
         self.page = name
 
     def view(self, origin, direction='forward'):
-        # Bunch of complexity to place the cursor properly
-        i = bisect.bisect(self.index, int(self.cursor)) - 1
-        left = self.chunks[:i]
-        right = self.chunks[i:]
-        if not right:
-            right = [((), '')]
-        offset = int(self.cursor) - self.index[i]
-        right = [
-            (right[0][0], right[0][1][:offset]),
-            ((right[0][0] + ('cursor', 'visible')), right[0][1][offset:]),
-            ] + right[1:]
+        l = len(self.chunks) -1
+        i = min(bisect.bisect_left([x[0] for x in self.chunks], int(origin)), l)
 
-        yield self.buf.mark(0), left + right
+        self.log.debug('helpbrowser.view: cursor=%d', int(self.cursor))
+        while True:
+            if i < 0 or i >= len(self.chunks):
+                return
+            self.log.debug('helpbrowser.view: i=%d, off=%d', i, self.chunks[i][0])
+
+            if self.chunks[i][0] <= int(self.cursor) and (
+                    i == l or
+                    int(self.cursor) < self.chunks[i + 1][0]):
+                off = self.chunks[i][0]
+                c = int(self.cursor)
+                for (j, (tags, text)) in enumerate(self.chunks[i][1]):
+                    self.log.debug('helpbrowser.view: j=%d', j)
+                    if off <= c < off + len(text):
+                        yield self.buf.mark(self.chunks[i][0]), (
+                            self.chunks[i][1][:j] +
+                            ([(tags, text[:c - off])] if c > off else []) +
+                            [(tags + ('cursor', 'visible'), text[c - off:])] +
+                            self.chunks[i][1][j + 1:])
+                        break
+                    off += len(text)
+            else:
+                yield self.buf.mark(self.chunks[i][0]), self.chunks[i][1]
+
+            if direction == 'forward':
+                i += 1
+            else:
+                i -= 1
 
     @keymap.bind(']')
     def next_page(self):
@@ -356,6 +296,112 @@ class HelpBrowser(editor.Viewer):
         off, length, link = self.links[i]
         if off <= self.cursor.point < (off + length):
             self.load(link)
+
+
+class Renderer:
+    def __init__(self):
+        # output will be a list of (offset, [(tags, text), (tags, text)]) items
+        self.output = []
+        self.tagstack = []
+        self.offset = 0
+        self.state_space = True
+        self.targets = []
+        self.links = []
+
+    def add(self, words):
+        self.state_space = False
+
+        if not self.notatendofline():
+            self.output.append((self.offset, []))
+
+        line = self.output[-1][1]
+
+        rest = ''
+        if '\n' in words:
+            i = words.index('\n') + 1
+            words, rest = words[:i], words[i:]
+        if line and line[-1][0] == self.tags():
+            line[-1] = (line[-1][0], line[-1][1] + words)
+        else:
+            line.append((self.tags(), words))
+        self.offset += len(words)
+
+        if rest:
+            self.add(rest)
+
+    def notatendofline(self):
+        # the frenzy of indexing checks the end of the last line so far
+        return self.output and self.output[-1][1][-1][1][-1:] != '\n'
+
+    def linebreak(self): # .br
+        if self.notatendofline():
+            self.add('\n')
+
+    def space(self): # .sp
+        if self.state_space:
+            return
+        self.linebreak()
+        self.add('\n')
+        self.state_space = True
+
+    def tags(self):
+        if not self.tagstack:
+            return ()
+        else:
+            return tuple(self.tagstack[-1])
+
+    def tagpush(self, *tags):
+        self.tagstack.append(set(self.tags()) | set(tags))
+        return 1
+
+    def tagpop(self, count):
+        del self.tagstack[-count:]
+
+    def process(self, node):
+        import logging
+        tagset = 0
+
+        if isinstance(node, docutils.nodes.Text):
+            self.add(node.astext())
+            logging.error('XXXX %s', node.astext())
+            return
+        elif isinstance(node, docutils.nodes.comment):
+            return
+
+        if isinstance(node, docutils.nodes.title):
+            self.targets.append((self.offset, ''.join(node.astext().split())))
+
+        if not isinstance(node, docutils.nodes.Inline):
+            self.linebreak()
+
+        if isinstance(node, docutils.nodes.Titular) or \
+          isinstance(node, docutils.nodes.emphasis) or \
+          isinstance(node, docutils.nodes.literal) or \
+          isinstance(node, docutils.nodes.literal_block):
+            tagset += self.tagpush('bold')
+
+        if isinstance(node, docutils.nodes.reference):
+            tagset += self.tagpush('fg:#6666ff', 'underline')
+            link_start = self.offset
+
+        for x in node.children:
+            self.process(x)
+
+        self.tagpop(tagset)
+
+        if isinstance(node, docutils.nodes.reference):
+            self.links.append(
+                (link_start, self.offset - link_start, node['refuri']))
+
+        if not isinstance(node, docutils.nodes.Inline):
+            self.linebreak()
+            if not isinstance(node, docutils.nodes.term):
+                self.space()
+
+    def flat(self):
+        return ''.join(
+            ''.join(text for (tags, text) in x[1])
+            for x in self.output)
 
 
 class Interrogator(docutils.parsers.rst.Directive):
@@ -420,7 +466,7 @@ class InterrogateConfig(Interrogator):
         for name in dir(obj):
             attr = getattr(obj, name)
             if isinstance(attr, util.Configurable):
-                lines.append('*``%s``*' % (attr.key,))
+                lines.append('``%s``' % (attr.key,))
                 lines.append('  %s' % (attr.doc,))
                 lines.append('')
         return lines
