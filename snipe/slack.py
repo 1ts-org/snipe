@@ -571,8 +571,8 @@ class SlackMessage(messages.SnipeMessage):
                     chunk += left + self.slackmarkup(attachment['text'], tags)
 
                 for field in attachment.get('fields', []):
-                    chunk += left + [(tags + ('bold',)), field['title']]
-                    chunk += left + [tags, field['value']]
+                    chunk += left + [(tags + ('bold',), field['title'])]
+                    chunk += left + [(tags, field['value'])]
 
             if 'file' in self.data and 'url' in self.data['file']:
                 chunk += [(tags, ('\n' + self.data['file']['url']))]
