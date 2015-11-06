@@ -76,6 +76,7 @@ class LongPrompt(editor.Editor):
 
     def destroy(self):
         self.history.append(self.buf[self.divider:])
+        self.buf.unregister()
         super().destroy()
 
     @keymap.bind('Meta-p')
