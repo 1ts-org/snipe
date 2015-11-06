@@ -115,7 +115,7 @@ class TTYRenderer:
         self.w.noutrefresh()
 
     @staticmethod
-    def width(s):
+    def glyphwidth(s):
         return sum(wcwidth(c) for c in s)
 
     @staticmethod
@@ -150,7 +150,7 @@ class TTYRenderer:
             elif c >= ' ' or c == '\t':
                 if c == '\t':
                     c = ' ' * (8 - col % 8)
-                l = TTYRenderer.width(c)
+                l = TTYRenderer.glyphwidth(c)
                 if col + l > width:
                     if right and line == 0:
                         yield '', -1
@@ -407,7 +407,9 @@ class TTYRenderer:
         self.window.focus()
 
     def display_range(self):
-        return self.head.cursor, self.sill.cursor
+        if self.head:
+            return self.head.cursor, self.sill.cursor
+        return None, None
 
 
 unkey = dict(
