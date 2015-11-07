@@ -226,6 +226,13 @@ class Window:
         """Called on visible windows just before quitting."""
         pass
 
+    def title(self):
+        return self.__class__.__name__
+
+    def modeline(self):
+        return [((), self.title())], \
+          [(('right',), '%d' % (self.context.backends.count(),))]
+
     # Convenience functions for interacting with the user
 
     def whine(self, k):
@@ -544,10 +551,35 @@ class StatusLine(Window):
         self.clear()
 
     def view(self, origin=0, direction='forward'):
-        yield 0, [
-            (('visible', ), self._message),
-            (('right', ), '%d' % (self.context.backends.count(),)),
-            ]
+        # this is a friend class to the stuff in ttyfe for now
+        renderer = self.fe.windows[self.fe.active]
+
+        left, right = renderer.window.modeline()
+
+        if not left:
+            left = [((), '')]
+        else:
+            left = list(left) # make a copy
+
+        if self._message:
+            left = [(('fg:white', 'bg:red'), self._message)]
+
+        rightwidth = sum(renderer.glyphwidth(text) for (tags, text) in right)
+
+        offset = 0
+        for (i, (tags, text)) in enumerate(left):
+            textwidth = renderer.glyphwidth(text)
+            remaining = renderer.width - rightwidth - offset
+            if textwidth > remaining:
+                #XXX bugs on wide characters, need fe.truncate
+                left[i:] = [(tags, text[:remaining - 1] + '…')]
+                break
+            offset += textwidth
+
+        tags, text = left[0]
+        left[0] = (tags + ('visible',), text)
+
+        yield 0, left + right
 
     def message(self, s):
         self._message = str(s)
