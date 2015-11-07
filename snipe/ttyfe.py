@@ -471,7 +471,7 @@ class TTYFrontend:
                 TTYRenderer(self, 0, 1, statusline),
                 TTYRenderer(self, 1, self.maxy - 1, winfactory()),
                 ]
-        for r in self.windows:
+        for r in reversed(self.windows):
             r.w.refresh()
         self.stdscr.refresh()
 
@@ -584,7 +584,8 @@ class TTYFrontend:
             self.color_assigner.reset()
 
         active = None
-        for i, w in enumerate(self.windows):
+        for i in range(len(self.windows) - 1, -1, -1):
+            w = self.windows[i]
             if i == self.active:
                 active = w
             if not hint or w.check_redisplay_hint(hint):
