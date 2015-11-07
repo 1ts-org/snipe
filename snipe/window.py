@@ -239,13 +239,21 @@ class Window:
         """Tell the frontend to flash the screen."""
         self.fe.notify()
 
-    def read_string(self, prompt, content=None, height=1, window=None, **kw):
+    def read_string(
+            self,
+            prompt,
+            content=None,
+            height=1,
+            window=None,
+            name='Prompt',
+            **kw):
         """Pop a prompt window to read a string from the user.
 
         :param str prompt: The prompt string
         :param str content: The initial contents of the input
         :param int height: Height of the input area
         :param Window window: Type of window object to use
+        :param str name: Name for the editor buffer
         """
 
         f = asyncio.Future()
@@ -271,6 +279,7 @@ class Window:
             callback=done_callback,
             destroy=destroy_callback,
             history=self.this_command,
+            name=name,
             )
         wkw.update(kw)
 
@@ -283,7 +292,7 @@ class Window:
 
         return f.result()
 
-    def read_filename(self, prompt, content=None):
+    def read_filename(self, prompt, content=None, name='filename'):
         """Use self.read_string to read a filename from the user.
 
         :param str prompt: The prompt string
@@ -291,11 +300,11 @@ class Window:
         """
 
         result = yield from self.read_string(
-            prompt, complete=interactive.complete_filename)
+            prompt, complete=interactive.complete_filename, name=name)
 
         return result
 
-    def read_keyseq(self, prompt, keymap):
+    def read_keyseq(self, prompt, keymap, name='key sequence'):
         """Read a keymap key sequence from the user.
 
         :param str prompt: The prompt string
@@ -303,12 +312,12 @@ class Window:
         """
         from .prompt import KeySeqPrompt
         return (yield from self.read_string(
-            prompt, window=KeySeqPrompt, keymap=keymap))
+            prompt, window=KeySeqPrompt, keymap=keymap, name=name))
 
-    def show(self, string):
+    def show(self, string, what='what'):
         """Display a string in a popup Viewer window."""
         from .editor import Viewer
-        self.fe.split_window(Viewer(self.fe, content=string), True)
+        self.fe.split_window(Viewer(self.fe, content=string, name=what), True)
 
     # Commands the user can run that should be more or less present in
     # all windows.
@@ -384,7 +393,11 @@ class Window:
             s = ''
 
         s = yield from self.read_string(
-            'Filter expression (Control-J when finished):\n', s, 5)
+            'Filter expression (Control-J when finished):\n',
+            content=s,
+            height=5,
+            name='filter expression',
+            )
 
         self.split_to_messager(filter_new=filters.makefilter(s))
 
@@ -410,6 +423,7 @@ class Window:
                 out + ':>> ',
                 height = len(out.splitlines()) + 2,
                 window = ShortPrompt,
+                name = '*python*'
                 )
             if not expr.strip():
                 break
@@ -432,10 +446,14 @@ class Window:
             key = yield from self.read_oneof(
                 'Key: ',
                 util.Configurable.registry.keys(),
-                height=2)
+                height=2,
+                name='configuration key',
+                )
             value = yield from self.read_string(
                 'Value: ',
-                content=str(util.Configurable.get(self, key)))
+                content=str(util.Configurable.get(self, key)),
+                name='configuration value',
+                )
             util.Configurable.set(self, key, value)
             self.context.conf_write()
         else:
@@ -443,7 +461,7 @@ class Window:
             self.show(pprint.pformat(self.context.conf))
 
     @asyncio.coroutine
-    def read_oneof(self, prompt, these, height=1):
+    def read_oneof(self, prompt, these, height=1, name='Prompt'):
         from .prompt import LeapPrompt
 
         return (yield from self.read_string(
@@ -452,6 +470,7 @@ class Window:
             height=height,
             candidates=these,
             complete=interactive.completer(these),
+            name=name,
             ))
 
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])

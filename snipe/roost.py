@@ -290,7 +290,10 @@ class Roost(messages.SnipeBackend):
 
     @keymap.bind('R s')
     def subscribe(self, window: interactive.window):
-        spec = yield from window.read_string('subscribe to: ')
+        spec = yield from window.read_string(
+            'subscribe to: ',
+            name='zephyr class',
+            )
         if spec.strip():
             subs = self.spec_to_triplets(spec)
             if self.subunify:
@@ -300,7 +303,10 @@ class Roost(messages.SnipeBackend):
 
     @keymap.bind('R u')
     def unsubscribe(self, window: interactive.window):
-        spec = yield from window.read_string('unsubscribe from: ')
+        spec = yield from window.read_string(
+            'unsubscribe from: ',
+            name='zephyr class',
+            )
         if spec.strip():
             subs = self.spec_to_triplets(spec)
             if self.subunify:

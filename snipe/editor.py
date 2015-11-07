@@ -117,6 +117,9 @@ class Buffer:
         n = max(int(i) if i is not None else 0 for i in competition) + 1
         return self.register('%s[%d]' % (name, n))
 
+    def unregister(self):
+        del self.registry[self.name]
+
     def mark(self, where):
         return Mark(self, where)
 
@@ -188,6 +191,9 @@ class Viewer(window.Window, window.PagingMixIn):
             self.undo_state = prototype.undo_state #?
 
             self.goal_column = prototype.goal_column
+
+    def title(self):
+        return self.buf.name
 
     def movable(self, point, interactive):
         return point
@@ -679,7 +685,8 @@ class Editor(Viewer):
 
         if column is None:
             s = yield from self.read_string(
-                'new fill column (current is %d): ' % self.fill_column)
+                'new fill column (current is %d): ' % self.fill_column,
+                name='fill column')
             try:
                 self.fill_column = int(s)
             except ValueError as e:

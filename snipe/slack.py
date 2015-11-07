@@ -679,6 +679,7 @@ class SlackMessage(messages.SnipeMessage):
             content=self.followup() + '\n' + self.body,
             history='send',
             fill=True,
+            name='edit message %s' % (util.timestr(self)),
             )
 
         try:

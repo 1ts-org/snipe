@@ -334,7 +334,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.set_mark(old)
 
     @keymap.bind('s')
-    def send(self, recipient='', msg=None):
+    def send(self, recipient='', msg=None, name='send message'):
         """Start composing a message."""
 
         sill = self.renderer.display_range()[1]
@@ -342,12 +342,12 @@ class Messager(window.Window, window.PagingMixIn):
             self.secondary = self.cursor
             self.cursor = sill
 
-        kw = {}
+        kw = {'name': name}
         if msg is not None:
             kw['modes'] = [prompt.ReplyMode(msg)]
 
         message = yield from self.read_string(
-            'compose (Control-J to send) --> ',
+            'compose (^J to send, ^G to abort) --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
             history='send',
@@ -374,14 +374,15 @@ class Messager(window.Window, window.PagingMixIn):
         """Followup (wide-reply) to a message."""
 
         msg = self.replymsg()
-        yield from self.send(msg.followup(), msg)
+        yield from self.send(
+            msg.followup(), msg, 'followup to ' + msg.followup())
 
     @keymap.bind('r')
     def reply(self):
         """Replay (narrow-reply) to a message."""
 
         msg = self.replymsg()
-        yield from self.send(msg.reply(), msg)
+        yield from self.send(msg.reply(), msg, 'reply to ' + msg.reply())
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def last(self):
@@ -425,18 +426,28 @@ class Messager(window.Window, window.PagingMixIn):
             s = '' if self.filter is None else str(self.filter)
 
             s = yield from self.read_string(
-                'Filter expression (Control-J when finished):\n', s, 5)
+                'Filter expression (Control-J when finished):\n',
+                content=s,
+                height=5,
+                name='current filter',
+                )
 
             self.filter_replace(filters.makefilter(s))
         else:
             conf = self.context.conf
             name = yield from self.read_string(
                 'filter name: ',
-                complete=interactive.completer(conf.get('filter', {}).keys()))
+                complete=interactive.completer(conf.get('filter', {}).keys()),
+                name='filter name'
+                )
             name = name.strip()
             s = conf.get('filter', {}).get(name, '')
             s = yield from self.read_string(
-                'Filter expression %s (Control-J when finished):\n' % (name,), s, 5)
+                'Filter expression %s (Control-J when finished):\n' % (name,),
+                content=s,
+                height=5,
+                name='filter ' + name
+                )
             if not s.strip():
                 if name in conf.get('filter', {}):
                     del conf['filter'][name]
@@ -468,8 +479,8 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_foreground_background(self):
         """Take the current filter and set a foreground and background color for
         messages that match it."""
-        fg = yield from self.read_string('Foreground: ')
-        bg = yield from self.read_string('Background: ')
+        fg = yield from self.read_string('Foreground: ', name='foreground color')
+        bg = yield from self.read_string('Background: ', name='background color')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @keymap.bind('Meta-/ f')
@@ -477,7 +488,7 @@ class Messager(window.Window, window.PagingMixIn):
         """Take the current filter and set a foreground color for messages that
         match it."""
 
-        fg = yield from self.read_string('Foreground: ')
+        fg = yield from self.read_string('Foreground: ', name='foreground color')
         self.filter_clear_decorate({'foreground': fg})
 
     @keymap.bind('Meta-/ b')
@@ -485,7 +496,7 @@ class Messager(window.Window, window.PagingMixIn):
         """Take the current filter and set a background color for messages that
         match it."""
 
-        bg = yield from self.read_string('Background: ')
+        bg = yield from self.read_string('Background: ', name='background color')
         self.filter_clear_decorate({'background': bg})
 
     def filter_push_and_replace(self, new_filter):
@@ -514,7 +525,10 @@ class Messager(window.Window, window.PagingMixIn):
     @asyncio.coroutine
     def do_filter_class(self, op):
         class_ = yield from self.read_string(
-            'Class: ', self.replymsg().field('class', False))
+            'Class: ',
+            content=self.replymsg().field('class', False),
+            name='zephyr class',
+            )
         self.filter_push(filters.And(
             filters.Compare('==', 'backend', 'roost'),
             filters.Compare(op, 'class', class_)))
@@ -530,7 +544,10 @@ class Messager(window.Window, window.PagingMixIn):
         """Push a filter to a sender."""
 
         sender = yield from self.read_string(
-            'Sender: ', self.replymsg().field('sender'))
+            'Sender: ',
+            content=self.replymsg().field('sender'),
+            name='sender',
+            )
         self.filter_push(filters.Compare('=', 'sender', sender))
 
     @keymap.bind('Meta-/ /')
@@ -571,7 +588,9 @@ class Messager(window.Window, window.PagingMixIn):
                 name = yield from self.read_string(
                     'target filter name: ',
                     complete=interactive.completer(
-                            conf.get('filter', {}).keys()))
+                        conf.get('filter', {}).keys()),
+                    name='target filter',
+                    )
                 name = name.strip()
                 conf.setdefault('filter', {})[name] = str(self.filter)
             self.context.conf_write()
@@ -607,7 +626,7 @@ class Messager(window.Window, window.PagingMixIn):
         import parsedatetime
         p = parsedatetime.Calendar()
 
-        s = yield from self.read_string('When: ')
+        s = yield from self.read_string('When: ', name='goto time')
         x, y = p.parse(s)
         self.log.debug('parsed date result %d: %s', y, repr(x))
         if y:
