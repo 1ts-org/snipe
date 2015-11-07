@@ -210,6 +210,35 @@ class Messager(window.Window, window.PagingMixIn):
     def quit_hook(self):
         self.set_stark()
 
+    def title(self):
+        return str(self.filter)
+
+    def modeline(self):
+        left, right = super().modeline()
+
+        now = datetime.datetime.now()
+
+        whence = self.renderer.display_range()[0]
+        if whence is None:
+            return left, right
+
+
+        try:
+            then = datetime.datetime.fromtimestamp(float(whence))
+        except OverflowError:
+            then = now # soon
+
+        t = ''
+        if then.year != now.year:
+            t += '%d-' % (then.year,)
+        if then.month != now.month or then.day != now.day:
+            t += '%02d-%02d ' % (then.month, then.day)
+        t += '%02d:%02d' % (then.hour, then.minute)
+
+        left = [(('bg:grey24',), t), ((), ' ')] + left
+
+        return left, right
+
     @keymap.bind('Control-n', 'n', 'j', '[down]')
     def next_message(self):
         """Move to the next message."""
