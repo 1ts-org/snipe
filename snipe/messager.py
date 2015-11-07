@@ -426,7 +426,7 @@ class Messager(window.Window, window.PagingMixIn):
             s = '' if self.filter is None else str(self.filter)
 
             s = yield from self.read_string(
-                'Filter expression (Control-J when finished):\n',
+                'Filter expression (^J when finished):\n',
                 content=s,
                 height=5,
                 name='current filter',
@@ -443,7 +443,7 @@ class Messager(window.Window, window.PagingMixIn):
             name = name.strip()
             s = conf.get('filter', {}).get(name, '')
             s = yield from self.read_string(
-                'Filter expression %s (Control-J when finished):\n' % (name,),
+                'Filter expression %s (^J when finished):\n' % (name,),
                 content=s,
                 height=5,
                 name='filter ' + name
