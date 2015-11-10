@@ -93,9 +93,11 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             url = self.data['url']
 
             self.users = {u['id']: u for u in self.data['users']}
+            self.users.update({b['id']: b for b in self.data['bots']})
 
             self.dests = dict(
                 [(u['id'], SlackDest(self, 'user', u)) for u in self.data['users']] +
+                [(b['id'], SlackDest(self, 'bot', b)) for b in self.data['bots']] +
                 [(i['id'], SlackDest(self, 'im', i)) for i in self.data['ims']] +
                 [(g['id'], SlackDest(self, 'group', g)) for g in self.data['groups']] +
                 [(c['id'], SlackDest(self, 'channel', c)) for c in self.data['channels']])
@@ -257,7 +259,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             backfillers = [
                 asyncio.Task(self.do_backfill_dest(dest, mfilter, target))
-                for dest in self.dests if self.dests[dest].type != 'user']
+                for dest in self.dests
+                if self.dests[dest].type not in ('user', 'bot')]
             self.tasks += backfillers
             yield from asyncio.gather(*backfillers, return_exceptions=True)
 
@@ -401,7 +404,7 @@ class SlackDest:
 
     def __str__(self):
         prefix = {
-            'im': '@', 'user': '', 'group': '+', 'channel': '#',
+            'im': '@', 'user': '', 'group': '+', 'channel': '#', 'bot': '',
             }[self.type]
         if self.type == 'im':
             return prefix + self.backend.users[self.data['user']]['name']
@@ -443,13 +446,15 @@ class SlackMessage(messages.SnipeMessage):
                 self._sender = SlackAddress(backend, m['user']['id'])
             else:
                 self._sender = SlackAddress(backend, m['user'])
+        elif 'bot_id' in m:
+            self._sender = SlackAddress(backend, m['bot_id'])
         elif 'channel' in m:
             self._sender = SlackAddress(backend, m['channel'])
 
         self.channel = None
 
-        if t == 'message' and 'text' in m:
-            bodylist = self.SLACKMARKUP.split(m['text'])
+        if t == 'message':
+            bodylist = self.SLACKMARKUP.split(m.get('text', ''))
             self.body = ''
             for (n, s) in enumerate(bodylist):
                 if n%2 == 0:
@@ -521,14 +526,14 @@ class SlackMessage(messages.SnipeMessage):
 
         t = self.data['type']
         t_ = self.data.get('subtype')
-        if t == 'message' and 'text' in self.data:
+        if t == 'message':
             chunk += [(tags + ('bold',), self.sender.short())]
             if t_ != 'me_message':
                 chunk += [(tags, ': ')]
             else:
                 chunk += [(tags, ' ')]
 
-            chunk += self.slackmarkup(self.data['text'], tags)
+            chunk += self.slackmarkup(self.data.get('text', ''), tags)
 
             if self.data.get('reactions'):
                 chunk += [
