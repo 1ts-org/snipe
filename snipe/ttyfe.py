@@ -271,7 +271,8 @@ class TTYRenderer:
             # correct result
             self.sill.offset = max(0, chunkat - screenlines - 1)
 
-        if screenlines > 1 and self.y + self.height < self.ui.maxy:
+        if (screenlines > 1 and self.y + self.height < self.ui.maxy) \
+          or (screenlines == 1 and remaining == 0):
             self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
 
         self.attrset(0)
