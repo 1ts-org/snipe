@@ -516,6 +516,7 @@ class TTYFrontend:
             else:
                 # should get proportional chunk of remaining? think harder later.
                 height = max(1, int(victim.height * (self.maxy / oldy)))
+                height = min(height, remaining)
             if height > remaining:
                 orphans.append(victim)
             else:
@@ -534,7 +535,7 @@ class TTYFrontend:
                 self.popstack.remove(victim)
             victim.window.destroy()
 
-        self.active = 0
+        self.active = 1
         self.windows = []
         for (i, (window, y, height, active)) in enumerate(new):
             self.windows.append(TTYRenderer(self, y, height, window))
