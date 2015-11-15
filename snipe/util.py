@@ -69,12 +69,15 @@ class Configurable:
         self._validate = validate
         self._coerce = coerce
         self._string = string
+        self.override = None
         self.doc = doc
         self.registry[key] = self
 
     def __get__(self, instance, owner):
         if not instance:
             return self
+        if self.override is not None:
+            return self.override
         if not instance.context:
             return self.default
         return instance.context.conf.get('set', {}).get(self.key, self.default)
@@ -84,7 +87,14 @@ class Configurable:
         if not self.validate(value):
             raise TypeError('%s invalid for %s' % (repr(v), self.key))
         instance.context.conf.setdefault('set', {})[self.key] = value
-        self.action(instance, value)
+        self.override = None
+        self.action(instance.context, value)
+
+    def set_override(self, v):
+        value = self.coerce(v)
+        if not self.validate(value):
+            raise TypeError('%s invalid for %s' % (repr(v), self.key))
+        self.override = value
 
     def action(self, instance, value):
         if self._action is not None:
@@ -119,6 +129,11 @@ class Configurable:
     def get(self, instance, key):
         obj = self.registry[key]
         return obj.__get__(instance, None)
+
+    @classmethod
+    def set_overrides(self, overrides):
+        for k,v in overrides.items():
+            self.registry[k].set_override(v)
 
 
 def coerce_bool(x):

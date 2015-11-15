@@ -35,6 +35,7 @@ snipe.main
 import asyncio
 import logging
 import signal
+import sys
 
 from . import ttyfe
 from . import context
@@ -50,8 +51,14 @@ def main():
         signal.signal(signal.SIGUSR1, handler.dump)
         log = logging.getLogger('Snipe')
         log.warning('snipe starting')
+
+        #XXX terriblest option parsing
+        options = [x[2:].split('=', 1) for x in sys.argv if x.startswith('-O')]
+        options = [x if len(x) > 1 else x + ['true'] for x in options]
+        options = dict(options)
+
         with ttyfe.TTYFrontend() as ui:
-            context_ = context.Context(ui, handler)
+            context_ = context.Context(ui, handler, options)
             loop = asyncio.get_event_loop()
             loop.set_debug(True)
             loop.add_reader(0, ui.readable)

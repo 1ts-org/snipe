@@ -63,7 +63,7 @@ class Context:
 
     stark_file = util.Configurable('starkfile', 'starks')
 
-    def __init__(self, ui, handler):
+    def __init__(self, ui, handler, cli_conf={}):
         self.conf = {
             'filter': {
                 'personal': 'personal',
@@ -85,13 +85,15 @@ class Context:
                     'background': 'grey24',
                     }],
                 ],
-            'set': {
-                'default_filter': 'filter default',
-                }
             }
+        self.ui = ui
+        self.ui.context = self
+        self.killring = []
+        self.log = logging.getLogger('Snipe')
         self.context = self
         self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
         self.conf_read()
+        util.Configurable.set_overrides(cli_conf)
 
         if 'rules' in self.conf:
             self.conf['rule'] = self.conf['rules']
@@ -99,10 +101,6 @@ class Context:
             self.conf_write()
 
         handler.context = self
-        self.ui = ui
-        self.ui.context = self
-        self.killring = []
-        self.log = logging.getLogger('Snipe')
         self.backends = messages.AggregatorBackend(
             self,
             backends = [
