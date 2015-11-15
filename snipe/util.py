@@ -404,7 +404,7 @@ class JSONWebSocket:
                     continue
                 return m
             else:
-                self.log.error('Unknown websocket message type from irccloud')
+                self.log.error('Unknown websocket message type')
 
 
 @contextlib.contextmanager
