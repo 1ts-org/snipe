@@ -118,9 +118,15 @@ def help(window: interactive.window):
     window.fe.redisplay()
 
 
-@keymap.bind('!')
+@keymap.bind('! !')
 def browsehelp(window: interactive.window):
     window.fe.split_window(HelpBrowser(window.fe), True)
+
+
+@keymap.bind('! .')
+def toggle_cheatsheet(window: interactive.window):
+    util.Configurable.set(
+        window, 'cheatsheet', not util.Configurable.get(window, 'cheatsheet'))
 
 
 class HelpBrowser(editor.Viewer):
@@ -130,6 +136,16 @@ class HelpBrowser(editor.Viewer):
     toc = []
     toclines = []
     base_mode = None
+    cheatsheet = [
+        '*]* next page',
+        '*[* prev page',
+        '*<* 1st page',
+        '*>* last page',
+        '*Tab* next link',
+        '*S-Tab* prev link',
+        '*RET* follow link',
+        '*m* go to page',
+        ]
     _title = 'Help Browser'
 
     def __init__(self, *args, **kw):

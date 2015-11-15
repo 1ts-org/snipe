@@ -469,8 +469,11 @@ class TTYFrontend:
         else:
             self.active = 1
             self.windows = [
-                TTYRenderer(self, 0, 1, statusline),
-                TTYRenderer(self, 1, self.maxy - 1, winfactory()),
+                TTYRenderer(
+                    self, 0, statusline.height(), statusline),
+                TTYRenderer(
+                    self, statusline.height(),
+                    self.maxy - statusline.height(), winfactory()),
                 ]
         for r in reversed(self.windows):
             r.w.refresh()
@@ -511,7 +514,9 @@ class TTYFrontend:
         orphans = []
         remaining = self.maxy
         for (i, victim) in enumerate(self.windows):
-            if victim.window.noresize:
+            if hasattr(victim.window, 'height'):
+                height = victim.window.height()
+            elif victim.window.noresize:
                 height = victim.height
             else:
                 # should get proportional chunk of remaining? think harder later.
@@ -756,6 +761,23 @@ class TTYFrontend:
 
     def get_windows(self):
         return (w.window for w in self.windows)
+
+    def resize_statuswindow(self):
+        if len(self.windows) < 2:
+            return False
+
+        statusr, datar = self.windows[:2]
+
+        height = statusr.window.height()
+        delta = height - statusr.height
+
+        if datar.height < delta:
+            return False
+
+        self.windows[:2] = [
+            TTYRenderer(self, 0, height, statusr.window),
+            TTYRenderer(self, height, datar.height - delta, datar.window),
+            ]
 
 
 class Location:

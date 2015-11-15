@@ -61,6 +61,36 @@ class Messager(window.Window, window.PagingMixIn):
         validate=filters.validatefilter,
         )
 
+    cheatsheet = [
+        '*n*ext',
+        '*p*revious',
+        '*}* n. like',
+        '*{* p. like',
+        '*]* n. stark',
+        '*[* p. stark',
+        '*r*eply',
+        '*f*ollowup',
+        '*s*end',
+        '*/* filter…',
+        '*^X^C* quit',
+        '*?* help',
+        ]
+
+    cheatsheet_filter = [ #XXX not there yet
+        '*0* clear',
+        '*w* pop',
+        '*/* cleverly',
+        '*.* not /',
+        '*s*ender',
+        '*p*ersonals',
+        'set *b*g',
+        'set *f*g',
+        'set f*g*/bg',
+        '*=* edit',
+        '*-* empty',
+        '*S*ave',
+        ]
+
     def __init__(self, *args, filter_new = None, prototype=None, **kw):
         super().__init__(*args, **kw)
 

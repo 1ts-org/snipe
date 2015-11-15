@@ -35,6 +35,8 @@ snipe.window
 
 import logging
 import asyncio
+import itertools
+import math
 
 from . import interactive
 from . import keymap
@@ -61,6 +63,17 @@ class Window:
     :type destroy: function with no arguments
     :param modes: behavior-modifying mixins
     """
+
+    cheatsheet = [
+        'You',
+        "shouldn't",
+        'be',
+        'seeing',
+        'this',
+        '*^X^C* quit',
+        '*^Z* suspend',
+        '*?* help',
+        ]
 
     def __init__(self, frontend, prototype=None, destroy=lambda: None, modes=[]):
         self.fe = frontend
@@ -563,6 +576,17 @@ class ColorDemo(Window):
 
 
 class StatusLine(Window):
+    KEYTAGS = ('bg:grey24', 'bold')
+    CHEATSHEET_SPLITCOLS = 160
+
+    show_cheatsheet = util.Configurable(
+        'cheatsheet',
+        True,
+        'show the cheatsheet',
+        action=lambda context, value: context.ui.resize_statuswindow(),
+        coerce=util.coerce_bool,
+        )
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.noactive = True
@@ -570,24 +594,23 @@ class StatusLine(Window):
         self.clear()
 
     def view(self, origin=0, direction='forward'):
-        # this is a friend class to the stuff in ttyfe for now
-        renderer = self.fe.windows[self.fe.active]
-
-        left, right = renderer.window.modeline()
+        # this is a "friend" class to the stuff in ttyfe for now
+        active = self.fe.windows[self.fe.active].window
+        left, right = active.modeline()
+        renderer = self.renderer
 
         if not left:
-            left = [((), '')]
-        else:
-            left = list(left) # make a copy
+            left = []
 
         if self._message:
             left = [(('fg:white', 'bg:red'), self._message)]
 
-        rightwidth = sum(renderer.glyphwidth(text) for (tags, text) in right)
+        rightwidth = sum(
+                self.renderer.glyphwidth(text) for (tags, text) in right)
 
         offset = 0
         for (i, (tags, text)) in enumerate(left):
-            textwidth = renderer.glyphwidth(text)
+            textwidth = self.renderer.glyphwidth(text)
             remaining = renderer.width - rightwidth - offset
             if textwidth > remaining:
                 #XXX bugs on wide characters, need fe.truncate
@@ -595,10 +618,38 @@ class StatusLine(Window):
                 break
             offset += textwidth
 
-        tags, text = left[0]
-        left[0] = (tags + ('visible',), text)
+        left = [(('visible',), '')] + left
 
-        yield 0, left + right
+        yield 0, left + right + self.do_cheatsheet(active)
+
+    def do_cheatsheet(self, w):
+        if not self.show_cheatsheet:
+            return []
+
+        sheet = [
+            self.cheatsheetify(x) for x in getattr(w, 'cheatsheet', ['*?*'])]
+
+        widths = [
+            sum(self.renderer.glyphwidth(text) for (tags, text) in item)
+            for item in sheet]
+
+
+        rows = 2 if self.fe.maxx < self.CHEATSHEET_SPLITCOLS else 1
+        cols = math.ceil(len(sheet) / rows)
+
+        colwidth = max(widths) + 1
+        colwidth = colwidth + max(self.fe.maxx - colwidth * cols, 0) // cols
+
+        out = []
+
+        sheetrows = [sheet[i::rows] for i in range(rows)]
+        widthrows = [widths[i::rows] for i in range(rows)]
+
+        for (row, widths) in zip(sheetrows, widthrows):
+            pads = [((), ' ' * (colwidth - w)) for w in widths[:-1]] + [((), '\n')]
+            out += sum((x + [p] for (x, p) in zip(row, pads)), [])
+
+        return out
 
     def message(self, s):
         self._message = str(s)
@@ -609,3 +660,34 @@ class StatusLine(Window):
 
     def check_redisplay_hint(self, hint):
         return True
+
+    def height(self):
+        sheet_height = 1
+        if self.fe.maxx < self.CHEATSHEET_SPLITCOLS:
+            self.log.debug('maxx = %d', self.fe.maxx)
+            sheet_height = 2
+        if self.show_cheatsheet:
+            return 1 + sheet_height
+        else:
+            return 1
+
+    @classmethod
+    def cheatsheetify(klass, s):
+        untag = lambda t: () if t else klass.KEYTAGS
+        out = [((), '')]
+        while s != '':
+            if s[0] == '*':
+                if len(out) == 1 and out[-1][1] == '':
+                    out = [(untag(out[-1][0]), '')]
+                elif out[-1][1] == '':
+                    del out[-1]
+                else:
+                    out.append((untag(out[-1][0]), ''))
+            else:
+                if s[0] == '\\':
+                    s = s[1:]
+                out[-1] = (out[-1][0], out[-1][1] + s[0])
+            s = s[1:]
+        if out[-1][1] == '':
+            del out[-1]
+        return out
