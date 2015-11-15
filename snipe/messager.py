@@ -55,7 +55,8 @@ from . import interactive
 
 class Messager(window.Window, window.PagingMixIn):
     default_filter = util.Configurable(
-        'default_filter', None,
+        'default_filter',
+        'filter default',
         'Default filter for messager windows',
         validate=filters.validatefilter,
         )
