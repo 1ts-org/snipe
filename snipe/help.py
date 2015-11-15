@@ -165,9 +165,9 @@ class HelpBrowser(editor.Viewer):
             flags, text = text.split('\n', 1)
             HelpBrowser.base_module = module
             _, pub = docutils.core.publish_programmatically(
-                docutils.io.StringInput, text, None, docutils.io.NullOutput, None, None,
-                None, 'standalone', None, 'restructuredtext', None, 'null', None, None,
-                {}, None, None)
+                docutils.io.StringInput, text, None, docutils.io.NullOutput,
+                None, None, None, 'standalone', None, 'restructuredtext', None,
+                'null', None, None, {}, None, None)
 
             renderer = Renderer()
             renderer.process(pub.writer.document)
@@ -188,7 +188,8 @@ class HelpBrowser(editor.Viewer):
             return list(filter(None, (tocify(x) for x in node.children)))
 
         def lines(toc, offset=0):
-            out = ['%s* `%s <%s#%s>`_' % (' ' * offset, toc[0], label, toc[0]), '']
+            out = [
+                '%s* `%s <%s#%s>`_' % (' ' * offset, toc[0], label, toc[0]), '']
             for entry in toc[1:]:
                 out += lines(entry, offset+2)
             return out
