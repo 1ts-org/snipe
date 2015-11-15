@@ -130,6 +130,7 @@ class HelpBrowser(editor.Viewer):
     toc = []
     toclines = []
     base_mode = None
+    _title = 'Help Browser'
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -137,6 +138,9 @@ class HelpBrowser(editor.Viewer):
             self.load_pages()
 
         self.load(self.toc[0])
+
+    def title(self):
+        return 'Help: ' + self._title
 
     def load_pages(self):
         inpages = {}
@@ -176,7 +180,9 @@ class HelpBrowser(editor.Viewer):
                 renderer.output,
                 renderer.flat(),
                 renderer.targets,
-                renderer.links)
+                renderer.links,
+                pub.writer.document.get('title', 'Help Browser'),
+                )
             self.toclines[:0] = self.gettoclines(pub.writer.document, label)
 
     @staticmethod
@@ -202,7 +208,7 @@ class HelpBrowser(editor.Viewer):
             name, anchor = name.split('#')
         self.cursor.point = 0
         self.log.debug('loading: %s', name)
-        self.chunks, flat, self.refs, self.links = self.pages[name]
+        self.chunks, flat, self.refs, self.links, self._title = self.pages[name]
         self.log.debug('refs: %s', repr(self.refs))
         self.log.debug('links: %s', repr(self.links))
         self.replace(len(self.buf), flat)
