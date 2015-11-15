@@ -670,8 +670,8 @@ class SlackMessage(messages.SnipeMessage):
     @keymap.bind('e')
     def edit_message(self, window: interactive.window):
         """Edit a message."""
-        self.backend.log.error('self is %s, body is %s', repr(self), self.body)
-        self.backend.log.error('window->cursor is %s', repr(window.cursor))
+        self.backend.log.debug('self is %s, body is %s', repr(self), self.body)
+        self.backend.log.debug('window->cursor is %s', repr(window.cursor))
 
         text = yield from window.read_string(
             'edit (destination ignored, ^J when finished, ^G aborts) -> ',
