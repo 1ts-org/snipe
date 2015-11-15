@@ -61,8 +61,11 @@ key      | binding
 ---------|----------------
 p, ↑     | previous message
 n, ↓     | next message
-Meta–p    | previous message like this one
-Meta–n    | previous message like this one
+{, Meta–p    | previous message like this one
+}, Meta–n    | previous message like this one
+[        | previous "stark" point(best guess as when you scrolled to the bottom and stopped reading)
+]        | next "stark" point
+.        | set a "stark" point
 s        | send a message (see Sending, below)
 f        | followup (publicly, if applicable) to the current message
 r        | reply (privately) to the current message
@@ -73,20 +76,18 @@ Meta–>, ↘, Shift-↘ | Last message
 ^Space, ^@ | set mark
 ^X ^X | exchange point and mark
 Meta-g | goto an absolute time in the message window
-Meta–/ 0 | Reset the filter to the default
-Meta–/ = | Edit the current filter
-Meta–- | Filter everything
-Meta–/ g | set a foreground/background color rule for the current filter (and reset)
-Meta–/ f | set a foreground color rule for the current filter (and reset)
-Meta–/ b | set a background color rule for the current filter (and reset)
-Meta–/ c | push an approximate match filter on a specified class
-Meta–/ C | push an exact match filter on a specified class
-Meta–/ C | push an exact match filter on a specified class
-Meta–/ p | push a filter on personal messages
-Meta–/ s | push a filter on specified sender
-Meta–/ / | push a filter based on the current message.  More ^Us increase specificity, if the backend supports it
-Meta–/ Meta–/ | pop the filter stack
-Meta–/ S | Save the current filter (with a prefix, save as the default)
+/ 0, Meta–/ 0 | Reset the filter to the default
+/ =, Meta–/ = | Edit the current filter
+/ -, Meta–- | Filter everything
+/ g, Meta–/ g | set a foreground/background color rule for the current filter (and reset)
+/ f, Meta–/ f | set a foreground color rule for the current filter (and reset)
+/ b, Meta–/ b | set a background color rule for the current filter (and reset)
+/ c, Meta–/ c | push an approximate match filter on a specified class
+/ p, Meta–/ p | push a filter on personal messages
+/ s, Meta–/ s | push a filter on specified sender
+/ /, Meta–/ / | push a filter based on the current message.  More ^Us increase specificity, if the backend supports it
+/ w, Meta–/ Meta–/ | pop the filter stack
+/ S, Meta–/ S | Save the current filter (with a prefix, save as the default)
 Meta–i | popup a window with gunk about the current message
 R S | dump zephyr (roost) subscriptions into a window
 R s | subscribe to a zephyr class

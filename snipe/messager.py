@@ -252,7 +252,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.move(False)
 
-    @keymap.bind('Meta-n') #XXX should be Meta-[down] as well but well, curses
+    @keymap.bind('}', 'Meta-n') #XXX should be Meta-[down] as well but curses
     def next_messsage_cleverly(self, arg: interactive.argument=None):
         """Move to the next message that's sort of like the current one.
         Control-Us increase specificity if the backend supports it.  Repeated
@@ -260,7 +260,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.move_cleverly(True, arg)
 
-    @keymap.bind('Meta-p') #XXX should be Meta-[down] as well but well, curses
+    @keymap.bind('{', 'Meta-p') #XXX should be Meta-[down] as well but curses
     def prev_messsage_cleverly(self, arg: interactive.argument=None):
         """Move to the last message that's sort of like the current one.
         Repeated "clever" movement commands will retain the specificity."""
@@ -406,7 +406,7 @@ class Messager(window.Window, window.PagingMixIn):
                 self.cursor_set_walk(self.cursor, True)
             self.reframe()
 
-    @keymap.bind('Meta-/ 0')
+    @keymap.bind('/ 0', 'Meta-/ 0')
     def filter_reset(self):
         """Clear the filter stack and go back to the default filter."""
 
@@ -416,7 +416,7 @@ class Messager(window.Window, window.PagingMixIn):
             if self.default_filter
             else None)
 
-    @keymap.bind('Meta-/ =')
+    @keymap.bind('/ =', 'Meta-/ =')
     def filter_edit(self, arg: interactive.argument=[]):
         """Edit the text representation of the current filter and push the
         result.
@@ -457,7 +457,7 @@ class Messager(window.Window, window.PagingMixIn):
                 conf.setdefault('filter', {})[name] = str(f)
             self.context.conf_write()
 
-    @keymap.bind('Meta-/ -')
+    @keymap.bind('/ -', 'Meta-/ -')
     def filter_everything(self):
         """Filter everything."""
 
@@ -476,7 +476,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.context.conf_write()
         self.filter_reset()
 
-    @keymap.bind('Meta-/ g')
+    @keymap.bind('/ g', 'Meta-/ g')
     def filter_foreground_background(self):
         """Take the current filter and set a foreground and background color for
         messages that match it."""
@@ -484,7 +484,7 @@ class Messager(window.Window, window.PagingMixIn):
         bg = yield from self.read_string('Background: ', name='background color')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
-    @keymap.bind('Meta-/ f')
+    @keymap.bind('/ f', 'Meta-/ f')
     def filter_foreground(self):
         """Take the current filter and set a foreground color for messages that
         match it."""
@@ -492,7 +492,7 @@ class Messager(window.Window, window.PagingMixIn):
         fg = yield from self.read_string('Foreground: ', name='foreground color')
         self.filter_clear_decorate({'foreground': fg})
 
-    @keymap.bind('Meta-/ b')
+    @keymap.bind('/ b', 'Meta-/ b')
     def filter_background(self):
         """Take the current filter and set a background color for messages that
         match it."""
@@ -511,20 +511,13 @@ class Messager(window.Window, window.PagingMixIn):
         else:
             self.filter_push_and_replace(filters.And(self.filter, new_filter))
 
-    @keymap.bind('Meta-/ c')
-    def filter_class(self):
-        """Push a filter for a canonicalized zephyr class."""
+    @keymap.bind('/ c', 'Meta-/ c')
+    def filter_class(self, arg: interactive.argument=[]):
+        """Push a filter for a canonicalized zephyr class.  With an argument,
+        don't canonicalize."""
 
-        yield from self.do_filter_class('=')
+        op = '=' if not arg else '=='
 
-    @keymap.bind('Meta-/ C')
-    def filter_class_exactly(self):
-        """Push a filter for an uncanonicalized zephyr class."""
-
-        yield from self.do_filter_class('==')
-
-    @asyncio.coroutine
-    def do_filter_class(self, op):
         class_ = yield from self.read_string(
             'Class: ',
             content=self.replymsg().field('class', False),
@@ -534,13 +527,13 @@ class Messager(window.Window, window.PagingMixIn):
             filters.Compare('==', 'backend', 'roost'),
             filters.Compare(op, 'class', class_)))
 
-    @keymap.bind('Meta-/ p')
+    @keymap.bind('/ p', 'Meta-/ p')
     def filter_personals(self):
         """Push a filter to only personal messages."""
 
         self.filter_push(filters.Truth('personal'))
 
-    @keymap.bind('Meta-/ s')
+    @keymap.bind('/ s', 'Meta-/ s')
     def filter_sender(self):
         """Push a filter to a sender."""
 
@@ -551,21 +544,21 @@ class Messager(window.Window, window.PagingMixIn):
             )
         self.filter_push(filters.Compare('=', 'sender', sender))
 
-    @keymap.bind('Meta-/ /')
+    @keymap.bind('/ /', 'Meta-/ /')
     def filter_cleverly(self, arg: interactive.argument=[]):
         """Push a filter based on the current message.  More Control-Us
         increase specificity, if the backend supports it."""
 
         self.filter_push(self.replymsg().filter(len(arg)))
 
-    @keymap.bind('Meta-/ .')
+    @keymap.bind('/ .', 'Meta-/ .')
     def filter_cleverly_negative(self, arg: interactive.argument=[]):
         """Push a negative filter based on the current message.  More
         Control-Us increase specificity, if the backend supports it."""
 
         self.filter_push(filters.Not(self.replymsg().filter(len(arg))))
 
-    @keymap.bind("Meta-/ Meta-/")
+    @keymap.bind('/ w', '/ Meta-/', 'Meta-/ Meta-/')
     def filter_pop(self):
         """Pop the current filter, replacing it with the next one on the
         stack."""
@@ -575,7 +568,7 @@ class Messager(window.Window, window.PagingMixIn):
         else:
             self.filter = self.filter_stack.pop()
 
-    @keymap.bind('Meta-/ S')
+    @keymap.bind('/ S', 'Meta-/ S')
     def filter_save(self, arg: interactive.argument=[]):
         """Save current the filter to a named filter.  With a prefix,
         save to the default filter."""
