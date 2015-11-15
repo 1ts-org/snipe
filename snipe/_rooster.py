@@ -76,13 +76,13 @@ class Rooster(util.HTTP_JSONmixin):
         self.ccache = None
         self.tailid = 0
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
-        self.executor = concurrent.futures.ProcessPoolExecutor(1)
 
     def run_in_exile(self, *args):
         loop = asyncio.get_event_loop()
         try:
-            return (yield from loop.run_in_executor(
-                self.executor, trampoline, *args))
+            with concurrent.futures.ProcessPoolExecutor(1) as executor:
+                return (yield from loop.run_in_executor(
+                    executor, trampoline, *args))
         except ExileException as e:
             self.log.error(e.error)
             raise
