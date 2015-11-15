@@ -119,6 +119,11 @@ class TestKeymap(unittest.TestCase):
         self.assertEqual(split('Control-@'), ('\0', None))
         self.assertEqual(split('Control-[space]'), ('\0', None))
 
+    def testcheatseat(self):
+        k = snipe.keymap.Keymap()
+        k.set_cheatsheet('foo')
+        self.assertEquals(k.get_cheatsheet(), 'foo')
+
 
 if __name__ == '__main__':
     unittest.main()

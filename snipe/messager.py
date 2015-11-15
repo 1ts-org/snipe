@@ -112,6 +112,8 @@ class Messager(window.Window, window.PagingMixIn):
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
         self.keymap.interrogate(help)
+        self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
+        self.keymap['Meta-/'].set_cheatsheet(self.cheatsheet_filter)
         # the following will be interesting in the advent of non-singleton
         # backends; maybe this should just interrogate the modules instead
         for backend in self.context.backends:

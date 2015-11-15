@@ -93,7 +93,10 @@ class Keymap(collections.defaultdict):
             if hasattr(v, 'items'):
                 self[k] = Keymap(v)
             else:
-                self[k] = v
+                if k == self.CHEATSHEET_KEY:
+                    super().__setitem__(k, v)
+                else:
+                    self[k] = v
 
     def __repr__(self):
         return (
@@ -148,6 +151,14 @@ class Keymap(collections.defaultdict):
                 if not hasattr(v, '__getitem__'):
                     raise KeyError(repr(key) + 'is not a keymap')
                 del v[rest]
+
+    CHEATSHEET_KEY = '__CHEATSHEET__'
+
+    def set_cheatsheet(self, val):
+        super().__setitem__(self.CHEATSHEET_KEY, val)
+
+    def get_cheatsheet(self, default=None):
+        return super().get(self.CHEATSHEET_KEY, default)
 
     modifier_aliases = {
         'ctl': 'control',
@@ -290,6 +301,7 @@ class Keymap(collections.defaultdict):
     def pairify(self, prefix=''):
         ks = list(sorted(
                 self.keys(), key=lambda k: (0 if hasattr(k, 'upper') else 1, k)))
+        ks = [k for k in ks if k != self.CHEATSHEET_KEY]
         eliding = None
         for (i, k) in enumerate(ks):
             keyseq = prefix + self.unkey(k)

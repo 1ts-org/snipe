@@ -102,9 +102,17 @@ class Window:
         self.intermediate_action = None
         #: callback for completed keysequence not in keymap
         self.keyerror_action = None
+        #: callback for keymap we just "installed"
+        self.activated_keymap = self.maybe_install_cheatsheet
 
         self.noactive = False #: don't let this window get focus
         self.noresize = False #: don't resize this window
+
+        self._normal_cheatsheet = self.cheatsheet
+
+    def maybe_install_cheatsheet(self, keymap):
+        """Install a cheatsheet if there's one hiding in the keymap"""
+        self.cheatsheet = keymap.get_cheatsheet(self._normal_cheatsheet)
 
     # Programmatic interface:
 
@@ -190,6 +198,10 @@ class Window:
             self.log.exception('executing command from keymap')
             self.whine(k)
             self.active_keymap = self.keymap
+        finally:
+            if self.activated_keymap is not None:
+                self.activated_keymap(self.active_keymap)
+
 
     def check_redisplay_hint(self, hint):
         """See if a redisplay hint dict applies to this window.  Called by the

@@ -197,6 +197,7 @@ class KeySeqPrompt(LongPrompt):
         self.keymap_action = self.runcallback
         self.keyerror_action = self.runcallback
         self.keystrokes = []
+        self.activated_keymap = None
 
     def echo_keystroke(self, keystroke):
         self.keystrokes.append(keystroke)
