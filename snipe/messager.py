@@ -273,16 +273,16 @@ class Messager(window.Window, window.PagingMixIn):
         return left, right
 
     @keymap.bind('Control-n', 'n', 'j', '[down]')
-    def next_message(self):
+    def next_message(self, count: interactive.integer_argument = 1):
         """Move to the next message."""
 
-        self.move(True)
+        self.move(count)
 
     @keymap.bind('Control-p', 'p', 'k', '[up]')
-    def prev_message(self):
+    def prev_message(self, count: interactive.integer_argument = 1):
         """Move to the previous message."""
 
-        self.move(False)
+        self.move(-count)
 
     @keymap.bind('}', 'Meta-n') #XXX should be Meta-[down] as well but curses
     def next_messsage_cleverly(self, arg: interactive.argument=None):
@@ -309,46 +309,39 @@ class Messager(window.Window, window.PagingMixIn):
             else:
                 cleverness = len(arg)
             self.move_cleverly_state = cleverness
-        self.move(forward, filters.And(
+        self.move(1 if forward else -1, filters.And(
             self.filter,
             self.replymsg().filter(self.move_cleverly_state)))
 
-    def move(self, forward, infilter=None):
-        self.log.debug(
-            'move %s: cursor: %s',
-            'forward' if forward else 'backward',
-            repr(self.cursor),
-            )
+    def move(self, count, infilter=None):
+        self.log.debug('move %d: cursor: %s', count, repr(self.cursor))
+
+        if not count:
+            return
 
         mfilter = infilter
         if mfilter is None:
             mfilter = self.filter
 
         target = None
-        if not forward:
+        if count < 0:
             target = float('-inf')
 
         it = iter(self.fe.context.backends.walk(
-            self.cursor, forward, mfilter, target, infilter is not None))
+            self.cursor, count > 0, mfilter, target, infilter is not None))
 
         try:
             candidate = next(it)
-            self.log.debug(
-                'move %s: intermediate: %s',
-                'forward' if forward else 'backward',
-                repr(candidate),
-                )
-            if candidate == self.cursor:
-                candidate = next(it)
-            # you don't want to move-with-filter onto the omega message,
-            # but the omega message has code to buypass filters.  meh.
-            if infilter is None or not candidate.omega:
-                self.cursor = candidate
-            self.log.debug(
-                'move %s: cursor: %s',
-                'forward' if forward else 'backward',
-                repr(self.cursor),
-                )
+            for i in range(abs(count)):
+                self.log.debug(
+                    'move %d: intermediate: %s', count, repr(candidate))
+                if candidate == self.cursor:
+                    candidate = next(it)
+                # you don't want to move-with-filter onto the omega message,
+                # but the omega message has code to buypass filters.  meh.
+                if infilter is None or not candidate.omega:
+                    self.cursor = candidate
+                self.log.debug('move %d: cursor: %s', count, repr(self.cursor))
         except StopIteration:
             self.whine('No more messages')
 
