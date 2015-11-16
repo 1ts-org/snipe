@@ -54,6 +54,7 @@ class Keymap(collections.defaultdict):
         super().__init__()
         self.update(d)
         self.default = None
+        self['Control-G'] = noop
 
     def __missing__(self, key):
         if (self.default is not None
@@ -331,3 +332,8 @@ class Keymap(collections.defaultdict):
         width = max(len(keyseq) for (keyseq, action) in mappings)
         return '\n'.join(
             '%-*s  %s' % (width, keyseq, action) for (keyseq, action) in mappings)
+
+
+def noop():
+    """Do nothing; abort the key sequence."""
+    pass
