@@ -109,10 +109,16 @@ class Window:
         self.noresize = False #: don't resize this window
 
         self._normal_cheatsheet = self.cheatsheet
+        #: string describing the keystrokes that triggered the current command
+        self.keyseq = ''
 
     def maybe_install_cheatsheet(self, keymap):
         """Install a cheatsheet if there's one hiding in the keymap"""
         self.cheatsheet = keymap.get_cheatsheet(self._normal_cheatsheet)
+
+    def keyecho(self, keystroke):
+        """Echo an in-progress key sequence to the statusline."""
+        self.context.keyecho(keystroke)
 
     # Programmatic interface:
 
@@ -158,14 +164,19 @@ class Window:
                 else:
                     self.context.message('no such key in map')
                     self.active_keymap = self.keymap
+                    self.keyseq = ''
                     self.log.error('no such key in map')
                     self.whine(k)
                 return
+
+            self.keyseq = self.keyseq + self.keymap.unkey(k, compact=True) + ' '
 
             if not callable(v):
                 self.active_keymap = v
             else:
                 self.active_keymap = self.keymap
+                keyseq = self.keyseq
+                self.keyseq = ''
                 arg, self.universal_argument = self.universal_argument, None
                 self.this_command = getattr(v, '__name__', '?')
                 try:
@@ -175,6 +186,7 @@ class Window:
                         window = self,
                         keystroke = k,
                         argument = arg,
+                        keyseq = keyseq,
                         )
                 finally:
                     self.after_command()
@@ -201,6 +213,8 @@ class Window:
         finally:
             if self.activated_keymap is not None:
                 self.activated_keymap(self.active_keymap)
+            if self.keyseq:
+                self.keyecho(self.keyseq)
 
 
     def check_redisplay_hint(self, hint):
@@ -500,7 +514,10 @@ class Window:
 
     @keymap.bind(*['Meta-%d' % i for i in range(10)] + ['Meta--'])
     def decimal_argument(
-            self, key: interactive.keystroke, arg: interactive.argument = 0):
+            self,
+            key: interactive.keystroke,
+            keyseq: interactive.keyseq,
+            arg: interactive.argument = 0):
         """Start a decimal argument."""
 
         self.active_keymap = keymap.Keymap(self.keymap)
@@ -518,13 +535,18 @@ class Window:
 
         # retain status quo
         self.this_command = self.last_command
+        self.keyseq = keyseq
 
     @keymap.bind('Control-U')
     def start_universal_argument(
-            self, arg: interactive.argument, key: interactive.keystroke):
+            self,
+            arg: interactive.argument,
+            keyseq: interactive.keyseq,
+            key: interactive.keystroke):
         """Universal argument.  Followed by digits sets an integer argument.
         Without digits is interpreted as a four when an integer is needed.  More
         ^Us multiply by four each time.""" #XXX revisit this
+
         if isinstance(arg, int):
             self.universal_argument = arg # shouldn't do this the second time?
 
@@ -541,6 +563,7 @@ class Window:
 
         # retain status quo
         self.this_command = self.last_command
+        self.keyseq = keyseq
 
     @keymap.bind('Control-L')
     def reframe(self):
@@ -615,7 +638,7 @@ class StatusLine(Window):
             left = []
 
         if self._message:
-            left = [(('fg:white', 'bg:red'), self._message)]
+            left = self._message
 
         rightwidth = sum(
                 self.renderer.glyphwidth(text) for (tags, text) in right)
@@ -663,12 +686,12 @@ class StatusLine(Window):
 
         return out
 
-    def message(self, s):
-        self._message = str(s)
+    def message(self, s, tags=('fg:white', 'bg:red')):
+        self._message = [(tags, str(s))]
         self.fe.redisplay(self.redisplay_hint())
 
     def clear(self):
-        self.message('')
+        self._message = []
 
     def check_redisplay_hint(self, hint):
         return True

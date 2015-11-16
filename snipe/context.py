@@ -208,6 +208,9 @@ class Context:
         self.messagelog.append(s)
         self.status.message(s)
 
+    def keyecho(self, s):
+        self.status.message(s, ())
+
     def clear(self):
         self.status.clear()
 

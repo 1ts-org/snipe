@@ -44,6 +44,10 @@ def keystroke(*args, **kw):
     return kw.get('keystroke', None)
 
 
+def keyseq(*args, **kw):
+    return kw.get('keyseq', None)
+
+
 def argument(*args, **kw):
     return kw.get('argument', None)
 

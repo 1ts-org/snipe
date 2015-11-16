@@ -199,6 +199,9 @@ class KeySeqPrompt(LongPrompt):
         self.keystrokes = []
         self.activated_keymap = None
 
+    def keyecho(self, keystroke):
+        pass
+
     def echo_keystroke(self, keystroke):
         self.keystrokes.append(keystroke)
         self.insert(self.keymap.unkey(keystroke) + ' ')

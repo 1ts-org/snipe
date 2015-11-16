@@ -280,12 +280,15 @@ class Keymap(collections.defaultdict):
         return key, rest
 
     @classmethod
-    def unkey(self, c):
+    def unkey(self, c, compact=False):
         if hasattr(c, 'upper'):
             if c in self.unother_keys:
                 return '[' + self.unother_keys[c] + ']'
             if ord(c) < ord(' '):
-                return 'Control-' + chr(ord('@') + ord(c))
+                if compact:
+                    return '^' + chr(ord('@') + ord(c))
+                else:
+                    return 'Control-' + chr(ord('@') + ord(c))
             if ord(c) < ord('\177'):
                 return c
             try:
