@@ -304,7 +304,8 @@ class SnipeBackend:
         else:
             getnext = lambda x: x - 1
 
-        #self.log.debug('len(self.messages)=%d, point=%d', len(self.messages), point)
+        ## self.log.debug(
+        ##     'len(self.messages)=%d, point=%d', len(self.messages), point)
 
         while self.messages:
             #self.log.debug(', point=%d', point)
@@ -451,7 +452,8 @@ class DateBackend(SnipeBackend):
             t = datetime.datetime.combine(d, datetime.time())
             delta = datetime.timedelta(days=-1)
 
-        self.log.debug('t = %s, delta = %s', util.timestr(t.timestamp()), repr(delta))
+        self.log.debug(
+            't = %s, delta = %s', util.timestr(t.timestamp()), repr(delta))
 
         while now > t >= self.start:
             self.log.debug('date header at %s', util.timestr(t.timestamp()))

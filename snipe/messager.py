@@ -138,7 +138,8 @@ class Messager(window.Window, window.PagingMixIn):
     def walk(self, origin, direction, backfill_to=None, search=False):
         self.log.debug(
             'walk(%s, forward=%s, backfill_to=%s, search=%s)',
-            repr(origin), repr(direction), util.timestr(backfill_to), repr(search))
+            repr(origin), repr(direction),
+            util.timestr(backfill_to), repr(search))
         return self.fe.context.backends.walk(
             origin, direction, self.filter, backfill_to, search)
 
@@ -197,7 +198,8 @@ class Messager(window.Window, window.PagingMixIn):
 
                 if x == self.cursor:
                     first = (
-                        [(first[0][0] + ('visible',), first[0][1])] + first[1:])
+                        [(first[0][0] + ('visible',), first[0][1])]
+                        + first[1:])
                 if x == self.secondary or self.secondary is None:
                     first = [
                         (tags + ('standout',), text) for (tags, text) in first]
@@ -235,7 +237,8 @@ class Messager(window.Window, window.PagingMixIn):
         if self.cursor.omega:
             m = self.replymsg()
             if m is not None and (
-                    not self.context.starks or self.context.starks[-1] < m.time):
+                    not self.context.starks
+                    or self.context.starks[-1] < m.time):
                 self.context.starks.append(m.time)
                 self.context.write_starks()
         self.install_per_message_keymap()
@@ -490,7 +493,8 @@ class Messager(window.Window, window.PagingMixIn):
 
     def filter_clear_decorate(self, decoration):
         self.rules = [
-            (filt, decor) for (filt, decor) in self.rules if filt != self.filter]
+            (filt, decor)
+            for (filt, decor) in self.rules if filt != self.filter]
         self.rules.append((self.filter, decoration))
         self.context.conf['rule'] = [
             (filts, decor)
@@ -505,8 +509,10 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_foreground_background(self):
         """Take the current filter and set a foreground and background color for
         messages that match it."""
-        fg = yield from self.read_string('Foreground: ', name='foreground color')
-        bg = yield from self.read_string('Background: ', name='background color')
+        fg = yield from self.read_string(
+            'Foreground: ', name='foreground color')
+        bg = yield from self.read_string(
+            'Background: ', name='background color')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @keymap.bind('/ f', 'Meta-/ f')
@@ -514,7 +520,8 @@ class Messager(window.Window, window.PagingMixIn):
         """Take the current filter and set a foreground color for messages that
         match it."""
 
-        fg = yield from self.read_string('Foreground: ', name='foreground color')
+        fg = yield from self.read_string(
+            'Foreground: ', name='foreground color')
         self.filter_clear_decorate({'foreground': fg})
 
     @keymap.bind('/ b', 'Meta-/ b')
@@ -522,7 +529,8 @@ class Messager(window.Window, window.PagingMixIn):
         """Take the current filter and set a background color for messages that
         match it."""
 
-        bg = yield from self.read_string('Background: ', name='background color')
+        bg = yield from self.read_string(
+            'Background: ', name='background color')
         self.filter_clear_decorate({'background': bg})
 
     def filter_push_and_replace(self, new_filter):
@@ -626,7 +634,8 @@ class Messager(window.Window, window.PagingMixIn):
             + '\n'
             + ', '.join(
                 ('' if getattr(self.cursor, field) else 'not ') + field
-                for field in ('personal', 'outgoing', 'noise', 'omega', 'error'))
+                for field
+                in ('personal', 'outgoing', 'noise', 'omega', 'error'))
             + '\n'
             + 'sender: ' + repr(str(self.cursor.sender)) + '\n'
             + 'body: ' + '\n '.join(pformat(self.cursor.body).split('\n'))
@@ -634,7 +643,8 @@ class Messager(window.Window, window.PagingMixIn):
             + pformat(getattr(self.cursor, 'data', None)))
 
     def goto_time(self, when):
-        self.log.info('going to %s', datetime.datetime.fromtimestamp(when).isoformat(' '))
+        self.log.info(
+            'going to %s', datetime.datetime.fromtimestamp(when).isoformat(' '))
         self.cursor_set_walk_mark(when, True, when)
 
     @keymap.bind('Meta-g')

@@ -329,7 +329,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def backfill_buffer(self, buf, target):
-        self.log.debug('backfill_buffer([%s %s], %s)', buf['bid'], buf.get('have_eid'), target)
+        self.log.debug(
+            'backfill_buffer([%s %s], %s)',
+            buf['bid'], buf.get('have_eid'), target)
         try:
             target = max(
                 target, buf['have_eid'] - self.backfill_length * 1000000)
@@ -374,7 +376,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             for i, m in enumerate(included):
                 if m.data['eid'] >= oldest:
                     clip = i
-                    self.log.debug('BETRAYAL %d %f %s', i, m.data['eid'] / 1000000, repr(m.data))
+                    self.log.debug(
+                        'BETRAYAL %d %f %s',
+                        i, m.data['eid'] / 1000000, repr(m.data))
             if clip is not None:
                 included = included[clip + 1:]
             included.reverse()
@@ -383,7 +387,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.debug('merging %d messages', len(included))
                 l = len(self.messages)
                 self.messages = list(messages.merge([self.messages, included]))
-                self.log.debug('len(self.messages): %d -> %d', l, len(self.messages))
+                self.log.debug(
+                    'len(self.messages): %d -> %d', l, len(self.messages))
                 self.startcache = {}
                 self.redisplay(included[0], included[-1])
 
@@ -640,7 +645,8 @@ class IRCCloudUser(messages.SnipeAddress):
         super().__init__(backend, [server, host, user, nick])
 
     def __str__(self):
-        return '%s; %s %s!%s@%s' % (self.backend.name, self.server, self.nick, self.user, self.host)
+        return '%s; %s %s!%s@%s' % (
+            self.backend.name, self.server, self.nick, self.user, self.host)
 
     def short(self):
         return str(self.nick)

@@ -48,9 +48,9 @@ Setup
 Setting up the slack backend is slightly more involved because it's not enabled
 by default, requires you get an API key from Slack, _and_ requires that you give
 the backend instance a name (e.g. myslack for myslack.slack.com).  You
-add ``.slack name=myname`` to the ``backends`` configuration variable (which is ``;``
-separated), and get an api key from ``https://api.slack.com/web`` and put it in
-``~/.snipe/netrc`` like so: ::
+add ``.slack name=myname`` to the ``backends`` configuration variable (which is
+``;`` separated), and get an api key from ``https://api.slack.com/web`` and put
+it in ``~/.snipe/netrc`` like so: ::
 
  machine myslack.slack.com login myself@example.com password frob-9782504613-8396512704-9784365210-7960cf
 
@@ -131,12 +131,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.users = {u['id']: u for u in self.data['users']}
             self.users.update({b['id']: b for b in self.data['bots']})
 
-            self.dests = dict(
-                [(u['id'], SlackDest(self, 'user', u)) for u in self.data['users']] +
-                [(b['id'], SlackDest(self, 'bot', b)) for b in self.data['bots']] +
-                [(i['id'], SlackDest(self, 'im', i)) for i in self.data['ims']] +
-                [(g['id'], SlackDest(self, 'group', g)) for g in self.data['groups']] +
-                [(c['id'], SlackDest(self, 'channel', c)) for c in self.data['channels']])
+            self.dests = dict(sum((
+                [(x['id'], SlackDest(self, t, x)) for x in self.data[t + 's']]
+                for t in ['user', 'bot', 'im', 'group', 'channel']
+                ), []))
 
             self.log.debug('websocket url is %s', url)
 
@@ -370,7 +368,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     break
             elif 'user' in d.data:
                 self.log.debug('1: %s', pprint.pformat(d))
-                self.log.debug('2: %s', pprint.pformat(self.users[d.data['user']]))
+                self.log.debug(
+                    '2: %s', pprint.pformat(self.users[d.data['user']]))
                 if self.users[d.data['user']]['name'] == recipient:
                     recipient = d.data['id']
                     break
@@ -522,7 +521,8 @@ class SlackMessage(messages.SnipeMessage):
             self.noise = True
 
         self.unhandled = False
-        if (t == 'message' and 'text' not in self.data) or t not in ('message', 'presence_change',):
+        if (t == 'message' and 'text' not in self.data) or \
+          t not in ('message', 'presence_change',):
             self.unhandled = True
 
     def displayname(self, s):

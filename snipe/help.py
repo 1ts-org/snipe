@@ -109,7 +109,6 @@ class Help(editor.Viewer):
         self.display(self.BANNER + out)
 
 
-
 @keymap.bind('?', '[escape] ?')
 def help(window: interactive.window):
     """Help."""
@@ -243,7 +242,8 @@ class HelpBrowser(editor.Viewer):
         while True:
             if i < 0 or i >= len(self.chunks):
                 return
-            self.log.debug('helpbrowser.view: i=%d, off=%d', i, self.chunks[i][0])
+            self.log.debug(
+                'helpbrowser.view: i=%d, off=%d', i, self.chunks[i][0])
 
             if self.chunks[i][0] <= int(self.cursor) and (
                     i == l or
@@ -461,9 +461,11 @@ class InterrogateKeymap(Interrogator):
                 continue
             if not (hasattr(prop, '__doc__') and prop.__doc__):
                 continue
-            if not getattr(prop, '__qualname__', '').startswith(obj.__name__ + '.'):
+            if not getattr(prop, '__qualname__', '').startswith(
+                    obj.__name__ + '.'):
                 continue
-            text += '\n' + ' '.join('``' + s + '``' for s in prop.snipe_seqs) + ' *' + attr + '*\n'
+            text += '\n%s *%s*\n' % (
+                ' '.join('``%s``' % (s,) for s in prop.snipe_seqs), attr)
             #XXX if this faceplants on any of the relevant docstrings,
             #It's a bug in the docstring, really
             # Strip the leading indentation off of all but the first

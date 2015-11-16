@@ -176,7 +176,8 @@ class Roost(messages.SnipeBackend):
         filledpoint = self.messages[0].time if self.messages else time.time()
 
         if filledpoint < target:
-            self.log.debug('%s < %s', util.timestr(filledpoint), util.timestr(target))
+            self.log.debug(
+                '%s < %s', util.timestr(filledpoint), util.timestr(target))
             return
 
         target = max(target, filledpoint - self.backfill_length)
@@ -341,7 +342,8 @@ class RoostMessage(messages.SnipeMessage):
             signature=self.data['signature'],
             sender=self.sender,
             date=time.ctime(self.data['time'] / 1000),
-            body=self.body + ('' if self.body and self.body[-1] == '\n' else '\n'),
+            body=self.body + \
+                ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
     def display(self, decoration):

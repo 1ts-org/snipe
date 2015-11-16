@@ -110,7 +110,8 @@ class TTYRenderer:
                 self.reframe()
             visible = self.redisplay_internal()
             if not visible:
-                self.log.error('no visibility after hail-mary reframe, giving up')
+                self.log.error(
+                    'no visibility after hail-mary reframe, giving up')
 
         self.w.noutrefresh()
 
@@ -333,7 +334,8 @@ class TTYRenderer:
     del func, makefunc
 
     def reframe(self, target=None, action=None):
-        self.log.debug('reframe(target=%s, action=%s)', repr(target), repr(action))
+        self.log.debug(
+            'reframe(target=%s, action=%s)', repr(target), repr(action))
 
         cursor, chunk = next(self.window.view(self.window.cursor, 'backward'))
 
@@ -359,7 +361,8 @@ class TTYRenderer:
         self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
 
         self.head = Location(self, cursor)
-        self.log.debug('reframe, initial,     mark=%x: %s', id(cursor), repr(self.head))
+        self.log.debug(
+            'reframe, initial, mark=%x: %s', id(cursor), repr(self.head))
 
         view = self.window.view(self.window.cursor, 'backward')
 
@@ -368,40 +371,51 @@ class TTYRenderer:
             lambda x: 'visible' not in x[0],
             chunk)
         chunklines = self.chunksize(chunk)
-        self.log.debug('reframe cursor chunk, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
+        self.log.debug(
+            'reframe cursor chunk, screenlines=%d, len(chunklines)=%s',
+            screenlines, chunklines)
         screenlines -= chunklines
-        self.log.debug('reframe cursor chunk, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+        self.log.debug(
+            'reframe cursor chunk, loop bottom, mark=%x, /offset=%d',
+            id(mark), max(0, -screenlines))
 
         if screenlines <= 0:
             self.head = Location(self, mark, max(0, -screenlines - 1))
         else:
             for mark, chunk in view:
                 chunklines = self.chunksize(chunk)
-                self.log.debug('reframe, screenlines=%d, len(chunklines)=%s', screenlines, chunklines)
+                self.log.debug(
+                    'reframe, screenlines=%d, len(chunklines)=%s',
+                    screenlines, chunklines)
                 screenlines -= chunklines
                 if screenlines <= 0:
                     break
-                self.log.debug('reframe, loop bottom, mark=%x, /offset=%d', id(mark), max(0, -screenlines))
+                self.log.debug(
+                    'reframe, loop bottom, mark=%x, /offset=%d',
+                    id(mark), max(0, -screenlines))
             self.head = Location(self, mark, max(0, -screenlines))
 
-        self.log.debug('reframe, post-loop,   mark=%x, /offset=%d', id(mark), max(0, -screenlines))
-        self.log.debug('reframe, post-loop, screenlines=%d, head=%s', screenlines, repr(self.head))
+        self.log.debug(
+            'reframe, post-loop,   mark=%x, /offset=%d',
+            id(mark), max(0, -screenlines))
+        self.log.debug(
+            'reframe, post-loop, screenlines=%d, head=%s',
+            screenlines, repr(self.head))
 
     def chunksize(self, chunk):
         lines = 0
         remaining = None
-        #self.log.debug('chunksize(%s) self.width=%d', repr(chunk), self.width)
+
         for tags, text in chunk:
-            for line, remaining in self.doline(text, self.width, remaining, tags):
-                #self.log.debug('lines=%d, doline() => (%s, %d)', lines, line, remaining)
+            for line, remaining in self.doline(
+                    text, self.width, remaining, tags):
                 if 'right' in tags:
                     remaining = 0
                 if remaining < 1:
                     lines += 1
         if remaining and remaining > 0 and remaining != self.width:
             lines += 1
-            #self.log.debug('partial line, rounding up, lines=%d', lines)
-        #self.log.debug('chunksize() => %d', lines)
+
         return lines
 
     def focus(self):
@@ -564,7 +578,8 @@ class TTYFrontend:
                 state = (list(self.windows), self.active)
                 self.windows[self.active].window.input_char(k)
                 if state == (list(self.windows), self.active):
-                    self.redisplay(self.windows[self.active].window.redisplay_hint())
+                    self.redisplay(
+                        self.windows[self.active].window.redisplay_hint())
                 else:
                     self.redisplay()
 
@@ -787,7 +802,8 @@ class Location:
         self.cursor = cursor
         self.offset = offset
     def __repr__(self):
-        return '<Location %x: %s, %s +%d>' % (id(self), repr(self.fe), repr(self.cursor), self.offset)
+        return '<Location %x: %s, %s +%d>' % (
+            id(self), repr(self.fe), repr(self.cursor), self.offset)
     def shift(self, delta):
         if delta == 0:
             return self

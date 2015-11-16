@@ -574,7 +574,8 @@ class Viewer(window.Window, window.PagingMixIn):
             self.set_mark_state = 1
         else:
             self.mark_ring.append(self.the_mark)
-            self.the_mark = self.buf.mark(where if where is not None else self.cursor)
+            self.the_mark = self.buf.mark(
+                where if where is not None else self.cursor)
             self.set_mark_state = 0
 
     @keymap.bind('Control-X Control-X')

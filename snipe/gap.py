@@ -167,7 +167,8 @@ class UndoableGapBuffer(GapBuffer):
         super().__init__(*args, **kw)
 
     def replace(self, where, size, string, collapsible=False):
-        self.log.debug('collapsible %s %d %d %s', collapsible, where, size, repr(string))
+        self.log.debug(
+            'collapsible %s %d %d %s', collapsible, where, size, repr(string))
         if self.undolog:
             self.log.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
         if collapsible and self.undolog \
@@ -175,10 +176,16 @@ class UndoableGapBuffer(GapBuffer):
           and string != '' and self.undolog[-1][2] == '':
             #XXX only "collapses" inserts
             self.log.debug('collapse %s', repr(self.undolog[-1]))
-            self.undolog[-1] = (self.undolog[-1][0], len(string) + self.undolog[-1][1], '')
+            self.undolog[-1] = (
+                self.undolog[-1][0],
+                len(string) + self.undolog[-1][1], '',
+                )
         else:
-            self.undolog.append(
-                (int(where), len(string), self.textrange(where, int(where) + size)))
+            self.undolog.append((
+                int(where),
+                len(string),
+                self.textrange(where, int(where) + size),
+                ))
         return super().replace(where, size, string)
 
     def undo(self, which):

@@ -59,7 +59,7 @@ class Keymap(collections.defaultdict):
     def __missing__(self, key):
         if (self.default is not None
                 and isinstance(key, str)
-                and ord(key) > ord(' ')): # not a number, not a control character
+                and ord(key) > ord(' ')): #not a number, not a control character
             return self.default
         raise KeyError
 
@@ -304,7 +304,7 @@ class Keymap(collections.defaultdict):
 
     def pairify(self, prefix=''):
         ks = list(sorted(
-                self.keys(), key=lambda k: (0 if hasattr(k, 'upper') else 1, k)))
+            self.keys(), key=lambda k: (0 if hasattr(k, 'upper') else 1, k)))
         ks = [k for k in ks if k != self.CHEATSHEET_KEY]
         eliding = None
         for (i, k) in enumerate(ks):
@@ -331,7 +331,8 @@ class Keymap(collections.defaultdict):
         mappings = list(self.pairify())
         width = max(len(keyseq) for (keyseq, action) in mappings)
         return '\n'.join(
-            '%-*s  %s' % (width, keyseq, action) for (keyseq, action) in mappings)
+            '%-*s  %s' % (width, keyseq, action)
+            for (keyseq, action) in mappings)
 
 
 def noop():

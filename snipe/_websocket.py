@@ -72,7 +72,8 @@ def websocket(url, headers={}):
         if key != match:
             raise ValueError("Handshake error - Invalid challenge response")
 
-        reader = response.connection.reader.set_parser(aiohttp.websocket.WebSocketParser)
+        reader = response.connection.reader.set_parser(
+            aiohttp.websocket.WebSocketParser)
         writer = WebSocketClientWriter(response.connection.writer)
     except:
         response.close()
