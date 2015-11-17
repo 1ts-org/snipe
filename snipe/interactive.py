@@ -32,24 +32,17 @@ import inspect
 import os
 
 
-def context(*args, **kw):
-    return kw.get('context', None)
+def _keyword(name):
+    def __get_keyword(*args, **kw):
+        return kw.get(name, None)
+    return __get_keyword
 
-
-def window(*args, **kw):
-    return kw.get('window', None)
-
-
-def keystroke(*args, **kw):
-    return kw.get('keystroke', None)
-
-
-def keyseq(*args, **kw):
-    return kw.get('keyseq', None)
-
-
-def argument(*args, **kw):
-    return kw.get('argument', None)
+context = _keyword('context')
+window = _keyword('window')
+keystroke = _keyword('keystroke')
+keyseq = _keyword('keyseq')
+keymap = _keyword('keymap')
+argument = _keyword('argument')
 
 
 def integer_argument(*args, **kw):
