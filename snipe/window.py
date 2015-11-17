@@ -187,6 +187,7 @@ class Window:
                         keystroke = k,
                         argument = arg,
                         keyseq = keyseq,
+                        keymap = self.keymap,
                         )
                 finally:
                     self.after_command()

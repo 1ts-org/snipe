@@ -169,7 +169,7 @@ class Viewer(window.Window, window.PagingMixIn):
         super().__init__(*args, **kw)
 
         from . import help
-        self.keymap['[escape] ?'] = help.help
+        self.keymap['[escape] ?'] = help.keymap
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 

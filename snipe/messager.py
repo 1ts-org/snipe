@@ -111,7 +111,8 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
-        self.keymap.interrogate(help)
+        self.keymap['?'] = help.keymap
+        self.keymap['[escape] ?'] = help.keymap
         self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
         self.keymap['Meta-/'].set_cheatsheet(self.cheatsheet_filter)
         # the following will be interesting in the advent of non-singleton
