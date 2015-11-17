@@ -641,7 +641,7 @@ class StatusLine(Window):
             left = self._message
 
         rightwidth = sum(
-                self.renderer.glyphwidth(text) for (tags, text) in right)
+            self.renderer.glyphwidth(text) for (tags, text) in right)
 
         offset = 0
         for (i, (tags, text)) in enumerate(left):
@@ -667,7 +667,6 @@ class StatusLine(Window):
         widths = [
             sum(self.renderer.glyphwidth(text) for (tags, text) in item)
             for item in sheet]
-
 
         rows = 2 if self.fe.maxx < self.CHEATSHEET_SPLITCOLS else 1
         cols = math.ceil(len(sheet) / rows)
