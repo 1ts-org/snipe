@@ -260,7 +260,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             backfillers = [
                 asyncio.Task(self.do_backfill_dest(dest, mfilter, target))
                 for dest in self.dests
-                if self.dests[dest].type not in ('user', 'bot')]
+                if self.dests[dest].type in ('im', 'group') or (
+                    self.dests[dest].type == 'channel'
+                    and self.dests[dest].data['is_member'])]
             self.tasks += backfillers
             yield from asyncio.gather(*backfillers, return_exceptions=True)
 
