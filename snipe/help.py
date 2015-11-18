@@ -37,6 +37,7 @@ import inspect
 import sys
 import bisect
 import pprint
+import logging
 
 import docutils.core
 import docutils.io
@@ -127,8 +128,13 @@ class HelpBrowser(editor.PopViewer):
 
     _title = 'Help Browser'
 
+    loglevel = util.Level(
+        'log.help', 'HelpBrowser', doc='loglevel for help browser')
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+        self.log = logging.getLogger(
+            '%s.%x' % (self.__class__.__name__, id(self),))
         if not self.pages:
             self.load_pages()
 
@@ -361,12 +367,10 @@ class Renderer:
         del self.tagstack[-count:]
 
     def process(self, node):
-        import logging
         tagset = 0
 
         if isinstance(node, docutils.nodes.Text):
             self.add(node.astext())
-            logging.error('XXXX %s', node.astext())
             return
         elif isinstance(node, docutils.nodes.comment):
             return
