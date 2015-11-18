@@ -591,6 +591,22 @@ class Viewer(window.Window, window.PagingMixIn):
         self.insert(s)
 
 
+class PopViewer(Viewer):
+    cheatsheet = [
+        '*q*uit viewer',
+        '*[space]* scroll down',
+        ]
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.keymap['q'] = self.delete_window
+        self.keymap['Control-G'] = self.delete_window
+        self.keymap['[space]'] = self.pagedown
+
+    def destroy(self):
+        self.buf.unregister()
+        super().destroy()
+
+
 class Editor(Viewer):
     default_fill_column = util.Configurable(
         'editor.fill_column', 72, 'Default fill column for auto-fill buffers',

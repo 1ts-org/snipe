@@ -356,8 +356,8 @@ class Window:
 
     def show(self, string, what='what'):
         """Display a string in a popup Viewer window."""
-        from .editor import Viewer
-        self.fe.split_window(Viewer(self.fe, content=string, name=what), True)
+        from .editor import PopViewer
+        self.fe.split_window(PopViewer(self.fe, content=string, name=what), True)
 
     # Commands the user can run that should be more or less present in
     # all windows.

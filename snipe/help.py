@@ -103,7 +103,7 @@ def toggle_cheatsheet(window: interactive.window):
         window, 'cheatsheet', not util.Configurable.get(window, 'cheatsheet'))
 
 
-class HelpBrowser(editor.Viewer):
+class HelpBrowser(editor.PopViewer):
     """Commit assorted sins against docutils in order to present a help browser
     """
     pages = {}
