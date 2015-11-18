@@ -45,7 +45,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     IGNORED_TYPES = (
         'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
         'file_shared', 'file_created', 'accounts_changed', 'im_marked',
-        'group_marked',
+        'group_marked'
         )
 
     def __init__(self, context, slackname=None, **kw):
@@ -198,18 +198,22 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif t in ('team_join', 'user_change'):
             u = m['user']
             self.users[u['id']] = u
+            return
         elif t == 'channel_created':
             c = m['channel']
             self.dests[c['id']] = SlackDest(self, 'channel', c)
+            return
         elif t in ('channel_rename', 'group_rename'):
             c = m['channel']
             self.dests[c['id']].update(c)
         elif t == 'group_joined':
             c = m['channel']
             self.dests[c['id']] = SlackDest(self, 'group', c)
+            return
         elif t == 'im_created':
             c = m['channel']
             self.dests[c['id']] = SlackDest(self, 'im', c)
+            return
         msg = SlackMessage(self, m)
         if messagelist and msg.time <= messagelist[-1].time:
             msg.time = messagelist[-1].time + .000001
