@@ -111,16 +111,20 @@ class HelpBrowser(editor.PopViewer):
     toc = []
     toclines = []
     base_mode = None
+
     cheatsheet = [
-        '*]* next page',
-        '*[* prev page',
-        '*<* 1st page',
-        '*>* last page',
+        '*]* next "page"',
+        '*[* prev "page"',
+        '*<* 1st "page"',
+        '*>* last "page"',
         '*Tab* next link',
         '*S-Tab* prev link',
-        '*RET* follow link',
-        '*m* go to page',
+        '*Enter* follow',
+        '*m* go to "page"',
+        '*q*uit viewer',
+        '*Space* scroll',
         ]
+
     _title = 'Help Browser'
 
     def __init__(self, *args, **kw):

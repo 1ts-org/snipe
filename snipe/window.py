@@ -82,6 +82,8 @@ class Window:
         self.keymap.interrogate(self)
         for mode in modes:
             self.keymap.interrogate(mode)
+            if hasattr(mode, 'cheatsheet'):
+                self.cheatsheet = list(self.cheatsheet) + mode.cheatsheet
         self.active_keymap = self.keymap
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))

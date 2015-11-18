@@ -45,6 +45,13 @@ from . import interactive
 class LongPrompt(editor.Editor):
     histories = {}
 
+    cheatsheet = [
+        '*M-p*revious history',
+        '*M-n*ext history',
+        '*^G* aborts',
+        '*^J* finishes',
+        ]
+
     def __init__(
             self,
             *args,
@@ -73,6 +80,9 @@ class LongPrompt(editor.Editor):
         self.histptr = 0
         self.history = self.histories.setdefault(history, [])
         self.keymap['Control-G'] = self.delete_window
+        if complete is not None:
+            self.cheatsheet = list(self.cheatsheet)
+            self.cheatsheet.append('*[tab]* completes')
 
     def destroy(self):
         self.history.append(self.buf[self.divider:])
@@ -183,12 +193,20 @@ class LongPrompt(editor.Editor):
 
 
 class ShortPrompt(LongPrompt):
+    cheatsheet = [
+        '*M-p*revious history',
+        '*M-n*ext history',
+        '*^G* aborts',
+        '*Enter* finishes',
+        ]
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.keymap['[carriage return]'] = self.runcallback
 
 
 class KeySeqPrompt(LongPrompt):
+    cheatsheet = ['Type a key sequence.']
     def __init__(self, *args, keymap=None, **kw):
         super().__init__(*args, **kw)
         self.keymap = keymap
@@ -214,6 +232,10 @@ class KeySeqPrompt(LongPrompt):
 class ReplyMode:
     def __init__(self, msg):
         self.msg = msg
+
+    cheatsheet = [
+        '*^C^Y* yank quote',
+        ]
 
     @keymap.bind('Control-C Control-Y')
     def yank_original(self, window: interactive.window):
