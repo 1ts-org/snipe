@@ -78,7 +78,7 @@ class Messager(window.Window, window.PagingMixIn):
 
     cheatsheet_filter = [ #XXX not there yet
         '*0* clear',
-        '*w* pop',
+        '*,* pop',
         '*/* cleverly',
         '*.* not /',
         '*s*ender',
@@ -592,7 +592,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.filter_push(filters.Not(self.replymsg().filter(len(arg))))
 
-    @keymap.bind('/ w', '/ Meta-/', 'Meta-/ Meta-/')
+    @keymap.bind('/ ,', '/ w', '/ Meta-/', 'Meta-/ Meta-/')
     def filter_pop(self):
         """Pop the current filter, replacing it with the next one on the
         stack."""
