@@ -226,14 +226,24 @@ class HelpBrowser(editor.PopViewer):
 
         self.log.debug('helpbrowser.view: cursor=%d', int(self.cursor))
         while True:
-            if i < 0 or i >= len(self.chunks):
+            if i < 0:
                 return
+
+            if i >= len(self.chunks):
+                mark = self.buf.mark(len(self.buf))
+                if self.cursor.point == len(self.buf):
+                    yield mark, [(('cursor', 'visible'), '')]
+                else:
+                    yield mark, []
+                return
+
             self.log.debug(
                 'helpbrowser.view: i=%d, off=%d', i, self.chunks[i][0])
 
             if self.chunks[i][0] <= int(self.cursor) and (
                     i == l or
                     int(self.cursor) < self.chunks[i + 1][0]):
+
                 off = self.chunks[i][0]
                 c = int(self.cursor)
                 for (j, (tags, text)) in enumerate(self.chunks[i][1]):
