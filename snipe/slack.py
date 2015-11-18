@@ -422,14 +422,17 @@ class SlackAddress(messages.SnipeAddress):
     def __init__(self, backend, identifier):
         self.backend = backend
         self.id = identifier
-        super().__init__(backend, [self.backend.dests[identifier].type, identifier])
+        if identifier in self.backend.dests:
+            l = [self.backend.dests[identifier].type, identifier]
+        else:
+            l = ['?', identifier]
+        super().__init__(backend, l)
 
     def __str__(self):
-        return str(self.backend.dests[self.id])
+        return str(self.backend.dests.get(self.id, self.id))
 
     def reply(self):
         return self.backend.name + '; ' + str(self)
-
 
 
 class SlackMessage(messages.SnipeMessage):
