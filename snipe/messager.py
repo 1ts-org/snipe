@@ -269,10 +269,10 @@ class Messager(window.Window, window.PagingMixIn):
         if then.year != now.year:
             t += '%d-' % (then.year,)
         if then.month != now.month or then.day != now.day:
-            t += '%02d-%02d ' % (then.month, then.day)
+            t += '%02d-%02d' % (then.month, then.day)
         t += '%02d:%02d' % (then.hour, then.minute)
 
-        left = [(('bg:grey24',), t), ((), ' ')] + left
+        left = [(('bg:grey24',), t), ((), ' ' + str(self.filter))]
 
         return left, right
 
