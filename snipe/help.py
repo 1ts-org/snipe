@@ -101,6 +101,7 @@ def browsehelp(window: interactive.window):
 def toggle_cheatsheet(window: interactive.window):
     util.Configurable.set(
         window, 'cheatsheet', not util.Configurable.get(window, 'cheatsheet'))
+    window.context.conf_write()
 
 
 class HelpBrowser(editor.PopViewer):
