@@ -41,6 +41,14 @@ from . import keymap
 from . import util
 
 
+HELP = """30
+===============================
+Common commands in all windows
+===============================
+
+.. interrogate_keymap:: Window
+"""
+
 class Window:
     """
     Abstract chunk of screen real estate that displays things and can

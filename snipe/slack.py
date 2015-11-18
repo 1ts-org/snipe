@@ -37,10 +37,46 @@ SLACKAPI = '/api/'
 # codes start with a #.  Don't believe their lies.
 HEXCOLOR = re.compile(r'^([0-9a-fA-F]{3}|([0-9a-fA-F][0-9a-fA-F]){3})$')
 
+HELP = """50
+==================
+The slack backend
+==================
+
+Setup
+-----
+
+Setting up the slack backend is slightly more involved because it's not enabled
+by default, requires you get an API key from Slack, _and_ requires that you give
+the backend instance a name (e.g. myslack for myslack.slack.com).  You
+add *``.slack name=myname``* to the *``backends``* configuration variable (which is *``;``*
+separated), and get an api key from *``https://api.slack.com/web``* and put it in
+*``~/.snipe/netrc``* like so: ::
+
+ machine myslack.slack.com login myself@example.com password frob-9782504613-8396512704-9784365210-7960cf
+
+
+(You need to have already signed up for the relevant slack instance by other
+means.)
+
+Backend-specific message actions
+---------------------------------
+
+.. interrogate_keymap:: SlackMessage
+
+
+Configuration
+-------------
+
+.. interrogate_config:: Slack
+
+"""
+
 
 class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
-    loglevel = util.Level('log.slack', 'Slack')
+    loglevel = util.Level(
+        'log.slack', 'Slack',
+        doc='loglevel for slack backend')
 
     IGNORED_TYPES = (
         'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
