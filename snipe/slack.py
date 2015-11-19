@@ -81,7 +81,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     IGNORED_TYPES = (
         'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
         'file_shared', 'file_created', 'accounts_changed', 'im_marked',
-        'group_marked'
+        'group_marked', 'im_open', 'im_close', 'team_icon_changed',
+        'team_pref_change',
         )
 
     def __init__(self, context, slackname=None, **kw):
@@ -233,6 +234,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             u = m['user']
             self.users[u['id']] = u
             self.dests[u['id']] = SlackDest(self, 'user', u)
+            return
         elif t == 'user_change':
             u = m['user']
             self.users[u['id']] = u
