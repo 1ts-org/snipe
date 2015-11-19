@@ -229,7 +229,11 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     if m['user'] in reaction['users']:
                         reaction['users'].remove(m['user'])
             return msg
-        elif t in ('team_join', 'user_change'):
+        elif t == 'team_join':
+            u = m['user']
+            self.users[u['id']] = u
+            self.dests[u['id']] = SlackDest(self, 'user', u)
+        elif t == 'user_change':
             u = m['user']
             self.users[u['id']] = u
             return
