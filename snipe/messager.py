@@ -170,12 +170,14 @@ class Messager(window.Window, window.PagingMixIn):
                     ((), pprint.pformat(x.data) + '\n'),
                     ]
 
-            if x == self.cursor or x == self.secondary:
-                if not chunk:
-                    # this is a bug so it will do the wrong thing sometimes
-                    yield x, [(('visible', 'standout'), '\n')]
-                    continue
+            if not chunk:
+                # this is a bug so it will do the wrong thing sometimes
+                chunk = [((), '\n')]
 
+            if x == self.cursor:
+                chunk = [(chunk[0][0] + ('visible',), chunk[0][1])] + chunk[1:]
+
+            if x == (self.secondary or self.cursor):
                 # carve off the first line
                 first = []
                 while True:
@@ -197,16 +199,10 @@ class Messager(window.Window, window.PagingMixIn):
                         chunk = [(tags, rest)] + chunk[1:]
                         break
 
-                if x == self.cursor:
-                    first = (
-                        [(first[0][0] + ('visible',), first[0][1])]
-                        + first[1:])
-                if x == self.secondary or self.secondary is None:
-                    first = [
-                        (tags + ('standout',), text) for (tags, text) in first]
-                yield x, first + chunk
-            else:
-                yield x, chunk
+                first = [(tags + ('standout',), text) for (tags, text) in first]
+                chunk = first + chunk
+
+            yield x, chunk
 
             prev = x
 
