@@ -219,8 +219,6 @@ class TTYRenderer:
             chunkat = screenlines
 
             for tags, text in chunk:
-                if screenlines <= 0:
-                    break
                 attr = self.compute_attr(tags)
                 if 'cursor' in tags:
                     cursor = self.w.getyx()
