@@ -20,6 +20,13 @@ def main():
 
     maxy, maxx = stdscr.getmaxyx()
 
+    stdscr.attrset(curses.A_REVERSE)
+    stdscr.addstr('‡\n')
+    stdscr.attrset(0)
+    x = stdscr.inch(0, 0)
+    stdscr.move(2, 0)
+    stdscr.addstr('inch(0,0) = %s; A_UNDERLINE=%d\n' % (repr(x), curses.A_UNDERLINE))
+
     stdscr.addstr(
         'COLORS=%d COLOR_PAIRS=%d has_colors()=%s can_change_color()=%s\n' % (
             curses.COLORS, curses.COLOR_PAIRS, colors, curses.can_change_color()))
@@ -31,7 +38,7 @@ def main():
             rgbs.append(rgb)
             stdscr.addstr(' %s' % (rgb,))
             if (stdscr.getyx()[1] + 7) > maxx:
-                stdscr.addstr('\n')
+                stdscr.addstr('\n')o
     stdscr.addstr('\n')
     stdscr.addstr('press a key')
     stdscr.get_wch()
