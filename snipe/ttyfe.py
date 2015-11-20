@@ -240,7 +240,8 @@ class TTYRenderer:
                     self.bkgdset(attr)
 
                     if 'right' in tags:
-                        line = ' '*remaining + line
+                        y, x = self.w.getyx()
+                        self.w.move(y, x + remaining)
                         remaining = 0
                     if screenlines <= self.height:
                         try:
