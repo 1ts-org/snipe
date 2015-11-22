@@ -173,9 +173,6 @@ class TTYRenderer:
         #A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
         attrs = {
             'bold': curses.A_BOLD,
-            'standout': (
-                curses.A_REVERSE | (curses.A_BOLD if self.active else 0)
-                ),
             'reverse': curses.A_REVERSE,
             'underline': curses.A_UNDERLINE,
             }
@@ -187,8 +184,6 @@ class TTYRenderer:
                 fg = t[3:]
             if t.startswith('bg:'):
                 bg = t[3:]
-        if 'standout' in tags and not self.active:
-            fg = self.ui.color_assigner.dim(fg)
         attr |= self.ui.color_assigner(fg, bg)
         return attr
 
