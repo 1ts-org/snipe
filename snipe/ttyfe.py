@@ -209,6 +209,7 @@ class TTYRenderer:
         screenlines = self.height + self.head.offset
         remaining = None
         sill = None
+        bars = []
 
         output=[[]]
         y, x = -self.head.offset, 0
@@ -224,6 +225,8 @@ class TTYRenderer:
                 attr = self.compute_attr(tags)
                 if 'cursor' in tags:
                     cursor = (y, x)
+                if 'bar' in tags:
+                    bars.append(y)
                 if 'visible' in tags and (
                         screenlines <= self.height
                         or self.reframe_state == 'soft'):
@@ -261,6 +264,13 @@ class TTYRenderer:
             if not output[-1]:
                 output[-1] = [(0, '')]
             output[-1] = [(a | curses.A_UNDERLINE, t) for (a, t) in output[-1]]
+
+        for y in bars:
+            if not output[y]:
+                output[y] = [(0, '')]
+            bits = curses.A_REVERSE | (
+                curses.A_BOLD if self.active else curses.A_DIM)
+            output[y] = [(a | bits, t) for (a, t) in output[y]]
 
         self.log.debug(
             'redisplay_calculate exiting, cursor=%s, visible=%s',

@@ -178,29 +178,7 @@ class Messager(window.Window, window.PagingMixIn):
                 chunk = [(chunk[0][0] + ('visible',), chunk[0][1])] + chunk[1:]
 
             if x == (self.secondary or self.cursor):
-                # carve off the first line
-                first = []
-                while True:
-                    if not chunk:
-                        # we ran out of chunks without hitting a \n
-                        first[-1] = (first[-1][0], first[-1][1] + '\n')
-                        break
-                    tags, text = chunk[0]
-                    if '\n' not in text and 'right' not in tags:
-                        first.append((tags, text))
-                        chunk = chunk[1:]
-                    elif 'right' in tags:
-                        first.append((tags, text))
-                        chunk = chunk[1:]
-                        break
-                    else:
-                        line, rest = text.split('\n', 1)
-                        first.append((tags, line + '\n'))
-                        chunk = [(tags, rest)] + chunk[1:]
-                        break
-
-                first = [(tags + ('standout',), text) for (tags, text) in first]
-                chunk = first + chunk
+                chunk = [(chunk[0][0] + ('bar',), chunk[0][1])] + chunk[1:]
 
             yield x, chunk
 
