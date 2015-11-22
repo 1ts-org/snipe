@@ -192,6 +192,83 @@ class TTYRenderer:
         attr |= self.ui.color_assigner(fg, bg)
         return attr
 
+    def redisplay_calculate(self):
+        self.log.debug(
+            'in redisplay_calculate: w=%d, h=%d, frame=%s',
+            self.width,
+            self.height,
+            repr(self.head),
+            )
+
+        if self.window.cursor != self.old_cursor:
+            self.reframe_state = 'hard'
+            self.old_cursor = self.window.cursor
+
+        visible = False
+        cursor = None
+        screenlines = self.height + self.head.offset
+        remaining = None
+        sill = None
+
+        output=[[]]
+        y, x = -self.head.offset, 0
+
+        import pprint
+        for mark, chunk in self.window.view(self.head.cursor):
+            if screenlines <= 0:
+                break
+            sill = Location(self, mark)
+            chunkat = screenlines
+
+            for tags, text in chunk:
+                attr = self.compute_attr(tags)
+                if 'cursor' in tags:
+                    cursor = (y, x)
+                if 'visible' in tags and (
+                        screenlines <= self.height
+                        or self.reframe_state == 'soft'):
+                    visible = True
+                if 'right' in tags:
+                    text = text.rstrip('\n') #XXX chunksize
+
+                textbits = self.doline(text, self.width, remaining, tags)
+                if not textbits:
+                    if remaining is None or remaining <= 0:
+                        remaining = self.width
+                    textbits = [('', remaining)]
+                for line, remaining in textbits:
+                    if 'right' in tags:
+                        line = ' ' * remaining + line
+                        x += remaining
+                        remaining = 0
+                    output[-1].append((attr, line))
+                    x += len(line)
+                    if remaining < 0:
+                        output[-1].append((attr, '\n'))
+
+                    if remaining <= 0:
+                        screenlines -= 1
+                        y, x = y + 1, 0
+                        output.append([])
+                    if screenlines <= 0:
+                        break
+            sill.offset = max(0, chunkat - screenlines - 1)
+
+        output = output[self.head.offset:self.head.offset + self.height]
+        output += [[] for _ in range(self.height - len(output))]
+
+        if self.y + self.height < self.ui.maxy:
+            if not output[-1]:
+                output[-1] = [(0, '')]
+            output[-1] = [(a | curses.A_UNDERLINE, t) for (a, t) in output[-1]]
+
+        self.log.debug(
+            'redisplay_calculate exiting, cursor=%s, visible=%s',
+            repr(cursor),
+            repr(visible),
+            )
+        return visible, cursor, sill, output
+
     def redisplay_internal(self):
         self.log.debug(
             'in redisplay_internal: w=%d, h=%d, frame=%s',
@@ -205,86 +282,33 @@ class TTYRenderer:
             self.old_cursor = self.window.cursor
 
         self.w.erase()
-        self.w.move(0,0)
 
-        visible = False
-        cursor = None
-        screenlines = self.height + self.head.offset
-        remaining = None
-
-        for mark, chunk in self.window.view(self.head.cursor):
-            if screenlines <= 0:
-                break
-            self.sill = Location(self, mark)
-            chunkat = screenlines
-
-            for tags, text in chunk:
-                attr = self.compute_attr(tags)
-                if 'cursor' in tags:
-                    cursor = self.w.getyx()
-                if 'visible' in tags and (
-                        screenlines <= self.height
-                        or self.reframe_state == 'soft'):
-                    visible = True
-                if 'right' in tags:
-                    text = text.rstrip('\n') #XXX chunksize
-
-                textbits = self.doline(text, self.width, remaining, tags)
-                if not textbits:
-                    x = 0 if remaining is None else remaining
-                    textbits = [('', self.width if x <= 0 else x)]
-                for line, remaining in textbits:
-                    if screenlines == 1 and self.y + self.height < self.ui.maxy:
-                        attr |= curses.A_UNDERLINE
-                    self.attrset(attr)
-                    self.bkgdset(attr)
-
-                    if 'right' in tags:
-                        y, x = self.w.getyx()
-                        self.w.move(y, x + remaining)
-                        remaining = 0
-                    if screenlines <= self.height:
-                        try:
-                            self.w.addstr(line)
-                        except curses.error:
-                            if screenlines != 1 or remaining != 0:
-                                raise
-                        self.chgat(attr)
-
-                    if remaining <= 0:
-                        screenlines -= 1
-                    if screenlines <= 0:
-                        break
-                    if remaining == -1:
-                        if screenlines > 0 and screenlines < self.height:
-                            try:
-                                self.addstr('\n')
-                            except:
-                                self.log.exception(
-                                    'adding newline,'
-                                    ' screenlines=%d, remaining=%d',
-                                    screenlines,
-                                    remaining)
-                    elif remaining == 0 and self.height >= screenlines: #XXX
-                        self.move(self.height - screenlines, 0)
-            # XXX I'm not sure the following is _correct_ but it produces the
-            # correct result
-            self.sill.offset = max(0, chunkat - screenlines - 1)
-
-        if (screenlines > 1 and self.y + self.height < self.ui.maxy) \
-          or (screenlines == 1 and remaining == 0):
-            self.chgat(self.height - 1, 0, self.width, curses.A_UNDERLINE)
-
-        self.attrset(0)
-        self.bkgdset(0)
-        self.w.leaveok(1)
-        self.w.noutrefresh()
-
-        self.cursorpos = cursor
+        visible, self.cursorpos, self.sill, output = self.redisplay_calculate()
+        import pprint
+        self.log.debug('redisplay_internal: %s, %s, %s %d\n%s', visible, self.cursorpos, self.sill, len(output), pprint.pformat(output))
+        for y, line in enumerate(output):
+            self.move(y, 0)
+            x = 0
+            attr = 0
+            for attr, text in line:
+                self.bkgdset(attr)
+                if line == '\n':
+                    self.clrtoeol()
+                try:
+                    self.w.addstr(y, x, text, attr)
+                except curses.error:
+                    self.log.debug(
+                        'addstr(%d, %d, %s, %d) errored.  *yawn*',
+                        y, x, repr(text), attr)
+                x += self.glyphwidth(text)
+            else:
+                if line != '\n':
+                    self.clrtoeol()
+            self.bkgdset(0)
 
         self.log.debug(
-            'redisplay internal exiting, cursor=%s, visible=%s',
-            repr(cursor),
+            'redisplay_internal exiting, cursor=%s, visible=%s',
+            repr(self.cursorpos),
             repr(visible),
             )
         return visible
@@ -292,7 +316,9 @@ class TTYRenderer:
     def place_cursor(self):
         if self.active:
             if self.cursorpos is not None:
-                self.log.debug('placing cursor %s', repr(self.cursorpos))
+                self.log.debug(
+                    'placing cursor(%s): %s',
+                    repr(self.window), repr(self.cursorpos))
                 self.w.leaveok(0)
                 with contextlib.suppress(curses.error):
                     curses.curs_set(1)
@@ -327,7 +353,7 @@ class TTYRenderer:
                     '%s(%s) raised', name, ', '.join(repr(x) for x in args))
                 raise
         return _
-    for func in 'addstr', 'move', 'chgat', 'attrset', 'bkgdset':
+    for func in 'addstr', 'move', 'chgat', 'attrset', 'bkgdset', 'clrtoeol':
         locals()[func] = makefunc(func)
 
     del func, makefunc
