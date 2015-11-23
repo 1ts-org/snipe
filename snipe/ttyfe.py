@@ -199,7 +199,7 @@ class TTYRenderer:
             self.reframe_state = 'hard'
             self.old_cursor = self.window.cursor
 
-        visible = False
+        visible = None
         cursor = None
         screenlines = self.height + self.head.offset
         remaining = None
@@ -225,7 +225,7 @@ class TTYRenderer:
                 if 'visible' in tags and (
                         screenlines <= self.height
                         or self.reframe_state == 'soft'):
-                    visible = True
+                    visible = y
                 if 'right' in tags:
                     text = text.rstrip('\n') #XXX chunksize
 
@@ -252,6 +252,26 @@ class TTYRenderer:
                         break
             sill.offset = max(0, chunkat - screenlines - 1)
 
+        self.log.debug('r_c visible=%s bars=%s', visible, bars)
+        if visible is not None and visible < 0:
+            l = output[self.head.offset + visible]
+            output[self.head.offset] = l
+            if l:
+                a, t = l[-1]
+                if  t == '\n':
+                    w = sum(TTYRender.glyphwidh(s) for (a, s) in l[:-1])
+                    if w < (self.width - 1):
+                        l[-1] = (a, '…\n')
+                    else:
+                        l[-1] = (a, '…')
+                else: #likely, wrapped
+                    l[-1] = (a, t[:-1] + '…')
+            else:
+                l.append((0, '…'))
+            if visible in bars:
+                bars[bars.index(visible)] = 0
+            self.log.debug('r_c switching to visible, 2 bars=%s', bars)
+
         output = output[self.head.offset:self.head.offset + self.height]
         output += [[] for _ in range(self.height - len(output))]
 
@@ -261,6 +281,8 @@ class TTYRenderer:
             output[-1] = [(a | curses.A_UNDERLINE, t) for (a, t) in output[-1]]
 
         for y in bars:
+            if y < 0:
+                continue
             if not output[y]:
                 output[y] = [(0, '')]
             bits = curses.A_REVERSE | (
@@ -272,7 +294,7 @@ class TTYRenderer:
             repr(cursor),
             repr(visible),
             )
-        return visible, cursor, sill, output
+        return visible is not None, cursor, sill, output
 
     def redisplay_internal(self):
         self.log.debug(
@@ -371,6 +393,8 @@ class TTYRenderer:
 
         if action == 'pagedown':
             self.head = self.sill
+            if self.head.offset > 0:
+                self.head.offset -= 1
             self.log.debug('reframe pagedown to %s', self.head)
             self.reframe_state = 'soft'
             self.old_cursor = self.window.cursor
