@@ -41,6 +41,7 @@ import traceback
 import pprint
 import asyncio
 import bisect
+import codecs
 
 from . import filters
 from . import roost
@@ -750,3 +751,10 @@ class Messager(window.Window, window.PagingMixIn):
         if i >= len(self.context.starks) or self.context.starks[i] != m.time:
             self.context.starks.insert(i, m.time)
             self.context.write_starks()
+
+    @keymap.bind('t')
+    def rot13(self, arg: interactive.argument=None):
+        m = self.replymsg()
+        m.transform(
+            'rot13' if m.transformed is None else None,
+            codecs.encode(m.body, 'rot13'))

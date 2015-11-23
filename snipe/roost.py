@@ -49,6 +49,7 @@ import pwd
 import math
 import getopt
 import traceback
+import codecs
 
 from . import messages
 from . import _rooster
@@ -129,7 +130,7 @@ class Roost(messages.SnipeBackend):
     def send(self, paramstr, body):
         self.log.debug('send paramstr=%s', paramstr)
 
-        flags, recipients = getopt.getopt(shlex.split(paramstr), 'Cc:i:O:')
+        flags, recipients = getopt.getopt(shlex.split(paramstr), 'RCc:i:O:')
 
         flags = dict(flags)
         self.log.debug('send flags=%s', repr(flags))
@@ -139,6 +140,9 @@ class Roost(messages.SnipeBackend):
 
         if '-C' in flags and len(recipients) > 1:
             body = 'CC: ' + ' '.join(recipients) + '\n' + body
+
+        if '-R' in flags:
+            body = codecs.encode(body, 'rot13')
 
         for recipient in recipients:
             message = {
@@ -431,6 +435,8 @@ class RoostMessage(messages.SnipeMessage):
 
     def reply(self):
         l = []
+        if self.transformed == 'rot13':
+            l += ['-R']
         if self.data['recipient'] and self.data['recipient'][0] != '@':
             if self.data['class'].upper() != 'MESSAGE':
                 l += ['-c', self.data['class']]
@@ -445,6 +451,8 @@ class RoostMessage(messages.SnipeMessage):
 
     def followup(self):
         l = []
+        if self.transformed == 'rot13':
+            l += ['-R']
         if self.data['recipient'] and self.data['recipient'][0] != '@':
             if not self.body.startswith('CC: '):
                 return self.reply()

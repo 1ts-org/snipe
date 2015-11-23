@@ -83,6 +83,7 @@ class SnipeMessage:
     noise = False
     omega = False
     error = False
+    transformed = None
 
     def __init__(self, backend, body='', mtime=None):
         self._sender = None
@@ -185,6 +186,10 @@ class SnipeMessage:
 
     def __float__(self):
         return self.time
+
+    def transform(self, encoding, body):
+        self.transformed = encoding
+        self.body = body
 
 
 class SnipeErrorMessage(SnipeMessage):
