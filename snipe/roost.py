@@ -50,6 +50,7 @@ import math
 import getopt
 import traceback
 import codecs
+import subprocess
 
 from . import messages
 from . import _rooster
@@ -130,7 +131,7 @@ class Roost(messages.SnipeBackend):
     def send(self, paramstr, body):
         self.log.debug('send paramstr=%s', paramstr)
 
-        flags, recipients = getopt.getopt(shlex.split(paramstr), 'RCc:i:O:')
+        flags, recipients = getopt.getopt(shlex.split(paramstr), 'xRCc:i:O:')
 
         flags = dict(flags)
         self.log.debug('send flags=%s', repr(flags))
@@ -145,6 +146,33 @@ class Roost(messages.SnipeBackend):
             body = codecs.encode(body, 'rot13')
 
         for recipient in recipients:
+            if '-x' in flags:
+                flags['-O'] = 'crypt'
+                cmd = ['zcrypt', '-E', '-c', flags.get('-c', 'MESSAGE')]
+                proc = yield from asyncio.create_subprocess_exec(
+                    *cmd,
+                    **dict(
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        )
+                    )
+                stdout, stderr = yield from proc.communicate(body.encode())
+                stdout = stdout.decode(errors='replace')
+                stderr = stderr.decode(errors='replace')
+                if proc.returncode:
+                    self.log.error(
+                        'roost: %s returned %d',
+                        ' '.join(cmd), proc.returncode)
+                if stderr:
+                    self.log.error(
+                        'roost: %s send %s to stderr',
+                        ' '.join(cmd), repr(stderr))
+                    raise Exception('zcrypt: ' + stderr)
+                if proc.returncode:
+                    raise Exception('zcrypt returned %d' % (proc.returncode))
+                body = stdout
+
             message = {
                 'class': flags.get('-c', 'MESSAGE'),
                 'instance': flags.get('-i', 'PERSONAL'),
@@ -161,12 +189,45 @@ class Roost(messages.SnipeBackend):
 
     @asyncio.coroutine
     def new_message(self, m):
-        msg = RoostMessage(self, m)
+        msg = yield from self.construct_and_maybe_decrypt(m)
         if self.messages and msg.time <= self.messages[-1].time:
             msg.time = self.messages[-1].time + .00001
         self.messages.append(msg)
         self.startcache = {}
         self.redisplay(msg, msg)
+
+    @asyncio.coroutine
+    def construct_and_maybe_decrypt(self, m):
+        msg = RoostMessage(self, m)
+        try:
+            if msg.data.get('opcode') == 'crypt':
+                cmd = ['zcrypt', '-D', '-c', msg.data['class']]
+                proc = yield from asyncio.create_subprocess_exec(
+                    *cmd,
+                    **dict(
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        )
+                    )
+                stdout, stderr = yield from proc.communicate(msg.body.encode())
+                stdout = stdout.decode(errors='replace')
+                stderr = stderr.decode(errors='replace')
+                if proc.returncode:
+                    self.log.error(
+                        'roost: %s returned %d', ' '.join(cmd), proc.returncode)
+                if stderr:
+                    self.log.error(
+                        'roost: %s send %s to stderr',
+                        ' '.join(cmd), repr(stderr))
+                if not (proc.returncode or stderr):
+                    sigil = '**END**\n'
+                    if stdout.endswith(sigil):
+                        stdout = stdout[:-len(sigil)]
+                    msg.transform('zcrypt', stdout)
+        except:
+            self.log.exception('zcrypt, decrypting')
+        return msg
 
     def backfill(self, mfilter, target=None, count=0, origin=None):
         self.log.debug(
@@ -235,7 +296,10 @@ class Roost(messages.SnipeBackend):
             if chunk['isDone']:
                 self.log.info('IT IS DONE.')
                 self.loaded = True
-            ms = [RoostMessage(self, m) for m in chunk['messages']]
+            ms = []
+            for m in chunk['messages']:
+                cm = yield from self.construct_and_maybe_decrypt(m)
+                ms.append(cm)
             count += len([m for m in ms if mfilter(m)])
             # Make sure ordering is stable
             # XXX really assuming messages are millisecond unique si dumb
@@ -453,6 +517,8 @@ class RoostMessage(messages.SnipeMessage):
         l = []
         if self.transformed == 'rot13':
             l += ['-R']
+        if self.transformed == 'zcrypt':
+            l += ['-x']
         if self.data['recipient'] and self.data['recipient'][0] != '@':
             if not self.body.startswith('CC: '):
                 return self.reply()

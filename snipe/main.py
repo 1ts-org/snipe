@@ -71,6 +71,8 @@ def main():
         if handler.writing:
             handler.dump()
         logging.shutdown()
+        if not loop.is_closed():
+            loop.close()
 
 if __name__ == '__main__':
     main()
