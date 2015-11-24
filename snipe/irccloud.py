@@ -355,10 +355,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             if isinstance(oob_data, dict):
                 raise Exception(str(oob_data))
 
-            if not included:
-                buf['min_eid'] = buf['have_eid']
-                return
-
             oldest = buf['have_eid']
             self.log.debug('t = %f', oldest / 1000000)
 
