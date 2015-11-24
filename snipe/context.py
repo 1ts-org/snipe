@@ -49,6 +49,9 @@ from . import ttyfe
 from . import util
 from . import window
 from . import messager
+from . import roost
+from . import irccloud
+from . import slack
 
 
 class Context:
