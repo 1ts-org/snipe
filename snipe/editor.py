@@ -195,16 +195,6 @@ class Viewer(window.Window, window.PagingMixIn):
     def title(self):
         return self.buf.name
 
-    def modeline(self):
-        try:
-            sill = int(self.renderer.display_range()[1])
-            self.log.debug('pct: %d %d', sill, len(self.buf))
-            pct = '%d%%' % (sill / len(self.buf) * 100)
-        except ZeroDivisionError:
-            pct = '-'
-        return [((), '%s %s' % (pct, self.title()))], \
-          [(('right',), '%d' % (self.context.backends.count(),))]
-
     def movable(self, point, interactive):
         return point
 
@@ -611,6 +601,16 @@ class PopViewer(Viewer):
         self.keymap['q'] = self.delete_window
         self.keymap['Control-G'] = self.delete_window
         self.keymap['[space]'] = self.pagedown
+
+    def modeline(self):
+        try:
+            sill = int(self.renderer.display_range()[1])
+            self.log.debug('pct: %d %d', sill, len(self.buf))
+            pct = '%d%%' % (sill / len(self.buf) * 100)
+        except ZeroDivisionError:
+            pct = '-'
+        return [((), '%s %s' % (pct, self.title()))], \
+          [(('right',), '%d' % (self.context.backends.count(),))]
 
     def destroy(self):
         self.buf.unregister()
