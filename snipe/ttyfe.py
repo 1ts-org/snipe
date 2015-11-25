@@ -259,7 +259,7 @@ class TTYRenderer:
             if l:
                 a, t = l[-1]
                 if  t == '\n':
-                    w = sum(TTYRender.glyphwidh(s) for (a, s) in l[:-1])
+                    w = sum(TTYRenderer.glyphwidh(s) for (a, s) in l[:-1])
                     if w < (self.width - 1):
                         l[-1] = (a, '…\n')
                     else:
@@ -294,7 +294,8 @@ class TTYRenderer:
             repr(cursor),
             repr(visible),
             )
-        return visible is not None, cursor, sill, output
+        return (
+            visible is not None and visible < self.height, cursor, sill, output)
 
     def redisplay_internal(self):
         self.log.debug(
