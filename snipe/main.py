@@ -43,6 +43,7 @@ from . import context
 
 def main():
     '''Main function, does high-level setup and kicks off the main loop.'''
+    loop = None
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
@@ -71,7 +72,7 @@ def main():
         if handler.writing:
             handler.dump()
         logging.shutdown()
-        if not loop.is_closed():
+        if loop is not None and not loop.is_closed():
             loop.close()
 
 if __name__ == '__main__':
