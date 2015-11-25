@@ -42,6 +42,7 @@ import functools
 import bisect
 import asyncio
 import math
+import contextlib
 
 from . import util
 from . import filters
@@ -335,11 +336,13 @@ class SnipeBackend:
         for t in self.tasks:
             try:
                 t.cancel()
-                asyncio.get_event_loop().run_until_complete(t)
-            except asyncio.CancelledError:
-                pass #expected
+                with contextlib.suppress(asyncio.CancelledError):
+                    asyncio.get_event_loop().run_until_complete(t)
             except:
                 self.log.exception('while shutting down')
+
+    def reap_tasks(self):
+        self.tasks = [t for t in self.tasks if not t.done()]
 
     def redisplay(self, m1, m2):
         try:

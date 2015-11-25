@@ -99,7 +99,7 @@ class Roost(messages.SnipeBackend):
         self.backfilling = False
         self.new_task = asyncio.async(self.error_message(
             'getting new messages', self.r.newmessages, self.new_message))
-        self.backfillers = []
+        self.tasks.append(self.new_task)
 
     @asyncio.coroutine
     def error_message(self, activity, func, *args):
@@ -114,14 +114,6 @@ class Roost(messages.SnipeBackend):
             self.messages.append(msg)
             self.startcache = {}
             self.redisplay(msg, msg)
-
-    def shutdown(self):
-        for t in [self.new_task] + self.backfillers:
-            t.cancel()
-            # this is kludgy, but make sure the task runs a tick to
-            # process its cancellation
-            asyncio.get_event_loop().run_until_complete(t)
-        super().shutdown()
 
     @property
     def principal(self):
@@ -255,8 +247,8 @@ class Roost(messages.SnipeBackend):
             if origin is None:
                 origin = filledpoint
 
-        self.backfillers = [t for t in self.backfillers if not t.done()]
-        self.backfillers.append(
+        self.reap_tasks()
+        self.tasks.append(
             asyncio.async(self.error_message(
                 'backfilling',
                 self.do_backfill, msgid, mfilter, target, count, origin)))

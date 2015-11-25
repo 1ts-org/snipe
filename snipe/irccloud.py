@@ -80,7 +80,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.reqid_counter = itertools.count()
 
         self.messages = []
-        self.task = asyncio.Task(self.connect())
+        self.tasks.append(asyncio.Task(self.connect()))
         self.connections = {}
         self.buffers = {}
         self.channels = {}
@@ -239,21 +239,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.startcache = {}
             self.redisplay(included[0], included[-1])
 
-    def shutdown(self):
-        for t in [self.task] + self.backfillers:
-            t.cancel()
-            # this is kludgy, but make sure the task runs a tick to
-            # process its cancellation
-            try:
-                asyncio.get_event_loop().run_until_complete(t)
-            except asyncio.CancelledError:
-                pass
-            except:
-                self.log.exception('while shutting down')
-        super().shutdown()
-        # this is also nigh-identical to a function in snipe.roost.Roost,
-        # so, factoring opportunity!
-
     @asyncio.coroutine
     def send(self, paramstr, body):
         params = paramstr.split()
@@ -322,10 +307,12 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             target = int(target * 1000000)
         live = [b for b in live if b['have_eid'] > target]
         self.backfillers = [t for t in self.backfillers if not t.done()]
+        self.reap_tasks()
         if not self.backfillers:
             for b in live:
-                self.backfillers.append(
-                    asyncio.async(self.backfill_buffer(b, target)))
+                t = asyncio.async(self.backfill_buffer(b, target))
+                self.backfillers.append(t)
+                self.tasks.append(t)
 
     @asyncio.coroutine
     def backfill_buffer(self, buf, target):
