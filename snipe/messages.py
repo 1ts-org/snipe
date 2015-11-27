@@ -34,7 +34,6 @@ Utilities and base classes for dealin with messages.
 '''
 
 
-import itertools
 import time
 import datetime
 import logging
@@ -491,28 +490,6 @@ class DateBackend(SnipeBackend):
             t += delta
 
         self.log.debug('leaving walk')
-
-
-class SyntheticBackend(SnipeBackend):
-    name = 'synthetic'
-
-    def __init__(self, *args, **kw):
-        super().__init__(conf)
-        self.count = conf.get('count', 1)
-        self.string = conf.get('string', '0123456789')
-        self.width = conf.get('width', 72)
-        self.name = '%s-%d-%s-%d' % (
-            self.name, self.count, self.string, self.width)
-        now = int(time.time())
-        self.messages = [
-            SnipeMessage(
-                self,
-                ''.join(itertools.islice(
-                    itertools.cycle(self.string),
-                    i,
-                    i + self.width)),
-                now - self.count + i)
-            for i in range(self.count)]
 
 
 def merge(iterables, key=lambda x: x):
