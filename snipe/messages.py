@@ -361,6 +361,24 @@ class SnipeBackend:
         else:
             return 0
 
+    @asyncio.coroutine
+    def send(self, recipient, body):
+        """Send a message"""
+        raise NotImplementedError('No such recipient')
+
+
+class SinkBackend(SnipeBackend):
+    name = 'sink'
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.messages = []
+
+    @asyncio.coroutine
+    def send(self, recipient, body):
+        self.messages.append(SnipeMessage(self, body))
+        self.drop_cache()
+
 
 class InfoMessage(SnipeMessage):
     def __str__(self):

@@ -109,6 +109,7 @@ class Context:
             backends = [
                 messages.StartupBackend(self),
                 messages.DateBackend(self),
+                messages.SinkBackend(self),
                 ] + self.startbackends(),)
 
         # This is called by conf_read, except we need to do it again because
