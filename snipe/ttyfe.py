@@ -259,7 +259,7 @@ class TTYRenderer:
             if l:
                 a, t = l[-1]
                 if  t == '\n':
-                    w = sum(TTYRenderer.glyphwidh(s) for (a, s) in l[:-1])
+                    w = sum(TTYRenderer.glyphwidth(s) for (a, s) in l[:-1])
                     if w < (self.width - 1):
                         l[-1] = (a, '…\n')
                     else:
