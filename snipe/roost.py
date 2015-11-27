@@ -112,7 +112,7 @@ class Roost(messages.SnipeBackend):
             self.log.exception(activity)
             msg = RoostErrorMessage(self, activity, e, traceback.format_exc())
             self.messages.append(msg)
-            self.startcache = {}
+            self.drop_cache()
             self.redisplay(msg, msg)
 
     @property
@@ -185,7 +185,7 @@ class Roost(messages.SnipeBackend):
         if self.messages and msg.time <= self.messages[-1].time:
             msg.time = self.messages[-1].time + .00001
         self.messages.append(msg)
-        self.startcache = {}
+        self.drop_cache()
         self.redisplay(msg, msg)
 
     @asyncio.coroutine
@@ -304,7 +304,7 @@ class Roost(messages.SnipeBackend):
                     prevmsg.time = nextmsg.time - .00001
             ms.reverse()
             self.messages = ms + self.messages
-            self.startcache = {}
+            self.drop_cache()
             self.log.warning(
                 '%d messages, total %d, earliest %s',
                  count, len(self.messages), util.timestr(self.messages[0].time))

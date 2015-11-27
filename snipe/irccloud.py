@@ -218,7 +218,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     def incoming(self, m):
         msg = yield from self.process_message(self.messages, m)
         if msg is not None:
-            self.startcache = {}
+            self.drop_cache()
             self.redisplay(msg, msg)
 
     @asyncio.coroutine
@@ -236,7 +236,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         if included:
             self.messages = list(messages.merge([self.messages, included]))
-            self.startcache = {}
+            self.drop_cache()
             self.redisplay(included[0], included[-1])
 
     @asyncio.coroutine
@@ -372,7 +372,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.messages = list(messages.merge([self.messages, included]))
                 self.log.debug(
                     'len(self.messages): %d -> %d', l, len(self.messages))
-                self.startcache = {}
+                self.drop_cache()
                 self.redisplay(included[0], included[-1])
 
         except asyncio.CancelledError:

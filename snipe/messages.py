@@ -226,8 +226,12 @@ class SnipeBackend:
         logname += '.%x' % (id(self),)
         self.log = logging.getLogger(logname)
         self.conf = conf
-        self.startcache = {}
+        self.drop_cache()
         self.tasks = []
+
+    def drop_cache(self):
+        self.startcache = {}
+        self.adjcache = {}
 
     def walk(self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
@@ -312,6 +316,7 @@ class SnipeBackend:
         ## self.log.debug(
         ##     'len(self.messages)=%d, point=%d', len(self.messages), point)
 
+        adjkey = None
         while self.messages:
             #self.log.debug(', point=%d', point)
             if not 0 <= point < len(self.messages):
@@ -322,7 +327,13 @@ class SnipeBackend:
                     self.startcache[cachekey] = point
                     needcache = False
                 yield m
-            point = getnext(point)
+                if adjkey is not None:
+                    self.adjcache[adjkey] = point
+                adjkey = (m, forward, mfilter)
+            point = self.adjcache.get(adjkey, getnext(point))
+
+        if adjkey is not None:
+            self.adjcache[adjkey] = point
 
         # specifically catch the situation where we're trying to go off the top
         if point < 0 and backfill_to is not None:

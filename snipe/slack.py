@@ -161,6 +161,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def incoming(self, m):
         msg = yield from self.process_message(self.messages, m)
         if msg is not None:
+            self.drop_cache()
             self.redisplay(msg, msg)
 
     def find_message(self, when, m):
@@ -354,7 +355,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 raise
         self.log.debug('%s: got %d messages', dest, len(messagelist))
         self.messages = list(messages.merge([self.messages, messagelist]))
-        self.startcache = {}
+        self.drop_cache()
         if messagelist:
             self.redisplay(messagelist[0], messagelist[-1])
 
@@ -422,6 +423,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.check(response, context, *args)
         except util.SnipeException as error:
             self.messages.append(messages.SnipeErrorMessage(self, str(error)))
+            self.drop_cache()
             return False
         return True
 
