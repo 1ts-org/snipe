@@ -71,8 +71,7 @@ class Context:
             'filter': {
                 'personal': 'personal',
                 'auto':
-                    'backend == "startup"'
-                    ' or (backend == "roost" and opcode = "auto")'
+                    '(backend == "roost" and opcode = "auto")'
                     ' or noise',
                 'error': 'error',
                 'default': 'yes',
@@ -85,7 +84,7 @@ class Context:
                     'background': 'red',
                     'foreground': 'white'}],
                 ['filter auto', {
-                    'background': 'grey24',
+                    'foreground': 'grey',
                     }],
                 ],
             }

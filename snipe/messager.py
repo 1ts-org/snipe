@@ -247,7 +247,7 @@ class Messager(window.Window, window.PagingMixIn):
             t += '%02d-%02d ' % (then.month, then.day)
         t += '%02d:%02d' % (then.hour, then.minute)
 
-        left = [(('bg:grey24',), t), ((), ' ' + str(self.filter))]
+        left = [(('dim',), t), ((), ' ' + str(self.filter))]
 
         return left, right
 

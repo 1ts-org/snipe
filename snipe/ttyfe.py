@@ -175,6 +175,7 @@ class TTYRenderer:
             'bold': curses.A_BOLD,
             'reverse': curses.A_REVERSE,
             'underline': curses.A_UNDERLINE,
+            'dim': curses.A_DIM,
             }
         attr = 0
         fg, bg = '', ''

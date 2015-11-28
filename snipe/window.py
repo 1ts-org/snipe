@@ -614,7 +614,7 @@ class ColorDemo(Window):
 
 
 class StatusLine(Window):
-    KEYTAGS = ('bg:grey24', 'bold')
+    KEYTAGS = ('bold',)
     CHEATSHEET_SPLITCOLS = 160
 
     show_cheatsheet = util.Configurable(
