@@ -353,7 +353,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         from .prompt import Composer
         message = yield from self.read_string(
-            'compose (^J to send, ^G to abort) --> ',
+            'compose (^C^C to send, ^G to abort) --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
             history='send',
@@ -433,7 +433,7 @@ class Messager(window.Window, window.PagingMixIn):
             s = '' if self.filter is None else str(self.filter)
 
             s = yield from self.read_string(
-                'Filter expression (^J when finished):\n',
+                'Filter expression (^C^C when finished):\n',
                 content=s,
                 height=5,
                 name='current filter',
@@ -450,7 +450,7 @@ class Messager(window.Window, window.PagingMixIn):
             name = name.strip()
             s = conf.get('filter', {}).get(name, '')
             s = yield from self.read_string(
-                'Filter expression %s (^J when finished):\n' % (name,),
+                'Filter expression %s (^C^C when finished):\n' % (name,),
                 content=s,
                 height=5,
                 name='filter ' + name

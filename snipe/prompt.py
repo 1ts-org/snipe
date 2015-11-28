@@ -49,7 +49,7 @@ class LongPrompt(editor.Editor):
         '*M-p*revious history',
         '*M-n*ext history',
         '*^G* aborts',
-        '*^J* finishes',
+        '*^C^C* finishes',
         ]
 
     def __init__(

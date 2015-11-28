@@ -435,7 +435,7 @@ class Window:
             s = ''
 
         s = yield from self.read_string(
-            'Filter expression (Control-J when finished):\n',
+            'Filter expression (^C^C when finished):\n',
             content=s,
             height=5,
             name='filter expression',

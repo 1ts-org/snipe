@@ -682,7 +682,7 @@ class SlackMessage(messages.SnipeMessage):
         self.backend.log.debug('window->cursor is %s', repr(window.cursor))
 
         text = yield from window.read_string(
-            'edit (destination ignored, ^J when finished, ^G aborts) -> ',
+            'edit (destination ignored, ^C^C when finished, ^G aborts) -> ',
             height=10,
             content=self.followup() + '\n' + self.body,
             history='send',
