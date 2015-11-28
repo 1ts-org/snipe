@@ -228,10 +228,11 @@ SUCH DAMAGE.
 SPLASH = '''
 Welcome to snipe.
 
-  snipe is a messaging client and editor written by Karl Ramm.
+  snipe is a messaging client (and editor) written by Karl Ramm.
 
   You can type ? for help at this screen, but on some screens you'll
-  need to press the escape key first.
+  need to press the escape key first.   If you're new here, there should
+  be a cheatsheet for commonly used keys at the top of the window.
 
   snipe is free/open source software.  Type ? L for relevant lawyerese.
 '''
