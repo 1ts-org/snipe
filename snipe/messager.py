@@ -351,12 +351,14 @@ class Messager(window.Window, window.PagingMixIn):
         if msg is not None:
             kw['modes'] = [prompt.ReplyMode(msg)]
 
+        from .prompt import Composer
         message = yield from self.read_string(
             'compose (^J to send, ^G to abort) --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
             history='send',
             fill=True,
+            window=Composer,
             **kw)
         if '\n' not in message:
             message += '\n'
