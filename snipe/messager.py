@@ -369,7 +369,12 @@ class Messager(window.Window, window.PagingMixIn):
         replymsg = self.cursor
         if replymsg.omega:
             try:
-                it = self.walk(self.cursor, False)
+                it = self.fe.context.backends.walk(
+                    self.cursor,
+                    False,
+                    filters.And(
+                        self.filter, filters.Not(filters.Truth('noise'))),
+                    )
                 next(it)
                 replymsg = next(it)
             except StopIteration:
