@@ -155,7 +155,7 @@ class LongPrompt(editor.Editor):
     def input(self):
         return self.buf[self.divider:]
 
-    @keymap.bind('Control-J', 'Control-C Control-C')
+    @keymap.bind('Control-C Control-C')
     def runcallback(self):
         """Complete whatever action this prompt is for."""
 
@@ -266,6 +266,7 @@ class ShortPrompt(LongPrompt):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.keymap['[carriage return]'] = self.runcallback
+        self.keymap['Control-J'] = self.runcallback
 
 
 class KeySeqPrompt(LongPrompt):
