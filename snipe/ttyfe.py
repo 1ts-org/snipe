@@ -493,6 +493,9 @@ key = dict(
     if k.startswith('KEY_'))
 
 
+class RedisplayInProgress(Exception): pass
+
+
 class TTYFrontend:
     def __init__(self):
         self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
@@ -504,6 +507,7 @@ class TTYFrontend:
             ))
         self.popstack = []
         self.full_redisplay = False
+        self.in_redisplay = False
 
     def __enter__(self):
         locale.setlocale(locale.LC_ALL, '')
@@ -571,6 +575,7 @@ class TTYFrontend:
         pass #XXX put a warning here or a debug log or something
 
     def doresize(self, signum, frame):
+        self.log.debug('doresize: in_redisplay=%s', self.in_redisplay)
         if os.getpid() != self.main_pid:
             return # sigh
         winsz = array.array('H', [0] * 4) # four unsigned shorts per tty_ioctl(4)
@@ -647,31 +652,42 @@ class TTYFrontend:
     def redisplay(self, hint=None):
         self.log.debug('windows = %s:%d', repr(self.windows), self.active)
 
-        # short circuit the redisplay if there's pending input.
-        readable, _, _ = select.select([0], [], [], 0)
-        if readable:
-            self.full_redisplay = True
-            return
+        if self.in_redisplay:
+            raise RedisplayInProgress
 
-        if self.full_redisplay:
-            hint = None
-            self.full_redisplay = False
+        while True:
+            try:
+                self.in_redisplay = True
+                # short circuit the redisplay if there's pending input.
+                readable, _, _ = select.select([0], [], [], 0)
+                if readable:
+                    self.full_redisplay = True
+                    return
 
-        if hint is None:
-            # only reset the color map if we're redrawing everything
-            self.color_assigner.reset()
+                if self.full_redisplay:
+                    hint = None
+                    self.full_redisplay = False
 
-        active = None
-        for i in range(len(self.windows) - 1, -1, -1):
-            w = self.windows[i]
-            if i == self.active:
-                active = w
-            if not hint or w.check_redisplay_hint(hint):
-                self.log.debug('calling redisplay on 0x%x', id(w))
-                w.redisplay()
-        if active is not None:
-            active.place_cursor()
-        curses.doupdate()
+                if hint is None:
+                    # only reset the color map if we're redrawing everything
+                    self.color_assigner.reset()
+
+                active = None
+                for i in range(len(self.windows) - 1, -1, -1):
+                    w = self.windows[i]
+                    if i == self.active:
+                        active = w
+                    if not hint or w.check_redisplay_hint(hint):
+                        self.log.debug('calling redisplay on 0x%x', id(w))
+                        w.redisplay()
+                if active is not None:
+                    active.place_cursor()
+                curses.doupdate()
+                break
+            except RedisplayInProgress:
+                pass
+            finally:
+                self.in_redisplay = False
 
     def notify(self):
         if self.notify_silent:
