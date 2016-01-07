@@ -89,13 +89,13 @@ class LongPrompt(editor.Editor):
         self.buf.unregister()
         super().destroy()
 
-    @keymap.bind('Meta-p')
+    @keymap.bind('Meta-p', 'Meta-Control-p')
     def previous_history(self):
         """Move back by one in the current history list."""
 
         self.move_history(-1)
 
-    @keymap.bind('Meta-n')
+    @keymap.bind('Meta-n', 'Meta-Control-n')
     def next_history(self):
         """Move forward by one in the current history list."""
 
@@ -217,6 +217,11 @@ class Composer(LongPrompt):
         return ind, history, divisions
 
     def move_history(self, offset):
+        if self.divider == len(self.buf):
+            with self.save_excursion():
+                self.cursor.point = self.divider
+                self.insert('\n')
+
         ind, history, divisions = self.setup_history()
         self.log.debug(
             'move_history %d, ind=%d divisions=%s\nhistory=%s\nstashes=%s',
@@ -247,6 +252,18 @@ class Composer(LongPrompt):
         self.cursor.point = start
         self.cursor.point += self.replace(end - start, new)
         self.histptrs[ind] = new_ptr
+
+    @keymap.bind('Meta-Control-p')
+    def previous_history_full(self):
+        """Move back by one in the current whole-message history list."""
+        super().move_history(-1)
+        self.histptrs = [self.histptr, self.histptr]
+
+    @keymap.bind('Meta-Control-n')
+    def next_history_full(self):
+        """Move forward by one in the current whole-message history list."""
+        super().move_history(1)
+        self.histptrs = [self.histptr, self.histptr]
 
     def destroy(self):
         ind, history, divisions = self.setup_history()
