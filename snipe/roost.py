@@ -342,6 +342,20 @@ class Roost(messages.SnipeBackend):
         else:
             return [(class_, instance, realm) for class_ in rest]
 
+    @asyncio.coroutine
+    def load_subs(self, filename):
+        if not os.path.exists(filename):
+            return
+        with open(filename) as fp:
+            lines = fp.read().split()
+        triplets = [line.split(',', 2) for line in lines]
+
+        for triplet in triplets:
+            if triplet[2].endswith('@' + self.realm) and triplet[2][0] in '@*':
+                triplet[2] = '*'
+
+        yield from self.r.subscribe(triplets)
+
     @staticmethod
     @util.listify
     def do_subunify(subs):
@@ -361,6 +375,15 @@ class Roost(messages.SnipeBackend):
                 subs = self.do_subunify(subs)
             self.log.debug('subbing to %s', repr(subs))
             yield from self.r.subscribe(subs)
+
+    @keymap.bind('R l')
+    def subscribe_file(self, window: interactive.window):
+        default = os.path.expanduser('~/.zephyr.subs')
+        if not os.path.exists(default):
+            default = None
+        filename = yield from window.read_filename(
+            'Load subscriptions from file: ', content=default)
+        yield from self.load_subs(filename)
 
     @keymap.bind('R u')
     def unsubscribe(self, window: interactive.window):
