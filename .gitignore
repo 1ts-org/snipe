@@ -10,3 +10,5 @@ cover/
 .coverage
 htmlcov/
 lib/
+
+venv/
