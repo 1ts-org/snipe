@@ -342,7 +342,11 @@ class Window:
         """
 
         result = yield from self.read_string(
-            prompt, complete=interactive.complete_filename, name=name)
+            prompt,
+            content=content,
+            complete=interactive.complete_filename,
+            name=name,
+            )
 
         return result
 
