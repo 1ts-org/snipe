@@ -48,6 +48,7 @@ import base64
 import logging
 import functools
 import concurrent.futures
+import socket
 
 import aiohttp
 import aiohttp.websocket
@@ -70,7 +71,10 @@ class Rooster(util.HTTP_JSONmixin):
         if self.url[-1] == '/':
             # strip _1_ trailing /
             self.url = self.url[:-1]
-        self.service = service + '@' + urllib.parse.urlparse(url).hostname
+        hostname = urllib.parse.urlparse(url).hostname
+        if hostname.lower() == 'localhost':
+            hostname = socket.getfqdn()
+        self.service = service + '@' + hostname
         self.principal = None
         self.ctx = None
         self.ccache = None
