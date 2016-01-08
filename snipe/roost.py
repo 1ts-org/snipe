@@ -296,7 +296,7 @@ class Roost(messages.SnipeBackend):
             # Make sure ordering is stable
             # XXX really assuming messages are millisecond unique si dumb
             anchor = []
-            if self.messages:
+            if self.messages and ms:
                 anchor = [(self.messages[0], ms[0])]
             for (nextmsg, prevmsg) in itertools.chain(anchor, zip(ms, ms[1:])):
                 # walking backwards through time
@@ -335,7 +335,7 @@ class Roost(messages.SnipeBackend):
             realm = '@' + realm
 
         if '-c' in flags or not rest:
-            class_ = flags['-c']
+            class_ = flags.get('-c', 'MESSAGE')
             recipients = rest
 
             return [(class_, instance, rec + realm) for rec in recipients]
