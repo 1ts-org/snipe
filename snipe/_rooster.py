@@ -59,7 +59,7 @@ from ._roost_python import krb5
 from ._roost_python import gss
 
 
-class RoosterException(Exception):
+class RoosterException(util.SnipeException):
     pass
 
 

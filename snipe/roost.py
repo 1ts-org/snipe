@@ -51,6 +51,7 @@ import getopt
 import traceback
 import codecs
 import subprocess
+import inspect
 
 from . import messages
 from . import _rooster
@@ -97,9 +98,69 @@ class Roost(messages.SnipeBackend):
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
-        self.new_task = asyncio.async(self.error_message(
-            'getting new messages', self.r.newmessages, self.new_message))
+        self.new_task = asyncio.async(self.new_messages())
         self.tasks.append(self.new_task)
+        self.connected = False
+
+    @asyncio.coroutine
+    def new_messages(self):
+        while True:
+            e = None
+            activity = 'getting new messages from %s' % self.url
+            try:
+                self.connected = True #XXX kinda racy?
+                yield from self.r.newmessages(self.new_message)
+            except asyncio.CancelledError:
+                return
+            except Exception as exc:
+                e = exc
+                self.log.exception(activity)
+                tb = traceback.format_exc()
+            finally:
+                self.connected = False
+
+            if e is None:
+                pass
+            elif str(e) == 'User does not exist':
+                yield from self.new_registration()
+            else:
+                body = '%s: %s' % (activity, str(e))
+                if not isinstance(e, util.SnipeException):
+                    body += '\n' + tb
+                self.add_message(messages.SnipeErrorMessage(self, body, tb))
+                yield from asyncio.sleep(30) # reconnect, also backfill
+
+    @asyncio.coroutine
+    def new_registration(self):
+        msg = inspect.cleandoc("""
+        You don't seem to be registered with the roost server.  Select this
+        message and hit Y to begin the registration process.  You'll be asked to
+        confirm again with a message somewhat alarmist than necessary because
+        I couldn't resist the reference to the Matrix.
+        """)
+        f = asyncio.Future()
+        self.add_message(RoostRegistrationMessage(self, msg, f))
+        yield from f
+
+        f = asyncio.Future()
+        msg = inspect.cleandoc("""
+        This is your last chance.  After this, there is no turning back.  The
+        roost server will be receiving your messages and storing them forever.
+        Press Y here if you're okay that the people who run the server might
+        accidentally see some of your messages.
+        """)
+        self.add_message(RoostRegistrationMessage(self, msg, f))
+        yield from f
+        try:
+            yield from self.r.auth(create_user=True)
+            self.add_message(messages.SnipeMessage(self, 'Registered.'))
+            self.load_subs(os.path.expanduser('~/.zephyr.subs'))
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            self.log.exception('registering')
+            self.add_message(messages.SnipeErrorMessage(
+                self, str(e), traceback.format_exc()))
 
     @asyncio.coroutine
     def error_message(self, activity, func, *args):
@@ -110,10 +171,11 @@ class Roost(messages.SnipeBackend):
             pass
         except Exception as e:
             self.log.exception(activity)
-            msg = RoostErrorMessage(self, activity, e, traceback.format_exc())
-            self.messages.append(msg)
-            self.drop_cache()
-            self.redisplay(msg, msg)
+            body = '%s: %s' % (activity, str(e))
+            tb = traceback.format_exc()
+            if not isinstance(e, util.SnipeException):
+                body += '\n' + tb
+            self.add_message(messages.SnipeErrorMessage(self, body, tb))
 
     @property
     def principal(self):
@@ -182,6 +244,9 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def new_message(self, m):
         msg = yield from self.construct_and_maybe_decrypt(m)
+        self.add_message(msg)
+
+    def add_message(self, msg):
         if self.messages and msg.time <= self.messages[-1].time:
             msg.time = self.messages[-1].time + .00001
         self.messages.append(msg)
@@ -227,7 +292,7 @@ class Roost(messages.SnipeBackend):
             util.timestr(target), count, util.timestr(origin))
 
         # if we're not gettting new messages, don't try to get old ones
-        if self.loaded or self.new_task.done() or target is None:
+        if not self.connected or self.loaded or target is None:
             return
 
         filledpoint = self.messages[0].time if self.messages else time.time()
@@ -582,14 +647,6 @@ class RoostMessage(messages.SnipeMessage):
         return super().filter(specificity)
 
 
-class RoostErrorMessage(messages.SnipeErrorMessage):
-    def __init__(self, backend, activity, exception, tracebackstr):
-        body = '%s: %s' % (activity, str(exception))
-        if not isinstance(exception, _rooster.RoosterException):
-            body += '\n' + tracebackstr
-        super().__init__(backend, body)
-
-
 class RoostPrincipal(messages.SnipeAddress):
     def __init__(self, backend, principal):
         self.principal = principal
@@ -614,3 +671,14 @@ class RoostTriplet(messages.SnipeAddress):
         self.instance = instance
         self.recipient = recipient
         super().__init__(backend, [class_, instance, recipient])
+
+
+class SnipeRegistrationMessage(messages.SnipeMessage):
+    def __init__(self, backend, text, future):
+        super().__init__(backend, text)
+        self.future = future
+
+    @keymap.bind('Y')
+    def forward_the_future(self):
+        if not self.future.done():
+            self.future.set_result(None)

@@ -306,6 +306,14 @@ def timestr(t):
     return '[impossible]'
 
 
+class JSONDecodeError(SnipeException):
+    def __init__(self, data):
+        self.data = data
+
+    def __str__(self):
+        return str(self.data)
+
+
 class HTTP_JSONmixin:
     # object must have a .log attribute
     @asyncio.coroutine
@@ -347,9 +355,9 @@ class HTTP_JSONmixin:
         result = result.decode('utf-8')
         try:
             result = json.loads(result)
-        except ValueError:
+        except ValueError as e:
             self.log.error('json parse failure on %s', repr(result))
-            raise
+            raise JSONDecodeError(result) from e
         return result
 
 

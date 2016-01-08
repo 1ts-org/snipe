@@ -193,9 +193,11 @@ class SnipeMessage:
 
 
 class SnipeErrorMessage(SnipeMessage):
-    def __init__(self, backend, body):
+    def __init__(self, backend, body, tb=None):
         super().__init__(backend, body)
         self.error = True
+        if tb is not None:
+            self.data['traceback'] = tb
 
     def filter(self, specificity=0):
         nfilter = filters.And(
