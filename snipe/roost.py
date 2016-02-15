@@ -105,11 +105,27 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def new_messages(self):
         while True:
+            for m in reversed(self.messages):
+                start = m.data.get('id')
+                if start is not None:
+                    break
+            else:
+                start = None
+
             e = None
             activity = 'getting new messages from %s' % self.url
             try:
                 self.connected = True #XXX kinda racy?
-                yield from self.r.newmessages(self.new_message)
+                self.log.debug(activity)
+                yield from self.r.newmessages(self.new_message, start)
+            except _rooster.RoosterReconnectException as e:
+                msg = '%s: %s' % (self.name, str(e))
+                self.log.exception(msg)
+                self.context.message(msg)
+                if e.wait:
+                    self.log.debug('waiting: %d', e.wait)
+                    yield from asyncio.sleep(e.wait)
+                continue
             except asyncio.CancelledError:
                 return
             except Exception as exc:
@@ -128,7 +144,7 @@ class Roost(messages.SnipeBackend):
                 if not isinstance(e, util.SnipeException):
                     body += '\n' + tb
                 self.add_message(messages.SnipeErrorMessage(self, body, tb))
-                yield from asyncio.sleep(30) # reconnect, also backfill
+                return
 
     @asyncio.coroutine
     def new_registration(self):
@@ -462,6 +478,24 @@ class Roost(messages.SnipeBackend):
                 subs = self.do_subunify(subs)
             self.log.debug('unsubbing from %s', repr(subs))
             yield from self.r.unsubscribe(subs)
+
+    @keymap.bind('R R')
+    def reconnect(self):
+        if self.new_task is not None and not self.new_task.done():
+            self.disconnect()
+        self.new_task = asyncio.async(self.new_messages())
+        self.tasks.append(self.new_task)
+
+    @keymap.bind('R D')
+    def disconnect(self):
+        self.new_task.cancel()
+        try:
+            yield from self.new_task
+        except:
+            self.log.exception('cancelling new_task')
+        with contextlib.suppress(ValueError):
+            self.tasks.remove(self.new_task)
+        self.new_task = None
 
 
 class RoostMessage(messages.SnipeMessage):

@@ -63,6 +63,15 @@ class RoosterException(util.SnipeException):
     pass
 
 
+class RoosterReconnectException(RoosterException):
+    def __init__(self, string, wait=0):
+        self.string = string
+        self.wait = wait
+
+    def __str__(self):
+        return self.string
+
+
 class Rooster(util.HTTP_JSONmixin):
     def __init__(self, url, service):
         self.token = None
@@ -222,77 +231,82 @@ class Rooster(util.HTTP_JSONmixin):
             ))
 
     @asyncio.coroutine
-    def _pinger(self, ws, pingfrequency):
-        while True:
-            yield from asyncio.sleep(pingfrequency)
-            self.log.debug('ping')
-            ws.write({
-                'type': 'ping',
-                })
-
-    @asyncio.coroutine
-    def newmessages(self, coro, pingfrequency=30):
+    def newmessages(self, coro, startid=None, pingfrequency=5):
         # will coincidentally ensure_auth
-        ms = yield from self.messages(None, 1, reverse=1, inclusive=0)
-        if ms['messages']:
-            startid = ms['messages'][0]['id']
-        else:
-            startid = None
+        if startid is None:
+            ms = yield from self.messages(None, 1, reverse=1, inclusive=0)
+            if ms['messages']:
+                startid = ms['messages'][0]['id']
+            else:
+                startid = None
 
         self.log.debug('startid=%s', startid)
 
-        pingtask = None
-
-        try:
-            with util.JSONWebSocket(self.log) as ws:
+        with util.JSONWebSocket(self.log) as ws:
+            try:
                 yield from ws.connect(self.url + '/v1/socket/websocket')
-                ws.write({
-                    'type': 'auth',
-                    'token': self.token,
-                    })
+            except aiohttp.errors.ClientOSError as e:
+                self.log.debug('error connecting')
+                raise RoosterReconnectException(str(e), wait=5) from e
+            ws.write({
+                'type': 'auth',
+                'token': self.token,
+                })
 
-                state = 'start'
-                msgcount = 1
-                tailid = self.tailid
-                self.tailid += 1
+            state = 'start'
+            msgcount = 1
+            tailid = self.tailid
+            self.tailid += 1
 
-                while True:
-                    m = yield from ws.read()
-                    assert 'type' in m
-                    if state == 'start':
-                        assert m['type'] == 'ready'
-                        self.log.debug('authed, starting tail %d', tailid)
+            self.log.debug('starting new message loop')
+            while True:
+                try:
+                    m = yield from asyncio.wait_for(ws.read(), pingfrequency)
+                except asyncio.TimeoutError as e:
+                    if state == 'pong':
+                        self.log.debug('ping')
                         ws.write({
-                            'type': 'new-tail',
-                            'id': tailid,
-                            'start': startid,
-                            'inclusive': False,
+                            'type': 'ping',
                             })
+                        state = 'ping'
+                        continue
+                    else:
+                        raise RoosterReconnectException('ping timeout') from e
+                except aiohttp.errors.ServerDisconnectedError as e:
+                    raise RoosterReconnectException('server disconnected') from e
+                except Exception:
+                    raise
+
+                if state == 'start':
+                    assert m['type'] == 'ready'
+                    self.log.debug('authed, starting tail %d', tailid)
+                    ws.write({
+                        'type': 'new-tail',
+                        'id': tailid,
+                        'start': startid,
+                        'inclusive': False,
+                        })
+                    ws.write({
+                        'type': 'extend-tail',
+                        'id': tailid,
+                        'count': msgcount,
+                        })
+                    state = 'pong'
+                elif state in ('ping', 'pong'):
+                    if m['type'] == 'pong':
+                        self.log.debug('pong')
+                        state = 'pong'
+                    elif m['type'] == 'messages':
+                        msgcount += 1
                         ws.write({
                             'type': 'extend-tail',
                             'id': tailid,
                             'count': msgcount,
                             })
-                        state = 'go'
-                        pingtask = asyncio.Task(
-                            self._pinger(ws, pingfrequency))
-                    elif state == 'go':
-                        if m['type'] == 'pong':
-                            self.log.debug('pong')
-                        elif m['type'] == 'messages':
-                            msgcount += 1
-                            ws.write({
-                                'type': 'extend-tail',
-                                'id': tailid,
-                                'count': msgcount,
-                                })
-                            for msg in m['messages']:
-                                yield from coro(msg)
-                        else:
-                            self.log.debug('unknown message type: %s', repr(m))
-        finally:
-            if pingtask is not None:
-                pingtask.cancel()
+                        for msg in m['messages']:
+                            yield from coro(msg)
+                    else:
+                        self.log.debug('unknown message type: %s', repr(m))
 
     @asyncio.coroutine
     def http(self, url, data=None, params=None):
