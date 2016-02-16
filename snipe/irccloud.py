@@ -56,6 +56,7 @@ from . import interactive
 from . import filters
 
 IRCCLOUD = 'https://www.irccloud.com'
+IRCCLOUD_API = 'https://api.irccloud.com'
 
 
 class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
@@ -153,9 +154,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('connecting to websocket')
         self.websocket = util.JSONWebSocket(self.log)
         yield from self.websocket.connect(
-            IRCCLOUD,
+            IRCCLOUD_API,
             {
-                'Origin': IRCCLOUD,
+                'Origin': IRCCLOUD_API,
                 'Cookie': 'session=%s' % (self.session,),
             },
             )
@@ -225,7 +226,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     def include(self, url):
         oob_data = yield from self.http_json(
             'GET',
-            urllib.parse.urljoin(IRCCLOUD, url),
+            urllib.parse.urljoin(IRCCLOUD_API, url),
             headers={'Cookie': 'session=%s' % self.session},
             compress='gzip',
             )
@@ -326,7 +327,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             oob_data = yield from self.http_json(
                 'GET',
                 urllib.parse.urljoin(
-                    IRCCLOUD,
+                    IRCCLOUD_API,
                     '/chat/backlog?' + urllib.parse.urlencode([
                         ('cid', buf['cid']),
                         ('bid', buf['bid']),
