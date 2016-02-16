@@ -82,8 +82,12 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
         'file_shared', 'file_created', 'accounts_changed', 'im_marked',
         'group_marked', 'im_open', 'im_close', 'team_icon_changed',
-        'team_pref_change',
+        'team_pref_change', 'im_history_changed', 'reconnect_url',
         )
+    IGNORED_TYPE_PREFIXES = (
+        'file_', 'pin_', 'star_',
+        )
+        # XXX should really do updates & redisplays pin_ messages
 
     def __init__(self, context, slackname=None, **kw):
         super().__init__(context, **kw)
@@ -193,10 +197,14 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             # because they don't include the actual message for some reason
 
         t = m['type'].lower()
+        for prefix in self.IGNORED_TYPE_PREFIXES:
+            if t.startswith(prefix):
+                return
         if t in self.IGNORED_TYPES:
             return
         elif t == 'emoji_changed':
             yield from self.emoji_update()
+            return
         elif t == 'message' and m.get('subtype') == 'message_changed':
             msg = self.find_message(float(m['message']['ts']), m)
             if msg is None:
@@ -204,6 +212,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             data = dict(m['message'])
             data['_old'] = msg.data
             data['_new'] = m
+            msg.data['channel'] = m.get('channel')
             msg.data = data
             return msg
         elif t in ('reaction_removed', 'reaction_added'):
