@@ -272,8 +272,8 @@ class Rooster(util.HTTP_JSONmixin):
                         continue
                     else:
                         raise RoosterReconnectException('ping timeout') from e
-                except aiohttp.errors.ServerDisconnectedError as e:
-                    raise RoosterReconnectException('server disconnected') from e
+                except aiohttp.errors.DisconnectedError as e:
+                    raise RoosterReconnectException('disconnected') from e
                 except Exception:
                     raise
 
