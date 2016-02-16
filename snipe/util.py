@@ -382,6 +382,7 @@ class JSONWebSocket:
             headers = {}
         headers['User-Agent'] = USER_AGENT
         self.url = url
+        self.log.debug('connecting to %s %s', url, headers)
         self.reader, self.writer, self.resp = yield from _websocket.websocket(
             url, headers)
 
