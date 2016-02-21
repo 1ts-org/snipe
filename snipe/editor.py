@@ -733,7 +733,8 @@ class Editor(Viewer):
         specified."""
 
         if count < 0:
-            moved = self.move(count)
+            moved = self.move(count, True)
+            self.log.debug('deleting moved by %d', moved)
             count = -moved
         self.delete(count)
 
