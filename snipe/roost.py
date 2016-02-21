@@ -581,7 +581,10 @@ class RoostMessage(messages.SnipeMessage):
                 ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
 
         body = self.body
-        body = '\n'.join(self.backend.indent + line for line in body.split('\n'))
+        if body[-1] != '\n':
+            body = body + '\n'
+        body = '\n'.join(
+            [self.backend.indent + line for line in body.split('\n')][:-1])
         if body:
             if not body.endswith('\n'):
                 body += '\n'
