@@ -344,33 +344,47 @@ class LeapPrompt(ShortPrompt):
         yield from v[:-1]
         self.log.debug('after first yield')
         mark, chunks = v[-1]
-        sofar = self.input()
-        if sofar:
-            chunks = chunks + [((), ' {' + ','.join(self.tails()) + '}')]
+        m = [x[1] for x in self.matches()]
+        if m:
+            chunks = chunks + [
+                ((), ' {'),
+                (('bold',), m[0]),
+                ((), (
+                    ('|' if len(m) > 1 else '') +
+                    '|'.join(m[1:]) +
+                    '}'))]
         self.log.debug('now %s', repr(chunks))
         yield mark, chunks
 
     @keymap.bind('Control-S')
     def roll_forward(self):
-        self.candidates = self.candidates[1:] + self.candidates[:1]
+        m = self.matches()
+        if len(m) < 2:
+            return
+        p = m[1][0]
+        self.candidates = self.candidates[p:] + self.candidates[:p]
 
     @keymap.bind('Control-R')
     def roll_backward(self):
-        self.candidates = self.candidates[-1:] + self.candidates[:-1]
+        m = self.matches()
+        if len(m) < 2:
+            return
+        p = m[-1][0]
+        self.candidates = self.candidates[p:] + self.candidates[:p]
 
-    def tails(self):
+    def matches(self):
         sofar = self.input()
-        return (
-            c[len(sofar):]
-            for c in self.candidates
-            if c.startswith(sofar))
+        return [
+            (n, c)
+            for n, c in enumerate(self.candidates)
+            if not sofar or sofar in c]
 
     def complete_and_finish(self):
         """Append the tail of the first candidate and complete whatever action
         this prompt is for"""
         self.log.debug('complete_and_finish()')
-        tails = list(self.tails())
-        if tails:
-            self.end_of_buffer()
-            self.insert(tails[0])
-        self.runcallback()
+        matches = self.matches()
+        if matches:
+            self.callback(matches[0][1])
+        else:
+            self.runcallback()
