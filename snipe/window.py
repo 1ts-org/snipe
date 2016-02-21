@@ -228,7 +228,6 @@ class Window:
         """
 
         ret = hint.get('window', None) is self
-        self.log.debug('redisplay hint %s -> %s', repr(hint), repr(ret))
         return ret
 
     def redisplay_hint(self):

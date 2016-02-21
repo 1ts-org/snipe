@@ -199,7 +199,6 @@ class Viewer(window.Window, window.PagingMixIn):
         return point
 
     def check_redisplay_hint(self, hint):
-        self.log.debug('checking hint %s', repr(hint))
         if super().check_redisplay_hint(hint):
             return True
         if hint.get('buffer', None) is self.buf:
@@ -209,7 +208,6 @@ class Viewer(window.Window, window.PagingMixIn):
     def redisplay_hint(self):
         hint = super().redisplay_hint()
         hint['buffer'] = self.buf
-        self.log.debug('returning hint %s', repr(hint))
         return hint
 
     def insert(self, s, collapsible=False):
