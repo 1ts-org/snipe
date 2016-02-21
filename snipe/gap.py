@@ -143,6 +143,8 @@ class GapBuffer:
 
     def replace(self, where, size, string, collapsible=None):
         assert size >= 0
+        assert int(where) <= self.size
+        size = min(size, self.size - int(where))
         if hasattr(where, 'pos'):
             where = where.pos
         else:

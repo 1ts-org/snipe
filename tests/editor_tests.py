@@ -248,6 +248,14 @@ class TestEditor(unittest.TestCase):
         e.cursor.point = 0
         self.assertNotEqual(e.extract_current_line(), shouldchange)
 
+    def test_delete_char_at_end_of_buffer(self):
+        e = snipe.editor.Editor(None)
+        e.insert('x')
+        self.assertEqual(e.cursor.point, 1)
+        e.delete_forward()
+        self.assertEqual(e.cursor.point, 1)
+        self.assertEqual(len(e.buf), 1)
+
 
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
