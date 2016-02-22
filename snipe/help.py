@@ -328,7 +328,7 @@ class Renderer:
         self.tagstack = []
         self.offset = 0
         self.state_space = True
-        self.targets = []
+        self.targets = {}
         self.links = []
         self.section_level = 0
 
@@ -403,7 +403,7 @@ class Renderer:
         self.log.debug('entering: %s', repr(node))
 
         if isinstance(node, docutils.nodes.title):
-            self.targets.append((self.offset, ''.join(node.astext().split())))
+            self.targets[''.join(node.astext().split())] = self.offset
 
         if not isinstance(node, docutils.nodes.Inline) and \
           not isinstance(node, docutils.nodes.line) and \
