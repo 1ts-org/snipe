@@ -44,6 +44,102 @@ import ply.yacc
 from . import util
 
 
+HELP = """80
+=================
+Filter Language
+=================
+
+Syntax
+-------
+Tokens
++++++++
+::
+
+  != < <= > >= ( ) and or xor not
+
+Operators and grouping that do what you expect.
+
+::
+
+  = ==
+
+The ``=`` comparison runs context-appropriiate canonicalization
+functions on its operands, the ``==`` is a literal comparison.
+
+Integer literals, e.g. ``17``.
+
+String literals between double quotes. e.g. ``"foo"``.
+
+Regexp literals, between forward slashes, e.g. ``/^bar$/``.  For
+the moment, always cases sensitive (but what you're comparing to
+may have been put in a canoical case if you use ``=``.
+
+Identifier are bare words that match ``/[a-zA-Z_][a-zA-Z_0-9]*/``.
+These usually refer to message fields but can refer to named filtes.
+
+The keyword ``filter`` (which introduces a reference to a named filter),
+the keywords ``yes``, and ``no``, which represent unconditional success
+or failure.
+
+::
+
+  $'python code'  $"python code"
+
+What it says on the tin.  Called with a message object in the variable
+``m``.
+
+Grammar
+++++++++
+
+| filter     -> expression / [empty]
+| expression -> ``yes`` / ``no`` / ``$"python code"`` / ``filter`` ID
+|               / ``(`` expression ``)``
+|               / ``not`` expression
+|               / expression ``and`` expression
+|               / expression ``or`` expression
+|               / expression ``xor`` expression
+|               / value operator value
+|               / value operator ``/regexp/``
+|               / ``/regexp/`` operator value
+|               / identifier
+| value      -> number / ``"string"`` / identifier
+| operator   -> ``=`` / ``==`` / ``!=`` / ``<`` / ``<=`` / ``>`` / ``>=``
+
+Standard Fields
+----------------
+
+Booleans
+++++++++
+
+Have a truth value themselves, and aren't for comparisons e.g. ``personal and not noise``.
+
+``personal``
+  True if the message was directed at you.
+
+``outgoing``
+  If you sent the message.
+
+``noise``
+  If the backend things the message is administrivia.
+
+``omega``
+  Is the * at bottom of the messages list.
+
+``error``
+  Is an error message.
+
+Fields
++++++++
+
+``sender``
+  The sending entity.
+
+``body``
+  The message body.
+
+"""
+
+
 class SnipeFilterError(util.SnipeException):
     pass
 
