@@ -37,6 +37,8 @@ Editor subclasses for interacting withe user.
 '''
 
 
+import contextlib
+
 from . import editor
 from . import keymap
 from . import interactive
@@ -335,7 +337,36 @@ class LeapPrompt(ShortPrompt):
     def __init__(self, *args, candidates=[], **kw):
         super().__init__(*args, **kw)
         self.candidates = list(candidates)
+        self.state = 'normal'
+        if kw.get('content'):
+            with contextlib.suppress(ValueError):
+                i = self.candidates.index(kw['content'])
+                self.candidates = self.candidates[i:] + self.candidates[:i]
+            self.state = 'preload'
         self.keymap['[carriage return]'] = self.complete_and_finish
+
+    def before_command(self):
+        self.log.debug('before_command: %s %s', self.state, self.this_command)
+        if self.state == 'preload':
+            if self.this_command != 'complete_and_finish':
+                if ('insert' in self.this_command
+                    or self.this_command in ('roll_forward', 'roll_backward')):
+                    self.clear_input()
+
+    def after_command(self):
+        self.state = 'normal'
+
+    def clear_input(self):
+        self.cursor.point = self.divider
+        self.delete_forward(len(self.buf) - self.divider)
+
+    @keymap.bind('Control-H', 'Control-?', '[backspace]')
+    def delete_backward(self, count: interactive.integer_argument=1):
+        self.log.debug('custom delete_backward: %s', self.state)
+        if self.state == 'preload':
+            self.clear_input()
+        else:
+            super().delete_backward(count)
 
     def view(self, *args, **kw):
         v = list(super().view(*args, **kw))
@@ -374,6 +405,8 @@ class LeapPrompt(ShortPrompt):
 
     def matches(self):
         sofar = self.input()
+        if self.state == 'preload':
+            return list(enumerate(self.candidates))
         return [
             (n, c)
             for n, c in enumerate(self.candidates)

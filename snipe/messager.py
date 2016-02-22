@@ -553,8 +553,10 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_sender(self):
         """Push a filter to a sender."""
 
-        sender = yield from self.read_string(
+        sender = yield from self.read_oneof(
             'Sender: ',
+            self.context.backends.senders(),
+            height=2,
             content=self.replymsg().field('sender'),
             name='sender',
             )
@@ -769,5 +771,5 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('L')
     def list_destinations(self):
         self.show(
-            '\n'.join(d.reply() for d in self.context.backends.destinations()))
+            '\n'.join(self.context.backends.destinations()))
 

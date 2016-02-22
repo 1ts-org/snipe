@@ -182,6 +182,7 @@ class Window:
                 arg, self.universal_argument = self.universal_argument, None
                 self.this_command = getattr(v, '__name__', '?')
                 try:
+                    self.before_command()
                     ret = self.keymap_action(
                         v,
                         context = self.context,
@@ -258,6 +259,10 @@ class Window:
         Each chunk may be assumed to end a line.
         """
         yield 0, [(('visible',), '')]
+
+    def before_command(self):
+        """Executed before an interactive command."""
+        pass
 
     def after_command(self):
         """Executed after an interactive command."""
@@ -506,7 +511,7 @@ class Window:
             self.show(pprint.pformat(self.context.conf))
 
     @asyncio.coroutine
-    def read_oneof(self, prompt, these, height=1, name='Prompt'):
+    def read_oneof(self, prompt, these, content=None, height=1, name='Prompt'):
         from .prompt import LeapPrompt
 
         return (yield from self.read_string(
@@ -514,6 +519,7 @@ class Window:
             window=LeapPrompt,
             height=height,
             candidates=these,
+            content=content,
             complete=interactive.completer(these),
             name=name,
             ))
