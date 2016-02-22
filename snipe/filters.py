@@ -63,7 +63,7 @@ Operators and grouping that do what you expect.
 
   = ==
 
-The ``=`` comparison runs context-appropriiate canonicalization
+The ``=`` comparison runs context-appropriate canonicalization
 functions on its operands, the ``==`` is a literal comparison.
 
 Integer literals, e.g. ``17``.
@@ -72,10 +72,10 @@ String literals between double quotes. e.g. ``"foo"``.
 
 Regexp literals, between forward slashes, e.g. ``/^bar$/``.  For
 the moment, always cases sensitive (but what you're comparing to
-may have been put in a canoical case if you use ``=``.
+may have been put in a canonical case if you use ``=``.
 
 Identifier are bare words that match ``/[a-zA-Z_][a-zA-Z_0-9]*/``.
-These usually refer to message fields but can refer to named filtes.
+These usually refer to message fields but can refer to named filters.
 
 The keyword ``filter`` (which introduces a reference to a named filter),
 the keywords ``yes``, and ``no``, which represent unconditional success
@@ -92,18 +92,17 @@ Grammar
 ++++++++
 
 | filter     -> expression / [empty]
-| expression -> ``yes`` / ``no`` / ``$"python code"`` / ``filter`` ID
+| relop      -> ``=`` / ``==`` / ``!=`` / ``<`` / ``<=`` / ``>`` / ``>=``
+| value      -> number / ``"string"`` / identifier
+| expression -> ``yes`` / ``no`` / ``$"python code"`` / ``filter`` identifier
 |               / ``(`` expression ``)``
 |               / ``not`` expression
 |               / expression ``and`` expression
 |               / expression ``or`` expression
 |               / expression ``xor`` expression
-|               / value operator value
-|               / value operator ``/regexp/``
-|               / ``/regexp/`` operator value
+|               / value relop value
+|               / value relop ``/regexp/`` / ``/regexp/`` relop value
 |               / identifier
-| value      -> number / ``"string"`` / identifier
-| operator   -> ``=`` / ``==`` / ``!=`` / ``<`` / ``<=`` / ``>`` / ``>=``
 
 Standard Fields
 ----------------
