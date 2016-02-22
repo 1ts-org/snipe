@@ -259,6 +259,9 @@ class Python(Filter):
         super(Python, self).__init__()
         self.string = string
 
+    def __str__(self):
+        return '$' + repr(self.string)
+
     def __repr__(self):
         return '%s(%s)' % (
             self.__class__.__name__,

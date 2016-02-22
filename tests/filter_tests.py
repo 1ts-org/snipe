@@ -180,6 +180,21 @@ class TestFilters(unittest.TestCase):
 
         self.assertFalse(makefilter('filter foo')(MockMsg()))
 
+    def test_parser_python(self):
+        snipe.filters.parser = Parser(debug = True)
+        self.assertEqual(
+            str(makefilter("$'True'")),
+            "$'True'")
+        self.assertEqual(
+            str(makefilter('$"True"')),
+            "$'True'")
+        self.assertEqual(
+            str(makefilter('$"True"')),
+            "$'True'")
+        self.assertEqual(
+            str(makefilter('$"True or \'flase\'"')),
+            "$\"True or 'flase'\"")
+
 class MockMsg:
     def __init__(self, **kw):
         self.dict = kw
