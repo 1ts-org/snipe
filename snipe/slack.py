@@ -161,6 +161,18 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         except:
             self.log.exception('connecting to slack')
 
+    def destinations(self):
+        return set(
+            self.name + '; ' + str(x)
+            for x in self.dests.values()
+            if x.type != 'im')
+
+    def senders(self):
+        return set(
+            self.name + '; ' + str(x)
+            for x in self.dests.values()
+            if x.type in ('user', 'bot'))
+
     @asyncio.coroutine
     def incoming(self, m):
         msg = yield from self.process_message(self.messages, m)
@@ -481,10 +493,10 @@ class SlackAddress(messages.SnipeAddress):
         super().__init__(backend, l)
 
     def __str__(self):
-        return str(self.backend.dests.get(self.id, self.id))
+        return self.backend.name + '; ' + self.short()
 
-    def reply(self):
-        return self.backend.name + '; ' + str(self)
+    def short(self):
+        return str(self.backend.dests.get(self.id, self.id))
 
 
 class SlackMessage(messages.SnipeMessage):
@@ -661,6 +673,8 @@ class SlackMessage(messages.SnipeMessage):
     def followup(self):
         if self.channel is None:
             return self.reply()
+        if self.personal and self.channel[:1] == '@':
+            return self.backend.name + '; ' + self.channel[1:]
         return self.backend.name + '; ' + self.channel
 
     def filter(self, specificity=0):

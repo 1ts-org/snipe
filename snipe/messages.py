@@ -230,6 +230,8 @@ class SnipeBackend:
         self.conf = conf
         self.drop_cache()
         self.tasks = []
+        self._destinations = set()
+        self._senders = set()
 
     def drop_cache(self):
         self.startcache = {}
@@ -379,7 +381,10 @@ class SnipeBackend:
         raise NotImplementedError('No such recipient')
 
     def destinations(self):
-        return set()
+        return self._destinations
+
+    def senders(self):
+        return self._senders
 
 
 class SinkBackend(SnipeBackend):
@@ -602,3 +607,7 @@ class AggregatorBackend(SnipeBackend):
     def destinations(self):
         return set().union(
             *(backend.destinations() for backend in self.backends))
+
+    def senders(self):
+        return set().union(
+            *(backend.senders() for backend in self.backends))

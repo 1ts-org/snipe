@@ -213,6 +213,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             msglist.append(msg)
             if len(msglist) > 1 and msglist[-1] < msglist[-2]:
                 msglist.sort()
+            # really this should come from the current channel membership
+            self._destinations.add(msg.reply())
+            self._destinations.add(msg.followup())
+            self._senders.add(msg.reply())
             return msg
 
     @asyncio.coroutine
@@ -629,14 +633,10 @@ class IRCCloudUser(messages.SnipeAddress):
         super().__init__(backend, [server, host, user, nick])
 
     def __str__(self):
-        return '%s; %s %s!%s@%s' % (
-            self.backend.name, self.server, self.nick, self.user, self.host)
+        return '%s; %s %s' % (self.backend.name, self.server, self.nick)
 
     def short(self):
         return str(self.nick)
-
-    def reply(self):
-        return '%s; %s %s' % (self.backend.name, self.server, self.nick)
 
 
 class IRCCloudNonAddress(messages.SnipeAddress):

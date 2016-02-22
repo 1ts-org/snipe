@@ -101,6 +101,7 @@ class Roost(messages.SnipeBackend):
         self.new_task = asyncio.async(self.new_messages())
         self.tasks.append(self.new_task)
         self.connected = False
+        self._destinations = set()
 
     @asyncio.coroutine
     def new_messages(self):
@@ -300,6 +301,10 @@ class Roost(messages.SnipeBackend):
                     msg.transform('zcrypt', stdout)
         except:
             self.log.exception('zcrypt, decrypting')
+
+        self._destinations.add(msg.followup())
+        self._destinations.add(msg.reply())
+        self._senders.add(msg.reply())
         return msg
 
     def backfill(self, mfilter, target=None, count=0, origin=None):
@@ -563,7 +568,7 @@ class RoostMessage(messages.SnipeMessage):
 
         chunk += [
             (tags, ' <' ),
-            (tags + ('bold',), self.field('sender')),
+            (tags + ('bold',), self.sender.short()),
             (tags, '>'),
             ]
 
@@ -690,16 +695,13 @@ class RoostPrincipal(messages.SnipeAddress):
         super().__init__(backend, [principal])
 
     def __str__(self):
-        return self.principal
+        return self.backend.name + '; ' + self.short()
 
     def short(self):
         atrealmlen = len(self.backend.realm) + 1
         if self.principal[-atrealmlen:] == '@' + self.backend.realm:
             return self.principal[:-atrealmlen]
         return self.principal
-
-    def reply(self):
-        return self.backend.name + '; ' + self.short()
 
 
 class RoostTriplet(messages.SnipeAddress):
