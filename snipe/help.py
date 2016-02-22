@@ -196,7 +196,7 @@ class HelpBrowser(editor.PopViewer):
 
         def lines(toc, offset=0):
             out = [
-                '%s* `%s <%s#%s>`_' % (' ' * offset, toc[0], label, toc[0]), '']
+                '| %s* `%s <%s#%s>`_' % (' ' * offset, toc[0], label, toc[0]), '']
             for entry in toc[1:]:
                 out += lines(entry, offset+2)
             return out
@@ -318,6 +318,10 @@ class HelpBrowser(editor.PopViewer):
 
 
 class Renderer:
+    loglevel = util.Level(
+        'log.help.renderer', 'Renderer',
+        doc = 'logevel for Help text renderer')
+
     def __init__(self):
         # output will be a list of (offset, [(tags, text), (tags, text)]) items
         self.output = []
@@ -326,8 +330,15 @@ class Renderer:
         self.state_space = True
         self.targets = []
         self.links = []
+        self.section_level = 0
+
+        self.log = logging.getLogger('%s.%x' % (
+            self.__class__.__name__,
+            id(self),
+            ))
 
     def add(self, words):
+        self.log.debug('add: %s', repr(words))
         self.state_space = False
 
         if not self.notatendofline():
@@ -353,10 +364,12 @@ class Renderer:
         return self.output and self.output[-1][1][-1][1][-1:] != '\n'
 
     def linebreak(self): # .br
+        self.log.debug('.linebreak')
         if self.notatendofline():
             self.add('\n')
 
     def space(self): # .sp
+        self.log.debug('.space')
         if self.state_space:
             return
         self.linebreak()
@@ -380,16 +393,33 @@ class Renderer:
         tagset = 0
 
         if isinstance(node, docutils.nodes.Text):
+            self.log.debug('text: %s', repr(node.astext()))
             self.add(node.astext())
             return
         elif isinstance(node, docutils.nodes.comment):
+            self.log.debug('comment: %s', repr(node.astext()))
             return
+
+        self.log.debug('entering: %s', repr(node))
 
         if isinstance(node, docutils.nodes.title):
             self.targets.append((self.offset, ''.join(node.astext().split())))
 
-        if not isinstance(node, docutils.nodes.Inline):
+        if not isinstance(node, docutils.nodes.Inline) and \
+          not isinstance(node, docutils.nodes.line) and \
+          not isinstance(node, docutils.nodes.line_block):
             self.linebreak()
+
+        if isinstance(node, docutils.nodes.section):
+            self.section_level += 1
+
+        if isinstance(node, docutils.nodes.title):
+            self.add('*' * self.section_level)
+            if self.section_level:
+                self.add(' ')
+
+        if isinstance(node, docutils.nodes.line):
+            self.add(' '*node.indent)
 
         if isinstance(node, docutils.nodes.Titular) or \
           isinstance(node, docutils.nodes.emphasis) or \
@@ -410,10 +440,18 @@ class Renderer:
             self.links.append(
                 (link_start, self.offset - link_start, node['refuri']))
 
-        if not isinstance(node, docutils.nodes.Inline):
+        if isinstance(node, docutils.nodes.section):
+            self.section_level -= 1
+
+        if not isinstance(node, docutils.nodes.Inline) and \
+          not isinstance(node, docutils.nodes.line_block):
             self.linebreak()
-            if not isinstance(node, docutils.nodes.term):
+            if not isinstance(node, docutils.nodes.term) and \
+              not isinstance(node, docutils.nodes.line):
                 self.space()
+
+        self.log.debug('leaving: %s', repr(node))
+
 
     def flat(self):
         return ''.join(
