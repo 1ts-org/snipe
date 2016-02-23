@@ -341,18 +341,12 @@ class ReplyMode:
         window.set_mark(m)
 
 
-class LeapPrompt(ShortPrompt):
+class Leaper(ShortPrompt):
     def __init__(self, *args, candidates=[], **kw):
         super().__init__(*args, **kw)
         self.candidates = list(candidates)
-        self.state = 'normal'
-        if kw.get('content'):
-            with contextlib.suppress(ValueError):
-                i = self.candidates.index(kw['content'])
-                self.candidates = self.candidates[i:] + self.candidates[:i]
-            self.state = 'preload'
-            self.inverse_input = True
-        self.keymap['[carriage return]'] = self.complete_and_finish
+        self.log.debug('candidates: %s', self.candidates)
+        self.state = 'complete'
 
     def before_command(self):
         self.log.debug('before_command: %s %s', self.state, self.this_command)
@@ -362,13 +356,9 @@ class LeapPrompt(ShortPrompt):
                     or self.this_command in ('roll_forward', 'roll_backward')):
                     self.clear_input()
 
-    def after_command(self):
-        self.state = 'normal'
-        self.inverse_input = False
-
     def clear_input(self):
         self.cursor.point = self.divider
-        self.delete_forward(len(self.buf) - self.divider)
+        self.delete_forward(self.complete_end() - self.divider)
 
     @keymap.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, count: interactive.integer_argument=1):
@@ -379,15 +369,18 @@ class LeapPrompt(ShortPrompt):
             super().delete_backward(count)
 
     def view(self, *args, **kw):
-        v = list(super().view(*args, **kw))
-        self.log.debug('v: %s, %d', repr(v), len(v))
-        self.log.debug('before first yield')
-        yield from v[:-1]
-        self.log.debug('after first yield')
-        mark, chunks = v[-1]
-        chunks = chunks + self.match_chunks()
-        self.log.debug('now %s', repr(chunks))
-        yield mark, chunks
+        self.log.debug('view: %s', self.state)
+        end = self.complete_end()
+        for mark, chunk in super().view(*args, **kw):
+            if mark.point > end or self.state == 'normal':
+                yield mark, chunk
+            else:
+                self.log.debug('yy: %s', chunk)
+                chunklen = sum(len(string) for (tags, string) in chunk)
+                if mark.point + chunklen < end:
+                    yield mark, chunk
+                else:
+                    yield mark, chunk + self.match_chunks()
 
     @keymap.bind('Control-S')
     def roll_forward(self):
@@ -409,7 +402,7 @@ class LeapPrompt(ShortPrompt):
         m = [x[1] for x in self.matches()]
         self.log.debug('match_chunks: matches: %s', m)
         if not m:
-            return []
+            return [((), ' { ? }')]
         return [
             ((), ' {'),
             (('bold',), m[0]),
@@ -419,7 +412,7 @@ class LeapPrompt(ShortPrompt):
                 '}'))]
 
     def matches(self):
-        return self.matches_from(self.input())
+        return self.matches_from(self.buf[self.divider:self.complete_end()])
 
     def matches_from(self, sofar):
         self.log.debug('matches_from: %s', sofar)
@@ -429,6 +422,25 @@ class LeapPrompt(ShortPrompt):
             (n, c)
             for n, c in enumerate(self.candidates)
             if not sofar or sofar in c]
+
+
+class LeapPrompt(Leaper):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        if kw.get('content'):
+            with contextlib.suppress(ValueError):
+                i = self.candidates.index(kw['content'])
+                self.candidates = self.candidates[i:] + self.candidates[:i]
+            self.state = 'preload'
+            self.inverse_input = True
+        self.keymap['[carriage return]'] = self.complete_and_finish
+
+    def complete_end(self):
+        return len(self.buf)
+
+    def after_command(self):
+        self.state = 'complete'
+        self.inverse_input = False
 
     def complete_and_finish(self):
         """Append the tail of the first candidate and complete whatever action
@@ -441,30 +453,13 @@ class LeapPrompt(ShortPrompt):
             self.runcallback()
 
 
-class LeapComposer(LeapPrompt, Composer):
+class LeapComposer(Leaper, Composer):
     def __init__(self, *args, **kw):
         assert not kw.get('content')
         super().__init__(*args, **kw)
         self.state = 'complete'
-        self.keymap['[carriage return]'] = self.insert_newline
         self.log.debug('candidates %s', self.candidates)
-
-    def view(self, *args, **kw):
-        self.log.debug('view: %s', self.state)
-        end = self.complete_end()
-        for mark, chunk in Composer.view(self, *args, **kw):
-            if mark.point > end or self.state == 'normal':
-                yield mark, chunk
-            else:
-                self.log.debug('yy: %s', chunk)
-                chunklen = sum(len(string) for (tags, string) in chunk)
-                if mark.point + chunklen < end:
-                    yield mark, chunk
-                else:
-                    yield mark, chunk + self.match_chunks()
-
-    def matches(self):
-        return self.matches_from(self.buf[self.divider:self.complete_end()])
+        self.keymap['[carriage return]'] = self.insert_newline
 
     def complete_end(self):
         with self.save_excursion():
