@@ -520,7 +520,6 @@ class Window:
             height=height,
             candidates=these,
             content=content,
-            complete=interactive.completer(these),
             name=name,
             ))
 

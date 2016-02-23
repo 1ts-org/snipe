@@ -85,6 +85,7 @@ class LongPrompt(editor.Editor):
         if complete is not None:
             self.cheatsheet = list(self.cheatsheet)
             self.cheatsheet.append('*[tab]* completes')
+        self.inverse_input = False
 
     def destroy(self):
         self.history.append(self.buf[self.divider:])
@@ -123,6 +124,7 @@ class LongPrompt(editor.Editor):
         self.delete(len(old))
         self.insert(new)
         self.histptr = new_ptr
+        self.inverse_input = False
 
     def writable(self):
         return super().writable() and self.cursor >= self.divider
@@ -131,6 +133,12 @@ class LongPrompt(editor.Editor):
         if interactive and point < self.divider:
             return self.divider
         return super().movable(point, interactive)
+
+    def maybe_inverse(self, tags):
+        if self.inverse_input and 'reverse' not in tags:
+            return tags + ('reverse',)
+        else:
+            return tags
 
     def view(self, *args, **kw):
         for mark, chunk in super().view(*args, **kw):
@@ -145,12 +153,12 @@ class LongPrompt(editor.Editor):
                             newchunk.append(
                                 (tags + ('bold',), string[:self.divider - off]))
                             newchunk.append(
-                                (tags, string[self.divider - off:]))
+                                (self.maybe_inverse(tags), string[self.divider - off:]))
                         else: # string is all before the divider
                             newchunk.append(
                                 ((tags + ('bold',)), string))
                     else:
-                        newchunk.append((tags, string))
+                        newchunk.append((self.maybe_inverse(tags), string))
                     off += len(string)
                 yield mark, newchunk
 
@@ -343,6 +351,7 @@ class LeapPrompt(ShortPrompt):
                 i = self.candidates.index(kw['content'])
                 self.candidates = self.candidates[i:] + self.candidates[:i]
             self.state = 'preload'
+            self.inverse_input = True
         self.keymap['[carriage return]'] = self.complete_and_finish
 
     def before_command(self):
@@ -355,6 +364,7 @@ class LeapPrompt(ShortPrompt):
 
     def after_command(self):
         self.state = 'normal'
+        self.inverse_input = False
 
     def clear_input(self):
         self.cursor.point = self.divider
@@ -375,15 +385,7 @@ class LeapPrompt(ShortPrompt):
         yield from v[:-1]
         self.log.debug('after first yield')
         mark, chunks = v[-1]
-        m = [x[1] for x in self.matches()]
-        if m:
-            chunks = chunks + [
-                ((), ' {'),
-                (('bold',), m[0]),
-                ((), (
-                    ('|' if len(m) > 1 else '') +
-                    '|'.join(m[1:]) +
-                    '}'))]
+        chunks = chunks + self.match_chunks()
         self.log.debug('now %s', repr(chunks))
         yield mark, chunks
 
@@ -403,8 +405,24 @@ class LeapPrompt(ShortPrompt):
         p = m[-1][0]
         self.candidates = self.candidates[p:] + self.candidates[:p]
 
+    def match_chunks(self):
+        m = [x[1] for x in self.matches()]
+        self.log.debug('match_chunks: matches: %s', m)
+        if not m:
+            return []
+        return [
+            ((), ' {'),
+            (('bold',), m[0]),
+            ((), (
+                ('|' if len(m) > 1 else '') +
+                '|'.join(m[1:]) +
+                '}'))]
+
     def matches(self):
-        sofar = self.input()
+        return self.matches_from(self.input())
+
+    def matches_from(self, sofar):
+        self.log.debug('matches_from: %s', sofar)
         if self.state == 'preload':
             return list(enumerate(self.candidates))
         return [
@@ -421,3 +439,61 @@ class LeapPrompt(ShortPrompt):
             self.callback(matches[0][1])
         else:
             self.runcallback()
+
+
+class LeapComposer(LeapPrompt, Composer):
+    def __init__(self, *args, **kw):
+        assert not kw.get('content')
+        super().__init__(*args, **kw)
+        self.state = 'complete'
+        self.keymap['[carriage return]'] = self.insert_newline
+        self.log.debug('candidates %s', self.candidates)
+
+    def view(self, *args, **kw):
+        self.log.debug('view: %s', self.state)
+        end = self.complete_end()
+        for mark, chunk in Composer.view(self, *args, **kw):
+            if mark.point > end or self.state == 'normal':
+                yield mark, chunk
+            else:
+                self.log.debug('yy: %s', chunk)
+                chunklen = sum(len(string) for (tags, string) in chunk)
+                if mark.point + chunklen < end:
+                    yield mark, chunk
+                else:
+                    yield mark, chunk + self.match_chunks()
+
+    def matches(self):
+        return self.matches_from(self.buf[self.divider:self.complete_end()])
+
+    def complete_end(self):
+        with self.save_excursion():
+            self.cursor.point = self.divider
+            self.end_of_line()
+            return int(self.cursor)
+
+    def after_command(self):
+        if self.cursor.point > self.complete_end():
+            self.state = 'normal'
+
+    @keymap.bind('[tab]')
+    def complete_or_tab(self):
+        if self.state == 'complete':
+            m = self.matches()
+            if not m:
+                return
+            self.cursor.point = self.divider
+            self.replace(self.complete_end() - self.divider, m[0][1])
+            self.end_of_line()
+        else:
+            self.insert('\t')
+
+    @keymap.bind('[carriage return]', 'Control-J')
+    def insert_newline(self, count: interactive.positive_integer_argument=1):
+        """Insert a newline, or n newlines, ending completion."""
+        if self.state == 'complete':
+            self.complete_or_tab()
+
+        self.state = 'normal'
+
+        super().insert_newline(count)
