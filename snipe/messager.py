@@ -458,10 +458,10 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter_replace(filters.makefilter(s))
         else:
             conf = self.context.conf
-            name = yield from self.read_string(
+            name = yield from self.read_oneof(
                 'filter name: ',
-                complete=interactive.completer(conf.get('filter', {}).keys()),
-                name='filter name'
+                conf.get('filter', {}).keys(),
+                name='filter name',
                 )
             name = name.strip()
             s = conf.get('filter', {}).get(name, '')
@@ -608,10 +608,9 @@ class Messager(window.Window, window.PagingMixIn):
                 self.default_filter = str(self.filter)
             else:
                 conf = self.context.conf
-                name = yield from self.read_string(
+                name = yield from self.read_oneof(
                     'target filter name: ',
-                    complete=interactive.completer(
-                        conf.get('filter', {}).keys()),
+                    conf.get('filter', {}).keys(),
                     name='target filter',
                     )
                 name = name.strip()

@@ -90,13 +90,3 @@ def complete_filename(left, right):
     prefix = os.path.commonprefix(completions)
     for name in completions:
         yield os.path.join(path, prefix), name[len(prefix):]
-
-
-def completer(iterable):
-    completeset = list(iterable)
-    def complete(left, right):
-        completions = [k for k in completeset if k.startswith(left)]
-        prefix = os.path.commonprefix(completions)
-        for completion in completions:
-            yield prefix, completion[len(prefix):]
-    return complete
