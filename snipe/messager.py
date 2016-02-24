@@ -369,7 +369,8 @@ class Messager(window.Window, window.PagingMixIn):
                 history='send',
                 fill=True,
                 window=Composer,
-                candidates=self.context.backends.destinations(),
+                completer=interactive.Completer(
+                    self.context.backends.destinations()),
                 **kw)
         if '\n' not in message:
             message += '\n'

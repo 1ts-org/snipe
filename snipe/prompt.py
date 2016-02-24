@@ -37,8 +37,6 @@ Editor subclasses for interacting withe user.
 '''
 
 
-import contextlib
-
 from . import editor
 from . import keymap
 from . import interactive
@@ -248,12 +246,12 @@ class ReplyMode:
 
 
 class Leaper(LongPrompt):
-    def __init__(self, *args, candidates=[], **kw):
+    def __init__(self, *args, completer=interactive.UnCompleter(), **kw):
         super().__init__(*args, **kw)
-        self.candidates = list(candidates)
-        if self.candidates:
+        self.completer = completer
+        if self.completer.live:
             self.cheatsheet = self.cheatsheet + ['*^S* circulate forward', '*^R* circulate backward']
-        self.log.debug('candidates: %s', self.candidates)
+        self.log.debug('candidates: %s', self.completer.candidates)
         self.state = 'complete'
 
     def before_command(self):
@@ -296,7 +294,7 @@ class Leaper(LongPrompt):
         if len(m) < 2:
             return
         p = m[1][0]
-        self.candidates = self.candidates[p:] + self.candidates[:p]
+        self.completer.roll(p)
 
     @keymap.bind('Control-R')
     def roll_backward(self):
@@ -304,15 +302,15 @@ class Leaper(LongPrompt):
         if len(m) < 2:
             return
         p = m[-1][0]
-        self.candidates = self.candidates[p:] + self.candidates[:p]
+        self.completer.roll(p)
 
     def match_chunks(self):
+        if not self.completer.live:
+            return [((), '')]
         m = [x[1] for x in self.matches()]
         self.log.debug('match_chunks: matches: %s', m)
-        if not self.candidates:
-            return [((), '')]
         if not m:
-            return [((), ' { ? }')]
+            return [((), ' {}')]
         return [
             ((), ' {'),
             (('bold',), m[0]),
@@ -322,16 +320,9 @@ class Leaper(LongPrompt):
                 '}'))]
 
     def matches(self):
-        return self.matches_from(self.buf[self.divider:self.complete_end()])
-
-    def matches_from(self, sofar):
-        self.log.debug('matches_from: %s', sofar)
         if self.state == 'preload':
-            return list(enumerate(self.candidates))
-        return [
-            (n, c)
-            for n, c in enumerate(self.candidates)
-            if not sofar or sofar in c]
+            return self.completer.matches()
+        return self.completer.matches(self.buf[self.divider:self.complete_end()])
 
 
 class ShortPrompt(Leaper):
@@ -345,9 +336,8 @@ class ShortPrompt(Leaper):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if kw.get('content'):
-            with contextlib.suppress(ValueError):
-                i = self.candidates.index(kw['content'])
-                self.candidates = self.candidates[i:] + self.candidates[:i]
+            if self.completer.live:
+                self.completer.roll_to(kw['content'])
             self.state = 'preload'
             self.inverse_input = True
         self.keymap['[carriage return]'] = self.complete_and_finish
@@ -385,7 +375,7 @@ class Composer(Leaper):
         self.state = 'complete'
         if kw.get('content'):
             self.state = 'normal'
-        self.log.debug('candidates %s', self.candidates)
+        self.log.debug('candidates %s', self.completer.candidates)
         self.keymap['[carriage return]'] = self.insert_newline
 
     def complete_end(self):

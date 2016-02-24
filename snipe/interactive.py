@@ -30,6 +30,7 @@
 
 import inspect
 import os
+import contextlib
 
 
 def _keyword(name):
@@ -90,3 +91,54 @@ def complete_filename(left, right):
     prefix = os.path.commonprefix(completions)
     for name in completions:
         yield os.path.join(path, prefix), name[len(prefix):]
+
+
+class UnCompleter:
+    def __init__(self):
+        self.candidates = []
+        self.live = False
+
+    def matches(self, sofar=''):
+        return []
+
+    def roll(self, p):
+        pass
+
+    def roll_to(self, s):
+        pass
+
+    @staticmethod
+    def check(x, y):
+        return False
+
+    def expand(self, value, index):
+        return None
+
+
+class Completer:
+    def __init__(self, iterable):
+        self.candidates = list(iterable)
+        self.live = bool(self.candidates)
+
+    def matches(self, sofar=''):
+        return [
+            (n, c)
+            for n, c in enumerate(self.candidates)
+            if not sofar or self.check(sofar, c)]
+
+    def roll(self, p):
+        self.candidates = self.candidates[p:] + self.candidates[:p]
+
+    def roll_to(self, s):
+        with contextlib.suppress(ValueError):
+            i = self.candidates.index(s)
+            self.roll(i)
+
+    @staticmethod
+    def check(x, y):
+        return x in y
+
+    def expand(self, value, index):
+        # should expand e.g. 'a' out of [ 'aaa', 'aaab', 'caaa'] to 'aaa'
+        # but...
+        return None

@@ -518,8 +518,8 @@ class Window:
             prompt,
             window=ShortPrompt,
             height=height,
-            candidates=candidates,
             content=content,
+            completer=interactive.Completer(candidates),
             name=name,
             ))
 
