@@ -172,7 +172,7 @@ class LongPrompt(editor.Editor):
         self.callback(self.input())
 
     @keymap.bind('[tab]')
-    def complete(self, key: interactive.keystroke):
+    def complete_command(self, key: interactive.keystroke):
         """If there is a completer set for the buffer, complete at the point."""
 
         if self.complete is None:
