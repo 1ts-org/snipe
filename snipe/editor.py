@@ -891,11 +891,8 @@ class Editor(Viewer):
         """Read a file name and then insert the contents in to the buffer."""
 
         filename = yield from self.read_filename('Insert File: ')
-        try:
-            with open(filename) as fp:
-                self.insert(fp.read())
-        except Exception as exc:
-            self.whine(str(exc))
+        with open(filename) as fp:
+            self.insert(fp.read())
 
     @keymap.bind('Control-X Control-Q')
     def toggle_writable(self):
