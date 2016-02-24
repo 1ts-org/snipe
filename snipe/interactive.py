@@ -112,7 +112,7 @@ class UnCompleter:
         return False
 
     def expand(self, value, index):
-        return None
+        return None, None
 
 
 class Completer:
@@ -120,11 +120,11 @@ class Completer:
         self.candidates = list(iterable)
         self.live = bool(self.candidates)
 
-    def matches(self, sofar=''):
+    def matches(self, value=''):
         return [
             (n, c)
             for n, c in enumerate(self.candidates)
-            if not sofar or self.check(sofar, c)]
+            if not value or self.check(value, c)]
 
     def roll(self, p):
         self.candidates = self.candidates[p:] + self.candidates[:p]
@@ -138,7 +138,11 @@ class Completer:
     def check(x, y):
         return x in y
 
-    def expand(self, value, index):
+    def expand(self, value):
         # should expand e.g. 'a' out of [ 'aaa', 'aaab', 'caaa'] to 'aaa'
         # but...
-        return None
+        m = self.matches(value)
+        if m:
+            result = m[0][1]
+            return result
+        return value

@@ -319,10 +319,27 @@ class Leaper(LongPrompt):
                 '|'.join(m[1:]) +
                 '}'))]
 
+    def completed_text(self):
+        return self.buf[self.divider:self.complete_end()]
+
     def matches(self):
         if self.state == 'preload':
             return self.completer.matches()
-        return self.completer.matches(self.buf[self.divider:self.complete_end()])
+        return self.completer.matches(self.completed_text())
+
+    @keymap.bind('[tab]')
+    def complete_command(self, key: interactive.keystroke):
+        result = None
+        if self.completer.live and \
+          (self.divider < self.cursor.point <= self.complete_end()):
+            result = self.completer.expand(self.completed_text())
+
+        if result is None:
+            return self.self_insert(key=key)
+
+        self.cursor.point = self.divider
+        self.replace(self.complete_end() - self.divider, result)
+        self.move(len(result))
 
 
 class ShortPrompt(Leaper):
@@ -388,23 +405,11 @@ class Composer(Leaper):
         if self.cursor.point > self.complete_end():
             self.state = 'normal'
 
-    @keymap.bind('[tab]')
-    def complete_or_tab(self):
-        if self.state == 'complete':
-            m = self.matches()
-            if not m:
-                return
-            self.cursor.point = self.divider
-            self.replace(self.complete_end() - self.divider, m[0][1])
-            self.end_of_line()
-        else:
-            self.insert('\t')
-
     @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(self, count: interactive.positive_integer_argument=1):
         """Insert a newline, or n newlines, ending completion."""
         if self.state == 'complete':
-            self.complete_or_tab()
+            self.complete_command('')
 
         self.state = 'normal'
 
