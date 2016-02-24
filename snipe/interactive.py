@@ -81,18 +81,6 @@ def call(callable, *args, **kw):
     return callable(**d)
 
 
-def complete_filename(left, right):
-    path, prefix = os.path.split(left)
-    completions = [
-        name + '/' if os.path.isdir(os.path.join(path, name)) else name
-        for name in os.listdir(path or '.')
-        if name.startswith(prefix)]
-
-    prefix = os.path.commonprefix(completions)
-    for name in completions:
-        yield os.path.join(path, prefix), name[len(prefix):]
-
-
 class UnCompleter:
     def __init__(self):
         self.candidates = []

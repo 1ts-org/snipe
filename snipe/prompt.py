@@ -56,7 +56,6 @@ class LongPrompt(editor.Editor):
             self,
             *args,
             prompt='> ',
-            complete=None,
             callback=lambda x: None,
             history=None,
             **kw):
@@ -64,25 +63,19 @@ class LongPrompt(editor.Editor):
         super().__init__(*args, **kw)
         self.prompt = prompt
         self.callback = callback
-        self.complete = complete
         proto = kw.get('prototype', None)
         if proto is not None:
             self.prompt = proto.prompt
             self.callback = proto.callback
-            self.complete = proto.complete
             self.divider = proto.divider
         else:
             self.cursor.point = 0
             self.insert(prompt)
             self.divider = int(self.cursor)
-        self.complete_state = None
         self.end_of_buffer()
         self.histptr = 0
         self.history = self.histories.setdefault(history, [])
         self.keymap['Control-G'] = self.delete_window
-        if complete is not None:
-            self.cheatsheet = list(self.cheatsheet)
-            self.cheatsheet.append('*[tab]* completes')
         self.inverse_input = False
 
     def destroy(self):
@@ -168,36 +161,6 @@ class LongPrompt(editor.Editor):
         """Complete whatever action this prompt is for."""
 
         self.callback(self.input())
-
-    @keymap.bind('[tab]')
-    def complete_command(self, key: interactive.keystroke):
-        """If there is a completer set for the buffer, complete at the point."""
-
-        if self.complete is None:
-            return self.self_insert(key=key)
-
-        if self.cursor < self.divider:
-            self.whine('No completing the prompt')
-            return
-
-        if self.last_command != 'complete' or self.complete_state is None:
-            self.complete_state = self.complete(
-                self.buf[self.divider:self.cursor], self.buf[self.cursor:])
-
-        try:
-            left, right = next(self.complete_state)
-        except StopIteration:
-            self.whine('No more completions')
-            self.complete_state = None
-            self.replace(len(self.buf) - self.cursor.point, '')
-            return
-
-        self.log.debug('complete: %s, %s', repr(left), repr(right))
-
-        c = self.buf.mark(self.cursor)
-        self.cursor.point = self.divider
-        self.replace(len(self.buf) - self.divider, left + right)
-        self.cursor.point += len(left)
 
 
 class KeySeqPrompt(LongPrompt):
