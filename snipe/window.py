@@ -511,14 +511,14 @@ class Window:
             self.show(pprint.pformat(self.context.conf))
 
     @asyncio.coroutine
-    def read_oneof(self, prompt, these, content=None, height=1, name='Prompt'):
+    def read_oneof(self, prompt, candidates, content=None, height=1, name='Prompt'):
         from .prompt import LeapPrompt
 
         return (yield from self.read_string(
             prompt,
             window=LeapPrompt,
             height=height,
-            candidates=these,
+            candidates=candidates,
             content=content,
             name=name,
             ))
