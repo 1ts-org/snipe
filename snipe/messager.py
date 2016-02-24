@@ -351,27 +351,21 @@ class Messager(window.Window, window.PagingMixIn):
         if msg is not None:
             kw['modes'] = [prompt.ReplyMode(msg)]
 
-        if recipient:
-            from .prompt import Composer
-            message = yield from self.read_string(
-                'compose (^C^C to send, ^G to abort) --> ',
-                height=10,
-                content=recipient + '\n' if recipient else '',
-                history='send',
-                fill=True,
-                window=Composer,
-                **kw)
-        else:
-            from .prompt import Composer
-            message = yield from self.read_string(
-                'compose (^C^C to send, ^G to abort) --> ',
-                height=10,
-                history='send',
-                fill=True,
-                window=Composer,
-                completer=interactive.Completer(
-                    self.context.backends.destinations()),
-                **kw)
+        from .prompt import Composer
+
+        message = yield from self.read_string(
+            'compose (^C^C to send, ^G to abort) --> ',
+            height=10,
+            content=recipient + '\n' if recipient else '',
+            history='send',
+            fill=True,
+            window=Composer,
+            completer=interactive.DestCompleter(
+                self.context.backends.destinations(),
+                [b.name for b in self.fe.context.backends],
+                ),
+            **kw)
+
         if '\n' not in message:
             message += '\n'
         params, body = message.split('\n', 1)
@@ -565,11 +559,14 @@ class Messager(window.Window, window.PagingMixIn):
     def filter_sender(self):
         """Push a filter to a sender."""
 
-        sender = yield from self.read_oneof(
+        sender = yield from self.read_string(
             'Sender: ',
-            self.context.backends.senders(),
             height=2,
             content=self.replymsg().field('sender'),
+            completer=interactive.DestCompleter(
+                self.context.backends.senders(),
+                [b.name for b in self.fe.context.backends],
+                ),
             name='sender',
             )
         self.filter_push(filters.Compare('=', 'sender', sender))

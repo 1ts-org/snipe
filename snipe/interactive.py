@@ -166,3 +166,26 @@ class FileCompleter(Completer):
             self.candidates = self.listdir(directory)
             self.directory = directory
         return os.path.join(directory, Completer(self.candidates).expand(filename))
+
+
+class DestCompleter(Completer):
+    def __init__(self, candidates, backends):
+        super().__init__(candidates)
+        self.backends = backends
+
+    def check(self, x, y):
+        if ';' not in x:
+            return x in y
+        xbackend, xaddress = x.split(';', 1)
+        xbackend = xbackend.strip()
+        xaddress = xaddress.lstrip()
+
+        ybackend, yaddress = [s.strip() for s in y.split(';', 1)]
+
+        if xbackend:
+            backends = [b for b in self.backends if b.startswith(xbackend)]
+            return any(
+                (b == ybackend and xaddress in yaddress) for b in backends)
+        else:
+            return xaddress in y.split(';', 1)[1]
+
