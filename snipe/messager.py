@@ -362,13 +362,13 @@ class Messager(window.Window, window.PagingMixIn):
                 window=Composer,
                 **kw)
         else:
-            from .prompt import LeapComposer
+            from .prompt import Composer
             message = yield from self.read_string(
                 'compose (^C^C to send, ^G to abort) --> ',
                 height=10,
                 history='send',
                 fill=True,
-                window=LeapComposer,
+                window=Composer,
                 candidates=self.context.backends.destinations(),
                 **kw)
         if '\n' not in message:

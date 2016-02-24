@@ -202,86 +202,6 @@ class LongPrompt(editor.Editor):
         self.cursor.point += len(left)
 
 
-class Composer(LongPrompt):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        histprefix = kw.get('history', '')
-        self.histx = [
-            self.histories.setdefault(histprefix + '-dest', []),
-            self.histories.setdefault(histprefix + '-body', []),
-            ]
-        self.histptrs = [0, 0]
-        self.stashes = [None, None]
-
-    def setup_history(self):
-        eodest = self.buf.mark(self.divider)
-        with self.save_excursion(eodest):
-            self.end_of_line()
-
-        ind = int(self.cursor > eodest) # 0 or 1
-        history = self.histx[ind]
-        divisions = [
-            (self.divider, int(eodest)),
-            (int(eodest) + 1, len(self.buf)),
-            ]
-        return ind, history, divisions
-
-    def move_history(self, offset):
-        if self.divider == len(self.buf):
-            with self.save_excursion():
-                self.cursor.point = self.divider
-                self.insert('\n')
-
-        ind, history, divisions = self.setup_history()
-        self.log.debug(
-            'move_history %d, ind=%d divisions=%s\nhistory=%s\nstashes=%s',
-            offset, ind, divisions, history, self.stashes)
-        start, end = divisions[ind]
-
-        new_ptr = self.histptrs[ind] - offset
-        self.log.debug('move_history %d, new_ptr=%d', offset, new_ptr)
-        if new_ptr < 0 or new_ptr > len(history):
-            self.log.debug(
-                'move_history %d, new_ptr = %d, punting', offset, new_ptr)
-            return
-
-        old = self.buf[start:end]
-        self.log.debug(
-            'move_history %d, self.buf[%d:%d] = %s',
-            offset, start, end, repr(old))
-        if self.histptrs[ind] == 0:
-            self.stashes[ind] = old
-        else:
-            history[-self.histptrs[ind]] = old
-
-        if new_ptr == 0:
-            new = self.stashes[ind]
-        else:
-            new = history[-new_ptr]
-
-        self.cursor.point = start
-        self.cursor.point += self.replace(end - start, new)
-        self.histptrs[ind] = new_ptr
-
-    @keymap.bind('Meta-Control-p')
-    def previous_history_full(self):
-        """Move back by one in the current whole-message history list."""
-        super().move_history(-1)
-        self.histptrs = [self.histptr, self.histptr]
-
-    @keymap.bind('Meta-Control-n')
-    def next_history_full(self):
-        """Move forward by one in the current whole-message history list."""
-        super().move_history(1)
-        self.histptrs = [self.histptr, self.histptr]
-
-    def destroy(self):
-        ind, history, divisions = self.setup_history()
-        for (history, (start, end)) in zip(self.histx, divisions):
-            history.append(self.buf[start:end])
-        super().destroy()
-
-
 class KeySeqPrompt(LongPrompt):
     cheatsheet = ['Type a key sequence.']
     def __init__(self, *args, keymap=None, **kw):
@@ -451,11 +371,20 @@ class ShortPrompt(Leaper):
             self.runcallback()
 
 
-class LeapComposer(Leaper, Composer):
+class Composer(Leaper):
     def __init__(self, *args, **kw):
-        assert not kw.get('content')
         super().__init__(*args, **kw)
+        histprefix = kw.get('history', '')
+        self.histx = [
+            self.histories.setdefault(histprefix + '-dest', []),
+            self.histories.setdefault(histprefix + '-body', []),
+            ]
+        self.histptrs = [0, 0]
+        self.stashes = [None, None]
+
         self.state = 'complete'
+        if kw.get('content'):
+            self.state = 'normal'
         self.log.debug('candidates %s', self.candidates)
         self.keymap['[carriage return]'] = self.insert_newline
 
@@ -490,3 +419,71 @@ class LeapComposer(Leaper, Composer):
         self.state = 'normal'
 
         super().insert_newline(count)
+
+    def setup_history(self):
+        eodest = self.buf.mark(self.divider)
+        with self.save_excursion(eodest):
+            self.end_of_line()
+
+        ind = int(self.cursor > eodest) # 0 or 1
+        history = self.histx[ind]
+        divisions = [
+            (self.divider, int(eodest)),
+            (int(eodest) + 1, len(self.buf)),
+            ]
+        return ind, history, divisions
+
+    def move_history(self, offset):
+        if self.divider == len(self.buf):
+            with self.save_excursion():
+                self.cursor.point = self.divider
+                self.insert('\n')
+
+        ind, history, divisions = self.setup_history()
+        self.log.debug(
+            'move_history %d, ind=%d divisions=%s\nhistory=%s\nstashes=%s',
+            offset, ind, divisions, history, self.stashes)
+        start, end = divisions[ind]
+
+        new_ptr = self.histptrs[ind] - offset
+        self.log.debug('move_history %d, new_ptr=%d', offset, new_ptr)
+        if new_ptr < 0 or new_ptr > len(history):
+            self.log.debug(
+                'move_history %d, new_ptr = %d, punting', offset, new_ptr)
+            return
+
+        old = self.buf[start:end]
+        self.log.debug(
+            'move_history %d, self.buf[%d:%d] = %s',
+            offset, start, end, repr(old))
+        if self.histptrs[ind] == 0:
+            self.stashes[ind] = old
+        else:
+            history[-self.histptrs[ind]] = old
+
+        if new_ptr == 0:
+            new = self.stashes[ind]
+        else:
+            new = history[-new_ptr]
+
+        self.cursor.point = start
+        self.cursor.point += self.replace(end - start, new)
+        self.histptrs[ind] = new_ptr
+
+    @keymap.bind('Meta-Control-p')
+    def previous_history_full(self):
+        """Move back by one in the current whole-message history list."""
+        super().move_history(-1)
+        self.histptrs = [self.histptr, self.histptr]
+
+    @keymap.bind('Meta-Control-n')
+    def next_history_full(self):
+        """Move forward by one in the current whole-message history list."""
+        super().move_history(1)
+        self.histptrs = [self.histptr, self.histptr]
+
+    def destroy(self):
+        ind, history, divisions = self.setup_history()
+        for (history, (start, end)) in zip(self.histx, divisions):
+            history.append(self.buf[start:end])
+        super().destroy()
