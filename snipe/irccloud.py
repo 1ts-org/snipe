@@ -645,4 +645,4 @@ class IRCCloudNonAddress(messages.SnipeAddress):
         super().__init__(backend, ['', word])
 
     def __str__(self):
-        return 'IRCCloud %s' % (self.word)
+        return '%s; IRCCloud %s' % (self.backend.name, self.word)
