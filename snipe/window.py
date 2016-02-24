@@ -512,11 +512,11 @@ class Window:
 
     @asyncio.coroutine
     def read_oneof(self, prompt, candidates, content=None, height=1, name='Prompt'):
-        from .prompt import LeapPrompt
+        from .prompt import ShortPrompt
 
         return (yield from self.read_string(
             prompt,
-            window=LeapPrompt,
+            window=ShortPrompt,
             height=height,
             candidates=candidates,
             content=content,

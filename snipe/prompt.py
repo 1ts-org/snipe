@@ -282,20 +282,6 @@ class Composer(LongPrompt):
         super().destroy()
 
 
-class ShortPrompt(LongPrompt):
-    cheatsheet = [
-        '*M-p*revious history',
-        '*M-n*ext history',
-        '*^G* aborts',
-        '*Enter* finishes',
-        ]
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.keymap['[carriage return]'] = self.runcallback
-        self.keymap['Control-J'] = self.runcallback
-
-
 class KeySeqPrompt(LongPrompt):
     cheatsheet = ['Type a key sequence.']
     def __init__(self, *args, keymap=None, **kw):
@@ -341,10 +327,12 @@ class ReplyMode:
         window.set_mark(m)
 
 
-class Leaper(ShortPrompt):
+class Leaper(LongPrompt):
     def __init__(self, *args, candidates=[], **kw):
         super().__init__(*args, **kw)
         self.candidates = list(candidates)
+        if self.candidates:
+            self.cheatsheet = self.cheatsheet + ['*^S* circulate forward', '*^R* circulate backward']
         self.log.debug('candidates: %s', self.candidates)
         self.state = 'complete'
 
@@ -401,6 +389,8 @@ class Leaper(ShortPrompt):
     def match_chunks(self):
         m = [x[1] for x in self.matches()]
         self.log.debug('match_chunks: matches: %s', m)
+        if not self.candidates:
+            return [((), '')]
         if not m:
             return [((), ' { ? }')]
         return [
@@ -424,7 +414,14 @@ class Leaper(ShortPrompt):
             if not sofar or sofar in c]
 
 
-class LeapPrompt(Leaper):
+class ShortPrompt(Leaper):
+    cheatsheet = [
+        '*M-p*revious history',
+        '*M-n*ext history',
+        '*^G* aborts',
+        '*Enter* finishes',
+        ]
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if kw.get('content'):
@@ -434,6 +431,7 @@ class LeapPrompt(Leaper):
             self.state = 'preload'
             self.inverse_input = True
         self.keymap['[carriage return]'] = self.complete_and_finish
+        self.keymap['Control-J'] = self.runcallback
 
     def complete_end(self):
         return len(self.buf)
