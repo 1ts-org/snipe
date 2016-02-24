@@ -268,6 +268,9 @@ class Leaper(LongPrompt):
 
     @keymap.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, count: interactive.integer_argument=1):
+        """Delete characters before the point, one by default, n if specified.
+        If there is unmodified default input, delete all of it."""
+
         self.log.debug('custom delete_backward: %s', self.state)
         if self.state == 'preload':
             self.clear_input()
@@ -290,6 +293,7 @@ class Leaper(LongPrompt):
 
     @keymap.bind('Control-S')
     def roll_forward(self):
+        """Circulate the current matches fowards."""
         m = self.matches()
         if len(m) < 2:
             return
@@ -298,6 +302,7 @@ class Leaper(LongPrompt):
 
     @keymap.bind('Control-R')
     def roll_backward(self):
+        """Circulate the current matches backwards."""
         m = self.matches()
         if len(m) < 2:
             return
@@ -329,6 +334,9 @@ class Leaper(LongPrompt):
 
     @keymap.bind('[tab]')
     def complete_command(self, key: interactive.keystroke):
+        """Complete according to the current set completer.  Or self_insert if
+        we're not completing right now."""
+
         result = None
         if self.completer.live and \
           (self.divider < self.cursor.point <= self.complete_end()):
