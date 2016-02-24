@@ -213,7 +213,11 @@ class Leaper(LongPrompt):
         super().__init__(*args, **kw)
         self.completer = completer
         if self.completer.live:
-            self.cheatsheet = self.cheatsheet + ['*^S* circulate forward', '*^R* circulate backward']
+            self.cheatsheet = self.cheatsheet + [
+                '*^S* circulate forward',
+                '*^R* circulate backward',
+                '*[tab]* completes',
+                ]
         self.log.debug('candidates: %s', self.completer.candidates)
         self.state = 'complete'
 
