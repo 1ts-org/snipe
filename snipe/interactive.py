@@ -122,7 +122,7 @@ class Completer:
 
     def matches(self, value=''):
         return [
-            (n, c)
+            (n, c, c)
             for n, c in enumerate(self.candidates)
             if not value or self.check(value, c)]
 
@@ -146,3 +146,35 @@ class Completer:
             result = m[0][1]
             return result
         return value
+
+class FileCompleter(Completer):
+    def __init__(self):
+        self.live = True
+        self.directory = ''
+        self.candidates = self.listdir(self.directory)
+
+    @staticmethod
+    def listdir(directory):
+        if not directory:
+            directory = os.curdir
+        files = os.listdir(directory)
+        for n, filename in enumerate(files):
+            if os.path.isdir(filename):
+                files[n] += os.path.sep
+        return files
+
+    def matches(self, value=''):
+        directory, filename = os.path.split(value)
+        if directory != self.directory:
+            self.candidates = self.listdir(directory)
+            self.directory = directory
+        return [
+            (i, name, os.path.join(directory, name))
+            for (i, name, _) in super().matches(filename)]
+
+    def expand(self, value):
+        directory, filename = os.path.split(value)
+        if directory != self.directory:
+            self.candidates = self.listdir(directory)
+            self.directory = directory
+        return os.path.join(directory, Completer(self.candidates).expand(filename))

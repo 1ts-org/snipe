@@ -348,7 +348,7 @@ class Window:
         result = yield from self.read_string(
             prompt,
             content=content,
-            complete=interactive.complete_filename,
+            completer=interactive.FileCompleter(),
             name=name,
             )
 

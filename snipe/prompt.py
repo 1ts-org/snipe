@@ -381,7 +381,7 @@ class ShortPrompt(Leaper):
         self.log.debug('complete_and_finish()')
         matches = self.matches()
         if matches:
-            self.callback(matches[0][1])
+            self.callback(matches[0][2])
         else:
             self.runcallback()
 
