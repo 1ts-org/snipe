@@ -370,6 +370,9 @@ class Composer(Leaper):
         self.log.debug('candidates %s', self.completer.candidates)
         self.keymap['[carriage return]'] = self.insert_newline
 
+        #wrong, bad, but expedient
+        self.completer.candidates.sort(key=lambda x: (len(x), x))
+
     def complete_end(self):
         with self.save_excursion():
             self.cursor.point = self.divider
