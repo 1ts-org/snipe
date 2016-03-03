@@ -32,6 +32,8 @@ import inspect
 import os
 import contextlib
 
+from . import util
+
 
 def _keyword(name):
     def __get_keyword(*args, **kw):
@@ -169,9 +171,19 @@ class FileCompleter(Completer):
 
 
 class DestCompleter(Completer):
-    def __init__(self, candidates, backends):
+    enable = util.Configurable(
+        'completer.fancy',
+        True,
+        'enable the fancy destination completer',
+        coerce = util.coerce_bool,
+        )
+
+    def __init__(self, candidates, context):
+        self.context = context
         super().__init__(candidates)
-        self.backends = backends
+        self.backends = [b.name for b in self.context.backends]
+        if not self.enable:
+            self.live = False
 
     def check(self, x, y):
         if ';' not in x:

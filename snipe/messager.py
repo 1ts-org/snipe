@@ -362,7 +362,7 @@ class Messager(window.Window, window.PagingMixIn):
             window=Composer,
             completer=interactive.DestCompleter(
                 self.context.backends.destinations(),
-                [b.name for b in self.fe.context.backends],
+                self.context,
                 ),
             **kw)
 
@@ -565,7 +565,7 @@ class Messager(window.Window, window.PagingMixIn):
             content=self.replymsg().field('sender'),
             completer=interactive.DestCompleter(
                 self.context.backends.senders(),
-                [b.name for b in self.fe.context.backends],
+                self.context,
                 ),
             name='sender',
             )
