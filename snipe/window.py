@@ -468,6 +468,7 @@ class Window:
         self.log.debug('entering replhack')
 
         out = ''
+        _ = None
         while True:
             expr = yield from self.read_string(
                 out + ':>> ',
@@ -479,8 +480,8 @@ class Window:
                 break
             self.log.debug('got expr %s', expr)
             try:
-                ret = eval(expr, globals(), locals())
-                out = pprint.pformat(ret)
+                _ = eval(expr, globals(), locals())
+                out = pprint.pformat(_)
             except:
                 out = traceback.format_exc()
             if out[:-1] != '\n':
