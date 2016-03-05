@@ -67,6 +67,18 @@ class TestEditor(unittest.TestCase):
         e.insert('blam')
         self.assertEqual(str(e.buf), 'flimflamblam')
 
+    def test_mark(self):
+        e = snipe.editor.Editor(None)
+        e.insert('ac')
+        m = e.buf.mark(1)
+        m2 = e.buf.mark(1, right=True)
+        n = e.buf.mark(2)
+        e.cursor.point = 1
+        e.insert('b')
+        self.assertEqual(m.point, 1)
+        self.assertEqual(m2.point, 2)
+        self.assertEqual(str(e.buf), 'abc')
+
     def testEditorMore(self):
         e = snipe.editor.Editor(None)
         e.insert('bar')

@@ -140,6 +140,18 @@ class TestGapBuffer(unittest.TestCase):
             self.assertEqual(a.tounicode(), g.text)
             print (g.text)
 
+    def test_mark(self):
+        g = snipe.gap.GapBuffer()
+        g.replace(0, 0, 'ac')
+        m = g.mark(1)
+        m2 = g.mark(1, right=True)
+        n = g.mark(2)
+        g.replace(1, 0, 'b')
+        self.assertEqual(m.point, 1)
+        self.assertEqual(m2.point, 2)
+        self.assertEqual(n.point, 3)
+        self.assertEqual(g.text, 'abc')
+
 
 if __name__ == '__main__':
     unittest.main()

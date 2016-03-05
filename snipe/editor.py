@@ -47,9 +47,9 @@ from . import gap
 
 @functools.total_ordering
 class Mark:
-    def __init__(self, buf, point):
+    def __init__(self, buf, point, right):
         self.buf = buf
-        self.mark = buf.buf.mark(point)
+        self.mark = buf.buf.mark(point, right)
 
     @property
     def point(self):
@@ -120,8 +120,8 @@ class Buffer:
     def unregister(self):
         del self.registry[self.name]
 
-    def mark(self, where):
-        return Mark(self, where)
+    def mark(self, where, right=False):
+        return Mark(self, where, right)
 
     def __str__(self):
         return self.buf.text

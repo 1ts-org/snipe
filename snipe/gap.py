@@ -92,11 +92,15 @@ class GapBuffer:
     def gaplength(self):
         return self.gapend - self.gapstart
 
-    def pointtopos(self, point):
+    def pointtopos(self, point, right=False):
         point = int(point)
         if point < 0:
             return 0
-        if point <= self.gapstart:
+        if point < self.gapstart:
+            return point
+        if point == self.gapstart:
+            if right:
+                return point + self.gaplength
             return point
         if point < self.size:
             return point + self.gaplength
@@ -157,10 +161,10 @@ class GapBuffer:
         self.gapstart = newstart
         return length
 
-    def mark(self, where):
+    def mark(self, where, right=False):
         if where is None:
             return None
-        return GapMark(self, where)
+        return GapMark(self, where, right)
 
 
 class UndoableGapBuffer(GapBuffer):
@@ -203,10 +207,11 @@ class UndoableGapBuffer(GapBuffer):
 
 
 class GapMark:
-    def __init__(self, buf, point):
+    def __init__(self, buf, point, right):
         self.buf = buf
         self.buf.marks.add(self)
-        self.pos = self.buf.pointtopos(point)
+        self.pos = self.buf.pointtopos(point, right)
+        self.right = right
 
     @property
     def point(self):
@@ -215,7 +220,7 @@ class GapMark:
 
     @point.setter
     def point(self, val):
-        self.pos = self.buf.pointtopos(val)
+        self.pos = self.buf.pointtopos(val, self.right)
 
     def __repr__(self):
         return '<%s %x (%x) %d (%d)>' % (
