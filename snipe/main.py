@@ -65,15 +65,20 @@ def main():
             loop.add_reader(0, ui.readable)
             ui.redisplay()
             loop.run_forever()
+        log.warning('left mail loop')
         print()
+        print('shutting down...', end='', flush=True)
         context_.shutdown()
         log.warning('snipe ends')
+        print('.', end='', flush=True)
     finally:
+        if loop is not None and not loop.is_closed():
+            loop.close()
         if handler.writing:
             handler.dump()
         logging.shutdown()
-        if loop is not None and not loop.is_closed():
-            loop.close()
+        print('.', end='', flush=True)
+    print('.', flush=True)
 
 if __name__ == '__main__':
     main()
