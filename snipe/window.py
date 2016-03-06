@@ -457,21 +457,29 @@ class Window:
 
         self.fe.split_window(ColorDemo(self.fe))
 
+    def setup_playground(self):
+        import sys
+
+        if not hasattr(self, '_playground'):
+            self._playground = {}
+            self._playground.update(sys.modules)
+            self._playground['self'] = self
+            self._playground['context'] = self.context
+
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
     def replhack(self):
         """Evaluate python expressions.   Mostly useful for debugging."""
 
-        import traceback
-        import pprint
         from .prompt import ShortPrompt
 
         self.log.debug('entering replhack')
 
+        self.setup_playground()
+
         out = ''
-        _ = None
         while True:
             expr = yield from self.read_string(
-                out + ':>> ',
+                out + '>>> ',
                 height = len(out.splitlines()) + 2,
                 window = ShortPrompt,
                 name = '*python*'
@@ -479,13 +487,9 @@ class Window:
             if not expr.strip():
                 break
             self.log.debug('got expr %s', expr)
-            try:
-                _ = eval(expr, globals(), locals())
-                out = pprint.pformat(_)
-            except:
-                out = traceback.format_exc()
-            if out[:-1] != '\n':
-                out += '\n'
+            out = util.eval_output(expr, self._playground)
+            if out is None:
+                out = 'Incomplete command\n'
             self.log.debug('result: %s', out)
 
     @keymap.bind('Meta-=')

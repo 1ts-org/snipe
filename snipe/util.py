@@ -437,3 +437,23 @@ def safe_write(path, mode=0o600):
             os.unlink(backup)
         os.link(path, backup)
     os.rename(tmp, path)
+
+
+def eval_output(string, environment):
+    import code
+    import io
+    import traceback
+
+    try:
+        c = code.compile_command(string)
+        if c is None:
+            return None
+        else:
+            sio = io.StringIO()
+            with contextlib.redirect_stdout(sio):
+                eval(c, environment)
+            out = sio.getvalue()
+    except:
+        out = traceback.format_exc()
+
+    return out
