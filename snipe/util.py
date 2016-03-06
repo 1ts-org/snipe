@@ -439,13 +439,16 @@ def safe_write(path, mode=0o600):
     os.rename(tmp, path)
 
 
-def eval_output(string, environment):
+def eval_output(string, environment, mode='single'):
     import code
     import io
     import traceback
 
     try:
-        c = code.compile_command(string)
+        if mode == 'exec':
+            c = compile(string, '<input>', mode)
+        else:
+            c = code.compile_command(string, symbol=mode)
         if c is None:
             return None
         else:

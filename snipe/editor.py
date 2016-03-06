@@ -590,9 +590,27 @@ class Viewer(window.Window, window.PagingMixIn):
 
     @keymap.bind('Control-X Control-E')
     def eval_region(self, arg: interactive.argument):
-        """Send the region to the python interpreter and display the result.
-        With a universal argument, insert the result."""
+        """Send the region to the python interpreter as a single
+        statement/expression and display the result. With a universal argument,
+        insert the result."""
 
+        self.evaller(self.region(), arg, 'single')
+
+    @keymap.bind('Control-X |')
+    def exec_region(self, arg: interactive.argument):
+        """Send the region to the python interpreter and display any output.
+        With a universal argument, insert the output."""
+
+        self.evaller(self.region(), arg, 'exec')
+
+    @keymap.bind('Control-X Control-R')
+    def exec_buffer(self, arg: interactive.argument):
+        """Send the region to the python interpreter and display any output.
+        With a universal argument, insert the output."""
+
+        self.evaller(str(self.buf), arg, 'exec')
+
+    def evaller(self, string, arg, mode):
         self.setup_playground()
 
         region = self.region()
@@ -600,13 +618,19 @@ class Viewer(window.Window, window.PagingMixIn):
         if not region.strip():
             return
 
-        out = util.eval_output(region, self._playground)
+        if region[-1] != '\n':
+            region += '\n'
+
+        out = util.eval_output(region, self._playground, mode)
 
         if out is None:
             self.whine('Incomplete command')
             return
 
         self.log.debug('result: %s', out)
+
+        if not out:
+            return
 
         if arg:
             m = self.buf.mark(self.cursor)
