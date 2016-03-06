@@ -81,12 +81,16 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.reqid_counter = itertools.count()
 
         self.messages = []
-        self.tasks.append(asyncio.Task(self.connect()))
         self.connections = {}
         self.buffers = {}
         self.channels = {}
         self.servers = {}
         self.backfillers = []
+        self.last_eid = 0
+        self.new_task = None
+        self.header = {}
+        self.since_id = 0
+        self.do_connect()
 
     @property
     def reqid(self):
@@ -102,8 +106,19 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             msg=msg,
         ))
 
-    @util.coro_cleanup
+    @asyncio.coroutine
     def connect(self):
+        while True:
+            try:
+                yield from self.connect_once()
+            except asyncio.CancelledError:
+                return
+            except (aiohttp.errors.DisconnectedError, asyncio.TimeoutError):
+                pass
+            yield from asyncio.sleep(2)
+
+    @asyncio.coroutine
+    def connect_once(self):
         try:
             authdata = netrc.netrc(
                 os.path.join(self.context.directory, 'netrc')).authenticators(
@@ -152,28 +167,54 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.session = result['session']
 
         self.log.debug('connecting to websocket')
-        self.websocket = util.JSONWebSocket(self.log)
-        yield from self.websocket.connect(
-            IRCCLOUD_API,
-            {
-                'Origin': IRCCLOUD_API,
-                'Cookie': 'session=%s' % (self.session,),
-            },
-            )
+        url = IRCCLOUD_API
+        if self.header.get('streamid'):
+            url += '?' + urllib.parse.urlencode([
+                ('stream_id', self.header.get('streamid')),
+                ('since_id', str(self.last_eid)),
+                ])
+            self.since_id = self.last_eid
+        with util.JSONWebSocket(self.log) as self.websocket:
+            yield from self.websocket.connect(
+                IRCCLOUD_API,
+                {
+                    'Origin': IRCCLOUD_API,
+                    'Cookie': 'session=%s' % (self.session,),
+                },
+                )
 
-        while True:
-            m = yield from self.websocket.read()
-            self.log.debug('message: %s', repr(m))
-            try:
-                yield from self.incoming(m)
-            except:
-                self.log.exception('Processing incoming message: %s', repr(m))
+            while True:
+                try:
+                    m = yield from asyncio.wait_for(
+                        self.websocket.read(),
+                        self.header.get('idle_interval', 30000)/1000)
+                except asyncio.TimeoutError:
+                    self.log.error('irccloud socket idle too long')
+                    return
+                self.log.debug('message: %s', repr(m))
+                try:
+                    yield from self.incoming(m)
+                except:
+                    self.log.exception('Processing incoming message: %s', repr(m))
+                    raise
 
     @asyncio.coroutine
     def process_message(self, msglist, m):
+        if m is None:
+            return
+
+        last_eid = self.last_eid
+
+        eid = int(m.get('eid', 0))
+        if eid > last_eid:
+            self.last_eid = eid
+
         mtype = m.get('type')
+
         if mtype == 'idle':
             pass
+        elif mtype == 'header':
+            self.header = m
         elif mtype in  ('bannned', 'socket_closed'):
             # the system seems to generate multiple
             # socket_closed/banned messages with the same eid/time
@@ -183,7 +224,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             # we can presumably do something useful with this later
             pass
         elif mtype in (
-                'header', 'backlog_starts', 'end_of_backlog', 'backlog_complete',
+                'backlog_starts', 'end_of_backlog', 'backlog_complete',
                 'you_joined_channel', 'self_details', 'your_unique_id', 'cap_ls',
                 'cap_req', 'cap_ack', 'user_account', 'heartbeat_echo',
                 ):
@@ -192,19 +233,21 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif mtype == 'oob_include':
             yield from self.include(m['url'])
         elif mtype == 'makeserver':
-            self.connections[m['cid']] = m
+            self.connections.setdefault(m['cid'], m).update(m)
         elif mtype == 'server_details_changed':
-            self.connections[m['cid']].update(m)
+            self.connections.setdefault(m['cid'], m).update(m)
         elif mtype == 'status_changed':
             self.connections[m['cid']]['status'] = m['new_status']
             self.connections[m['cid']]['fail_info'] = m['fail_info']
         elif mtype == 'isupport_params':
-            self.servers[m['cid']] = m
+            self.servers.setdefault(m['cid'], m).update(m)
         elif mtype == 'makebuffer':
-            self.buffers[m['bid']] = m
+            self.buffers.setdefault(m['bid'], m).update(m)
         elif mtype == 'channel_init':
-            self.channels[m['bid']] = m
+            self.channels.setdefault(m['bid'], m).update(m)
         else:
+            if eid < self.since_id and eid > 0:
+                return
             if 'bid' in m:
                 buf = self.buffers[m['bid']]
                 if 'have_eid' not in buf or m['eid'] < buf['have_eid']:
@@ -228,6 +271,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def include(self, url):
+        self.log.debug('including %s', url)
         oob_data = yield from self.http_json(
             'GET',
             urllib.parse.urljoin(IRCCLOUD_API, url),
@@ -299,6 +343,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     @keymap.bind('I S')
     def dump_servers(self, window: interactive.window):
         window.show(pprint.pformat(self.servers))
+
+    @keymap.bind('I H')
+    def dump_header(self, window: interactive.window):
+        window.show(pprint.pformat(self.header))
 
     def backfill(self, mfilter, target=None):
         self.log.debug('backfill([filter], %s)', repr(target))
@@ -391,6 +439,23 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
           and ('min_eid' not in buf or buf['have_eid'] > buf['min_eid']):
             yield from asyncio.sleep(.1)
             yield from self.backfill_buffer(buf, target)
+
+    @keymap.bind('I D')
+    def disconnect(self):
+        if self.new_task is None:
+            return
+        yield from self.shutdown()
+        self.new_task = None
+
+    @keymap.bind('I R')
+    def reconnect(self):
+        if self.new_task is not None:
+            yield from self.disconnect()
+        self.do_connect()
+
+    def do_connect(self):
+        self.new_task = asyncio.Task(self.connect())
+        self.tasks.append(self.new_task)
 
 
 class IRCCloudMessage(messages.SnipeMessage):

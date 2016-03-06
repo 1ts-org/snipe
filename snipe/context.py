@@ -204,8 +204,9 @@ class Context:
         else:
             return ''
 
+    @asyncio.coroutine
     def shutdown(self):
-        self.backends.shutdown()
+        yield from self.backends.shutdown()
 
     def message(self, s):
         self.messagelog.append(s)

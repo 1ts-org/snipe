@@ -346,14 +346,17 @@ class SnipeBackend:
     def backfill(self, mfilter, target=None):
         pass
 
+    @asyncio.coroutine
     def shutdown(self):
-        for t in self.tasks:
+        tasks = list(reversed(self.tasks))
+        for t in tasks:
             try:
                 t.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
-                    asyncio.get_event_loop().run_until_complete(t)
+                    yield from t
             except:
                 self.log.exception('while shutting down')
+        self.tasks = []
 
     def reap_tasks(self):
         self.tasks = [t for t in self.tasks if not t.done()]
@@ -580,10 +583,12 @@ class AggregatorBackend(SnipeBackend):
                 ],
             key = lambda m: m.time if forward else -m.time))
 
+    @asyncio.coroutine
     def shutdown(self):
         for backend in self.backends:
-            backend.shutdown()
-        super().shutdown()
+            self.log.debug('shutting down %s', backend.name)
+            yield from backend.shutdown()
+        yield from super().shutdown()
 
     def __iter__(self):
         return iter(self.backends)

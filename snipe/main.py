@@ -68,7 +68,7 @@ def main():
         log.warning('left mail loop')
         print()
         print('shutting down...', end='', flush=True)
-        context_.shutdown()
+        loop.run_until_complete(context_.shutdown())
         log.warning('snipe ends')
         print('.', end='', flush=True)
     finally:
