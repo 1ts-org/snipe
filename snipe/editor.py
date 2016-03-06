@@ -588,6 +588,36 @@ class Viewer(window.Window, window.PagingMixIn):
         self.set_mark()
         self.insert(s)
 
+    @keymap.bind('Control-X Control-E')
+    def eval_region(self, arg: interactive.argument):
+        """Send the region to the python interpreter and display the result.
+        With a universal argument, insert the result."""
+
+        self.setup_playground()
+
+        region = self.region()
+
+        if not region.strip():
+            return
+
+        out = util.eval_output(region, self._playground)
+
+        if out is None:
+            self.whine('Incomplete command')
+            return
+
+        self.log.debug('result: %s', out)
+
+        if arg:
+            m = self.buf.mark(self.cursor)
+            with self.save_excursion(m):
+                self.end_of_line()
+            if int(m) == int(self.cursor):
+                out = '\n' + out
+            self.insert(out)
+        else:
+            self.show(out)
+
 
 class PopViewer(Viewer):
     cheatsheet = [
