@@ -1,6 +1,32 @@
 # -*- encoding: utf-8 -*-
 # Copyright © 2015 the Snipe contributors
 # All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above
+# copyright notice, this list of conditions and the following
+# disclaimer in the documentation and/or other materials provided
+# with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 '''
 snipe.slack
 --------------
@@ -143,19 +169,19 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.log.debug('websocket url is %s', url)
 
-            self.websocket = util.JSONWebSocket(self.log)
-            yield from self.websocket.connect(url)
+            with  util.JSONWebSocket(self.log) as self.websocket:
+                yield from self.websocket.connect(url)
 
-            self.connected = True
+                self.connected = True
 
-            while True:
-                m = yield from self.websocket.read()
-                self.log.debug('message: %s', repr(m))
-                try:
-                    yield from self.incoming(m)
-                except:
-                    self.log.exception(
-                        'Processing incoming message: %s', repr(m))
+                while True:
+                    m = yield from self.websocket.read()
+                    self.log.debug('message: %s', repr(m))
+                    try:
+                        yield from self.incoming(m)
+                    except:
+                        self.log.exception(
+                            'Processing incoming message: %s', repr(m))
         except asyncio.CancelledError:
             raise
         except:
