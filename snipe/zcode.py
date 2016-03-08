@@ -56,16 +56,17 @@ machine = {
             {'@': ('clear', 'emit', '>start')},
             {c: ('save',) for c in IDCHARS},
             {c: ('pop?', 'emit', '>start') for c in RIGHT},
-            {c: ('push', '>start') for c in LEFT},
+            {c: ('push', 'clear', '>start') for c in LEFT},
             )),
     }
 
 
-def strip(s):
+def tree(s):
     state = 'start'
     stack = []
     saved = ''
-    out = ''
+    out = ['', '']
+    cur = out
     for c in s:
         #print(c, end=' ')
         for action in machine[state][c]:
@@ -73,18 +74,21 @@ def strip(s):
             if action[0] == '>':
                 state = action[1:]
             elif action == 'emit':
-                out += saved + c
+                if not hasattr(cur[-1], 'upper'):
+                    cur.append('')
+                cur[-1] += saved + c
                 saved = ''
             elif action == 'save':
                 saved += c
             elif action == 'clear':
                 saved = ''
             elif action == 'push':
-                saved = '' # actually do something useful
-                stack.append(MATCH[c])
+                stack.append((MATCH[c], cur))
+                cur.append([saved, ''])
+                cur = cur[-1]
             elif action == 'pop?':
-                if stack and c == stack[-1]:
-                    stack.pop()
+                if stack and c == stack[-1][0]:
+                    _, cur = stack.pop()
                     c = ''
             else:
                 #print('unknown action', action)
@@ -92,3 +96,29 @@ def strip(s):
         #print()
     out += saved
     return out
+
+
+def strip_simple(s):
+    def tostring(t):
+        out = ''
+        for e in t[1:]:
+            if hasattr(e, 'upper'):
+                out += e
+            else:
+                out += tostring(e)
+        return out
+    return tostring(tree(s))
+
+
+def strip(s):
+    def tostring(t):
+        out = ''
+        if t[0] in ('@font', '@color'):
+            return ''
+        for e in t[1:]:
+            if hasattr(e, 'upper'):
+                out += e
+            else:
+                out += tostring(e)
+        return out
+    return tostring(tree(s))
