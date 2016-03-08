@@ -137,5 +137,8 @@ class TestZcode(unittest.TestCase):
         # basically we're trying to get it to throw
         CHARS = zcode.LEFT + zcode.RIGHT + '@abc '
         for i in range(tries):
-            zcode.strip_simple(''.join(
-                random.choice(CHARS) for l in range(random.randint(0, max_len - 1))))
+            test_article = ''.join(
+                random.choice(CHARS)
+                for l in range(random.randint(0, max_len - 1)))
+            print('trying', repr(test_article))
+            zcode.strip_simple(test_article)
