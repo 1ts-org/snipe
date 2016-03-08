@@ -102,9 +102,9 @@ def tree(s):
             else:
                 raise AssertionError('unknown action in state table')
             log.debug(' %s %s %s %s', action, out, repr(saved), cur)
+    cur[-1] += saved
     if cur[-1] == '':
         del cur[-1]
-    out += saved
     return out
 
 
