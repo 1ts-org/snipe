@@ -83,11 +83,15 @@ def tree(s):
             elif action == 'clear':
                 saved = ''
             elif action == 'push':
+                if cur[-1] == '':
+                    del cur[-1]
                 stack.append((MATCH[c], cur))
                 cur.append([saved, ''])
                 cur = cur[-1]
             elif action == 'pop?':
                 if stack and c == stack[-1][0]:
+                    if cur[-1] == '':
+                        del cur[-1]
                     _, cur = stack.pop()
                     c = ''
             else:
