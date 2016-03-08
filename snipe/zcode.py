@@ -93,6 +93,8 @@ def tree(s):
                 cur = cur[-1]
             elif action == 'pop?':
                 if stack and c == stack[-1][0]:
+                    cur[-1] += saved
+                    saved = ''
                     if cur[-1] == '':
                         del cur[-1]
                     _, cur = stack.pop()
