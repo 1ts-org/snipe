@@ -98,27 +98,21 @@ def tree(s):
     return out
 
 
+def tree_to_string(t, ignore=('@font', '@color')):
+    out = []
+    if t[0] in ignore:
+        return ''
+    for e in t[1:]:
+        if hasattr(e, 'upper'):
+            out.append(e)
+        else:
+            out.append(tree_to_string(e, ignore))
+    return ''.join(out)
+
+
 def strip_simple(s):
-    def tostring(t):
-        out = ''
-        for e in t[1:]:
-            if hasattr(e, 'upper'):
-                out += e
-            else:
-                out += tostring(e)
-        return out
-    return tostring(tree(s))
+    return tree_to_string(tree(s), ignore=())
 
 
 def strip(s):
-    def tostring(t):
-        out = ''
-        if t[0] in ('@font', '@color'):
-            return ''
-        for e in t[1:]:
-            if hasattr(e, 'upper'):
-                out += e
-            else:
-                out += tostring(e)
-        return out
-    return tostring(tree(s))
+    return tree_to_string(tree(s))
