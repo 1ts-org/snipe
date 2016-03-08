@@ -74,7 +74,6 @@ def tree(s):
     for c in s:
         log.debug('processing %s in state %s', repr(c), state)
         for action in machine[state][c]:
-            log.debug(' %s', action)
             if action[0] == '>':
                 state = action[1:]
             elif action == 'emit':
@@ -100,6 +99,7 @@ def tree(s):
                     c = ''
             else:
                 raise AssertionError('unknown action in state table')
+            log.debug(' %s %s %s %s', action, out, repr(saved), cur)
     if cur[-1] == '':
         del cur[-1]
     out += saved
