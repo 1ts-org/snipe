@@ -126,6 +126,10 @@ class TestZcode(unittest.TestCase):
             zcode.strip_simple('foo@bar{baz}'),
             'foobaz',
             )
+        self.assertEqual(
+            zcode.strip_simple('@bloop'),
+            '@bloop',
+            )
 
     def test_strip_pic(self):
         self.assertEqual(
@@ -142,3 +146,45 @@ class TestZcode(unittest.TestCase):
                 for l in range(random.randint(0, max_len - 1)))
             print('trying', repr(test_article))
             zcode.strip_simple(test_article)
+
+    def test_tree(self):
+        self.assertEqual(
+            zcode.tree(''),
+            [''],
+            )
+        self.assertEqual(
+            zcode.tree('foo'),
+            ['', 'foo'],
+            )
+        self.assertEqual(
+            zcode.tree('@{foo}'),
+            ['', ['@', 'foo']],
+            )
+        self.assertEqual(
+            zcode.tree('@bar{foo}'),
+            ['', ['@bar', 'foo']],
+            )
+        self.assertEqual(
+            zcode.tree('@bar{foo@bar}'),
+            ['', ['@bar', 'foo@bar']],
+            )
+        self.assertEqual(
+            zcode.tree('@bar{foo@@bar}'),
+            ['', ['@bar', 'foo@bar']],
+            )
+        self.assertEqual(
+            zcode.tree('@{foo@}bar}baz'),
+            ['', ['@', 'foo@'], 'bar}baz'],
+            )
+        self.assertEqual(
+            zcode.tree('foo@bar{baz@(bang})}'),
+            ['', 'foo', ['@bar', 'baz', ['@', 'bang}']]],
+            )
+        self.assertEqual(
+            zcode.tree('foo@bar{baz}'),
+            ['', 'foo', ['@bar', 'baz']]
+            )
+        self.assertEqual(
+            zcode.tree('@bloop'),
+            ['', '@bloop'],
+            )
