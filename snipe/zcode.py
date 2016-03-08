@@ -30,6 +30,7 @@
 # SUCH DAMAGE.
 
 import collections
+import logging
 
 
 IDCHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'
@@ -61,6 +62,9 @@ machine = {
     }
 
 
+log = logging.getLogger('zcode')
+
+
 def tree(s):
     state = 'start'
     stack = []
@@ -68,9 +72,9 @@ def tree(s):
     out = ['', '']
     cur = out
     for c in s:
-        #print(c, end=' ')
+        log.debug('processing %s in state %s', repr(c), state)
         for action in machine[state][c]:
-            #print(action, end=' ')
+            log.debug(' %s', action)
             if action[0] == '>':
                 state = action[1:]
             elif action == 'emit':
@@ -95,9 +99,7 @@ def tree(s):
                     _, cur = stack.pop()
                     c = ''
             else:
-                #print('unknown action', action)
                 raise AssertionError('unknown action in state table')
-        #print()
     if cur[-1] == '':
         del cur[-1]
     out += saved

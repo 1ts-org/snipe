@@ -133,7 +133,7 @@ class TestZcode(unittest.TestCase):
             'llvvvnn22SSSXXSnnnnnoo2SSo2nvvvnoono2o2S22XS1n1IIii||liiillIvIIii||=|+\nnoXSoXXXS2222ooonnnnoX#XXXXnvvnooo2SXSS2SSS2ovvvvvvvnvIIvvvvIllIIliii|\nmXZZ#ZZXXXSSXqmXXqXX2XXZXXX2owX222S2SS2XXX2SXXSSoonnvIvvvIvllliiiii|i|\n##m######ZZU##UU##ZUZZ#ZZZZZZZXXXXXXSSXXXXXXXXXXXSonnnvvIIllililiiiiii\nWmBmm###mmm#####Z###Z#Z#ZUZZ#ZZZZZXXXXXXZXXXS2ooooooo)nvvvIlllliliiiii\nmBmBmBmmmmmm#######U#U#Z#ZZ#ZZ#Z#ZUZ#ZZZZZqqXXXZS*^!-<;)oooowoX22X2X2S\nBmmmmmmmm############mmmmmm##mmmmBmmmmmmmm###mm21\\.~/)4w#X#XomowwdXZZZ\n#######U####mmmmmmmmmmmmmmmBBBBBBBBBWmWBC^-+?4)+;>=_==m#mBmmB##m#####m\nmmmmmmmmmmmWmWmBmBmBBBBmWmBmBmBmBmmmmmm[:./:.:-:_=[/=(WmBmBmBmBmBmmmmm\n####mmmmmBBmmmmWmWBBmmBmmBBWmWmWmWmWmW$6-||_=_=;=:;:--($mWBWBWmWBWmWBW\n#Z####mmmmmWBWmmmmmmmmmWmWmmBBBmWmWBWE`<:=.:==-.:=,,+;.4mWmWmWmWmWmWmB\nZZZZZ#U########mWmBmWmWmWmmWmBBBBWmBmmf:`.`=;.:;`=.==_..)?4WmWmWmWmBBW\nXXXXZZ#X#XZZ#Z###########mmmmmmmmmmmmmcj"-_::a/|:,=a<um6a,`-4BmmBmBBmm\no2oXXXXXXXXZXZZZXZZZ#Z######U#Z########C>aa##aaaawwmmm###mw,)9mmmmmmBm\n"!"!"!"!"!!"?!!!!!!!!!!!!?!!!!???!?????Y?!???Y?????Y?YY?Y*ii, Y!Y?Y?Y?\n:-:.::::;:.=;::::::;:;;;=;===;======+|+=+=|=+====||===;;_;====_==|=i+|\n:.:-::::::;::;::;;;:=;=;=;==;;====+|=+=+=++++|||||=||=|||||||||||>=|+|\n.-.----:-::::::::;:;:;;::=:;=====;=====+=++=====+++++=|=+|=>++|+++||=+\n..--.:..-.::::::::::::::;;=;;;;;;;=;;======+===+=|=+|===+==||==+|==+=|\n',
             )
 
-    def test_fuzz(self, tries=10000, max_len=64):
+    def test_fuzz(self, tries=1000, max_len=64):
         # basically we're trying to get it to throw
         CHARS = zcode.LEFT + zcode.RIGHT + '@abc '
         for i in range(tries):
