@@ -98,6 +98,8 @@ def tree(s):
                 #print('unknown action', action)
                 raise AssertionError('unknown action in state table')
         #print()
+    if cur[-1] == '':
+        del cur[-1]
     out += saved
     return out
 
