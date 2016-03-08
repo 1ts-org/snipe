@@ -59,6 +59,7 @@ from . import util
 from . import filters
 from . import keymap
 from . import interactive
+from . import zcode
 
 
 class Roost(messages.SnipeBackend):
@@ -574,7 +575,7 @@ class RoostMessage(messages.SnipeMessage):
 
         sig = self.data.get('signature', '').strip()
         if sig:
-            sigl = sig.split('\n')
+            sigl = zcode.strip(sig).split('\n')
             sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
             chunk += [
                 (tags, ' ' + sig),
@@ -585,7 +586,7 @@ class RoostMessage(messages.SnipeMessage):
              time.strftime(
                 ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
 
-        body = self.body
+        body = zcode.strip(self.body)
         if body and body[-1] != '\n':
             body = body + '\n'
         body = '\n'.join(
