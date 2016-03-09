@@ -61,7 +61,7 @@ class Configurable:
     def __init__(
         self, key,
         default=None, doc=None, action=None, coerce=None, validate=None,
-        string=None,
+        string=None, oneof=None,
         ):
         self.key = key
         self.default = default
@@ -69,6 +69,9 @@ class Configurable:
         self._validate = validate
         self._coerce = coerce
         self._string = string
+        self.oneof = oneof
+        if oneof and not validate:
+            self._validate = val_oneof(oneof)
         self.override = None
         self.doc = doc
         self.registry[key] = self
@@ -460,3 +463,6 @@ def eval_output(string, environment, mode='single'):
         out = traceback.format_exc()
 
     return out
+
+def val_oneof(vals):
+    return lambda x: x in vals

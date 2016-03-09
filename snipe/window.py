@@ -504,11 +504,19 @@ class Window:
                 height=2,
                 name='configuration key',
                 )
-            value = yield from self.read_string(
-                'Value: ',
-                content=str(util.Configurable.get(self, key)),
-                name='configuration value',
-                )
+            if util.Configurable.registry[key].oneof:
+                value = yield from self.read_oneof(
+                    'Value: ',
+                    util.Configurable.registry[key].oneof,
+                    content=str(util.Configurable.get(self, key)),
+                    name='configuration value',
+                    )
+            else:
+                value = yield from self.read_string(
+                    'Value: ',
+                    content=str(util.Configurable.get(self, key)),
+                    name='configuration value',
+                    )
             util.Configurable.set(self, key, value)
             self.context.conf_write()
         else:
