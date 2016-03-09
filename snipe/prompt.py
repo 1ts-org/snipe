@@ -219,7 +219,14 @@ class Leaper(LongPrompt):
                 '*[tab]* completes',
                 ]
         self.log.debug('candidates: %s', self.completer.candidates)
+        self.state_complete()
+
+    def state_complete(self):
         self.state = 'complete'
+        self.fill_column = 0
+
+    def state_normal(self):
+        self.state = 'normal'
 
     def before_command(self):
         self.log.debug('before_command: %s %s', self.state, self.this_command)
@@ -256,6 +263,8 @@ class Leaper(LongPrompt):
                 if mark.point + chunklen < end:
                     yield mark, chunk
                 else:
+                    if chunk and chunk[-1][1][-1:] == '\n':
+                        chunk[-1] = (chunk[-1][0], chunk[-1][1][:-1])
                     yield mark, chunk + self.match_chunks()
 
     @keymap.bind('Control-S')
@@ -282,14 +291,14 @@ class Leaper(LongPrompt):
         m = [x[1] for x in self.matches()]
         self.log.debug('match_chunks: matches: %s', m)
         if not m:
-            return [((), ' {}')]
+            return [((), ' {}\n')]
         return [
             ((), ' {'),
             (('bold',), m[0]),
             ((), (
                 ('|' if len(m) > 1 else '') +
                 '|'.join(m[1:]) +
-                '}'))]
+                '}\n'))]
 
     def completed_text(self):
         return self.buf[self.divider:self.complete_end()]
@@ -339,7 +348,7 @@ class ShortPrompt(Leaper):
         return len(self.buf)
 
     def after_command(self):
-        self.state = 'complete'
+        self.state_complete()
         self.inverse_input = False
 
     def complete_and_finish(self):
@@ -365,8 +374,9 @@ class Composer(Leaper):
         self.stashes = [None, None]
 
         self.state = 'complete'
+        self.fill_column = 0
         if kw.get('content'):
-            self.state = 'normal'
+            self.state_normal()
         self.log.debug('candidates %s', self.completer.candidates)
         self.keymap['[carriage return]'] = self.insert_newline
 
@@ -379,9 +389,27 @@ class Composer(Leaper):
             self.end_of_line()
             return int(self.cursor)
 
+    def state_normal(self):
+        super().state_normal()
+        dest = self.completed_text()
+        params = [s.strip() for s in dest.split(';', 1)]
+        backends = [
+            b
+            for b in self.context.backends
+            if b.name.startswith(params[0])]
+        if len(backends) == 1 and backends[0].name == 'irccloud':
+            self.fill_column = 0
+        else:
+            self.fill_column = self.default_fill_column
+
     def after_command(self):
-        if self.cursor.point > self.complete_end():
-            self.state = 'normal'
+        self.log.error('after command: %s', self.state)
+        if self.state != 'normal':
+            if self.cursor.point > self.complete_end():
+                self.state_normal()
+        else: # normal
+            if self.cursor.point <= self.complete_end():
+                self.state_complete()
 
     @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(self, count: interactive.positive_integer_argument=1):
@@ -389,7 +417,7 @@ class Composer(Leaper):
         if self.state == 'complete':
             self.complete_command('')
 
-        self.state = 'normal'
+        self.state_normal()
 
         super().insert_newline(count)
 
