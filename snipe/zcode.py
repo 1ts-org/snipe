@@ -47,19 +47,19 @@ def __merge(*args):
 
 machine = {
     'start': collections.defaultdict(
-        lambda: ('emit',), __merge({
+        lambda: ('emit', 'clear'), __merge({
             '@': ('save', '>@',),
             '': ('emit', 'tidy',)
             },
             {c: ('pop?', 'emit') for c in RIGHT},
             )),
     '@': collections.defaultdict(
-        lambda: ('emit', '>start'), __merge({
+        lambda: ('emit', 'clear', '>start'), __merge({
             '@': ('clear', 'emit', '>start'),
             '': ('emit', 'tidy',),
             },
             {c: ('save',) for c in IDCHARS},
-            {c: ('pop?', 'emit', '>start') for c in RIGHT},
+            {c: ('pop?', 'emit', 'clear', '>start') for c in RIGHT},
             {c: ('tidy', 'push', 'clear', '>start') for c in LEFT},
             )),
     }
@@ -83,7 +83,6 @@ def tree(s):
                 if not hasattr(cur[-1], 'upper'):
                     cur.append('')
                 cur[-1] += saved + c
-                saved = ''
             elif action == 'save':
                 saved += c
             elif action == 'clear':
