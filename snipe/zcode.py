@@ -48,17 +48,19 @@ def __merge(*args):
 machine = {
     'start': collections.defaultdict(
         lambda: ('emit',), __merge({
-            '@': ('save', '>@',)
+            '@': ('save', '>@',),
+            '': ('emit', 'tidy',)
             },
             {c: ('pop?', 'emit') for c in RIGHT},
             )),
     '@': collections.defaultdict(
         lambda: ('emit', '>start'), __merge({
             '@': ('clear', 'emit', '>start'),
+            '': ('emit', 'tidy',),
             },
             {c: ('save',) for c in IDCHARS},
             {c: ('pop?', 'emit', '>start') for c in RIGHT},
-            {c: ('push', 'clear', '>start') for c in LEFT},
+            {c: ('tidy', 'push', 'clear', '>start') for c in LEFT},
             )),
     }
 
@@ -72,7 +74,7 @@ def tree(s):
     saved = ''
     out = ['', '']
     cur = out
-    for c in s:
+    for c in list(s) + ['']:
         log.debug('processing %s in state %s', repr(c), state)
         for action in machine[state][c]:
             if action[0] == '>':
@@ -86,9 +88,10 @@ def tree(s):
                 saved += c
             elif action == 'clear':
                 saved = ''
-            elif action == 'push':
+            elif action == 'tidy':
                 if cur[-1] == '':
                     del cur[-1]
+            elif action == 'push':
                 stack.append((MATCH[c], cur))
                 cur.append([saved, ''])
                 cur = cur[-1]
@@ -103,9 +106,6 @@ def tree(s):
             else:
                 raise AssertionError('unknown action in state table')
             log.debug(' %s %s %s %s', action, out, repr(saved), cur)
-    cur[-1] += saved
-    if cur[-1] == '':
-        del cur[-1]
     return out
 
 
