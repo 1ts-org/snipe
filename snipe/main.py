@@ -65,7 +65,7 @@ def main():
             loop.add_reader(0, ui.readable)
             ui.redisplay()
             loop.run_forever()
-        log.warning('left mail loop')
+        log.warning('left main loop')
         print()
         print('shutting down...', end='', flush=True)
         loop.run_until_complete(context_.shutdown())
