@@ -91,6 +91,17 @@ class Roost(messages.SnipeBackend):
         'roost.barnowl_indent_body_string', '',
         'Indent message bodies with this string (barnowl expats may '
         'wish to set it to eight spaces)')
+    FORMAT_TYPES = {'strip', 'raw', 'format'}
+    FORMAT_DOC = ('\n\nstrip - Remove markup\n' +
+        'raw - leave markup unmolested\nformat - obey the markup')
+    format_zsig = util.Configurable(
+        'roost.format.signature', 'strip',
+        'How to display the signature' + FORMAT_DOC,
+        oneof=FORMAT_TYPES)
+    format_body = util.Configurable(
+        'roost.format.message', 'format',
+        'How to display the message body' + FORMAT_DOC,
+        oneof=FORMAT_TYPES)
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -575,11 +586,16 @@ class RoostMessage(messages.SnipeMessage):
 
         sig = self.data.get('signature', '').strip()
         if sig:
-            sigl = zcode.strip(sig).split('\n')
+            sigl = sig.split('\n')
             sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
-            chunk += [
-                (tags, ' ' + sig),
-                ]
+            if self.backend.format_zsig == 'format':
+                chunk += [(tags, ' ')] + zcode.tag(sig, tags)
+            else:
+                if self.backend.format_zsig == 'strip':
+                    sig = zcode.strip(sig)
+                chunk += [
+                    (tags, ' ' + sig),
+                    ]
 
         chunk.append(
             (tags + ('right',),
@@ -594,7 +610,12 @@ class RoostMessage(messages.SnipeMessage):
         if body:
             if not body.endswith('\n'):
                 body += '\n'
-            chunk += zcode.tag(body, tags)
+            if self.backend.format_body == 'format':
+                chunk += zcode.tag(body, tags)
+            else:
+                if self.backend.format_body == 'strip':
+                    body = zcode.strip(body)
+                chunk += [(tags, body)]
 
         return chunk
 
