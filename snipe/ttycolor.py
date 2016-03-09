@@ -105,6 +105,7 @@ class CleverColorAssigner(SimpleColorAssigner):
     rgbtxt = '/usr/share/X11/rgb.txt'
     hex_12bit = re.compile(r'^#' + 3*r'([0-9a-fA-F])' + '$')
     hex_24bit = re.compile(r'^#' + 3*'([0-9a-fA-F][0-9a-fA-F])' + '$')
+    integer = re.compile(r'^[0-9]+$')
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -140,6 +141,11 @@ class CleverColorAssigner(SimpleColorAssigner):
 
         m = self.hex_24bit.match(name)
         if m:
+            return tuple(int(x, 16) for x in m.groups())
+
+        m = self.integer.match(name)
+        if m and 0 <= int(name) <= 255:
+            m = self.hex_24bit.match(dict(colors_xterm_256color)[int(name)])
             return tuple(int(x, 16) for x in m.groups())
 
         return None

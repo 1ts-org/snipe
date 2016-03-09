@@ -126,3 +126,46 @@ def strip_simple(s):
 
 def strip(s):
     return tree_to_string(tree(s))
+
+
+
+def ctags(otags, fg):
+    tags = list(otags)
+    if fg:
+        tags.append('fg:' + fg)
+    return tuple(tags)
+
+
+def tag_tree(t, tags, fg=None, otags=None):
+    if otags is None:
+        otags = set()
+        for tag in tags:
+            if tag.startswith('fg:'):
+                fg = tag[3:]
+            else:
+                otags.add(tag)
+
+    out = []
+    if t[0] in ('@i', '@italic'):
+        otags.add('underline')
+    elif t[0] in ('@b', '@bold'):
+        otags.add('bold')
+    elif t[0] in ('@r', '@roman'):
+        otags -= {'underline', 'bold'}
+    tags = ctags(otags, fg)
+    for e in t[1:]:
+        if hasattr(e, 'upper'):
+            out.append((tags, e))
+        else: # a list
+            if e[0] == '@color':
+                fg = tree_to_string([''] + e[1:])
+                tags = ctags(otags, fg)
+            elif e[0] == '@font':
+                pass #nope
+            else:
+                out += tag_tree(e, tags, fg, otags)
+    return out
+
+
+def tag(s, tags):
+    return tag_tree(tree(s), tags)

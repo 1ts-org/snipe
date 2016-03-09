@@ -586,7 +586,7 @@ class RoostMessage(messages.SnipeMessage):
              time.strftime(
                 ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
 
-        body = zcode.strip(self.body)
+        body = self.body
         if body and body[-1] != '\n':
             body = body + '\n'
         body = '\n'.join(
@@ -594,7 +594,7 @@ class RoostMessage(messages.SnipeMessage):
         if body:
             if not body.endswith('\n'):
                 body += '\n'
-            chunk += [(tags, body)]
+            chunk += zcode.tag(body, tags)
 
         return chunk
 
