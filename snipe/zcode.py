@@ -53,8 +53,9 @@ machine = {
             {c: ('pop?', 'emit') for c in RIGHT},
             )),
     '@': collections.defaultdict(
-        lambda: ('emit', '>start'), __merge(
-            {'@': ('clear', 'emit', '>start')},
+        lambda: ('emit', '>start'), __merge({
+            '@': ('clear', 'emit', '>start'),
+            },
             {c: ('save',) for c in IDCHARS},
             {c: ('pop?', 'emit', '>start') for c in RIGHT},
             {c: ('push', 'clear', '>start') for c in LEFT},
