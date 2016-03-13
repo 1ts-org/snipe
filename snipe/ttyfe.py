@@ -866,6 +866,9 @@ class TTYFrontend:
             TTYRenderer(self, height, datar.height - delta, datar.window),
             ]
 
+    def get_erasechar(self):
+        return curses.erasechar()
+
 
 class Location:
     """Abstraction for a pointer into whatever the window is displaying."""

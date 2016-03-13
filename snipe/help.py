@@ -52,9 +52,10 @@ from . import util
 from . import editor
 
 
-@keymap.bind('?')
+@keymap.bind('?', 'Control-H')
 def halp(window: interactive.window):
-    if util.Configurable.get(window, 'cheatsheet'):
+    if util.Configurable.get(window, 'cheatsheet') and \
+      not isinstance(window, HelpBrowser):
         browsehelp(window)
     else:
         util.Configurable.set(window, 'cheatsheet', True)

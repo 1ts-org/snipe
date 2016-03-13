@@ -96,6 +96,7 @@ class Context:
         self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
         self.conf_read()
         util.Configurable.set_overrides(cli_conf)
+        self.erasechar = ui.get_erasechar()
 
         if 'rules' in self.conf:
             self.conf['rule'] = self.conf['rules']

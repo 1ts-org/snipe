@@ -114,6 +114,9 @@ class Messager(window.Window, window.PagingMixIn):
         self.keymap['[space]'] = self.pagedown
         self.keymap['?'] = help.keymap
         self.keymap['[escape] ?'] = help.keymap
+        self.log.error('self.context.erasechar = %s', repr(self.context.erasechar))
+        if self.context.erasechar != b'\x08':
+            self.keymap['Control-H'] = help.keymap
         self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
         self.keymap['Meta-/'].set_cheatsheet(self.cheatsheet_filter)
         # the following will be interesting in the advent of non-singleton
@@ -338,7 +341,7 @@ class Messager(window.Window, window.PagingMixIn):
         if old != self.cursor:
             self.set_mark(old)
 
-    @keymap.bind('s')
+    @keymap.bind('s', 'z')
     def send(self, recipient='', msg=None, name='send message'):
         """Start composing a message."""
 
