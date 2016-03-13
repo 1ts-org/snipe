@@ -93,7 +93,7 @@ class Rooster(util.HTTP_JSONmixin):
     def run_in_exile(self, *args):
         loop = asyncio.get_event_loop()
         try:
-            with concurrent.futures.ProcessPoolExecutor(1) as executor:
+            with concurrent.futures.ThreadPoolExecutor(1) as executor:
                 return (yield from loop.run_in_executor(
                     executor, trampoline, *args))
         except ExileException as e:
