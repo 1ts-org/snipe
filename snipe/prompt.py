@@ -223,9 +223,11 @@ class Leaper(LongPrompt):
 
     def state_complete(self):
         self.state = 'complete'
+        self.saved_fill_column = self.fill_column
         self.fill_column = 0
 
     def state_normal(self):
+        self.fill_column = self.saved_fill_column
         self.state = 'normal'
 
     def before_command(self):
@@ -374,7 +376,6 @@ class Composer(Leaper):
         self.stashes = [None, None]
 
         self.state = 'complete'
-        self.fill_column = 0
         if kw.get('content'):
             self.state_normal()
         self.log.debug('candidates %s', self.completer.candidates)
@@ -382,6 +383,8 @@ class Composer(Leaper):
 
         #wrong, bad, but expedient
         self.completer.candidates.sort(key=lambda x: (len(x), x))
+
+        self.set_fill_column_for = None
 
     def complete_end(self):
         with self.save_excursion():
@@ -393,14 +396,20 @@ class Composer(Leaper):
         super().state_normal()
         dest = self.completed_text()
         params = [s.strip() for s in dest.split(';', 1)]
+        backend = None
         backends = [
             b
             for b in self.context.backends
             if b.name.startswith(params[0])]
-        if len(backends) == 1 and backends[0].name == 'irccloud':
-            self.fill_column = 0
-        else:
-            self.fill_column = self.default_fill_column
+        if len(backends) == 1:
+            backend = backends[0].name
+
+        if backend and self.set_fill_column_for != backend:
+            if backend == 'irccloud':
+                self.fill_column = 0
+            else:
+                self.fill_column = self.default_fill_column
+            self.set_fill_column_for = backend
 
     def after_command(self):
         self.log.error('after command: %s', self.state)
