@@ -150,7 +150,7 @@ def tag_tree(t, tags, fg=None, otags=None):
         otags.add('underline')
     elif t[0] in ('@b', '@bold'):
         otags.add('bold')
-    elif t[0] in ('@r', '@roman'):
+    elif t[0] in ('@roman'):
         otags -= {'underline', 'bold'}
     tags = ctags(otags, fg)
     for e in t[1:]:
