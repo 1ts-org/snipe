@@ -436,10 +436,27 @@ class Messager(window.Window, window.PagingMixIn):
             if self.default_filter
             else None)
 
+    @keymap.bind(*['/ %d' % i for i in range(1,10)])
+    def filter_slot(
+            self,
+            key: interactive.keystroke,
+            keyseq: interactive.keyseq,
+            arg: interactive.argument,
+            ):
+        name = '_' + key
+        if arg:
+            yield from self.filter_edit_name(name)
+        else:
+            filtertext = self.context.conf.get('filter', {}).get(name)
+            if not filtertext:
+                raise util.SnipeException(
+                    'No filter set for %s. Set one with Control-u %s' % (key, keyseq))
+                return
+            self.filter_push(filters.makefilter(filtertext))
+
     @keymap.bind('/ =', 'Meta-/ =')
     def filter_edit(self, arg: interactive.argument=[]):
-        """Edit the text representation of the current filter and push the
-        result.
+        """Edit the text representation of the current filter.
 
         With a prefix, ask for a named filter to edit."""
 
@@ -451,6 +468,7 @@ class Messager(window.Window, window.PagingMixIn):
                 content=s,
                 height=5,
                 name='current filter',
+                validate=filters.makefilter,
                 )
 
             self.filter_replace(filters.makefilter(s))
@@ -462,20 +480,25 @@ class Messager(window.Window, window.PagingMixIn):
                 name='filter name',
                 )
             name = name.strip()
-            s = conf.get('filter', {}).get(name, '')
-            s = yield from self.read_string(
-                'Filter expression %s (^C^C when finished):\n' % (name,),
-                content=s,
-                height=5,
-                name='filter ' + name
-                )
-            if not s.strip():
-                if name in conf.get('filter', {}):
-                    del conf['filter'][name]
-            else:
-                f = filters.makefilter(s)
-                conf.setdefault('filter', {})[name] = str(f)
-            self.context.conf_write()
+            yield from self.filter_edit_name(name)
+
+    def filter_edit_name(self, name):
+        conf = self.context.conf
+        s = conf.get('filter', {}).get(name, str(self.filter))
+        s = yield from self.read_string(
+            'Filter expression for %s (^C^C when finished):\n' % (name,),
+            content=s,
+            height=5,
+            name='filter ' + name,
+            validate=filters.makefilter,
+            )
+        if not s.strip():
+            if name in conf.get('filter', {}):
+                del conf['filter'][name]
+        else:
+            f = filters.makefilter(s)
+            conf.setdefault('filter', {})[name] = str(f)
+        self.context.conf_write()
 
     @keymap.bind('/ -', 'Meta-/ -')
     def filter_everything(self):

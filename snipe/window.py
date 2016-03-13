@@ -292,6 +292,7 @@ class Window:
             height=1,
             window=None,
             name='Prompt',
+            validate=None,
             **kw):
         """Pop a prompt window to read a string from the user.
 
@@ -305,6 +306,9 @@ class Window:
         f = asyncio.Future()
 
         def done_callback(result):
+            if validate is not None:
+                if not validate(result):
+                    raise util.SnipeException('unspecified validation error')
             f.set_result(result)
             self.fe.popdown_window()#XXX might not always be the right one
 
