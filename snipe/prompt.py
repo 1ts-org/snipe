@@ -367,6 +367,7 @@ class ShortPrompt(Leaper):
 class Composer(Leaper):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+        self.set_fill_column_for = None
         histprefix = kw.get('history', '')
         self.histx = [
             self.histories.setdefault(histprefix + '-dest', []),
@@ -384,7 +385,6 @@ class Composer(Leaper):
         #wrong, bad, but expedient
         self.completer.candidates.sort(key=lambda x: (len(x), x))
 
-        self.set_fill_column_for = None
 
     def complete_end(self):
         with self.save_excursion():
