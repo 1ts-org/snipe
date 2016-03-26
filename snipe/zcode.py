@@ -128,7 +128,6 @@ def strip(s):
     return tree_to_string(tree(s))
 
 
-
 def ctags(otags, fg):
     tags = list(otags)
     if fg:
@@ -146,21 +145,23 @@ def tag_tree(t, tags, fg=None, otags=None):
                 otags.add(tag)
 
     out = []
-    if t[0] in ('@i', '@italic'):
+    name = t[0].lower()
+    if name in {'@i', '@italic'}:
         otags.add('underline')
-    elif t[0] in ('@b', '@bold'):
+    elif name in {'@b', '@bold'}:
         otags.add('bold')
-    elif t[0] in ('@roman'):
+    elif name == '@roman':
         otags -= {'underline', 'bold'}
     tags = ctags(otags, fg)
     for e in t[1:]:
         if hasattr(e, 'upper'):
             out.append((tags, e))
         else: # a list
-            if e[0] == '@color':
+            name = e[0].lower()
+            if name == '@color':
                 fg = tree_to_string([''] + e[1:])
                 tags = ctags(otags, fg)
-            elif e[0] == '@font':
+            elif name == '@font':
                 pass #nope
             else:
                 out += tag_tree(e, tags, fg, otags)
