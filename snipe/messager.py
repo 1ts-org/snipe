@@ -807,3 +807,12 @@ class Messager(window.Window, window.PagingMixIn):
         self.show(
             '\n'.join(self.context.backends.destinations()))
 
+
+    @keymap.bind('Control-X w')
+    def write_region(self):
+        filename = yield from self.read_filename('destination file: ')
+        start = min(self.the_mark, self.cursor)
+        end = max(self.the_mark, self.cursor)
+        with open(filename, 'w') as output:
+            for m in self.walk(start, True, search=True):
+                output.write(str(m))
