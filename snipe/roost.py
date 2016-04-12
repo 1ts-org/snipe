@@ -553,14 +553,11 @@ class RoostMessage(messages.SnipeMessage):
 
         if self.personal:
             if self.outgoing:
-                #chunk += [(tags + ('bold',), '\N{BLACK RIGHTWARDS ARROWHEAD} ')]
-                # the above looks cooler but is not in the ubuntu font
-                # constellation for 6x13
-                chunk += [(tags + ('bold',), '\N{RIGHTWARDS ARROW} ')]
-                chunk += [(tags + ('bold',), self.field('recipient'))]
-                chunk.append((tags, ' '))
+                chunk += [(
+                    (tags + ('bold',)),
+                    '(personal> <' + self.field('recipient') + '>')]
             else:
-                chunk += [(tags + ('bold',), '(personal) ')]
+                chunk += [(tags + ('bold',), '<personal)')]
 
         if not self.personal or self.data['class'].lower() != 'message':
             chunk += [
