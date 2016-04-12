@@ -622,7 +622,7 @@ class RoostMessage(messages.SnipeMessage):
     class_un = re.compile(r'^(un)*')
     class_dotd = re.compile(r'(\.d)*$')
     def canon(self, field, value):
-        if field == 'sender':
+        if field == 'sender' or field == 'recipient':
             value = str(value)
             atrealmlen = len(self.backend.realm) + 1
             if value[-atrealmlen:] == '@' + self.backend.realm:
