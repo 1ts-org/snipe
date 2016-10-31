@@ -353,12 +353,13 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         live = [
             b for b in self.buffers.values()
             if (not b.get('deferred', False)
-                and ('min_eid' not in b or b['have_eid'] > b['min_eid']))]
+                and (('min_eid' not in b or 'have_eid' not in b)
+                         or b['have_eid'] > b['min_eid']))]
         if target is None:
             target = min(b.get('have_eid', 0) for b in live) - 1
         elif math.isfinite(target):
             target = int(target * 1000000)
-        live = [b for b in live if b['have_eid'] > target]
+        live = [b for b in live if b.get('have_eid', 0) > target]
         self.backfillers = [t for t in self.backfillers if not t.done()]
         self.reap_tasks()
         if not self.backfillers:
