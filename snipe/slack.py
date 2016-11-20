@@ -779,7 +779,7 @@ class SlackMessage(messages.SnipeMessage):
 # the following was massaged from
 # https://raw.githubusercontent.com/iamcal/emoji-data/master/emoji.json
 # which is Copyright (c) 2013 Cal Henderson, who deserves much respect
-# for collecting the infoformation but it is my belief that the data
+# for collecting the information but it is my belief that the data
 # collected is not covered by copyright.
 EMOJI = {
     'bicyclist', 'left_speech_bubble', 'golf', 'hash', 'shopping_bags',
