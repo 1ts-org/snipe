@@ -322,7 +322,7 @@ class HTTP_JSONmixin:
     @asyncio.coroutine
     def http_json(
             self, method, url,
-            data=None, params=None, headers=None, compress=None,
+            data=None, params=None, headers=None, compress=None, auth=None,
             ):
         self.log.debug(
             'http_json(%s, %s, %s, %s, %s, %s)',
@@ -335,6 +335,10 @@ class HTTP_JSONmixin:
             'User-Agent': USER_AGENT,
         }
 
+        kwargs = {}
+        if auth is not None:
+            kwargs['auth'] = auth
+
         if data is not None:
             data = data.encode('UTF-8')
             headers['Content-Length'] = str(len(data))
@@ -343,7 +347,7 @@ class HTTP_JSONmixin:
         response = yield from aiohttp.request(
             method, url,
             data=data, params=params, compress=compress, headers=headers,
-        )
+            **kwargs)
 
         result = []
         while True:
@@ -359,7 +363,8 @@ class HTTP_JSONmixin:
         try:
             result = json.loads(result)
         except ValueError as e:
-            self.log.error('json parse failure on %s', repr(result))
+            self.log.error(
+                'json parse failure from %s on %s', url, repr(result))
             raise JSONDecodeError(result) from e
         return result
 
