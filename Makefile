@@ -1,6 +1,6 @@
 NOSETESTS=nosetests3 -w tests
 
-all:
+all check:
 	$(NOSETESTS)
 
 coverage:
