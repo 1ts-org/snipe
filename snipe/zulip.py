@@ -268,7 +268,7 @@ class ZulipMessage(messages.SnipeMessage):
 
     def reply(self):
         if self.personal:
-            return self.backend.name + ' ;' + ', '.join(
+            return self.backend.name + '; ' + ', '.join(
                 x['email'] for x in self.data['display_recipient'])
         else:
             return self.backend.name + '; ' + self.data.get('sender_email')
