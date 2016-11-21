@@ -45,6 +45,7 @@ import textwrap
 import time
 import urllib.parse
 
+from . import filters
 from . import messages
 from . import util
 
@@ -164,6 +165,18 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.backfilling = False
 
     @asyncio.coroutine
+    def send(self, dest, body):
+        comps = dest.split(';', 1)
+        to = comps[0].strip()
+        subject = comps[1].strip() if len(comps) > 1 else ''
+        type_ = 'private' if '@' in to else 'stream'
+        result = yield from self._post(
+            'messages', type=type_, content=body, subject=subject, to=to)
+        self.log.debug('send: %s', pprint.pformat(result))
+        if result['result'] != 'success':
+            raise Exception(result['msg'])
+
+    @asyncio.coroutine
     def _post(self, method, **kw):
         result = yield from self.http_json(
             'POST', self.url + '/api/v1/' + method,
@@ -196,8 +209,12 @@ class ZulipMessage(messages.SnipeMessage):
         self._sender = ZulipAddress(backend, self.data.get('sender_email', '?'))
         if self.data.get('type') == 'stream':
             self.stream = str(self.data['display_recipient'])
+            self.subject = str(self.data['subject'])
         elif self.data.get('type') == 'private':
             self.personal = True
+            #XXX the following is a kludge
+            self.recipient = ', '.join(
+                sorted(x['email'] for x in data['display_recipient']))
         else:
             backend.log.debug('weird message: %s', pprint.pformat(data))
             self.noise = True
@@ -248,6 +265,40 @@ class ZulipMessage(messages.SnipeMessage):
             (tags | {'right'}, timestamp),
             (tags, body)
             ]]
+
+    def reply(self):
+        if self.personal:
+            return self.backend.name + ' ;' + ', '.join(
+                x['email'] for x in self.data['display_recipient'])
+        else:
+            return self.backend.name + '; ' + self.data.get('sender_email')
+
+    def followup(self):
+        if self.personal:
+            return self.reply()
+        else:
+            return '; '.join([self.backend.name, self.stream, self.subject])
+
+    def filter(self, specificity=0):
+        nfilter = filters.Compare('==', 'backend', self.backend.name)
+        if self.personal:
+            return filters.And(
+                nfilter,
+                filters.Truth('personal'),
+                filters.Compare('==', 'recipient', self.recipient))
+        else:
+            nfilter = filters.And(
+                nfilter,
+                filters.Compare('==', 'stream', self.stream))
+            if specificity > 0:
+                nfilter = filters.And(
+                    nfilter,
+                    filters.Compare('==', 'subject', self.subject))
+            if specificity > 1:
+                nfilter = filters.And(
+                    nfilter,
+                    filters.Compare('==', 'sender', self.field('sender')))
+            return nfilter
 
 
 class ZulipAddress(messages.SnipeAddress):
