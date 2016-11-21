@@ -111,6 +111,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 int(event['id']) for event in result['events']])
             if msgs:
                 self.messages.extend(msgs)
+                self.drop_cache()
                 # make sure that the message list remains
                 # monitonically increasing by comparing the new
                 # messages (and the last old message) pairwise.
@@ -157,8 +158,9 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 if not msgs:
                     self.log.debug('loaded')
                     self.loaded = True
-            self.readjust(msgs)
             self.messages = msgs + self.messages
+            self.readjust(self.messages)
+            self.drop_cache()
         except:
             self.log.exception('backfilling')
         finally:
