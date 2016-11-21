@@ -60,6 +60,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.url = url.rstrip('/')
         self.messages = []
         self.tasks.append(asyncio.Task(self.connect()))
+        self.backfilling = False
+        self.loaded = False
 
     @util.coro_cleanup
     def connect(self):
@@ -81,7 +83,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.params = None
         while True:
-            import pprint
             if self.params is None:
                 self.log.debug('registering')
                 params = yield from self._post('register')
@@ -92,13 +93,17 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 queue_id = params['queue_id']
                 last_event_id = params['last_event_id']
 
+            self.log.debug(
+                'getting events, queue_id=%s, last_event_id=%s',
+                queue_id, last_event_id)
+
             result = yield from self._get(
                 'events', queue_id=queue_id, last_event_id=last_event_id)
 
             # TODO check for error and maybe invalidate params?
 
             msgs = [
-                ZulipMessage(self, event)
+                ZulipMessage(self, event['message'])
                 for event in result['events']
                 if event.get('type') == 'message']
             last_event_id = max(*[last_event_id] + [
@@ -108,16 +113,55 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 # make sure that the message list remains
                 # monitonically increasing by comparing the new
                 # messages (and the last old message) pairwise.
-                for a, b in zip(
-                        self.messages[-len(msgs) - 1:][:-1],
-                        self.messages[-len(msgs) - 1:][1:]):
-                    if b.time <= a.time:
-                        self.log.debug('before %f, %f', a.time, b.time)
-                        b.time = a.time + .0001
-                        self.log.debug('after %f, %f', a.time, b.time)
+                self.readjust(self.messages[-len(msgs) - 1:])
                 self.redisplay(msgs[0], msgs[-1])
 
         self.log.debug('connect ends')
+
+    @staticmethod
+    def readjust(msgs):
+        for a, b in zip(msgs[:-1], msgs[1:]):
+            if b.time <= a.time:
+                b.time = a.time + .0001
+
+    def backfill(self, mfilter, target=None):
+        self.log.debug(
+            'backfill(mfilter=%s, target=%s)',
+            repr(mfilter), util.timestr(target))
+        if not self.backfilling and not self.loaded:
+            self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
+
+    @asyncio.coroutine
+    def do_backfill(self, mfilter, target):
+        if self.backfilling:
+            return
+        self.backfilling = True
+        try:
+            if self.messages:
+                anchor = self.messages[0].data['id']
+            else:
+                anchor = 1000000000 #XXX
+            result = yield from self._get(
+                'messages', num_before=1024, num_after=0, anchor=anchor,
+                apply_markdown='false')
+            if result.get('result') != 'success':
+                self.log.error('backfilling: %s', pprint.pformat(result))
+                return
+            msgs = [ZulipMessage(self, m) for m in result['messages']]
+            self.log.debug('got %d: %s', len(msgs),  pprint.pformat(msgs[-1]))
+            if msgs and self.messages:
+                self.log.debug('had %s', pprint.pformat(self.messages[0]))
+                if msgs[-1].data['id'] == self.messages[0].data['id']:
+                    del msgs[-1]
+                if not msgs:
+                    self.log.debug('loaded')
+                    self.loaded = True
+            self.readjust(msgs)
+            self.messages = msgs + self.messages
+        except:
+            self.log.exception('backfilling')
+        finally:
+            self.backfilling = False
 
     @asyncio.coroutine
     def _post(self, method, **kw):
@@ -141,13 +185,13 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
 class ZulipMessage(messages.SnipeMessage):
 
-    def __init__(self, backend, event):
+    def __init__(self, backend, data):
         super().__init__(
             backend,
-            pprint.pformat(event),
-            float(event['message'].get('timestamp', time.time())),
+            pprint.pformat(data),
+            float(data.get('timestamp', time.time())),
             )
-        self.data = event['message']
+        self.data = data
 
         self._sender = ZulipAddress(backend, self.data.get('sender_email', '?'))
         if self.data.get('type') == 'stream':
@@ -155,7 +199,7 @@ class ZulipMessage(messages.SnipeMessage):
         elif self.data.get('type') == 'private':
             self.personal = True
         else:
-            backend.log.debug('weird message: %s', pprint.pformat(event))
+            backend.log.debug('weird message: %s', pprint.pformat(data))
             self.noise = True
 
     def display(self, decoration):
