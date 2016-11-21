@@ -130,8 +130,11 @@ class TTYRenderer:
 
         if 'fill' in tags and s:
             nl = s.endswith('\n')
-            ll = textwrap.wrap(s, remaining)
-            s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:]), width))
+            if remaining:
+                ll = textwrap.wrap(s, remaining)
+                s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:]), width))
+            else:
+                s = '\n'.join(textwrap.wrap(s, width))
             if nl:
                 s += '\n'
 
@@ -389,7 +392,8 @@ class TTYRenderer:
 
     def reframe(self, target=None, action=None):
         self.log.debug(
-            'reframe(target=%s, action=%s)', repr(target), repr(action))
+            'reframe(target=%s, action=%s) window=%s',
+            repr(target), repr(action), repr(self.window))
 
         cursor, chunk = next(self.window.view(self.window.cursor, 'backward'))
 
@@ -423,13 +427,19 @@ class TTYRenderer:
         view = self.window.view(self.window.cursor, 'backward')
 
         mark, chunk = next(view)
+        self.log.debug(
+            'reframe looking for cursor, mark=%s, chunk=%s',
+            repr(mark), repr(chunk))
         chunk = itertools.takewhile(
             lambda x: 'visible' not in x[0],
             chunk)
+        chunk = list(chunk)
         chunklines = self.chunksize(chunk)
         self.log.debug(
-            'reframe cursor chunk, screenlines=%d, len(chunklines)=%s',
+            'reframe cursor chunk, screenlines=%d, chunklines=%s',
             screenlines, chunklines)
+        if not chunklines:
+            self.log.debug('reframe, not chunklines, chunk=%s', chunk)
         screenlines -= chunklines
         self.log.debug(
             'reframe cursor chunk, loop bottom, mark=%x, /offset=%d',
