@@ -98,7 +98,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     '; '.join((self.name, x['email']))
                     for x in params['realm_users'])
 
-                self._destinations |= self.senders
+                self._destinations |= self._senders
                 self._destinations |= set(
                     '; '.join((self.name, x['name'], ''))
                     for x in params['streams'])
