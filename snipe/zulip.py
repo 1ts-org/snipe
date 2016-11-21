@@ -149,7 +149,7 @@ class ZulipMessage(messages.SnipeMessage):
             )
         self.data = event['message']
 
-        self._sender = ZulipAddress(backend, event.get('sender_email', '?'))
+        self._sender = ZulipAddress(backend, self.data.get('sender_email', '?'))
         if self.data.get('type') == 'stream':
             self.stream = str(self.data['display_recipient'])
         elif self.data.get('type') == 'private':
