@@ -70,9 +70,10 @@ class SnipeAddress:
 
     def __repr__(self):
         return (
-            '<' + self.__class__.__name__+ ' '
-            + self.backend.name + (' ' if self.path else '')
-            + ', '.join(self.path) + '>'
+            '<' + self.__class__.__name__ + ' '
+            + self.backend.name +
+            ((' ' + ', '.join(self.path)) if self.path else '')
+            + '>'
             )
 
 
@@ -124,7 +125,9 @@ class SnipeMessage:
 
     def display(self, decoration):
         s = str(self)
-        if s and s[-1] != '\n':
+        if not s:
+            s = '?\n'
+        elif s[-1] != '\n':
             s += '\n'
         return [(self.decotags(decoration), s)]
 
