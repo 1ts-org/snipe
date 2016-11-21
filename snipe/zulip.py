@@ -94,6 +94,15 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 queue_id = params['queue_id']
                 last_event_id = params['last_event_id']
 
+                self._senders |= set(
+                    '; '.join((self.name, x['email']))
+                    for x in params['realm_users'])
+
+                self._destinations |= self.senders
+                self._destinations |= set(
+                    '; '.join((self.name, x['name'], ''))
+                    for x in params['streams'])
+
             self.log.debug(
                 'getting events, queue_id=%s, last_event_id=%s',
                 queue_id, last_event_id)
@@ -208,10 +217,19 @@ class ZulipMessage(messages.SnipeMessage):
             )
         self.data = data
 
-        self._sender = ZulipAddress(backend, self.data.get('sender_email', '?'))
+        sender = self.data.get('sender_email')
+        self._sender = ZulipAddress(backend, sender or '?')
+        if sender:
+            sender_set = {'; '.join((self.backend.name, sender))}
+            self.backend._senders |= sender_set
+            self.backend._destinations |= sender_set
         if self.data.get('type') == 'stream':
             self.stream = str(self.data['display_recipient'])
             self.subject = str(self.data['subject'])
+            self.backend._destinations |= {
+                '; '.join((self.backend.name, self.stream, '')),
+                '; '.join((self.backend.name, self.stream, self.subject)),
+                }
         elif self.data.get('type') == 'private':
             self.personal = True
             #XXX the following is a kludge
