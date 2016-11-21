@@ -170,7 +170,7 @@ class Viewer(window.Window, window.PagingMixIn):
 
         from . import help
         self.keymap['[escape] ?'] = help.keymap
-        if self.context.erasechar != b'\x08':
+        if getattr(self.context, 'erasechar', b'\x08') != b'\x08':
             self.keymap['Control-H'] = help.keymap
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
