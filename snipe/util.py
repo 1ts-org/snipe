@@ -359,7 +359,12 @@ class HTTP_JSONmixin:
         response.close()
 
         result = b''.join(result)
-        result = result.decode('utf-8')
+        try:
+            result = result.decode('utf-8')
+        except UnicodeError as e:
+            self.log.error(
+                'json decode failure from %s on %s', url, repr(result))
+            raise JSONDecodeError(repr(result)) from e
         try:
             result = json.loads(result)
         except ValueError as e:
