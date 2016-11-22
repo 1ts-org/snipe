@@ -60,9 +60,11 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         super().__init__(context, **kw)
         self.url = url.rstrip('/')
         self.messages = []
-        self.tasks.append(asyncio.Task(self.connect()))
         self.backfilling = False
         self.loaded = False
+        self.connected = asyncio.Event()
+        self.tasks.append(asyncio.Task(self.connect()))
+        self.tasks.append(asyncio.Task(self.presence_beacon()))
 
     @util.coro_cleanup
     def connect(self):
@@ -82,52 +84,67 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.user = authdata[0]
         self.token = authdata[2]
 
-        self.params = None
-        while True:
-            if self.params is None:
-                self.log.debug('registering')
-                params = yield from self._post('register')
+        try:
+            self.params = None
+            while True:
+                if self.params is None:
+                    self.log.debug('registering')
+                    params = yield from self._post('register')
 
-                # TODO check for an error, backoff, etc.
-                self.params = params
+                    # TODO check for an error, backoff, etc.
+                    self.params = params
 
-                queue_id = params['queue_id']
-                last_event_id = params['last_event_id']
+                    queue_id = params['queue_id']
+                    last_event_id = params['last_event_id']
 
-                self._senders |= set(
-                    '; '.join((self.name, x['email']))
-                    for x in params['realm_users'])
+                    self._senders |= set(
+                        '; '.join((self.name, x['email']))
+                        for x in params['realm_users'])
 
-                self._destinations |= self._senders
-                self._destinations |= set(
-                    '; '.join((self.name, x['name'], ''))
-                    for x in params['streams'])
+                    self._destinations |= self._senders
+                    self._destinations |= set(
+                        '; '.join((self.name, x['name'], ''))
+                        for x in params['streams'])
+                    self.connected.set()
 
-            self.log.debug(
-                'getting events, queue_id=%s, last_event_id=%s',
-                queue_id, last_event_id)
+                self.log.debug(
+                    'getting events, queue_id=%s, last_event_id=%s',
+                    queue_id, last_event_id)
 
-            result = yield from self._get(
-                'events', queue_id=queue_id, last_event_id=last_event_id)
+                result = yield from self._get(
+                    'events', queue_id=queue_id, last_event_id=last_event_id)
 
-            # TODO check for error and maybe invalidate params?
+                # TODO check for error and maybe invalidate params?
 
-            msgs = [
-                ZulipMessage(self, event['message'])
-                for event in result['events']
-                if event.get('type') == 'message']
-            last_event_id = max(*[last_event_id] + [
-                int(event['id']) for event in result['events']])
-            if msgs:
-                self.messages.extend(msgs)
-                self.drop_cache()
-                # make sure that the message list remains
-                # monitonically increasing by comparing the new
-                # messages (and the last old message) pairwise.
-                self.readjust(self.messages[-len(msgs) - 1:])
-                self.redisplay(msgs[0], msgs[-1])
+                msgs = [
+                    ZulipMessage(self, event['message'])
+                    for event in result['events']
+                    if event.get('type') == 'message']
+                last_event_id = max(*[last_event_id] + [
+                    int(event['id']) for event in result['events']])
+                if msgs:
+                    self.messages.extend(msgs)
+                    self.drop_cache()
+                    # make sure that the message list remains
+                    # monitonically increasing by comparing the new
+                    # messages (and the last old message) pairwise.
+                    self.readjust(self.messages[-len(msgs) - 1:])
+                    self.redisplay(msgs[0], msgs[-1])
+        finally:
+            self.connected.clear()
 
         self.log.debug('connect ends')
+
+    @asyncio.coroutine
+    def presence_beacon(self):
+        while True:
+            yield from self.connected.wait()
+            try:
+                yield from self._post(
+                    'users/me/presence', status='active', new_user_input='true')
+            except:
+                pass
+            yield from asyncio.sleep(60)
 
     @staticmethod
     def readjust(msgs):
