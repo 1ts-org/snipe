@@ -60,7 +60,7 @@ class Context:
     '''
     # per-session state and abstact control
 
-    DEFAULT_BACKENDS = '.roost; .irccloud'
+    DEFAULT_BACKENDS = '.roost; .irccloud; .zulip'
 
     backend_spec = util.Configurable('backends', DEFAULT_BACKENDS)
 
