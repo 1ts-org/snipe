@@ -130,6 +130,12 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     # messages (and the last old message) pairwise.
                     self.readjust(self.messages[-len(msgs) - 1:])
                     self.redisplay(msgs[0], msgs[-1])
+                self.log.debug(
+                    'unknwon things: %s', pprint.pformat([
+                        event for event in result['events']
+                        if event.get('type') not in (
+                            'message', 'heartbeat', 'presence')]))
+
         finally:
             self.connected.clear()
 
