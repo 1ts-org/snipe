@@ -46,6 +46,8 @@ import time
 import urllib.parse
 
 from . import filters
+from . import interactive
+from . import keymap
 from . import messages
 from . import util
 
@@ -60,6 +62,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         super().__init__(context, **kw)
         self.url = url.rstrip('/')
         self.messages = []
+        self.messages_by_id = {}
         self.backfilling = False
         self.loaded = False
         self.connected = asyncio.Event()
@@ -116,12 +119,31 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
                 # TODO check for error and maybe invalidate params?
 
-                msgs = [
-                    ZulipMessage(self, event['message'])
-                    for event in result['events']
-                    if event.get('type') == 'message']
-                last_event_id = max(*[last_event_id] + [
-                    int(event['id']) for event in result['events']])
+                msgs = []
+
+                for event in result['events']:
+                    type_ = event.get('type')
+                    if type_ == 'message':
+                        msgs.append(ZulipMessage(self, event['message']))
+                    elif type_ == 'update_message':
+                        if event['message_id'] in self.messages_by_id:
+                            m = self.messages_by_id[event['message_id']]
+                            data = dict(m.data)
+                            data['_old'] = m.data
+                            data['_update_message'] = event
+                            data['content'] = event['content']
+                            m.data = data
+                            self.redisplay(m, m)
+                    elif type_ in ('heartbeat', 'presence'):
+                        pass
+                    else:
+                        self.log.debug(
+                            'unknown event type %s: %s',
+                            type_,
+                            pprint.pformat(event),
+                            )
+                    last_event_id = max(last_event_id, event['id'])
+
                 if msgs:
                     self.messages.extend(msgs)
                     self.drop_cache()
@@ -130,11 +152,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     # messages (and the last old message) pairwise.
                     self.readjust(self.messages[-len(msgs) - 1:])
                     self.redisplay(msgs[0], msgs[-1])
-                self.log.debug(
-                    'unknwon things: %s', pprint.pformat([
-                        event for event in result['events']
-                        if event.get('type') not in (
-                            'message', 'heartbeat', 'presence')]))
 
         finally:
             self.connected.clear()
@@ -208,12 +225,22 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             'messages', type=type_, content=body, subject=subject, to=to)
         self.log.debug('send: %s', pprint.pformat(result))
         if result['result'] != 'success':
-            raise Exception(result['msg'])
+            raise util.SnipeException(result['msg'])
 
     @asyncio.coroutine
     def _post(self, method, **kw):
         result = yield from self.http_json(
             'POST', self.url + '/api/v1/' + method,
+            auth=aiohttp.BasicAuth(self.user, self.token),
+            headers={'content-type': 'application/x-www-form-urlencoded'},
+            data=urllib.parse.urlencode(kw),
+            )
+        return result
+
+    @asyncio.coroutine
+    def _patch(self, method, **kw):
+        result = yield from self.http_json(
+            'PATCH', self.url + '/api/v1/' + method,
             auth=aiohttp.BasicAuth(self.user, self.token),
             headers={'content-type': 'application/x-www-form-urlencoded'},
             data=urllib.parse.urlencode(kw),
@@ -235,7 +262,7 @@ class ZulipMessage(messages.SnipeMessage):
     def __init__(self, backend, data):
         super().__init__(
             backend,
-            pprint.pformat(data),
+            data.get('content', ''),
             float(data.get('timestamp', time.time())),
             )
         self.data = data
@@ -248,6 +275,7 @@ class ZulipMessage(messages.SnipeMessage):
             self.backend._destinations |= sender_set
         if self.data.get('type') == 'stream':
             self.stream = str(self.data['display_recipient'])
+            self._chat = self.stream
             self.subject = str(self.data['subject'])
             self.backend._destinations |= {
                 '; '.join((self.backend.name, self.stream, '')),
@@ -255,6 +283,10 @@ class ZulipMessage(messages.SnipeMessage):
                 }
         elif self.data.get('type') == 'private':
             self.personal = True
+            self.subject = ''
+            self._chat = ', '.join([
+                x.get('short_name', x.get('email', str(x)))
+                for x in self.data['display_recipient']])
             #XXX the following is a kludge
             self.recipient = ', '.join(
                 sorted(x['email'] for x in data['display_recipient']))
@@ -262,16 +294,10 @@ class ZulipMessage(messages.SnipeMessage):
             backend.log.debug('weird message: %s', pprint.pformat(data))
             self.noise = True
 
+        backend.messages_by_id[data['id']] = self
+
     def display(self, decoration):
         tags = set(self.decotags(decoration))
-
-        if self.data['type'] == 'private':
-            title = ', '.join([
-                x.get('short_name', x.get('email', str(x)))
-                for x in self.data['display_recipient']])
-        else:
-            # we expect it's a string already, buuuut....
-            title = str(self.data['display_recipient'])
 
         subject = self.data.get('subject')
         if subject:
@@ -301,7 +327,7 @@ class ZulipMessage(messages.SnipeMessage):
 
         return [(tuple(x), y) for (x, y) in
             [
-            (tags | {'bold'}, title + '>'),
+            (tags | {'bold'}, self._chat + '>'),
             (tags, subject + ' <'),
             (tags | {'bold'}, self.data.get('sender_email', '?')),
             (tags, '>' + name),
@@ -342,6 +368,42 @@ class ZulipMessage(messages.SnipeMessage):
                     nfilter,
                     filters.Compare('==', 'sender', self.field('sender')))
             return nfilter
+
+    @keymap.bind('e')
+    def edit_message(self, window: interactive.window):
+        """Edit a message."""
+
+        prompt = (
+            'edit (^C^C when finished, ^G aborts) -> ' + self.backend.name +
+            '; ' + self._chat + ';')
+
+        if self.personal:
+            prompt += '\n'
+            text = self.body
+        else:
+            prompt += ' '
+            text = self.subject + '\n' + self.body
+
+        text = yield from window.read_string(
+            prompt,
+            height=10,
+            content=text,
+            history='send',
+            fill=True,
+            name='edit message %s' % (util.timestr(self)),
+            )
+
+        kw = {'message_id': self.data['id']}
+        if self.personal:
+            kw['content'] = text
+        else:
+            fields = text.split('\n', 1)
+            kw['subject'] = fields[0].strip()
+            kw['content'] = fields[1] if len(fields) > 1 else ''
+
+        result = yield from self.backend._patch('messages', **kw)
+        if result['result'] != 'success':
+            raise util.SnipeException(result['msg'])
 
 
 class ZulipAddress(messages.SnipeAddress):
