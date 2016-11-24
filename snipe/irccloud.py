@@ -50,7 +50,6 @@ import math
 
 from . import messages
 from . import util
-from . import _websocket
 from . import keymap
 from . import interactive
 from . import filters

@@ -51,9 +51,7 @@ import concurrent.futures
 import socket
 
 import aiohttp
-import aiohttp.websocket
 
-from . import _websocket
 from . import util
 from ._roost_python import krb5
 from ._roost_python import gss

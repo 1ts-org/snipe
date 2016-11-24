@@ -41,7 +41,6 @@ import time
 import re
 import netrc
 import urllib.parse
-import aiohttp
 import json
 import pprint
 import contextlib
@@ -50,7 +49,6 @@ import itertools
 import asyncio
 
 from . import messages
-from . import _websocket
 from . import util
 from . import keymap
 from . import interactive
