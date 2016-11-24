@@ -48,8 +48,6 @@ import json
 
 import aiohttp
 
-from . import _websocket
-
 
 class SnipeException(Exception):
     pass
@@ -377,8 +375,8 @@ class HTTP_JSONmixin:
 class JSONWebSocket:
     def __init__(self, log):
         self.resp = None
-        self.url = None
         self.log = log
+        self.session = aiohttp.ClientSession()
 
     def __enter__(self):
         return self
@@ -387,47 +385,24 @@ class JSONWebSocket:
         if self.resp is not None:
             self.resp.close()
             self.resp = None
+        self.session.close()
         return False
 
     @asyncio.coroutine
-    def connect(self, url, headers=None):
-        if headers is None:
-            headers = {}
-        headers['User-Agent'] = USER_AGENT
-        self.url = url
-        self.log.debug('connecting to %s %s', url, headers)
-        self.reader, self.writer, self.resp = yield from _websocket.websocket(
-            url, headers)
+    def connect(self, url):
+        self.log.debug('connecting to %s', url)
+        self.resp = yield from self.session.ws_connect(url, headers={
+            'User-Agent': USER_AGENT
+            })
 
         return self.resp
 
     def write(self, data):
-        assert self.resp is not None
-        return self.writer.send(json.dumps(data))
+        return self.resp.send_json(data)
 
     @asyncio.coroutine
     def read(self):
-        assert self.resp is not None
-
-        while True:
-            message = yield from self.reader.read()
-
-            if message.type == aiohttp.WSMsgType.PING:
-                self.writer.pong()
-            elif message.type == aiohttp.WSMsgType.CLOSE:
-                break
-            elif message.type == aiohttp.WSMsgType.BINARY:
-                self.log.error(
-                    'Unknown binary message: %s', repr(message))
-            elif message.type == aiohttp.WSMsgType.TEXT:
-                try:
-                    m = json.loads(message.data)
-                except:
-                    self.log.exception('Decoding json: %s', repr(message.data))
-                    continue
-                return m
-            else:
-                self.log.error('Unknown websocket message type')
+        return (yield from self.resp.receive_json())
 
 
 @contextlib.contextmanager
