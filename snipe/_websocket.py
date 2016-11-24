@@ -21,8 +21,6 @@ import pprint
 import aiohttp
 import aiohttp._ws_impl
 
-aiohttp.websocket = aiohttp._ws_impl
-
 log = logging.getLogger('WebSocket')
 
 @asyncio.coroutine
@@ -69,14 +67,14 @@ def websocket(url, headers={}):
         key = response.headers.get('sec-websocket-accept', '').encode()
         match = base64.b64encode(
             hashlib.sha1(
-                sec_key + aiohttp.websocket.WS_KEY
+                sec_key + aiohttp._ws_impl.WS_KEY
                 ).digest())
         if key != match:
             raise ValueError("Handshake error - Invalid challenge response")
 
         reader = response.connection.reader.set_parser(
-            aiohttp.websocket.WebSocketParser)
-        writer = aiohttp.websocket.WebSocketWriter(
+            aiohttp._ws_impl.WebSocketParser)
+        writer = aiohttp._ws_impl.WebSocketWriter(
             response.connection.writer, use_mask=True)
     except:
         response.close()
