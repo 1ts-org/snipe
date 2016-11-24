@@ -197,7 +197,7 @@ for userspace_name, program_name in [
 
 
 LICENSE = '''
-Copyright © 2014 the Snipe contributors
+Copyright © 2014-2016 the Snipe contributors
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -231,7 +231,7 @@ SUCH DAMAGE.
 SPLASH = '''
 Welcome to snipe.
 
-  snipe is a messaging client (and editor) written by Karl Ramm.
+  snipe is a messaging client originally written by Karl Ramm
 
   You can type ? for help at this screen, but on some screens you'll
   need to press the escape key first.   If you're new here, there should
