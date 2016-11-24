@@ -76,27 +76,9 @@ def websocket(url, headers={}):
 
         reader = response.connection.reader.set_parser(
             aiohttp.websocket.WebSocketParser)
-        writer = WebSocketClientWriter(response.connection.writer)
+        writer = aiohttp.websocket.WebSocketWriter(
+            response.connection.writer, use_mask=True)
     except:
         response.close()
         raise
     return reader, writer, response
-
-
-class WebSocketClientWriter(aiohttp.websocket.WebSocketWriter):
-    def _send_frame(self, message, opcode):
-        """Send a frame over the websocket with message as its payload."""
-        header = bytes([0x80 | opcode])
-        msg_length = len(message)
-
-        if msg_length < 126:
-            header += bytes([msg_length | 128])
-        elif msg_length < (1 << 16):
-            header += bytes([126 | 128]) + struct.pack('!H', msg_length)
-        else:
-            header += bytes([127 | 128]) + struct.pack('!Q', msg_length)
-
-        mask = os.urandom(4)
-        payload = bytes(b ^ mask[i % 4] for i, b in enumerate(message))
-
-        self.writer.write(header + mask + payload)
