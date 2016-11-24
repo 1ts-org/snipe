@@ -412,14 +412,14 @@ class JSONWebSocket:
         while True:
             message = yield from self.reader.read()
 
-            if message.tp == aiohttp.websocket.MSG_PING:
+            if message.type == aiohttp.WSMsgType.PING:
                 self.writer.pong()
-            elif message.tp == aiohttp.websocket.MSG_CLOSE:
+            elif message.type == aiohttp.WSMsgType.CLOSE:
                 break
-            elif message.tp == aiohttp.websocket.MSG_BINARY:
+            elif message.type == aiohttp.WSMsgType.BINARY:
                 self.log.error(
                     'Unknown binary message: %s', repr(message))
-            elif message.tp == aiohttp.websocket.MSG_TEXT:
+            elif message.type == aiohttp.WSMsgType.TEXT:
                 try:
                     m = json.loads(message.data)
                 except:

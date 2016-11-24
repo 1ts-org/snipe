@@ -1,4 +1,4 @@
 ply
-aiohttp == 0.21.2
+aiohttp == 1.0.5
 parsedatetime
 docutils

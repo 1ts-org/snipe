@@ -19,7 +19,9 @@ import logging
 import pprint
 
 import aiohttp
-import aiohttp.websocket
+import aiohttp._ws_impl
+
+aiohttp.websocket = aiohttp._ws_impl
 
 log = logging.getLogger('WebSocket')
 
