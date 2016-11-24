@@ -389,11 +389,12 @@ class JSONWebSocket:
         return False
 
     @asyncio.coroutine
-    def connect(self, url):
+    def connect(self, url, headers=None):
+        if headers is None:
+            headers = {}
+        headers['User-Agent'] = USER_AGENT
         self.log.debug('connecting to %s', url)
-        self.resp = yield from self.session.ws_connect(url, headers={
-            'User-Agent': USER_AGENT
-            })
+        self.resp = yield from self.session.ws_connect(url, headers=headers)
 
         return self.resp
 
