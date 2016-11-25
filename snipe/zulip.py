@@ -38,7 +38,6 @@ _backend = 'Zulip'
 
 import aiohttp
 import asyncio
-import netrc
 import os
 import pprint
 import textwrap
@@ -70,19 +69,11 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.tasks.append(asyncio.Task(self.presence_beacon()))
         hostname = urllib.parse.urlparse(self.url).hostname
 
-        # TODO factor the following out of slack and irccloud
-        try:
-            rc = netrc.netrc(os.path.join(self.context.directory, 'netrc'))
-            authdata = rc.authenticators(hostname)
-        except netrc.NetrcParseError as e:
-            self.log.warn(str(e))  # need better notification
+        creds = self.context.credentials(hostname)
+        if creds is None:
             return
-        except FileNotFoundError as e:
-            self.log.warn(str(e))
-            return
+        self.user, self.token = creds
 
-        self.user = authdata[0]
-        self.token = authdata[2]
         self.setup_client_session(auth=aiohttp.BasicAuth(self.user, self.token))
 
     @util.coro_cleanup

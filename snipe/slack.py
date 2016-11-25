@@ -39,7 +39,6 @@ _backend = 'Slack'
 import os
 import time
 import re
-import netrc
 import urllib.parse
 import json
 import pprint
@@ -135,17 +134,12 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         try:
             hostname = slackname + '.' + SLACKDOMAIN
 
-            try:
-                rc = netrc.netrc(os.path.join(self.context.directory, 'netrc'))
-                authdata = rc.authenticators(hostname)
-            except netrc.NetrcParseError as e:
-                self.log.warn(str(e)) # need better notification
-                return
-            except FileNotFoundError as e:
-                self.log.warn(str(e))
+            creds = self.context.credentials(hostname)
+            if creds is None:
+                # XXX this probably shouldn't be a silent failure
                 return
 
-            self.token = authdata[2]
+            self.token = creds[1]
 
             self.url = 'https://' + SLACKDOMAIN + SLACKAPI
 

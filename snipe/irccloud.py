@@ -40,7 +40,6 @@ import asyncio
 import aiohttp
 import json
 import time
-import netrc
 import urllib.parse
 import itertools
 import os
@@ -119,18 +118,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def connect_once(self):
-        try:
-            authdata = netrc.netrc(
-                os.path.join(self.context.directory, 'netrc')).authenticators(
-                urllib.parse.urlparse(IRCCLOUD).netloc)
-        except netrc.NetrcParseError as e:
-            self.log.warn(str(e)) # need better notification
+        creds = self.context.credentials(urllib.parse.urlparse(IRCCLOUD).netloc)
+        if creds is None:
             return
-        except FileNotFoundError as e:
-            self.log.warn(str(e))
-            return
-
-        username, _, password = authdata
+        username, password = creds
 
         self.log.debug('retrieving formtoken')
         result = yield from self._request(

@@ -39,6 +39,7 @@ import subprocess
 import contextlib
 import logging
 import json
+import netrc
 import time
 import collections
 import asyncio
@@ -226,6 +227,23 @@ class Context:
         self.ensure_directory()
         with util.safe_write(self.stark_path()) as fp:
             fp.write(''.join('%f\n' % (f,) for f in self.starks[-16:]))
+
+    def credentials(self, name):
+        try:
+            rc = netrc.netrc(os.path.join(self.directory, 'netrc'))
+            authdata = rc.authenticators(name)
+        except netrc.NetrcParseError as e:
+            self.log.warn(str(e))  # need better notification
+            return None
+        except FileNotFoundError as e:
+            self.log.warn(str(e))
+            return None
+
+        if not authdata:
+            return None
+
+        return authdata[0], authdata[2]
+
 
 
 class SnipeLogHandler(logging.Handler):
