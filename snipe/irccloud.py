@@ -89,6 +89,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.new_task = None
         self.header = {}
         self.since_id = 0
+        self.setup_client_session()
         self.do_connect()
 
     @property
@@ -132,8 +133,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         username, _, password = authdata
 
         self.log.debug('retrieving formtoken')
-        result = yield from self.http_json(
-            'POST', urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'), '')
+        result = yield from self._request(
+            'POST', urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'),
+            data='')
         if not result.get('success'):
             self.log.warn('Could not get formtoken: %s', repr(result))
             return
@@ -142,17 +144,16 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('retrieving logging in')
         for backoff in ((1/16) * 2**min(i, 9) for i in itertools.count()):
             try:
-                result = yield from self.http_json(
+                result = yield from self._request(
                     'POST',
                     urllib.parse.urljoin(IRCCLOUD, '/chat/login'),
-                    urllib.parse.urlencode({
+                    data={
                         'email': username,
                         'password': password,
                         'token': token,
-                        }),
+                        },
                     headers={
                         'x-auth-formtoken': token,
-                        'content-type': 'application/x-www-form-urlencoded',
                     },
                     )
                 break
@@ -271,7 +272,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     @asyncio.coroutine
     def include(self, url):
         self.log.debug('including %s', url)
-        oob_data = yield from self.http_json(
+        oob_data = yield from self._request(
             'GET',
             urllib.parse.urljoin(IRCCLOUD_API, url),
             headers={'Cookie': 'session=%s' % self.session},
@@ -376,17 +377,17 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             target = max(
                 target, buf['have_eid'] - self.backfill_length * 1000000)
 
-            oob_data = yield from self.http_json(
+            oob_data = yield from self._request(
                 'GET',
                 urllib.parse.urljoin(
                     IRCCLOUD_API,
-                    '/chat/backlog?' + urllib.parse.urlencode([
-                        ('cid', buf['cid']),
-                        ('bid', buf['bid']),
-                        ('num', 256),
-                        ('beforeid', buf['have_eid'] - 1),
-                        ])
-                ),
+                    '/chat/backlog'),
+                params={
+                        'cid', buf['cid'],
+                        'bid', buf['bid'],
+                        'num', 256,
+                        'beforeid', buf['have_eid'] - 1,
+                        },
                 headers={'Cookie': 'session=%s' % self.session},
                 compress='gzip',
                 )

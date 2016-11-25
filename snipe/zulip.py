@@ -60,7 +60,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     def __init__(self, context, url='https://chat.zulip.org', **kw):
         super().__init__(context, **kw)
-        self.url = url.rstrip('/')
+        self.url = url.rstrip('/') + '/api/v1/'
         self.messages = []
         self.messages_by_id = {}
         self.backfilling = False
@@ -68,9 +68,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.connected = asyncio.Event()
         self.tasks.append(asyncio.Task(self.connect()))
         self.tasks.append(asyncio.Task(self.presence_beacon()))
-
-    @util.coro_cleanup
-    def connect(self):
         hostname = urllib.parse.urlparse(self.url).hostname
 
         # TODO factor the following out of slack and irccloud
@@ -86,6 +83,10 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.user = authdata[0]
         self.token = authdata[2]
+        self.setup_client_session(auth=aiohttp.BasicAuth(self.user, self.token))
+
+    @util.coro_cleanup
+    def connect(self):
 
         try:
             self.params = None
@@ -226,35 +227,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('send: %s', pprint.pformat(result))
         if result['result'] != 'success':
             raise util.SnipeException(result['msg'])
-
-    @asyncio.coroutine
-    def _post(self, method, **kw):
-        result = yield from self.http_json(
-            'POST', self.url + '/api/v1/' + method,
-            auth=aiohttp.BasicAuth(self.user, self.token),
-            headers={'content-type': 'application/x-www-form-urlencoded'},
-            data=urllib.parse.urlencode(kw),
-            )
-        return result
-
-    @asyncio.coroutine
-    def _patch(self, method, **kw):
-        result = yield from self.http_json(
-            'PATCH', self.url + '/api/v1/' + method,
-            auth=aiohttp.BasicAuth(self.user, self.token),
-            headers={'content-type': 'application/x-www-form-urlencoded'},
-            data=urllib.parse.urlencode(kw),
-            )
-        return result
-
-    @asyncio.coroutine
-    def _get(self, method, **kw):
-        result = yield from self.http_json(
-            'GET', self.url + '/api/v1/' + method,
-            auth=aiohttp.BasicAuth(self.user, self.token),
-            params=kw,
-            )
-        return result
 
 
 class ZulipMessage(messages.SnipeMessage):

@@ -45,6 +45,7 @@ import time
 import datetime
 import math
 import json
+import urllib.parse
 
 import aiohttp
 
@@ -317,59 +318,55 @@ class JSONDecodeError(SnipeException):
 
 class HTTP_JSONmixin:
     # object must have a .log attribute
-    @asyncio.coroutine
-    def http_json(
-            self, method, url,
-            data=None, params=None, headers=None, compress=None, auth=None,
-            ):
-        self.log.debug(
-            'http_json(%s, %s, %s, %s, %s, %s)',
-            repr(method), repr(url), repr(data), repr(params), repr(headers), repr(compress))
-
+    def setup_client_session(self, headers=None, **kw):
         if headers is None:
             headers = {}
+        headers['User-Agent'] = USER_AGENT
+        self._clientsession = aiohttp.ClientSession(headers=headers, **kw)
 
-        send_headers = {
-            'User-Agent': USER_AGENT,
-        }
-
-        kwargs = {}
-        if auth is not None:
-            kwargs['auth'] = auth
-
-        if data is not None:
-            data = data.encode('UTF-8')
-            headers['Content-Length'] = str(len(data))
-        send_headers.update(headers)
-
-        response = yield from aiohttp.request(
-            method, url,
-            data=data, params=params, compress=compress, headers=headers,
-            **kwargs)
-
-        result = []
-        while True:
-            data = yield from response.content.read()
-            if data == b'':
-                break
-            result.append(data)
-
-        response.close()
-
-        result = b''.join(result)
+    @asyncio.coroutine
+    def _result(self, response):
         try:
-            result = result.decode('utf-8')
-        except UnicodeError as e:
+            result = yield from response.json()
+        except (UnicodeError, ValueError) as e:
+            data = yield from response.read()
             self.log.error(
-                'json decode failure from %s on %s', url, repr(result))
+                'json %s from %s on %s', e.__class__.__name__url, repr(result))
             raise JSONDecodeError(repr(result)) from e
-        try:
-            result = json.loads(result)
-        except ValueError as e:
-            self.log.error(
-                'json parse failure from %s on %s', url, repr(result))
-            raise JSONDecodeError(result) from e
+        finally:
+            response.release()
         return result
+
+    @asyncio.coroutine
+    def _post(self, path, **kw):
+        self.log.debug(
+            '_post(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
+        response = yield from self._clientsession.post(
+            urllib.parse.urljoin(self.url, path), data=kw)
+        return (yield from self._result(response))
+
+    @asyncio.coroutine
+    def _patch(self, path, **kw):
+        self.log.debug(
+            '_patch(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
+        response = yield from self._clientsession.patch(
+            urllib.parse.urljoin(self.url, path), data=kw)
+        return (yield from self._result(response))
+
+    @asyncio.coroutine
+    def _get(self, path, **kw):
+        self.log.debug(
+            '_get(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
+        response = yield from self._clientsession.get(
+            urllib.parse.urljoin(self.url, path), params=kw)
+        return (yield from self._result(response))
+
+    @asyncio.coroutine
+    def _request(self, method, url, **kw):
+        self.log.debug(
+            '_request(%s, %s, **%s)', repr(method), repr(url), repr(kw))
+        response = yield from self._clientsession.request(method, url, **kw)
+        return (yield from self._result(response))
 
 
 class JSONWebSocket:

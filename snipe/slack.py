@@ -120,7 +120,6 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             slackname = self.name
         if self.name == self.__class__.name:
             self.name = Slack.name + '.' + slackname
-        self.tasks.append(asyncio.Task(self.connect(slackname)))
         self.backfilling = False
         self.dests = {}
         self.connected = False
@@ -128,6 +127,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.nextid = itertools.count().__next__
         self.unacked = {}
         self.used_emoji = []
+        self.setup_client_session()
+        self.tasks.append(asyncio.Task(self.connect(slackname)))
 
     @asyncio.coroutine
     def connect(self, slackname):
@@ -471,13 +472,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def method(self, method, **kwargs):
         msg = dict(kwargs)
         msg['token'] = self.token
-        response = yield from self.http_json(
-            'POST',
-            self.url + method,
-            headers={'Content-type': 'application/x-www-form-urlencoded'},
-            data = urllib.parse.urlencode(msg),
-            )
-        return response
+        return (yield from self._post(method, **msg))
 
     def check_ok(self, response, context, *args):
         # maybe should be doing this with exceptions

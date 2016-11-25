@@ -87,6 +87,7 @@ class Rooster(util.HTTP_JSONmixin):
         self.ccache = None
         self.tailid = 0
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
+        self.setup_client_session()
 
     def run_in_exile(self, *args):
         loop = asyncio.get_event_loop()
@@ -320,7 +321,7 @@ class Rooster(util.HTTP_JSONmixin):
             headers['Content-Type'] = 'application/json'
             data = json.dumps(data)
 
-        return self.http_json(
+        return self._request(
             method, url, data=data, params=params, headers=headers)
 
 
