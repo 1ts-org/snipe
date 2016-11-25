@@ -73,7 +73,6 @@ class RoosterReconnectException(RoosterException):
 class Rooster(util.HTTP_JSONmixin):
     def __init__(self, url, service):
         self.token = None
-        self.expires = None
         self.url = url
         if self.url[-1] == '/':
             # strip _1_ trailing /
@@ -109,17 +108,17 @@ class Rooster(util.HTTP_JSONmixin):
         self.principal, token = yield from self.run_in_exile(
             get_auth_token, self.service)
 
-        result = yield from self.http(
+        result = yield from self._post_json(
             '/v1/auth',
-            {
-                'principal': self.principal,
-                'token': token,
-                'createUser': create_user,
-                },
+            principal=self.principal,
+            token=token,
+            createUser=create_user,
             )
 
         self.token = result['authToken']
-        self.expires = result['expires']
+        self.setup_client_session(headers={
+            'Authorization': 'Bearer ' + self.token,
+            })
 
     def ensure_auth(self):
         if self.token is None:
@@ -128,42 +127,46 @@ class Rooster(util.HTTP_JSONmixin):
     @asyncio.coroutine
     def get_info(self):
         yield from self.ensure_auth()
-        return (yield from self.http('/v1/info'))
+        return (yield from self._get('/v1/info'))
 
     @asyncio.coroutine
     def send(self, message):
         yield from self.ensure_auth()
-        return (yield from self.http(
-            '/v1/zwrite', {
-                'message': message,
-                'credentials': (yield from self.credentials()),
-                },
+        return (yield from self._post_json(
+            '/v1/zwrite',
+            message=message,
+            credentials=(yield from self.credentials()),
             ))
+
 
     @asyncio.coroutine
     def ping(self):
         yield from self.ensure_auth()
-        return (yield from self.http('/v1/ping'))
+        return (yield from self._get('/v1/ping'))
 
     @asyncio.coroutine
     def subscriptions(self):
         yield from self.ensure_auth()
-        return (yield from self.http('/v1/subscriptions'))
+        return (yield from self._get('/v1/subscriptions'))
+
+
+    @staticmethod
+    def triplet_to_dict(triplet):
+        class_, instance, recipient = triplet
+        return {
+            'class': class_,
+            'instance': instance,
+            'recipient': recipient if recipient != '*' else '',
+            }
 
     @asyncio.coroutine
     def subscribe(self, subs):
         yield from self.ensure_auth()
 
-        return (yield from self.http(
-            '/v1/subscribe', {
-                'subscriptions': [
-                    {
-                        'class': class_,
-                        'instance': instance,
-                        'recipient': recipient if recipient != '*' else '',
-                        } for (class_, instance, recipient) in subs],
-                'credentials': (yield from self.credentials()),
-                },
+        return (yield from self._post_json(
+            '/v1/subscribe',
+            subscriptions=[self.triplet_to_dict(triplet) for triplet in subs],
+            credentials=(yield from self.credentials()),
             ))
 
     @asyncio.coroutine
@@ -175,42 +178,29 @@ class Rooster(util.HTTP_JSONmixin):
         # dictionary, "literally" means "figuratively", which means
         # nothing means anything anything means nothing.  Fix it in
         # the client library.
-        for (class_, instance, recipient) in subs:
-            result = (yield from self.http(
-                '/v1/unsubscribe', {
-                    'subscription': {
-                        'class': class_,
-                        'instance': instance,
-                        'recipient': recipient if recipient != '*' else '',
-                        },
-                    'credentials': (yield from self.credentials()),
-                    },
+        for triplet in subs:
+            result = (yield from self._post_json(
+                '/v1/unsubscribe',
+                subscription=triplet_to_dict(triplet),
+                credentials=(yield from self.credentials()),
                 ))
         return result
 
     @asyncio.coroutine
     def check_zephyrcreds(self):
         yield from self.ensure_auth()
-        return (yield from self.http('/v1/zephyrcreds'))
+        return (yield from self._get('/v1/zephyrcreds'))
 
     @asyncio.coroutine
     def renew_zephyrcreds(self):
         yield from self.ensure_auth()
-        return (yield from self.http(
-            '/v1/zephyrcreds', {
-                'credentials': self.zephyr_creds(),
-                }
-            ))
+        return (yield from self._post_json(
+            '/v1/zephyrcreds', credentials=self.zephyr_creds()))
 
     @asyncio.coroutine
     def bytime(self, t):
         yield from self.ensure_auth()
-        return (yield from self.http(
-            '/v1/bytime',
-            {
-                't': t,
-                },
-            ))
+        return (yield from self._post_json('/v1/bytime', t=t))
 
     @asyncio.coroutine
     def messages(self, offset, limit, reverse=True, inclusive=False):
@@ -219,14 +209,12 @@ class Rooster(util.HTTP_JSONmixin):
         if not offset:
             offset = ''
 
-        return (yield from self.http(
+        return (yield from self._get(
             '/v1/messages',
-            params = {
-                'reverse': 1 if reverse else 0,
-                'inclusive': 1 if inclusive else 0,
-                'offset': offset,
-                'count': limit,
-                },
+            reverse=1 if reverse else 0,
+            inclusive=1 if inclusive else 0,
+            offset=offset,
+            count=limit,
             ))
 
     @asyncio.coroutine
@@ -306,23 +294,6 @@ class Rooster(util.HTTP_JSONmixin):
                             yield from coro(msg)
                     else:
                         self.log.debug('unknown message type: %s', repr(m))
-
-    @asyncio.coroutine
-    def http(self, url, data=None, params=None):
-        url = self.url + url
-        headers = {}
-        method = 'GET'
-
-        if self.token is not None:
-            headers['Authorization'] = 'Bearer ' + self.token
-
-        if data is not None:
-            method = 'POST'
-            headers['Content-Type'] = 'application/json'
-            data = json.dumps(data)
-
-        return self._request(
-            method, url, data=data, params=params, headers=headers)
 
 
 class ExileException(RoosterException):

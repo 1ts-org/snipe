@@ -322,6 +322,8 @@ class HTTP_JSONmixin:
         if headers is None:
             headers = {}
         headers['User-Agent'] = USER_AGENT
+        if getattr(self, '_clientsession', None) is not None:
+            self._clientsession.close()
         self._clientsession = aiohttp.ClientSession(headers=headers, **kw)
 
     @asyncio.coroutine
@@ -346,6 +348,17 @@ class HTTP_JSONmixin:
         return (yield from self._result(response))
 
     @asyncio.coroutine
+    def _post_json(self, path, **kw):
+        self.log.debug(
+            '_post_json(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
+        response = yield from self._clientsession.post(
+            urllib.parse.urljoin(self.url, path),
+            data=json.dumps(kw),
+            headers={'Content-Type': 'application/json'},
+            )
+        return (yield from self._result(response))
+
+    @asyncio.coroutine
     def _patch(self, path, **kw):
         self.log.debug(
             '_patch(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
@@ -367,6 +380,11 @@ class HTTP_JSONmixin:
             '_request(%s, %s, **%s)', repr(method), repr(url), repr(kw))
         response = yield from self._clientsession.request(method, url, **kw)
         return (yield from self._result(response))
+
+    @asyncio.coroutine
+    def shutdown(self):
+        yield from super().shutdown()
+        self._clientsession.close()
 
 
 class JSONWebSocket:
