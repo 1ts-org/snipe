@@ -178,8 +178,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             if yarl is not None and aiohttp_vers >= 1.1:
                 url = yarl.URL(url)
                 url._val = urllib.parse.SplitResult(
-                    url.scheme, url.netloc, url.path.replace('%3D', '='),
-                    url.query, url.fragment)
+                    url._val.scheme, url._val.netloc,
+                    url._val.path.replace('%3D', '='), url._val.query,
+                    url._val.fragment)
 
             self.log.debug('websocket url is %s', url)
 
