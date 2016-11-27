@@ -245,7 +245,6 @@ class Context:
         return authdata[0], authdata[2]
 
 
-
 class SnipeLogHandler(logging.Handler):
     size = util.Configurable(
         'log.size',
