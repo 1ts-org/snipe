@@ -72,7 +72,7 @@ String literals between double quotes. e.g. ``"foo"``.
 
 Regexp literals, between forward slashes, e.g. ``/^bar$/``.  For
 the moment, always cases sensitive (but what you're comparing to
-may have been put in a canonical case if you use ``=``.
+may have already been put in a canonical case if you use ``=``).
 
 Identifier are bare words that match ``/[a-zA-Z_][a-zA-Z_0-9]*/``.
 These usually refer to message fields but can refer to named filters.
@@ -83,10 +83,11 @@ or failure.
 
 ::
 
-  $'python code'  $"python code"
+  $'python expression'  $"python expression"
 
-What it says on the tin.  Called with a message object in the variable
-``m``.
+What it says on the tin.  The python expression is evaluated with a message
+object in the variable ``m``, and the filter matches if the result is ``True``
+when coerced to a boolean.
 
 Grammar
 ++++++++
@@ -365,7 +366,7 @@ class Python(Filter):
 
     def __call__(self, m, state=None):
         try:
-            return eval(self.string, {}, {'m': m, 'state': state})
+            return bool(eval(self.string, {}, {'m': m, 'state': state}))
         except:
             self.log.exception(
                 'executing python filter %s on %s',
