@@ -34,10 +34,11 @@
 Unit tests for various filter-related things
 '''
 
-import unittest
 import sys
+import unittest
 
 sys.path.append('..')
+sys.path.append('../lib')
 
 import snipe.filters
 from snipe.filters import *

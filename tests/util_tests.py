@@ -33,13 +33,15 @@ Unit tests for stuff in utils.py
 '''
 
 
-import sys
 import os
 import random
+import sys
 import tempfile
 import unittest
 
 sys.path.append('..')
+sys.path.append('../lib')
+
 import snipe.util
 
 

@@ -35,12 +35,14 @@ Unit tests for the Editor object
 
 
 import array
+import itertools
 import random
 import sys
 import unittest
-import itertools
 
 sys.path.append('..')
+sys.path.append('../lib')
+
 import snipe.editor
 
 

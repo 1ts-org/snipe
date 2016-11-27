@@ -34,11 +34,13 @@ Unit tests for various context-related things
 '''
 
 
-import unittest
-import sys
 import curses
+import sys
+import unittest
 
 sys.path.append('..')
+sys.path.append('../lib')
+
 import snipe.keymap
 
 

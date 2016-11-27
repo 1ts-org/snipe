@@ -32,14 +32,16 @@
 Unit tests for stuff in windows.py
 '''
 
+import itertools
 import sys
+import time
 import unittest
 
 sys.path.append('..')
-import snipe.messages
+sys.path.append('../lib')
+
 import snipe.filters
-import time
-import itertools
+import snipe.messages
 
 
 class TestStartup(unittest.TestCase):

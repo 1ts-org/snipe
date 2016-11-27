@@ -36,6 +36,8 @@ import sys
 import unittest
 
 sys.path.append('..')
+sys.path.append('../lib')
+
 import snipe.window
 
 class TestCheatsheetify(unittest.TestCase):

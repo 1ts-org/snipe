@@ -35,13 +35,15 @@ Unit tests for the TTY frontend objects
 (hard because we haven't mocked curses yet.)
 """
 
+import curses
 import sys
 import unittest
-import curses
 
 sys.path.append('..')
-import snipe.ttyfe
+sys.path.append('../lib')
+
 import snipe.ttycolor
+import snipe.ttyfe
 
 
 class TestTTYFE(unittest.TestCase):
