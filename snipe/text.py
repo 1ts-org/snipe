@@ -89,6 +89,14 @@ class RSTRenderer:
         self.state_space = False
 
         if not self.notatendofline():
+            if self.output:
+                lastchunk = self.output[-1][1]
+                tag, text = lastchunk[-1]
+                tags = set(tag)
+                if tags & self.tags(span=True) and text[-1:] == '\n':
+                    lastchunk[-1:] = [
+                        (tags, text[:-1]),
+                        (tuple(tags - self.tags(span=True)), '\n')]
             self.output.append((self.offset, []))
 
         line = self.output[-1][1]
@@ -176,18 +184,27 @@ class RSTRenderer:
         self.fill = fill
         self.state_space = True
 
-    def tags(self):
+    def tags(self, span=None):
         if not self.tagstack:
-            return ()
+            if span is None:
+                return ()
+            else:
+                return set()
         else:
-            return tuple(self.tagstack[-1])
+            if span is None:
+                return tuple(self.tagstack[-1][0] | self.tagstack[-1][1])
+            elif bool(span):
+                return self.tagstack[-1][1]
+            else:
+                return self.tagstack[-1][0]
 
-    def tagpush(self, *tags):
-        self.tagstack.append(set(self.tags()) | set(tags))
-        return 1
-
-    def tagshove(self, tags):
-        self.tagstack.append(set(tags))
+    def tagpush(self, *tags, span=False):
+        if span:
+            self.tagstack.append(
+                (self.tags(False), self.tags(True) | set(tags)))
+        else:
+            self.tagstack.append(
+                (self.tags(False) | set(tags), self.tags(True)))
         return 1
 
     def tagpop(self, count):
@@ -390,10 +407,10 @@ class XHTMLRenderer(RSTRenderer):
                 self.fill = False
             if tag in BOLD_TAGS:
                 tagdepth += self.tagpush('bold')
-            if tag in GREY_TAGS:
-                tagdepth += self.tagpush('bg:#3d3d3d')
+            if tag in GREY_TAGS:  # PRE > GREY
+                tagdepth += self.tagpush('bg:#3d3d3d', span=self.fill)
             if tag in ANCHOR_TAGS:
-                tagdepth += self.tagpush('fg:#6666ff', 'underline')
+                tagdepth += self.tagpush('fg:#6666ff', 'underline', span=True)
 
         for child in node.childNodes:
             if child.nodeType == node.TEXT_NODE:
