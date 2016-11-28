@@ -1,4 +1,5 @@
-ply
 aiohttp >= 1.0
-parsedatetime
 docutils
+Markdown
+parsedatetime
+ply

@@ -37,11 +37,14 @@ Text processing stuff.
 import logging
 import re
 import sys
+import xml.dom.minidom
 
 import docutils.io
 import docutils.parsers.rst
 import docutils.parsers.rst.directives
 import docutils.nodes
+import markdown
+import markdown.extensions.codehilite
 
 from . import util
 
@@ -130,6 +133,7 @@ class RSTRenderer:
                         rest = words[offs[2]:]
                         words = words[:offs[1]]
 
+        self.log.debug('words: %s', repr(words))
         if words[-1:] == '\n':
             self.col = 0
         else:
@@ -145,12 +149,19 @@ class RSTRenderer:
             self.add(rest)
 
     def notatendofline(self):
+        if self.output:
+            self.log.debug('eol? %s', self.output[-1])
         # the frenzy of indexing checks the end of the last line so far
         return self.output and self.output[-1][1][-1][1][-1:] != '\n'
 
+    def notatbeginingofline(self):
+        if not self.output:
+            return False
+        return bool(len(self.output[-1][1]) > 1 or self.output[-1][1][0][1])
+
     def linebreak(self): # .br
         self.log.debug('.linebreak')
-        if self.notatendofline():
+        if self.notatendofline() and self.notatbeginingofline():
             fill, self.fill = self.fill, False
             self.add('\n')
             self.fill = fill
@@ -173,6 +184,10 @@ class RSTRenderer:
 
     def tagpush(self, *tags):
         self.tagstack.append(set(self.tags()) | set(tags))
+        return 1
+
+    def tagshove(self, tags):
+        self.tagstack.append(set(tags))
         return 1
 
     def tagpop(self, count):
@@ -346,3 +361,82 @@ class Toc(docutils.parsers.rst.Directive):
 
 docutils.parsers.rst.directives.register_directive(
     'toc', Toc)
+
+
+IGNORED_TAGS = {'html', 'body'}
+BLOCK_TAGS = {'p', 'li', 'ul', 'pre', 'br'}
+ANCHOR_TAGS = {'a'}
+BOLD_TAGS = {'strong'}
+GREY_TAGS = {'code'}
+LITERAL_TAGS = {'pre'}
+HANDLED_TAGS = (
+    IGNORED_TAGS | BLOCK_TAGS | BOLD_TAGS | LITERAL_TAGS | GREY_TAGS |
+    ANCHOR_TAGS
+    )
+
+class XHTMLRenderer(RSTRenderer):
+    def process(self, node):
+        tagdepth = 0
+        if node.nodeType == node.ELEMENT_NODE:
+            tag = node.tagName
+            if tag not in HANDLED_TAGS:
+                td = self.tagpush('bold')
+                self.add('<' + node.tagName + '>')
+                self.tagpop(td)
+            if tag in BLOCK_TAGS:
+                self.log.debug('block tag open linebreak')
+                self.linebreak()
+            if tag in LITERAL_TAGS:
+                self.fill = False
+            if tag in BOLD_TAGS:
+                tagdepth += self.tagpush('bold')
+            if tag in GREY_TAGS:
+                tagdepth += self.tagpush('bg:#3d3d3d')
+            if tag in ANCHOR_TAGS:
+                tagdepth += self.tagpush('fg:#6666ff', 'underline')
+
+        for child in node.childNodes:
+            if child.nodeType == node.TEXT_NODE:
+                self.add(child.data)
+            else:
+                self.process(child)
+
+        if node.nodeType == node.ELEMENT_NODE:
+            if tag not in HANDLED_TAGS:
+                td = self.tagpush('bold')
+                self.add('</' + node.tagName + '>')
+                self.tagpop(td)
+            if tag in BLOCK_TAGS:
+                self.log.debug('block tag close linebreak')
+                self.linebreak()
+            if tag in LITERAL_TAGS:
+                self.fill = True
+
+        self.tagpop(tagdepth)
+
+
+def xhtml_to_chunk(xhtml):
+    dom = xml.dom.minidom.parseString('<html><body>' + xhtml + '</body></html>')
+    renderer = XHTMLRenderer()
+    renderer.process(dom.documentElement)
+    out = []
+    for mark, chunk in renderer.output:
+        out.extend(chunk)
+    return out
+
+
+def markdown_to_xhtml(s):
+    return markdown.markdown(
+        s, safe_mode='escape', extensions=[
+            'markdown.extensions.fenced_code',
+            'markdown.extensions.nl2br',
+            ## 'markdown.extensions.tables',
+            ## markdown.extensions.codehilite.makeExtension(
+            ##     linenums=False,
+            ##     guess_lang=False,
+            ##     )
+            ])
+
+
+def markdown_to_chunk(s):
+    return xhtml_to_chunk(markdown_to_xhtml(s))

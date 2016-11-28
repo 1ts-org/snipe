@@ -45,6 +45,7 @@ import time
 import urllib.parse
 
 from . import filters
+from . import text
 from . import interactive
 from . import keymap
 from . import messages
@@ -280,13 +281,10 @@ class ZulipMessage(messages.SnipeMessage):
         body = self.data.get('content')
         body = body.replace('\r\n', '\n')  # conform to local custom
 
-        # make markdown with long lines readable
-        # (really, replace this with a markdown renderer that does literal text
-        # & _underlining_ & *bold* &c correctly)
-        body = '\n\n'.join(
-            '\n'.join(textwrap.wrap(s, 72)) for s in body.split('\n\n'))
-        if body[-1] != '\n':
-            body += '\n'
+        if '_html' not in self.data:
+            self.data['_html'] = text.markdown_to_xhtml(body)
+        if '_rendered' not in self.data:
+            self.data['_rendered'] = text.xhtml_to_chunk(self.data['_html'])
 
         return [(tuple(x), y) for (x, y) in
             [
@@ -295,8 +293,7 @@ class ZulipMessage(messages.SnipeMessage):
             (tags | {'bold'}, self.data.get('sender_email', '?')),
             (tags, '>' + name),
             (tags | {'right'}, timestamp),
-            (tags, body)
-            ]]
+            ] + [((tags | set(x)), y) for (x, y) in self.data['_rendered']]]
 
     def reply(self):
         if self.personal:
