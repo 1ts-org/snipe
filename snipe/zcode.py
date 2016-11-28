@@ -155,7 +155,15 @@ def tag_tree(t, tags, fg=None, otags=None):
     tags = ctags(otags, fg)
     for e in t[1:]:
         if hasattr(e, 'upper'):
-            out.append((tags, e))
+            if 'underline' in tags and '\n' in e:
+                buf = []
+                for f in e.split('\n'):
+                    buf.append((tags, f))
+                    buf.append((tuple(set(tags) - {'underline'}), '\n'))
+                del buf[-1]
+                out.extend(buf)
+            else:
+                out.append((tags, e))
         else: # a list
             name = e[0].lower()
             if name == '@color':
