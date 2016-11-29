@@ -44,7 +44,9 @@ import docutils.parsers.rst
 import docutils.parsers.rst.directives
 import docutils.nodes
 import markdown
+import markdown.extensions
 import markdown.extensions.codehilite
+import markdown.extensions.fenced_code
 
 from . import util
 
@@ -97,8 +99,7 @@ class RSTRenderer:
                     lastchunk[-1:] = [
                         (tags, text[:-1]),
                         (tuple(tags - self.tags(span=True)), '\n')]
-            self.output.append((self.offset, []))
-
+            self.output.append((self.offset, [(self.tags(), self.indent)]))
         line = self.output[-1][1]
 
         rest = ''
@@ -135,7 +136,7 @@ class RSTRenderer:
                 if self.col > len(self.indent):
                     # punt this to the next line
                     rest = words + rest
-                    words = '\n' + self.indent
+                    words = '\n'
                 else:
                     if len(offs) > 1:
                         rest = words[offs[2]:]
@@ -143,7 +144,7 @@ class RSTRenderer:
 
         self.log.debug('words: %s', repr(words))
         if words[-1:] == '\n':
-            self.col = 0
+            self.col = len(self.indent)
         else:
             self.col += len(words)
 
@@ -381,7 +382,8 @@ docutils.parsers.rst.directives.register_directive(
 
 
 IGNORED_TAGS = {'html', 'body'}
-BLOCK_TAGS = {'p', 'li', 'ul', 'pre', 'br'}
+INDENT_TAGS = {'blockquote'}
+BLOCK_TAGS = {'p', 'li', 'ul', 'pre', 'br'} | INDENT_TAGS
 ANCHOR_TAGS = {'a'}
 BOLD_TAGS = {'strong'}
 GREY_TAGS = {'code'}
@@ -411,6 +413,8 @@ class XHTMLRenderer(RSTRenderer):
                 tagdepth += self.tagpush('bg:#3d3d3d', span=self.fill)
             if tag in ANCHOR_TAGS:
                 tagdepth += self.tagpush('fg:#6666ff', 'underline', span=True)
+            if tag in INDENT_TAGS:
+                self.indent += ' '
 
         for child in node.childNodes:
             if child.nodeType == node.TEXT_NODE:
@@ -429,6 +433,9 @@ class XHTMLRenderer(RSTRenderer):
             if tag in LITERAL_TAGS:
                 self.fill = True
 
+            if tag in INDENT_TAGS:
+                self.indent = self.indent[:-1]
+
         self.tagpop(tagdepth)
 
 
@@ -445,15 +452,52 @@ def xhtml_to_chunk(xhtml):
 def markdown_to_xhtml(s):
     return markdown.markdown(
         s, safe_mode='escape', extensions=[
-            'markdown.extensions.fenced_code',
+            SnipeFencedCodeExtension(),
             'markdown.extensions.nl2br',
             ## 'markdown.extensions.tables',
-            ## markdown.extensions.codehilite.makeExtension(
-            ##     linenums=False,
-            ##     guess_lang=False,
-            ##     )
             ])
 
 
 def markdown_to_chunk(s):
     return xhtml_to_chunk(markdown_to_xhtml(s))
+
+
+class QuoteHack:
+    CODE_WRAP = '<pre><code%s>%s</code></pre>'
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.langtag = None
+        self.content = None
+
+    def __mod__(self, other):
+        self.langtag, self.content = other
+        return self.CODE_WRAP % (self.langtag, self.content)
+
+
+class SnipeFBP(markdown.extensions.fenced_code.FencedBlockPreprocessor):
+    CODE_WRAP = QuoteHack()
+
+    def run(self, lines):
+        self.CODE_WRAP.reset()
+        lines = super().run(lines)
+        logging.debug('%s', repr(self.CODE_WRAP.langtag))
+        if self.CODE_WRAP.langtag == ' class="quote"':
+            lines = []
+            content = self.CODE_WRAP.content
+            for para in content.split('\n\n'):
+                for line in para.split('\n'):
+                    if line:
+                        lines.append('> ' + line)
+                lines.append('\n')
+        return lines
+
+
+class SnipeFencedCodeExtension(markdown.Extension):
+    def extendMarkdown(self, md, md_globals):
+        md.registerExtension(self)
+        md.preprocessors.add(
+            'fenced_code_block',
+            SnipeFBP(md),
+            ">normalize_whitespace")

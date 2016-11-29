@@ -1,5 +1,5 @@
 aiohttp >= 1.0
 docutils
-Markdown
+Markdown == 2.6.7
 parsedatetime
 ply
