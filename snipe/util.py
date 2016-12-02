@@ -333,8 +333,8 @@ class HTTP_JSONmixin:
         except (UnicodeError, ValueError) as e:
             data = yield from response.read()
             self.log.error(
-                'json %s from %s on %s', e.__class__.__name__url, repr(result))
-            raise JSONDecodeError(repr(result)) from e
+                'json %s from %s on %s', e.__class__.__name__, response.url, repr(data))
+            raise JSONDecodeError(repr(data)) from e
         finally:
             response.release()
         return result
