@@ -383,9 +383,11 @@ docutils.parsers.rst.directives.register_directive(
 
 IGNORED_TAGS = {'html', 'body'}
 INDENT_TAGS = {'blockquote'}
-BLOCK_TAGS = {'p', 'li', 'ul', 'pre', 'br'} | INDENT_TAGS
+BLOCK_TAGS = {
+    'p', 'li', 'ul', 'pre', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    } | INDENT_TAGS
 ANCHOR_TAGS = {'a'}
-BOLD_TAGS = {'strong'}
+BOLD_TAGS = {'strong', 'h1', 'em'}
 GREY_TAGS = {'code'}
 LITERAL_TAGS = {'pre'}
 HANDLED_TAGS = (
