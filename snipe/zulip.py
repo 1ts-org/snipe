@@ -115,27 +115,14 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 msgs = []
 
                 for event in result['events']:
-                    type_ = event.get('type')
-                    if type_ == 'message':
-                        msgs.append(ZulipMessage(self, event['message']))
-                    elif type_ == 'update_message':
-                        if event['message_id'] in self.messages_by_id:
-                            m = self.messages_by_id[event['message_id']]
-                            data = dict(m.data)
-                            data['_old'] = m.data
-                            data['_update_message'] = event
-                            data['content'] = event['content']
-                            m.data = data
-                            self.redisplay(m, m)
-                    elif type_ in ('heartbeat', 'presence'):
-                        pass
-                    else:
-                        self.log.debug(
-                            'unknown event type %s: %s',
-                            type_,
-                            pprint.pformat(event),
-                            )
-                    last_event_id = max(last_event_id, event['id'])
+                    try:
+                        msg, last_event_id = (
+                            yield from self.process_event(event, last_event_id))
+                    except:
+                        self.log.exception(
+                            'processing event: %s', pprint.pformat(event))
+                    if msg is not None:
+                        msgs.append(msg)
 
                 if msgs:
                     self.messages.extend(msgs)
@@ -150,6 +137,30 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.connected.clear()
 
         self.log.debug('connect ends')
+
+    @asyncio.coroutine
+    def process_event(self, event, last_event_id):
+        type_ = event.get('type')
+        msg = None
+        if type_ == 'message':
+             msg = ZulipMessage(self, event['message'])
+        elif type_ == 'update_message':
+            self.log.debug('update_message event: %s', pprint.pformat(event))
+            for mid in event.get('message_ids', [event['message_id']]):
+                if mid in self.messages_by_id:
+                    m = self.messages_by_id[mid]
+                    m.update(event)
+        elif type_ in ('heartbeat', 'presence'):
+            pass
+        else:
+            self.log.debug(
+                'unknown event type %s: %s',
+                type_,
+                pprint.pformat(event),
+                )
+        last_event_id = max(last_event_id, event['id'])
+
+        return msg, last_event_id
 
     @asyncio.coroutine
     def presence_beacon(self):
@@ -259,6 +270,21 @@ class ZulipMessage(messages.SnipeMessage):
             self.noise = True
 
         backend.messages_by_id[data['id']] = self
+
+    def update(self, event):
+        self.backend.log.debug('updating %s: %s', self, event)
+        data = dict(self.data)
+        data['_old'] = self.data
+        data['_update_message'] = event
+        if 'subject' in event:
+            data['subject'] = event['subject']
+        if 'content' in event:
+            data['content'] = event['content']
+            data.pop('_rendered', None)
+            data.pop('_html', None)
+        self.data = data
+        self.backend.log.debug('updated: %s', pprint.pformat(self.data))
+        self.backend.redisplay(self, self)
 
     def display(self, decoration):
         tags = set(self.decotags(decoration))
