@@ -343,7 +343,7 @@ always, if it breaks you get to keep both pieces.
 
 CHEATSHEET = [
     '*?* more help',
-    '*c*heatshet toggle',
+    '*c*heatsheet toggle',
     '*i* info browser',
     'all *b*indings',
     '*L*icense',
