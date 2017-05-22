@@ -120,7 +120,7 @@ Have a truth value themselves, and aren't for comparisons e.g. ``personal and no
   If you sent the message.
 
 ``noise``
-  If the backend things the message is administrivia.
+  If the backend thinks the message is administrivia.
 
 ``omega``
   Is the * at bottom of the messages list.
