@@ -236,7 +236,7 @@ class Rooster(util.HTTP_JSONmixin):
         with util.JSONWebSocket(self.log) as ws:
             try:
                 yield from ws.connect(self.url + '/v1/socket/websocket')
-            except aiohttp.errors.ClientOSError as e:
+            except aiohttp.ClientOSError as e:
                 self.log.debug('error connecting')
                 raise RoosterReconnectException(str(e), wait=5) from e
             ws.write({
@@ -263,7 +263,7 @@ class Rooster(util.HTTP_JSONmixin):
                         continue
                     else:
                         raise RoosterReconnectException('ping timeout') from e
-                except aiohttp.errors.DisconnectedError as e:
+                except aiohttp.ServerDisconnectedError as e:
                     raise RoosterReconnectException('disconnected') from e
                 except Exception:
                     raise
