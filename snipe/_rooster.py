@@ -172,6 +172,8 @@ class Rooster(util.HTTP_JSONmixin):
     @asyncio.coroutine
     def unsubscribe(self, subs):
         yield from self.ensure_auth()
+        result = None
+        self.log.error('unsubscribe(%s)', subs)
 
         # Why does /v1/subscribe take a list while /v1/unsubscribe
         # take a single triplet?  Who can say?  According to the
@@ -179,11 +181,13 @@ class Rooster(util.HTTP_JSONmixin):
         # nothing means anything anything means nothing.  Fix it in
         # the client library.
         for triplet in subs:
+            triplet_dict = self.triplet_to_dict(triplet)
             result = (yield from self._post_json(
                 '/v1/unsubscribe',
-                subscription=triplet_to_dict(triplet),
+                subscription=triplet_dict,
                 credentials=(yield from self.credentials()),
                 ))
+            self.log.error('unsubscribe: %s -> %s', triplet_dict, result)
         return result
 
     @asyncio.coroutine
