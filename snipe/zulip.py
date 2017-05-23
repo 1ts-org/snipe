@@ -60,7 +60,7 @@ The zulip backend
 Zulip setup
 -----------
 
-The Zulip backend by default works with https://chat.zulip.org/, the
+The Zulip backend by default works with ``https://chat.zulip.org/``, the
 Zulip developer chat, but can be configured to work against other
 realms. To use another Zulip realm, change ``.zulip`` in the
 ``backends`` configuration variable (which is ``;`` separated) to
@@ -72,7 +72,7 @@ url=https://chat.example.com/``.
 
 You will also need to configure authentication. First, go to Settings
 (gear menu) -> "Your bots" (or
-https://chat.zulip.org/#settings/your-bots, replacing the hostname
+``https://chat.zulip.org/#settings/your-bots``, replacing the hostname
 appropriately) and choose "Show/change your API key". Put it in
 ``~/.snipe/netrc`` like so: ::
 
