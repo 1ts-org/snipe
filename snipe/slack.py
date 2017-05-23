@@ -557,7 +557,10 @@ class SlackMessage(messages.SnipeMessage):
         self.channel = None
 
         if t == 'message':
-            bodylist = self.SLACKMARKUP.split(m.get('text', ''))
+            tx = m.get('text', '')
+            if tx is None:
+                tx = ''
+            bodylist = self.SLACKMARKUP.split(tx)
             self.body = ''
             for (n, s) in enumerate(bodylist):
                 if n%2 == 0:
@@ -637,7 +640,7 @@ class SlackMessage(messages.SnipeMessage):
             else:
                 chunk += [(tags, ' ')]
 
-            chunk += self.slackmarkup(self.data.get('text', ''), tags)
+            chunk += self.slackmarkup(self.data.get('text') or '', tags)
 
             if self.data.get('reactions'):
                 chunk += [
