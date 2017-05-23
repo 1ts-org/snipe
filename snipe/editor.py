@@ -652,6 +652,8 @@ class PopViewer(Viewer):
         ]
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+        from . import help
+        self.keymap['?'] = help.keymap
         self.keymap['q'] = self.delete_window
         self.keymap['Control-G'] = self.delete_window
         self.keymap['[space]'] = self.pagedown
