@@ -112,6 +112,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
+        self.keymap['b'] = self.pageup
         self.keymap['?'] = help.keymap
         self.keymap['[escape] ?'] = help.keymap
         self.log.error('self.context.erasechar = %s', repr(self.context.erasechar))

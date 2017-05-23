@@ -655,6 +655,7 @@ class PopViewer(Viewer):
         self.keymap['q'] = self.delete_window
         self.keymap['Control-G'] = self.delete_window
         self.keymap['[space]'] = self.pagedown
+        self.keymap['b'] = self.pageup
 
     def modeline(self):
         try:
