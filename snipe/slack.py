@@ -66,8 +66,8 @@ HELP = """50
 The slack backend
 ==================
 
-Setup
------
+Slack setup
+-----------
 
 Setting up the slack backend is slightly more involved because it's not enabled
 by default, requires you get an API key from Slack, _and_ requires that you give
@@ -82,14 +82,14 @@ it in ``~/.snipe/netrc`` like so: ::
 (You need to have already signed up for the relevant slack instance by other
 means.)
 
-Backend-specific message actions
+Slack-specific message actions
 ---------------------------------
 
 .. interrogate_keymap:: SlackMessage
 
 
-Configuration
--------------
+Slack configuration
+-------------------
 
 .. interrogate_config:: Slack
 
