@@ -430,7 +430,7 @@ class ZulipMessage(messages.SnipeMessage):
             kw['subject'] = fields[0].strip()
             kw['content'] = fields[1] if len(fields) > 1 else ''
 
-        result = yield from self.backend._patch('messages', **kw)
+        result = yield from self.backend._patch('messages/'+str(self.data['id']), **kw)
         if result['result'] != 'success':
             raise util.SnipeException(result['msg'])
 
