@@ -52,6 +52,49 @@ from . import messages
 from . import util
 
 
+HELP = """60
+==================
+The zulip backend
+==================
+
+Zulip setup
+-----------
+
+The Zulip backend by default works with https://chat.zulip.org/, the
+Zulip developer chat, but can be configured to work against other
+realms. To use another Zulip realm, change ``.zulip`` in the
+``backends`` configuration variable (which is ``;`` separated) to
+``.zulip url=https://chat.example.com/`` (replacing the URL as needed).
+To use multiple Zulip realms, you will need to also name your Zulip
+backends (you can leave one without an explicit name, which will keep
+the default "zulip" name). For example, ``.zulip; .zulip name=example
+url=https://chat.example.com/``.
+
+You will also need to configure authentication. First, go to Settings
+(gear menu) -> "Your bots" (or
+https://chat.zulip.org/#settings/your-bots, replacing the hostname
+appropriately) and choose "Show/change your API key". Put it in
+``~/.snipe/netrc`` like so: ::
+
+ machine chat.zulip.org login myself@example.com password wytD4GoOAWHHxKshmp16sIKwdZCnfLTQ
+
+
+(You need to have already signed up for the relevant Zulip realm by
+other means.)
+
+Zulip-specific message actions
+---------------------------------
+
+.. interrogate_keymap:: ZulipMessage
+
+
+Zulip configuration
+-------------------
+
+.. interrogate_config:: Zulip
+
+"""
+
 class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'zulip'
     loglevel = util.Level(
