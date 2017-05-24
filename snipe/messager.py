@@ -115,7 +115,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.keymap['b'] = self.pageup
         self.keymap['?'] = help.keymap
         self.keymap['[escape] ?'] = help.keymap
-        self.log.error('self.context.erasechar = %s', repr(self.context.erasechar))
+        self.log.debug('self.context.erasechar = %s', repr(self.context.erasechar))
         if self.context.erasechar != b'\x08':
             self.keymap['Control-H'] = help.keymap
         self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
