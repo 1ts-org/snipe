@@ -108,7 +108,8 @@ class RSTRenderer:
         if self.col == 0:
             words = self.indent + words
         if self.fill:
-            words = words.strip('\n').replace('\n', ' ')
+            #words = words.strip('\n').replace('\n', ' ')
+            words = words.replace('\n', ' ')
             self.log.debug('add cleaned: %s', repr(words))
         else:
             newline = words.find('\n')
@@ -285,7 +286,6 @@ class RSTRenderer:
 
         self.log.debug('leaving: %s', repr(node))
 
-
     def flat(self):
         return ''.join(
             ''.join(text for (tags, text) in x[1])
@@ -394,6 +394,7 @@ HANDLED_TAGS = (
     IGNORED_TAGS | BLOCK_TAGS | BOLD_TAGS | LITERAL_TAGS | GREY_TAGS |
     ANCHOR_TAGS
     )
+
 
 class XHTMLRenderer(RSTRenderer):
     def process(self, node):

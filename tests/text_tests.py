@@ -89,45 +89,66 @@ TEXT_rendered=[(0, [((), ''), (('bold',), 'a Title'), ((), '\n')]),
    (('bold',), 'backends'),
    ((), '\n')]),
  (267,
-  [((), 'configuration variable (which is'),
+  [((), 'configuration variable (which is '),
    (('bold',), ';'),
    ((), ' separated), and get an api key from '),
    (('bold',), '\n')]),
- (338,
+ (339,
   [(('bold',), 'https://api.slack.com/web'),
    ((), ' and put it in '),
    (('bold',), '~/.snipe/netrc'),
    ((), ' like so:\n')]),
- (402, [((), '\n')]),
- (403,
+ (403, [((), '\n')]),
+ (404,
   [(('bold',),
     'machine myslack.slack.com login myself@example.com password '
     'frob-9782504613-8396512704-9784365210-7960cf'),
    ((), '\n')]),
- (508, [((), '\n')]),
- (509,
+ (509, [((), '\n')]),
+ (510,
   [((),
     '(You need to have already signed up for the relevant slack instance '
     'by\n')]),
- (580, [((), 'other means.)\n')]),
- (594, [((), '\n')]),
- (595, [((), 'Lorem ipsum dolor sit amet,\n')]),
- (623,
+ (581, [((), 'other means.)\n')]),
+ (595, [((), '\n')]),
+ (596, [((), 'Lorem ipsum dolor sit amet,\n')]),
+ (624,
   [((),
-    'consecteturadipiscingelit,seddoeiusmodtemporincididuntutlaboreetdoloremagnaaliqua.Utenimadminimveniam,\n')]),
- (726,
+    'consecteturadipiscingelit,seddoeiusmodtemporincididuntutlaboreet'
+        'doloremagnaaliqua.Utenimadminimveniam,\n')]),
+ (727,
   [((),
     'quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea '
     'commodo\n')]),
- (798, [((), 'consequat.\n')]),
- (809, [((), '\n')])]
+ (799, [((), 'consequat.\n')]),
+ (810, [((), '\n')])]
+
+
+def parse_rest(text):
+        _, pub = docutils.core.publish_programmatically(
+            docutils.io.StringInput, text, None, docutils.io.NullOutput,
+            None, None, None, 'standalone', None, 'restructuredtext', None,
+            'null', None, None, {}, None, None)
+        return pub
+
+
+def rest_flat(input):
+    renderer = text.RSTRenderer()
+    renderer.process(parse_rest(input).writer.document)
+
+    return renderer.flat()
+
+
+def rest_chunks(input):
+    renderer = text.RSTRenderer()
+    renderer.process(parse_rest(input).writer.document)
+
+    return renderer.output
+
 
 class TestRendering(unittest.TestCase):
     def test_RSTRenderer(self):
-        _, pub = docutils.core.publish_programmatically(
-            docutils.io.StringInput, TEXT, None, docutils.io.NullOutput,
-            None, None, None, 'standalone', None, 'restructuredtext', None,
-            'null', None, None, {}, None, None)
+        pub = parse_rest(TEXT)
 
         renderer = text.RSTRenderer()
         renderer.process(pub.writer.document)
@@ -139,7 +160,44 @@ class TestRendering(unittest.TestCase):
         self.assertEqual(TEXT_rendered, renderer.output)
 
     def test_markdown_to_chunk(self):
-        self.assertEquals([((), 'some text\n')], text.markdown_to_chunk('some text'))
+        self.assertEquals(
+            [((), 'some text\n')], text.markdown_to_chunk('some text'))
+
+    def test_wordboundaries1(self):
+        self.assertEqual(
+            rest_chunks('A line of text.')[0],
+            (0, [((), 'A line of text.\n')]))
+
+    def test_wordboundaries2(self):
+        self.assertEqual(
+            rest_chunks('A *line* of text.')[0],
+            (0, [((), 'A '), (('bold',), 'line'), ((), ' of text.\n')]))
+
+    def test_wordboundaries3(self):
+        self.assertEqual(
+            rest_chunks('A line of *text.*')[0],
+            (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
+
+    def test_wordboundaries4(self):
+        self.assertEqual(
+            rest_chunks('A line of *text*.')[0],
+            (0, [((), 'A line of '), (('bold',), 'text'), ((), '.\n')]))
+
+    def test_wordboundaries5(self):
+        self.assertEqual(
+            rest_chunks('A line?\nof text.')[0],
+            (0, [((), 'A line? of text.\n')]))
+        self.assertEqual(
+            rest_chunks('A line? of\n*text.*')[0],
+            (0, [((), 'A line? of '), (('bold',), 'text.'), ((), '\n')]))
+        self.assertEqual(
+            rest_chunks('A line? of\n``text.``')[0],
+            (0, [((), 'A line? of '), (('bold',), 'text.'), ((), '\n')]))
+
+    def test_wordboundaries6(self):
+        self.assertEqual(
+            rest_chunks('A line of ``text.``')[0],
+            (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
 
 # So I can cut and paste it into test:
 # Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
