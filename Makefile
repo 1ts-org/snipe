@@ -1,4 +1,5 @@
-NOSETESTS=nosetests3 -w tests
+NOSE=nosetests3
+NOSETESTS=$(NOSE) -w tests
 
 all check:
 	$(NOSETESTS)
