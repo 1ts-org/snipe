@@ -502,7 +502,7 @@ class Window:
 
     @keymap.bind('Meta-=')
     def set_config(self, arg: interactive.argument):
-        """Set a config key.  With a prefix-argument, dump the corrent
+        """Set a config key.  With a prefix-argument, dump the current
         configuration dict to a window."""
 
         if not arg:

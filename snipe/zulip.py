@@ -170,7 +170,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.messages.extend(msgs)
                     self.drop_cache()
                     # make sure that the message list remains
-                    # monitonically increasing by comparing the new
+                    # monotonically increasing by comparing the new
                     # messages (and the last old message) pairwise.
                     self.readjust(self.messages[-len(msgs) - 1:])
                     self.redisplay(msgs[0], msgs[-1])
