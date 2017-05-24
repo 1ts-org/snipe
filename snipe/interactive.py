@@ -107,7 +107,7 @@ class UnCompleter:
 
 class Completer:
     def __init__(self, iterable):
-        self.candidates = list(iterable)
+        self.candidates = sorted(iterable)
         self.live = bool(self.candidates)
 
     def matches(self, value=''):
@@ -137,11 +137,12 @@ class Completer:
             return result
         return value
 
+
 class FileCompleter(Completer):
     def __init__(self):
         self.live = True
         self.directory = ''
-        self.candidates = self.listdir(self.directory)
+        self.candidates = sorted(self.listdir(self.directory))
 
     @staticmethod
     def listdir(directory):

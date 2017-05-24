@@ -114,6 +114,10 @@ class Window:
         #: string describing the keystrokes that triggered the current command
         self.keyseq = ''
 
+    def set_cheatsheet(self, cheatsheet):
+        self.cheatsheet = cheatsheet
+        self._normal_cheatsheet = cheatsheet
+
     def maybe_install_cheatsheet(self, keymap):
         """Install a cheatsheet if there's one hiding in the keymap"""
         self.cheatsheet = keymap.get_cheatsheet(self._normal_cheatsheet)
