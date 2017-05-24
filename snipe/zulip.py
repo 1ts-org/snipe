@@ -325,6 +325,7 @@ class ZulipMessage(messages.SnipeMessage):
             data['subject'] = event['subject']
         if 'content' in event:
             data['content'] = event['content']
+            self.body = data['content']
             data.pop('_rendered', None)
             data.pop('_html', None)
         self.data = data
