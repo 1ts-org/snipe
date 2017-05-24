@@ -392,6 +392,10 @@ class Composer(Leaper):
             self.end_of_line()
             return int(self.cursor)
 
+    def state_complete(self):
+        super().state_complete()
+        self.set_fill_column_for = None
+
     def state_normal(self):
         super().state_normal()
         dest = self.completed_text()
@@ -410,6 +414,7 @@ class Composer(Leaper):
             else:
                 self.fill_column = self.default_fill_column
             self.set_fill_column_for = backend
+            self.saved_fill_column = self.fill_column
 
     def after_command(self):
         self.log.error('after command: %s', self.state)
