@@ -47,7 +47,6 @@ import urllib.parse
 import base64
 import logging
 import functools
-import concurrent.futures
 import socket
 
 import aiohttp
@@ -88,25 +87,14 @@ class Rooster(util.HTTP_JSONmixin):
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
         self.setup_client_session()
 
-    def run_in_exile(self, *args):
-        loop = asyncio.get_event_loop()
-        try:
-            with concurrent.futures.ThreadPoolExecutor(1) as executor:
-                return (yield from loop.run_in_executor(
-                    executor, trampoline, *args))
-        except ExileException as e:
-            self.log.error(e.error)
-            raise
-
     @asyncio.coroutine
     def credentials(self):
-        return (yield from self.run_in_exile(get_zephyr_creds))
+        return get_zephyr_creds()
 
     @asyncio.coroutine
     def auth(self, create_user=False):
         loop = asyncio.get_event_loop()
-        self.principal, token = yield from self.run_in_exile(
-            get_auth_token, self.service)
+        self.principal, token = get_auth_token(self.service)
 
         result = yield from self._post_json(
             '/v1/auth',
