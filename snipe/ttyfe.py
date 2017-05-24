@@ -35,6 +35,7 @@ UNIX tty frontend.
 '''
 
 
+import asyncio
 import os
 import curses
 import locale
@@ -540,8 +541,12 @@ class TTYFrontend:
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
         self.main_pid = os.getpid()
-        signal.signal(signal.SIGWINCH, self.doresize)
+        loop = asyncio.get_event_loop()
+        loop.add_signal_handler(signal.SIGWINCH, self.sigwinch, loop)
         return self
+
+    def sigwinch(self, loop):
+        loop.call_soon(self.perform_resize)
 
     def initial(self, winfactory, statusline=None):
         self.default_window=winfactory
@@ -584,8 +589,8 @@ class TTYFrontend:
     def write(self, s):
         pass #XXX put a warning here or a debug log or something
 
-    def doresize(self, signum, frame):
-        self.log.debug('doresize: in_redisplay=%s', self.in_redisplay)
+    def perform_resize(self):
+        self.log.debug('perform_resize: in_redisplay=%s', self.in_redisplay)
         if os.getpid() != self.main_pid:
             return # sigh
         winsz = array.array('H', [0] * 4) # four unsigned shorts per tty_ioctl(4)
