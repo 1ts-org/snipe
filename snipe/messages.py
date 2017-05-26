@@ -362,6 +362,12 @@ class SnipeBackend:
         self.tasks = []
 
     def reap_tasks(self):
+        """Remove any tasks that have completed.
+
+        Backends that generate ephemeral tasks (for example, to backfill)
+        should occasionally call this method to remove completed tasks from the
+        task list.
+        """
         self.tasks = [t for t in self.tasks if not t.done()]
 
     def redisplay(self, m1, m2):
