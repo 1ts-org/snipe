@@ -47,7 +47,7 @@ def main():
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
-            '%(asctime)s.%(msecs)03d %(name)s: %(message)s', '%b %d %H:%M:%S'))
+            '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s: %(message)s', '%b %d %H:%M:%S'))
         logging.getLogger().addHandler(handler)
         signal.signal(signal.SIGUSR1, handler.dump)
         log = logging.getLogger('Snipe')
