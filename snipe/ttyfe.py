@@ -381,7 +381,7 @@ class TTYRenderer:
                 repr(args))
             try:
                 return getattr(self.w, name)(*args)
-            except Exception as e:
+            except Exception:
                 self.log.error(
                     '%s(%s) raised', name, ', '.join(repr(x) for x in args))
                 raise
