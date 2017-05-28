@@ -72,8 +72,6 @@ class REPL(editor.Editor):
 
     def go_eval(self):
         input = self.buf[self.high_water_mark:]
-        self.log.error('go: %s', input)
-        # XXX should do something to indicate that input was accepted
         with self.save_excursion():
             self.end_of_buffer()
             self.insert('\n')
@@ -82,7 +80,6 @@ class REPL(editor.Editor):
         result = util.eval_output(input, self.environment)
         if result is not None:
             self.output('\n')
-            self.log.error('go: %s', result)
             self.output(result)
             self.output(self.ps1)
         return result is not None
