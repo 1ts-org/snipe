@@ -226,6 +226,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug(
             'backfill(mfilter=%s, target=%s)',
             repr(mfilter), util.timestr(target))
+        self.reap_tasks()
         if not self.backfilling and not self.loaded:
             self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
 
