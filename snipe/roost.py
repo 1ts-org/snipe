@@ -125,7 +125,7 @@ class Roost(messages.SnipeBackend):
             else:
                 start = None
 
-            e = None
+            errmsg = None
             activity = 'getting new messages from %s' % self.url
             try:
                 self.connected = True #XXX kinda racy?
@@ -142,18 +142,18 @@ class Roost(messages.SnipeBackend):
             except asyncio.CancelledError:
                 return
             except Exception as exc:
-                e = exc
+                errmsg = str(exc)
                 self.log.exception(activity)
                 tb = traceback.format_exc()
             finally:
                 self.connected = False
 
-            if e is None:
+            if errmsg is None:
                 pass
-            elif str(e) == 'User does not exist':
+            elif errmsg == 'User does not exist':
                 yield from self.new_registration()
             else:
-                body = '%s: %s' % (activity, str(e))
+                body = '%s: %s' % (activity, errmsg)
                 if not isinstance(e, util.SnipeException):
                     body += '\n' + tb
                 self.add_message(messages.SnipeErrorMessage(self, body, tb))
