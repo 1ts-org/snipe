@@ -60,7 +60,10 @@ class REPL(editor.Editor):
         self.output("Python %s on %s\n%s\n" % (
             sys.version, sys.platform, cprt))
         self.output(self.ps1)
-        self.environment = {}
+        self.environment = {
+            'context': self.context,
+            'window': self,
+            }
 
     def output(self, s):
         self.high_water_mark.point = len(self.buf)
