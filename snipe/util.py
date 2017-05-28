@@ -457,8 +457,14 @@ def eval_output(string, environment, mode='single'):
             return None
         else:
             sio = io.StringIO()
-            with contextlib.redirect_stdout(sio):
-                eval(c, environment)
+            try:
+                # sigh
+                stdin = sys.stdin
+                sys.stdin = io.StringIO()
+                with contextlib.redirect_stdout(sio):
+                    eval(c, environment)
+            finally:
+                sys.stdin = stdin
             out = sio.getvalue()
     except:
         out = traceback.format_exc()

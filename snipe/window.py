@@ -209,7 +209,7 @@ class Window:
                             self.context.message(str(e))
                             self.log.exception('Executing complex command')
                             self.whine(k)
-                        self.fe.redisplay(self.redisplay_hint())
+                        self.redisplay()
 
                     t = asyncio.Task(catch_and_log(ret))
 
@@ -234,6 +234,9 @@ class Window:
 
         ret = hint.get('window', None) is self
         return ret
+
+    def redisplay(self):
+        self.fe.redisplay(self.redisplay_hint())
 
     def redisplay_hint(self):
         """Return an appropriate redisplay hint."""
@@ -438,6 +441,13 @@ class Window:
                 ),
             True,
             )
+
+    @keymap.bind('Control-X 4 :')
+    def split_to_repl(self):
+        """Split to a new REPL window"""
+
+        from .repl import REPL
+        self.fe.split_window(REPL(self.fe), True)
 
     @keymap.bind('Control-X 4 /')
     def split_to_messager_filter(self):
@@ -719,7 +729,7 @@ class StatusLine(Window):
 
     def message(self, s, tags=('fg:white', 'bg:red')):
         self._message = [(tags, str(s))]
-        self.fe.redisplay(self.redisplay_hint())
+        self.redisplay()
 
     def clear(self):
         self._message = []
