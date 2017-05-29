@@ -1,3 +1,10 @@
+Snipe
+=====
+
+[![Build Status](https://travis-ci.org/kcr/snipe.svg?branch=master)](https://travis-ci.org/kcr/snipe)
+[![Coverage Status](https://coveralls.io/repos/github/kcr/snipe/badge.svg?branch=master)](https://coveralls.io/github/kcr/snipe?branch=master)
+
+
 snipe is a text-oriented (currently curses-based) "instant" messaging
 client intended for services with persistence.  One such service is
 [roost](https://github.com/roost-im), which is a frontend for
