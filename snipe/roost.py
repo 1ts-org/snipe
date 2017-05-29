@@ -143,6 +143,7 @@ class Roost(messages.SnipeBackend):
                 return
             except Exception as exc:
                 errmsg = str(exc)
+                snipe_exception = isinstance(exc, util.SnipeException)
                 self.log.exception(activity)
                 tb = traceback.format_exc()
             finally:
@@ -154,7 +155,7 @@ class Roost(messages.SnipeBackend):
                 yield from self.new_registration()
             else:
                 body = '%s: %s' % (activity, errmsg)
-                if not isinstance(e, util.SnipeException):
+                if not snipe_exception:
                     body += '\n' + tb
                 self.add_message(messages.SnipeErrorMessage(self, body, tb))
                 return
