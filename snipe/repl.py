@@ -37,11 +37,17 @@ Editor subclass for a python REPL
 '''
 
 
+import bisect
 import sys
 
 from . import editor
+from . import interactive
 from . import keymap
 from . import util
+
+
+OUTPUT_START = 'OUTPUT_START'
+OUTPUT_END = 'OUTPUT_END'
 
 
 class REPL(editor.Editor):
@@ -49,7 +55,10 @@ class REPL(editor.Editor):
         kw.setdefault('name', 'REPL')
         super().__init__(*args, **kw)
         self.high_water_mark = self.buf.mark(0)
+        self.stakes = []
+
         self.ps1 = '>>> '
+
         self.output(util.SPLASH)
         # YYY
         import _sitebuiltins
@@ -57,7 +66,7 @@ class REPL(editor.Editor):
         cprt = (
             'Type "help", "copyright", "credits" or "license" for more'
             ' information.')
-        self.output("Python %s on %s\n%s\n" % (
+        self.output("Python (snipe) %s on %s\n%s\n" % (
             sys.version, sys.platform, cprt))
         self.output(self.ps1)
         self.environment = {
@@ -66,15 +75,42 @@ class REPL(editor.Editor):
             }
 
     def output(self, s):
+        if (self.stakes and self.stakes[-1][0].point == len(self.buf)
+                and self.stakes[-1][1] == OUTPUT_END):
+            del self.stakes[-1]
+        else:
+            self.stakes.append((self.buf.mark(len(self.buf)), OUTPUT_START))
         self.high_water_mark.point = len(self.buf)
         self.high_water_mark.insert(s)
         self.cursor.point = self.high_water_mark
+        self.stakes.append((self.buf.mark(len(self.buf)), OUTPUT_END))
+
+    def brackets(self, mark):
+        x = bisect.bisect(self.stakes, (mark, 'ZZZ'))
+        if x >= len(self.stakes):
+            return self.stakes[-1], (None, None)
+        else:
+            # there shouldn't ever be less than two stakes because we run
+            # output in __init__
+            assert len(self.stakes) > 1
+            assert x > 0
+            return tuple(self.stakes[x - 1:x + 1])
 
     def writable(self):
-        return self.cursor >= self.high_water_mark
+        # XXX should find the size of the operation before okaying it
+        return self.brackets(self.cursor)[0][1] == OUTPUT_END
 
     def go_eval(self):
         input = self.buf[self.high_water_mark:]
+        ((left_mark, left_sigil), (right_mark, right_sigil)) = \
+            self.brackets(self.cursor)
+        save = ''
+        if (self.cursor.point < self.high_water_mark
+                and left_sigil == OUTPUT_END):
+            save = input
+            input = self.buf[left_mark:right_mark.point - 1]
+            self.cursor.point = self.high_water_mark
+            self.cursor.point += self.replace(len(save), input)
         with self.save_excursion():
             self.end_of_buffer()
             self.insert('\n')
@@ -82,9 +118,12 @@ class REPL(editor.Editor):
             self.undo()
         result = util.eval_output(input, self.environment)
         if result is not None:
-            self.output('\n')
+            self.cursor.point = len(self.buf)
+            self.cursor.insert('\n')
             self.output(result)
             self.output(self.ps1)
+        # possiby incomplete from uphistory
+        self.cursor.replace(0, save)
         return result is not None
 
     @keymap.bind('Control-M')
@@ -95,4 +134,19 @@ class REPL(editor.Editor):
     @keymap.bind('Control-C Control-C', 'Control-J')
     def go(self):
         if not self.go_eval():
-            self.message('incomplete input')
+            self.context.message('incomplete input')
+
+    @keymap.bind('Control-A', '[home]')
+    def electric_beginning_of_line(
+            self,
+            count: interactive.integer_argument=None,
+            interactive: interactive.isinteractive=False,
+            ):
+        point = self.cursor.point
+        mark, sigil = self.brackets(self.cursor)[0]
+        self.beginning_of_line(count, interactive)
+        if not interactive or count is not None:
+            return
+
+        if sigil == OUTPUT_END and self.cursor.point < mark < point:
+            self.cursor.point = mark
