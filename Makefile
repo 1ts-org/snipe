@@ -2,6 +2,7 @@ NOSE=nosetests3
 NOSETESTS=$(NOSE) -w tests
 
 all check:
+	flake8 --exclude=lib
 	$(NOSETESTS)
 
 coverage:
