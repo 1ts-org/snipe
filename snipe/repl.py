@@ -53,7 +53,7 @@ class REPL(editor.Editor):
         self.output(util.SPLASH)
         # YYY
         import _sitebuiltins
-        _sitebuiltins._Printer.MAXLINES=99999999999999999
+        _sitebuiltins._Printer.MAXLINES = 99999999999999999
         cprt = (
             'Type "help", "copyright", "credits" or "license" for more'
             ' information.')

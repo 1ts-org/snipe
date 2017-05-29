@@ -164,13 +164,13 @@ def tag_tree(t, tags, fg=None, otags=None):
                 out.extend(buf)
             else:
                 out.append((tags, e))
-        else: # a list
+        else:  # a list
             name = e[0].lower()
             if name == '@color':
                 fg = tree_to_string([''] + e[1:])
                 tags = ctags(otags, fg)
             elif name == '@font':
-                pass #nope
+                pass  # nope
             else:
                 out += tag_tree(e, tags, fg, otags)
     return out
