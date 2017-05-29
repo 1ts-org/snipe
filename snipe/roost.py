@@ -731,7 +731,7 @@ class RoostTriplet(messages.SnipeAddress):
         super().__init__(backend, [class_, instance, recipient])
 
 
-class SnipeRegistrationMessage(messages.SnipeMessage):
+class RoostRegistrationMessage(messages.SnipeMessage):
     def __init__(self, backend, text, future):
         super().__init__(backend, text)
         self.future = future
