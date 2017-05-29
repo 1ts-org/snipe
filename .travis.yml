@@ -12,4 +12,6 @@ install:
  - pip install flake8 coveralls
 script:
  - flake8
- - nosetests --with-coverage -w tests 
+ - nosetests -v --with-coverage -w tests 
+after_success:
+ - coveralls
