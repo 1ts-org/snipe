@@ -554,7 +554,7 @@ class TTYFrontend:
             raise ValueError
         if statusline is None:
             self.active = 0
-            self.windows = [TTYRenderer(self, 0, self.maxy, win)]
+            self.windows = [TTYRenderer(self, 0, self.maxy, winfactory())]
         else:
             self.active = 1
             self.windows = [
