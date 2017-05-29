@@ -42,8 +42,8 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.ttycolor
-import snipe.ttyfe
+import snipe.ttycolor  # noqa: E402
+import snipe.ttyfe     # noqa: E402
 
 
 class TestTTYFE(unittest.TestCase):
@@ -131,7 +131,7 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(l.cursor, m.cursor)
         self.assertEqual(l.offset, m.offset)
 
-    def testLocation2(self):
+    def testLocation3(self):
         w = MockWindow(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
         ui = MockUI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
@@ -157,30 +157,63 @@ class TestTTYFE(unittest.TestCase):
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
 
         doline = snipe.ttyfe.TTYRenderer.doline
-        def _chunksize(chunk): # essentially chunksize classic
+
+        def _chunksize(chunk):  # essentially chunksize classic
             return len(doline(''.join(c[1] for c in chunk), 24, 24))
 
-        self.assertEqual(renderer.chunksize([((), '')]), _chunksize([((), '')]))
-        self.assertEqual(renderer.chunksize([((), 'one')]), _chunksize([((), 'one')]))
-        self.assertEqual(renderer.chunksize([((), 'one\n')]), _chunksize([((), 'one\n')]))
-        self.assertEqual(renderer.chunksize([((), 'one')]), 1)
+        self.assertEqual(
+            renderer.chunksize([((), '')]),
+            _chunksize([((), '')]))
+        self.assertEqual(
+            renderer.chunksize([((), 'one')]),
+            _chunksize([((), 'one')]))
+        self.assertEqual(
+            renderer.chunksize([((), 'one\n')]),
+            _chunksize([((), 'one\n')]))
+        self.assertEqual(
+            renderer.chunksize([((), 'one')]),
+            1)
 
         # is this doing what I think it's doing?
-        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b')]), 1)
-        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n')]), _chunksize([((), 'a'), ((), 'b\n')]))
-        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n')]), 1)
-        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]), _chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]))
-        self.assertEqual(renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]), 2)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), ((), 'b')]),
+            1)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), ((), 'b\n')]),
+            _chunksize([((), 'a'), ((), 'b\n')]))
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), ((), 'b\n')]),
+            1)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]),
+            _chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]))
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), ((), 'b\n'), ((), 'c')]),
+            2)
 
         # Okay, right text
-        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b')]), 1)
-        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n')]), 1)
-        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]), 2)
-        self.assertEqual(renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]), 2)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), (('right'), 'b')]),
+            1)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), (('right'), 'b\n')]),
+            1)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]),
+            2)
+        self.assertEqual(
+            renderer.chunksize([((), 'a'), (('right'), 'b\n'), ((), 'c')]),
+            2)
 
-        self.assertEqual(renderer.chunksize([((), 'aaaa'), ((''), 'bbbb')]), 2)
-        self.assertEqual(renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb')]), 2)
-        self.assertEqual(renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb\n')]), 2)
+        self.assertEqual(
+            renderer.chunksize([((), 'aaaa'), ((''), 'bbbb')]),
+            2)
+        self.assertEqual(
+            renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb')]),
+            2)
+        self.assertEqual(
+            renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb\n')]),
+            2)
 
     def testRedisplayCalculate(self):
         w = MockWindow(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
@@ -197,7 +230,8 @@ class TestTTYFE(unittest.TestCase):
         self.assertIsNone(cursor)
 
         chunks = [[
-            (('visible',), ''), (('bg:grey24',), '00:58'), ((), ' filter default'), (('right',), '2'),
+            (('visible',), ''), (('bg:grey24',), '00:58'),
+            ((), ' filter default'), (('right',), '2'),
             (('bg:grey24', 'bold'), 'n'), ((), 'ext'), ((), '             '),
             (('bg:grey24', 'bold'), 'p'), ((), 'revious'), ((), '         '),
             (('bg:grey24', 'bold'), '}'), ((), ' n. like'), ((), '        '),
@@ -243,6 +277,7 @@ class TestTTYFE(unittest.TestCase):
 class MockCursesWindow:
     def subwin(self, *args):
         return self
+
     def idlok(self, *args):
         pass
 
@@ -260,8 +295,10 @@ class MockUI:
 class MockWindow:
     hints = {}
     cursor = 0
+
     def __init__(self, chunks):
         self.chunks = chunks
+
     def view(self, origin, direction='forward'):
         assert direction in ('forward', 'backward')
         if direction == 'forward':
@@ -270,6 +307,7 @@ class MockWindow:
             r = range(origin, -1, -1)
         for i in r:
             yield i, self.chunks[i]
+
 
 def cx(chunks):
     return [[((), chunk)] for chunk in chunks]

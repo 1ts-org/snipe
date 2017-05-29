@@ -38,7 +38,8 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.window
+import snipe.window  # noqa: E402
+
 
 class TestCheatsheetify(unittest.TestCase):
     def testCheatsheetify(self):
@@ -47,7 +48,8 @@ class TestCheatsheetify(unittest.TestCase):
         self.assertEquals(cheatsheetify(''), [])
         self.assertEquals(cheatsheetify('foo'), [((), 'foo')])
         self.assertEquals(cheatsheetify('*foo*'), [(TAGS, 'foo')])
-        self.assertEquals(cheatsheetify('f*o*o'), [((), 'f'), (TAGS, 'o'), ((), 'o')])
+        self.assertEquals(
+            cheatsheetify('f*o*o'), [((), 'f'), (TAGS, 'o'), ((), 'o')])
         self.assertEquals(cheatsheetify('f\*o'), [((), 'f*o')])
         self.assertEquals(cheatsheetify('f**oo'), [((), 'foo')])
         self.assertEquals(cheatsheetify('f*\*oo'), [((), 'f'), (TAGS, '*oo')])

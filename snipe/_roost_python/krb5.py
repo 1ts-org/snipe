@@ -24,7 +24,9 @@ import functools
 
 from . import krb5_ctypes
 
+
 __all__ = ['Context']
+
 
 class Error(Exception):
     def __init__(self, ctx_raw, code):
@@ -36,9 +38,11 @@ class Error(Exception):
     def __str__(self):
         return self.message
 
+
 def check_error(fn):
     if fn.restype is not krb5_ctypes.krb5_error_code:
         return fn
+
     @functools.wraps(fn)
     def wrapped(ctx, *args):
         ret = fn(ctx, *args)
@@ -46,6 +50,7 @@ def check_error(fn):
             raise Error(ctx, ret)
         return ret
     return wrapped
+
 
 krb5_init_context = check_error(krb5_ctypes.krb5_init_context)
 krb5_free_context = check_error(krb5_ctypes.krb5_free_context)
@@ -60,6 +65,7 @@ krb5_get_credentials = check_error(krb5_ctypes.krb5_get_credentials)
 krb5_free_creds = check_error(krb5_ctypes.krb5_free_creds)
 krb5_free_ticket = check_error(krb5_ctypes.krb5_free_ticket)
 
+
 # This one is weird and takes no context. But the free function does??
 def krb5_decode_ticket(*args):
     ret = krb5_ctypes.krb5_decode_ticket(*args)
@@ -67,10 +73,12 @@ def krb5_decode_ticket(*args):
         raise Error(krb5_ctypes.krb5_context(), ret)
     return ret
 
+
 def to_str(s):
     if isinstance(s, str):
         return s.encode('utf-8')
     return s
+
 
 class Context(object):
     def __init__(self):
@@ -114,6 +122,7 @@ class Context(object):
         krb5_decode_ticket(data_c, ticket._handle)
         return ticket
 
+
 class CCache(object):
     def __init__(self, ctx):
         self._ctx = ctx
@@ -149,6 +158,7 @@ class CCache(object):
                              creds._handle)
         return creds
 
+
 class Principal(object):
     def __init__(self, ctx):
         self._ctx = ctx
@@ -171,6 +181,7 @@ class Principal(object):
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.unparse_name())
 
+
 class Credentials(object):
     def __init__(self, ctx):
         self._ctx = ctx
@@ -182,6 +193,7 @@ class Credentials(object):
 
     def decode_ticket(self):
         return self._ctx._decode_ticket(self._handle.contents.ticket)
+
     def decode_second_ticket(self):
         return self._ctx._decode_second_ticket(
             self._handle.contents.second_ticket)
@@ -190,7 +202,7 @@ class Credentials(object):
         # TODO(davidben): More sensible would be to put this format
         # into roost.py and expose all the attributes in the public
         # API. But whatever.
-        ret = { }
+        ret = {}
         client_data = self._handle.contents.client.contents
         ret['crealm'] = client_data.realm.as_str().decode('utf-8')
         ret['cname'] = {
@@ -202,7 +214,8 @@ class Credentials(object):
         keyblock = self._handle.contents.keyblock
         ret['key'] = {
             'keytype': keyblock.enctype,
-            'keyvalue': base64.b64encode(keyblock.contents_as_str()).decode('ascii')
+            'keyvalue': base64.b64encode(
+                keyblock.contents_as_str()).decode('ascii')
         }
         flags = self._handle.contents.ticket_flags
         ret['flags'] = [(1 if (flags & (1 << (31 - i))) else 0)
@@ -235,6 +248,7 @@ class Credentials(object):
 
         return ret
 
+
 class Ticket(object):
     def __init__(self, ctx):
         self._ctx = ctx
@@ -245,7 +259,7 @@ class Ticket(object):
             krb5_free_ticket(self._ctx._handle, self._handle)
 
     def to_dict(self):
-        ret = { }
+        ret = {}
         ret['tktVno'] = 5
         server_data = self._handle.contents.server.contents
         ret['realm'] = server_data.realm.as_str().decode('utf-8')
@@ -258,6 +272,7 @@ class Ticket(object):
             'kvno': self._handle.contents.enc_part.kvno,
             'etype': self._handle.contents.enc_part.enctype,
             'cipher': base64.b64encode(
-                self._handle.contents.enc_part.ciphertext.as_str()).decode('ascii'),
+                self._handle.contents.enc_part.ciphertext.as_str()).decode(
+                    'ascii'),
         }
         return ret

@@ -33,25 +33,23 @@ snipe.irccloud
 Backend for talking to `IRCCloud <https://irccloud.com>`.
 '''
 
-_backend = 'IRCCloud'
-
 
 import asyncio
 import aiohttp
-import json
 import time
 import urllib.parse
 import itertools
-import os
 import pprint
 import math
-
 
 from . import messages
 from . import util
 from . import keymap
 from . import interactive
 from . import filters
+
+
+_backend = 'IRCCloud'
 
 IRCCLOUD = 'https://www.irccloud.com'
 IRCCLOUD_API = 'https://api.irccloud.com'
@@ -65,7 +63,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         'irccloud.floodpause',
         0.5,
         'time in seconds to wait between lines in a message',
-        coerce = float,
+        coerce=float,
         )
 
     backfill_length = util.Configurable(
@@ -118,7 +116,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def connect_once(self):
-        creds = self.context.credentials(urllib.parse.urlparse(IRCCLOUD).netloc)
+        creds = self.context.credentials(
+            urllib.parse.urlparse(IRCCLOUD).netloc)
         if creds is None:
             return
         username, password = creds
@@ -186,7 +185,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 try:
                     yield from self.incoming(m)
                 except:
-                    self.log.exception('Processing incoming message: %s', repr(m))
+                    self.log.exception(
+                        'Processing incoming message: %s', repr(m))
                     raise
 
     @asyncio.coroutine
@@ -206,7 +206,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             pass
         elif mtype == 'header':
             self.header = m
-        elif mtype in  ('bannned', 'socket_closed'):
+        elif mtype in ('bannned', 'socket_closed'):
             # the system seems to generate multiple
             # socket_closed/banned messages with the same eid/time
             # with distinct cids, which confuses the message list.
@@ -216,8 +216,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             pass
         elif mtype in (
                 'backlog_starts', 'end_of_backlog', 'backlog_complete',
-                'you_joined_channel', 'self_details', 'your_unique_id', 'cap_ls',
-                'cap_req', 'cap_ack', 'user_account', 'heartbeat_echo',
+                'you_joined_channel', 'self_details', 'your_unique_id',
+                'cap_ls', 'cap_req', 'cap_ack', 'user_account',
+                'heartbeat_echo',
                 ):
             # presumptively useless-to-us metadata
             pass
@@ -345,7 +346,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             b for b in self.buffers.values()
             if (not b.get('deferred', False)
                 and (('min_eid' not in b or 'have_eid' not in b)
-                         or b['have_eid'] > b['min_eid']))]
+                or b['have_eid'] > b['min_eid']))]
         if target is None:
             target = min(b.get('have_eid', 0) for b in live) - 1
         elif math.isfinite(target):
@@ -426,9 +427,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.exception('backfilling %s', buf)
             return
 
-        if math.isfinite(target) \
-          and target < buf['have_eid'] \
-          and ('min_eid' not in buf or buf['have_eid'] > buf['min_eid']):
+        if (math.isfinite(target)
+                and target < buf['have_eid']
+                and ('min_eid' not in buf
+                     or buf['have_eid'] > buf['min_eid'])):
             yield from asyncio.sleep(.1)
             yield from self.backfill_buffer(buf, target)
 
@@ -492,17 +494,20 @@ class IRCCloudMessage(messages.SnipeMessage):
         self.outgoing = m.get('self', False)
         self.noise = mtype not in ('buffer_msg', 'buffer_me_msg')
         self.unformatted = mtype not in (
-            'buffer_msg', 'buffer_me_msg', 'quit', 'kicked_channel', 'notice',
-            'channel_topic', 'joined_channel', 'parted_channel', 'nickchange',
-            'user_channel_mode', 'channel_mode_is', 'user_mode', 'motd_response',
+            'buffer_msg', 'buffer_me_msg', 'quit', 'kicked_channel',
+            'notice', 'channel_topic', 'joined_channel',
+            'parted_channel', 'nickchange', 'user_channel_mode',
+            'channel_mode_is', 'user_mode', 'motd_response',
             'server_luserconns', 'server_n_global', 'server_n_local',
-            'server_luserme', 'server_luserchannels', 'server_luserunknown',
-            'server_luserop', 'server_luserclient', 'server_created',
-            'server_yourhost', 'server_welcome', 'services_down', 'myinfo',
-            'channel_mode_list_change', 'connecting_failed', 'logged_in_as',
-            'sasl_success', 'hidden_host_set', 'channel_url', 'channel_mode',
-            'error', 'quit_server', 'nickname_in_use', 'sasl_aborted',
-            'you_nickchange', 'banned',
+            'server_luserme', 'server_luserchannels',
+            'server_luserunknown', 'server_luserop',
+            'server_luserclient', 'server_created', 'server_yourhost',
+            'server_welcome', 'services_down', 'myinfo',
+            'channel_mode_list_change', 'connecting_failed',
+            'logged_in_as', 'sasl_success', 'hidden_host_set',
+            'channel_url', 'channel_mode', 'error', 'quit_server',
+            'nickname_in_use', 'sasl_aborted', 'you_nickchange',
+            'banned',
             )
 
     def __repr__(self):
@@ -544,7 +549,7 @@ class IRCCloudMessage(messages.SnipeMessage):
             'buffer_msg': ':',
             'buffer_me_msg': '',
             'quit': ' [quit irc]',
-#            'user_away': ' [away]',
+            # 'user_away': ' [away]',
             'kicked_channel': ' [kicked]',
             'notice': ' [notice]',
             }
@@ -554,12 +559,13 @@ class IRCCloudMessage(messages.SnipeMessage):
                 (tags + ('fill',), msgy[mtype] + ' ' + self.body),
                 ]
         elif mtype in (
-                'motd_response', 'server_luserconns', 'server_n_global',
-                'server_n_local', 'server_luserme', 'server_luserchannels',
-                'server_luserunknown', 'server_luserop', 'server_luserclient',
+                'motd_response', 'server_luserconns',
+                'server_n_global', 'server_n_local', 'server_luserme',
+                'server_luserchannels', 'server_luserunknown',
+                'server_luserop', 'server_luserclient',
                 'server_created', 'server_yourhost', 'server_welcome',
-                'services_down', 'logged_in_as', 'sasl_success', 'sasl_aborted',
-                'error', 'nickname_in_use',
+                'services_down', 'logged_in_as', 'sasl_success',
+                'sasl_aborted', 'error', 'nickname_in_use',
                 ):
             chunk.append((
                 tags,
@@ -654,7 +660,7 @@ class IRCCloudMessage(messages.SnipeMessage):
             import pprint
 
             d = dict(
-                (k, v) for (k,v) in self.data.items()
+                (k, v) for (k, v) in self.data.items()
                 if k not in ('type', 'eid', 'cid', 'bid'))
             chunk += [(tags, '%s [%s] eid %s bid %s cid %s\n%s' % (
                 self.sender,

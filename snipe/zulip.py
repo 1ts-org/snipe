@@ -33,14 +33,10 @@ snipe.zulip
 Backend for talking to `Zulip <https://zulip.org>`.
 '''
 
-_backend = 'Zulip'
-
 
 import aiohttp
 import asyncio
-import os
 import pprint
-import textwrap
 import time
 import urllib.parse
 
@@ -51,6 +47,8 @@ from . import keymap
 from . import messages
 from . import util
 
+
+_backend = 'Zulip'
 
 HELP = """60
 ==================
@@ -93,7 +91,8 @@ Zulip configuration
 
 .. interrogate_config:: Zulip
 
-"""
+"""  # noqa: E501
+
 
 class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'zulip'
@@ -118,7 +117,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             return
         self.user, self.token = creds
 
-        self.setup_client_session(auth=aiohttp.BasicAuth(self.user, self.token))
+        self.setup_client_session(
+            auth=aiohttp.BasicAuth(self.user, self.token))
 
     @util.coro_cleanup
     def connect(self):
@@ -159,7 +159,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 for event in result['events']:
                     try:
                         msg, last_event_id = (
-                            yield from self.process_event(event, last_event_id))
+                            yield from self.process_event(
+                                event, last_event_id))
                     except:
                         self.log.exception(
                             'processing event: %s', pprint.pformat(event))
@@ -186,7 +187,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         type_ = event.get('type')
         msg = None
         if type_ == 'message':
-             msg = ZulipMessage(self, event['message'])
+            msg = ZulipMessage(self, event['message'])
         elif type_ == 'update_message':
             self.log.debug('update_message event: %s', pprint.pformat(event))
             for mid in event.get('message_ids', [event['message_id']]):
@@ -211,7 +212,9 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             yield from self.connected.wait()
             try:
                 yield from self._post(
-                    'users/me/presence', status='active', new_user_input='true')
+                    'users/me/presence',
+                    status='active',
+                    new_user_input='true')
             except:
                 pass
             yield from asyncio.sleep(60)
@@ -239,7 +242,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             if self.messages:
                 anchor = self.messages[0].data['id']
             else:
-                anchor = 1000000000 #XXX
+                anchor = 1000000000  # XXX
             result = yield from self._get(
                 'messages', num_before=1024, num_after=0, anchor=anchor,
                 apply_markdown='false')
@@ -308,7 +311,7 @@ class ZulipMessage(messages.SnipeMessage):
             self._chat = ', '.join([
                 x.get('short_name', x.get('email', str(x)))
                 for x in self.data['display_recipient']])
-            #XXX the following is a kludge
+            # XXX the following is a kludge
             self.recipient = ', '.join(
                 sorted(x['email'] for x in data['display_recipient']))
         else:
@@ -360,13 +363,14 @@ class ZulipMessage(messages.SnipeMessage):
             self.data['_rendered'] = text.xhtml_to_chunk(self.data['_html'])
 
         return [(tuple(x), y) for (x, y) in
-            [
-            (tags | {'bold'}, self._chat + '>'),
-            (tags, subject + ' <'),
-            (tags | {'bold'}, self.data.get('sender_email', '?')),
-            (tags, '>' + name),
-            (tags | {'right'}, timestamp),
-            ] + [((tags | set(x)), y) for (x, y) in self.data['_rendered']]]
+                [
+                (tags | {'bold'}, self._chat + '>'),
+                (tags, subject + ' <'),
+                (tags | {'bold'}, self.data.get('sender_email', '?')),
+                (tags, '>' + name),
+                (tags | {'right'}, timestamp),
+                ] + [((tags | set(x)), y)
+                     for (x, y) in self.data['_rendered']]]
 
     def reply(self):
         if self.personal:

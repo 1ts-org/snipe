@@ -58,10 +58,10 @@ class Configurable:
     registry = {}
 
     def __init__(
-        self, key,
-        default=None, doc=None, action=None, coerce=None, validate=None,
-        string=None, oneof=None,
-        ):
+            self, key,
+            default=None, doc=None, action=None, coerce=None, validate=None,
+            string=None, oneof=None,
+            ):
         self.key = key
         self.default = default
         self._action = action
@@ -134,7 +134,7 @@ class Configurable:
 
     @classmethod
     def set_overrides(self, overrides):
-        for k,v in overrides.items():
+        for k, v in overrides.items():
             self.registry[k].set_override(v)
 
 
@@ -156,7 +156,7 @@ class Level(Configurable):
     names = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
 
     def coerce(self, value):
-        if hasattr(value, 'upper'): # stringish
+        if hasattr(value, 'upper'):  # stringish
             v = value.strip().upper()
             if v in self.names:
                 return getattr(logging, v)
@@ -172,21 +172,21 @@ class Level(Configurable):
 
 # these don't need to actually be properties anywhere
 for userspace_name, program_name in [
-    ('log.context', 'Snipe'),
-    ('log.roost.engine', 'Rooster'),
-    ('log.roost', 'Roost'),
-    ('log.ttyfrontend', 'TTYFrontend'),
-    ('log.ttyrender', 'TTYRender'),
-    ('log.curses', 'TTYRender.curses'),
-    ('log.messager', 'Messager'),
-    ('log.editor', 'Editor'),
-    ('log.asyncio', 'asyncio'),
-    ('log.gapbuffer', 'GapBuffer'),
-    ('log.backend.terminus', 'TerminusBackend'),
-    ('log.backend.startup', 'StartupBackend'),
-    ('log.filter', 'filter'),
-    ('log.websocket', 'WebSocket'),
-    ]:
+        ('log.context', 'Snipe'),
+        ('log.roost.engine', 'Rooster'),
+        ('log.roost', 'Roost'),
+        ('log.ttyfrontend', 'TTYFrontend'),
+        ('log.ttyrender', 'TTYRender'),
+        ('log.curses', 'TTYRender.curses'),
+        ('log.messager', 'Messager'),
+        ('log.editor', 'Editor'),
+        ('log.asyncio', 'asyncio'),
+        ('log.gapbuffer', 'GapBuffer'),
+        ('log.backend.terminus', 'TerminusBackend'),
+        ('log.backend.startup', 'StartupBackend'),
+        ('log.filter', 'filter'),
+        ('log.websocket', 'WebSocket'),
+        ]:
     Level(
         userspace_name,
         program_name,
@@ -250,7 +250,7 @@ def coro_cleanup(f):
         try:
             return (yield from asyncio.coroutine(f)(*args, **kw))
         except asyncio.CancelledError:
-            pass #yay
+            pass  # yay
         except Exception:
             if args and hasattr(args[0], 'log'):
                 log = args[0].log
@@ -333,7 +333,8 @@ class HTTP_JSONmixin:
         except (UnicodeError, ValueError) as e:
             data = yield from response.read()
             self.log.error(
-                'json %s from %s on %s', e.__class__.__name__, response.url, repr(data))
+                'json %s from %s on %s',
+                e.__class__.__name__, response.url, repr(data))
             raise JSONDecodeError(repr(data)) from e
         finally:
             response.release()
@@ -428,8 +429,8 @@ def safe_write(path, mode=0o600):
     tmp = os.path.join(directory, ',' + name)
     backup = os.path.join(directory, name + '~')
 
-    opener = lambda file, flags: os.open(file, flags, mode=mode)
-    fp = open(tmp, 'w', opener=opener)
+    fp = open(
+        tmp, 'w', opener=lambda file, flags: os.open(file, flags, mode=mode))
 
     yield fp
 
@@ -470,6 +471,7 @@ def eval_output(string, environment, mode='single'):
         out = traceback.format_exc()
 
     return out
+
 
 def val_oneof(vals):
     return lambda x: x in vals

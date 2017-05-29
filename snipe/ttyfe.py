@@ -58,7 +58,8 @@ from . import ttycolor
 class TTYRenderer:
     def __init__(self, ui, y, h, window):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
-        self.curses_log = logging.getLogger('TTYRender.curses.%x' %  (id(self),))
+        self.curses_log = logging.getLogger(
+            'TTYRender.curses.%x' % (id(self),))
         self.ui, self.y, self.height = ui, y, h
         self.x = 0
         self.width = ui.maxx
@@ -107,7 +108,8 @@ class TTYRenderer:
                     )
             visible = self.redisplay_internal()
             if not visible:
-                self.log.warning('redisplay, no visibility after clever reframe')
+                self.log.warning(
+                    'redisplay, no visibility after clever reframe')
                 self.reframe()
             visible = self.redisplay_internal()
             if not visible:
@@ -165,7 +167,7 @@ class TTYRenderer:
                         out = ''
                         col = 0
                     line += 1
-                    if len(c) > 1: # it's a TAB
+                    if len(c) > 1:  # it's a TAB
                         continue
                 out += c
                 col += l
@@ -174,7 +176,7 @@ class TTYRenderer:
             yield out, width - col
 
     def compute_attr(self, tags):
-        #A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
+        # A_BLINK A_DIM A_INVIS A_NORMAL A_STANDOUT A_REVERSE A_UNDERLINE
         attrs = {
             'bold': curses.A_BOLD,
             'reverse': curses.A_REVERSE,
@@ -211,10 +213,9 @@ class TTYRenderer:
         sill = None
         bars = []
 
-        output=[[]]
+        output = [[]]
         y, x = -self.head.offset, 0
 
-        import pprint
         for mark, chunk in self.window.view(self.head.cursor):
             if screenlines <= 0:
                 break
@@ -232,7 +233,7 @@ class TTYRenderer:
                         or self.reframe_state == 'soft'):
                     visible = y
                 if 'right' in tags:
-                    text = text.rstrip('\n') #XXX chunksize
+                    text = text.rstrip('\n')  # XXX chunksize
 
                 textbits = self.doline(text, self.width, remaining, tags)
                 if not textbits:
@@ -263,13 +264,13 @@ class TTYRenderer:
             output[self.head.offset] = l
             if l:
                 a, t = l[-1]
-                if  t == '\n':
+                if t == '\n':
                     w = sum(TTYRenderer.glyphwidth(s) for (a, s) in l[:-1])
                     if w < (self.width - 1):
                         l[-1] = (a, '…\n')
                     else:
                         l[-1] = (a, '…')
-                else: #likely, wrapped
+                else:  # likely, wrapped
                     l[-1] = (a, t[:-1] + '…')
             else:
                 l.append((0, '…'))
@@ -300,7 +301,10 @@ class TTYRenderer:
             repr(visible),
             )
         return (
-            visible is not None and visible < self.height, cursor, sill, output)
+            visible is not None and visible < self.height,
+            cursor,
+            sill,
+            output)
 
     def redisplay_internal(self):
         self.log.debug(
@@ -318,7 +322,13 @@ class TTYRenderer:
 
         visible, self.cursorpos, self.sill, output = self.redisplay_calculate()
         import pprint
-        self.log.debug('redisplay_internal: %s, %s, %s %d\n%s', visible, self.cursorpos, self.sill, len(output), pprint.pformat(output))
+        self.log.debug(
+            'redisplay_internal: %s, %s, %s %d\n%s',
+            visible,
+            self.cursorpos,
+            self.sill,
+            len(output),
+            pprint.pformat(output))
         for y, line in enumerate(output):
             self.move(y, 0)
             x = 0
@@ -363,7 +373,7 @@ class TTYRenderer:
                 try:
                     curses.curs_set(0)
                 except curses.error:
-                    self.move(self.height - 1, self.width -1)
+                    self.move(self.height - 1, self.width - 1)
         else:
             self.log.debug('place_cursor called on inactive window')
             self.w.leaveok(1)
@@ -415,11 +425,12 @@ class TTYRenderer:
             screenlines = self.height // 2
         elif target >= 0:
             screenlines = min(self.height - 1, target)
-        else: # target < 0
+        else:  # target < 0
             screenlines = max(self.height + target, 0)
 
         self.log.debug('reframe, previous frame=%s', repr(self.head))
-        self.log.debug('reframe, height=%d, target=%d', self.height, screenlines)
+        self.log.debug(
+            'reframe, height=%d, target=%d', self.height, screenlines)
 
         self.head = Location(self, cursor)
         self.log.debug(
@@ -504,7 +515,8 @@ key = dict(
     if k.startswith('KEY_'))
 
 
-class RedisplayInProgress(Exception): pass
+class RedisplayInProgress(Exception):
+    pass
 
 
 class TTYFrontend:
@@ -549,7 +561,7 @@ class TTYFrontend:
         loop.call_soon(self.perform_resize)
 
     def initial(self, winfactory, statusline=None):
-        self.default_window=winfactory
+        self.default_window = winfactory
         if self.windows or self.active is not None:
             raise ValueError
         if statusline is None:
@@ -587,13 +599,14 @@ class TTYFrontend:
         self.stdscr.refresh()
 
     def write(self, s):
-        pass #XXX put a warning here or a debug log or something
+        pass  # XXX put a warning here or a debug log or something
 
     def perform_resize(self):
         self.log.debug('perform_resize: in_redisplay=%s', self.in_redisplay)
         if os.getpid() != self.main_pid:
-            return # sigh
-        winsz = array.array('H', [0] * 4) # four unsigned shorts per tty_ioctl(4)
+            return  # sigh
+        # four unsigned shorts per tty_ioctl(4)
+        winsz = array.array('H', [0] * 4)
         fcntl.ioctl(0, termios.TIOCGWINSZ, winsz, True)
         curses.resizeterm(winsz[0], winsz[1])
 
@@ -609,7 +622,8 @@ class TTYFrontend:
             elif victim.window.noresize:
                 height = victim.height
             else:
-                # should get proportional chunk of remaining? think harder later.
+                # should get proportional chunk of remaining?
+                # think harder later.
                 height = max(1, int(victim.height * (self.maxy / oldy)))
                 height = min(height, remaining)
             if height > remaining:
@@ -625,7 +639,7 @@ class TTYFrontend:
         if remaining:
             new[-1][2] += remaining
 
-        for victim in orphans: # it sounds terrible when you put it that way
+        for victim in orphans:  # it sounds terrible when you put it that way
             with contextlib.suppress(ValueError):
                 self.popstack.remove(victim)
             victim.window.destroy()
@@ -642,7 +656,7 @@ class TTYFrontend:
         self.redisplay()
 
     def readable(self):
-        while True: # make sure to consume all available input
+        while True:  # make sure to consume all available input
             try:
                 k = self.stdscr.get_wch()
             except curses.error as e:
@@ -652,7 +666,7 @@ class TTYFrontend:
             if k == curses.KEY_RESIZE:
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
             elif self.active is not None:
-                #XXX
+                # XXX
                 state = (list(self.windows), self.active)
                 self.windows[self.active].window.input_char(k)
                 if state == (list(self.windows), self.active):
@@ -765,7 +779,8 @@ class TTYFrontend:
 
         for i in tomove:
             u = self.windows[i]
-            self.windows[i] = TTYRenderer(self, u.y + moveby, u.height, u.window)
+            self.windows[i] = TTYRenderer(
+                self, u.y + moveby, u.height, u.window)
 
         u = self.windows[beneficiary]
         self.windows[beneficiary] = TTYRenderer(
@@ -796,8 +811,8 @@ class TTYFrontend:
     def popup_window(self, new, height=1, select=True):
         r = self.windows[-1]
 
-        if r.height <= height and self.popstack and \
-          r.window != self.popstack[-1][0]:
+        if (r.height <= height and self.popstack
+                and r.window != self.popstack[-1][0]):
             self.popstack.append((r.window, r.height))
 
         if self.popstack and r.window == self.popstack[-1][0]:
@@ -852,7 +867,7 @@ class TTYFrontend:
         if self.active >= len(self.windows):
             self.active = len(self.windows) - 1
             self.windows[self.active].focus()
-        self.redisplay() # XXX force redisplay?
+        self.redisplay()  # XXX force redisplay?
 
     def switch_window(self, adj):
         current = self.active
@@ -893,9 +908,11 @@ class Location:
         self.fe = fe
         self.cursor = cursor
         self.offset = offset
+
     def __repr__(self):
         return '<Location %x: %s, %s +%d>' % (
             id(self), repr(self.fe), repr(self.cursor), self.offset)
+
     def shift(self, delta):
         if delta == 0:
             return self
@@ -917,25 +934,23 @@ class Location:
                     break
                 delta -= lines
             return Location(self.fe, cursor, min(lines + delta, lines))
-        else: # 'backward', delta < 0
-            print (self.cursor, self.offset)
+        else:  # 'backward', delta < 0
             delta += self.offset - 1
             for cursor, chunks in view:
                 lines = self.fe.chunksize(chunks)
                 if -delta <= lines:
                     break
                 delta += lines
-                print (cursor, lines, delta)
-            print (cursor, lines, delta)
             return Location(self.fe, cursor, max(0, lines + delta))
 
 
 def setup_wcwidth():
-    LIBC='libc.so.6' # XXX current versions of linux
+    LIBC = 'libc.so.6'  # XXX current versions of linux
     try:
         ctypes.cdll.LoadLibrary(LIBC)
         libc = ctypes.CDLL(LIBC)
         os_wcwidth = libc.wcwidth
+
         def wcwidth(c):
             return os_wcwidth(ord(c))
     except (OSError, AttributeError):
@@ -943,15 +958,16 @@ def setup_wcwidth():
             # from http://bugs.python.org/msg155361
             # http://bugs.python.org/issue12568
             if (
-                (c < ' ') or
-                (u'\u1160' <= c <= u'\u11ff') or # hangul jamo
-                (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
-                    and c != u'\u00ad') # 00ad = soft hyphen
-                ):
+                    (c < ' ') or
+                    (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
+                    (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+                        and c != u'\u00ad')  # 00ad = soft hyphen
+                    ):
                 return 0
             if unicodedata.east_asian_width(c) in ('F', 'W'):
                 return 2
             return 1
     return wcwidth
+
 
 wcwidth = setup_wcwidth()

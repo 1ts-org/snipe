@@ -33,20 +33,15 @@ snipe.roost
 Backend for talking to `roost <https://github.com/roost-im>`_
 '''
 
-_backend = 'Roost'
-
 
 import asyncio
-import collections
 import itertools
 import time
 import shlex
 import os
-import urllib.parse
 import contextlib
 import re
 import pwd
-import math
 import getopt
 import traceback
 import codecs
@@ -60,6 +55,9 @@ from . import filters
 from . import keymap
 from . import interactive
 from . import zcode
+
+
+_backend = 'Roost'
 
 
 class Roost(messages.SnipeBackend):
@@ -92,7 +90,8 @@ class Roost(messages.SnipeBackend):
         'Indent message bodies with this string (barnowl expats may '
         'wish to set it to eight spaces)')
     FORMAT_TYPES = {'strip', 'raw', 'format'}
-    FORMAT_DOC = ('\n\nstrip - Remove markup\n' +
+    FORMAT_DOC = (
+        '\n\nstrip - Remove markup\n'
         'raw - leave markup unmolested\nformat - obey the markup')
     format_zsig = util.Configurable(
         'roost.format.signature', 'strip',
@@ -128,7 +127,7 @@ class Roost(messages.SnipeBackend):
             errmsg = None
             activity = 'getting new messages from %s' % self.url
             try:
-                self.connected = True #XXX kinda racy?
+                self.connected = True  # XXX kinda racy?
                 self.log.debug(activity)
                 yield from self.r.newmessages(self.new_message, start)
             except _rooster.RoosterReconnectException as e:
@@ -163,10 +162,11 @@ class Roost(messages.SnipeBackend):
     @asyncio.coroutine
     def new_registration(self):
         msg = inspect.cleandoc("""
-        You don't seem to be registered with the roost server.  Select this
-        message and hit Y to begin the registration process.  You'll be asked to
-        confirm again with a message somewhat alarmist than necessary because
-        I couldn't resist the reference to the Matrix.
+        You don't seem to be registered with the roost server.  Select
+        this message and hit Y to begin the registration process.
+        You'll be asked to confirm again with a message somewhat
+        alarmist than necessary because I couldn't resist the
+        reference to the Matrix.
         """)
         f = asyncio.Future()
         self.add_message(RoostRegistrationMessage(self, msg, f))
@@ -174,10 +174,11 @@ class Roost(messages.SnipeBackend):
 
         f = asyncio.Future()
         msg = inspect.cleandoc("""
-        This is your last chance.  After this, there is no turning back.  The
-        roost server will be receiving your messages and storing them forever.
-        Press Y here if you're okay that the people who run the server might
-        accidentally see some of your messages.
+        This is your last chance.  After this, there is no turning
+        back.  The roost server will be receiving your messages and
+        storing them forever.  Press Y here if you're okay that the
+        people who run the server might accidentally see some of your
+        messages.
         """)
         self.add_message(RoostRegistrationMessage(self, msg, f))
         yield from f
@@ -221,7 +222,7 @@ class Roost(messages.SnipeBackend):
         self.log.debug('send flags=%s', repr(flags))
 
         if not recipients:
-            recipients=['']
+            recipients = ['']
 
         if '-C' in flags and len(recipients) > 1:
             body = 'CC: ' + ' '.join(recipients) + '\n' + body
@@ -302,7 +303,9 @@ class Roost(messages.SnipeBackend):
                 stderr = stderr.decode(errors='replace')
                 if proc.returncode:
                     self.log.error(
-                        'roost: %s returned %d', ' '.join(cmd), proc.returncode)
+                        'roost: %s returned %d',
+                        ' '.join(cmd),
+                        proc.returncode)
                 if stderr:
                     self.log.error(
                         'roost: %s send %s to stderr',
@@ -354,10 +357,13 @@ class Roost(messages.SnipeBackend):
 
     @asyncio.coroutine
     def do_backfill(self, start, mfilter, target, count, origin):
-        #yield from asyncio.sleep(.0001)
+        # yield from asyncio.sleep(.0001)
         self.log.debug(
             'do_backfill(start=%s, [filter], %s, %s, origin=%s)',
-            repr(start), util.timestr(target), repr(count), util.timestr(origin))
+            repr(start),
+            util.timestr(target),
+            repr(count),
+            util.timestr(origin))
 
         @contextlib.contextmanager
         def backfillguard():
@@ -376,7 +382,8 @@ class Roost(messages.SnipeBackend):
                 return
 
             if mfilter is None:
-                mfilter = lambda m: True
+                def mfilter(m):
+                    return True
 
             if self.loaded:
                 self.log.debug('no more messages to backfill')
@@ -406,7 +413,9 @@ class Roost(messages.SnipeBackend):
             self.drop_cache()
             self.log.warning(
                 '%d messages, total %d, earliest %s',
-                 count, len(self.messages), util.timestr(self.messages[0].time))
+                count,
+                len(self.messages),
+                util.timestr(self.messages[0].time))
 
             # and (maybe) circle around
             yield from asyncio.sleep(.1)
@@ -418,7 +427,8 @@ class Roost(messages.SnipeBackend):
     @keymap.bind('R S')
     def dump_subscriptions(self, window: interactive.window):
         subs = yield from self.r.subscriptions()
-        subs = [(x['class'], x['instance'], x['recipient'] or '*') for x in subs]
+        subs = [
+            (x['class'], x['instance'], x['recipient'] or '*') for x in subs]
         subs.sort()
         subs = [' '.join(x) for x in subs]
         window.show('\n'.join(subs))
@@ -522,8 +532,8 @@ class RoostMessage(messages.SnipeMessage):
         self.data = m
         self._sender = RoostPrincipal(backend, m['sender'])
 
-        self.personal = self.data['recipient'] \
-          and self.data['recipient'][0] != '@'
+        self.personal = (
+            self.data['recipient'] and self.data['recipient'][0] != '@')
         self.outgoing = self.data['sender'] == self.backend.r.principal
 
     def __str__(self):
@@ -542,8 +552,8 @@ class RoostMessage(messages.SnipeMessage):
             signature=self.data['signature'],
             sender=self.sender,
             date=time.ctime(self.data['time'] / 1000),
-            body=self.body + \
-                ('' if self.body and self.body[-1] == '\n' else '\n'),
+            body=self.body
+                + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
     def display(self, decoration):
@@ -577,7 +587,7 @@ class RoostMessage(messages.SnipeMessage):
             chunk += [(tags, ' [' + self.data['opcode'] + ']')]
 
         chunk += [
-            (tags, ' <' ),
+            (tags, ' <'),
             (tags + ('bold',), self.sender.short()),
             (tags, '>'),
             ]
@@ -619,6 +629,7 @@ class RoostMessage(messages.SnipeMessage):
 
     class_un = re.compile(r'^(un)*')
     class_dotd = re.compile(r'(\.d)*$')
+
     def canon(self, field, value):
         if field == 'sender' or field == 'recipient':
             value = str(value)
@@ -626,13 +637,13 @@ class RoostMessage(messages.SnipeMessage):
             if value[-atrealmlen:] == '@' + self.backend.realm:
                 return value[:-atrealmlen]
         elif field == 'class':
-            value = value.lower() #XXX do proper unicode thing
+            value = value.lower()  # XXX do proper unicode thing
             x1, x2 = self.class_un.search(value).span()
             value = value[x2:]
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'instance':
-            value = value.lower() #XXX do proper unicode thing
+            value = value.lower()  # XXX do proper unicode thing
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'opcode':
@@ -667,16 +678,16 @@ class RoostMessage(messages.SnipeMessage):
             else:
                 cc = self.body.splitlines()[0].split()[1:]
                 cc.append(self.sender.short())
-                cc = [self.canon('sender', x) for x in cc] # canonicalize
+                cc = [self.canon('sender', x) for x in cc]  # canonicalize
                 me = self.canon('sender', self.backend.r.principal)
-                cc = list(set(cc) - {me}) # uniquify, filter self
+                cc = list(set(cc) - {me})  # uniquify, filter self
                 l += ['-C'] + cc
         if self.data['class'].upper() != 'MESSAGE':
             l += ['-c', self.data['class']]
         if self.data['instance'].upper() != 'PERSONAL':
             l += ['-i', self.data['instance']]
         if self.data['recipient'] and self.data['recipient'][0] == '@':
-            l += [self.data['recipient']] # presumably a there should be a -r?
+            l += [self.data['recipient']]  # presumably a there should be a -r?
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
 
     def filter(self, specificity=0):

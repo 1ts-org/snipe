@@ -159,7 +159,7 @@ class SnipeMessage:
         elif hasattr(other, '__int__'):
             return int(other)
         else:
-            return other # probably will fail :-)
+            return other  # probably will fail :-)
 
     def __eq__(self, other):
         return self.time == self._coerce(other)
@@ -240,7 +240,8 @@ class SnipeBackend:
         self.startcache = {}
         self.adjcache = {}
 
-    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+    def walk(
+            self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
         """Iterate through a list of messages associated with a backend.
 
@@ -264,26 +265,29 @@ class SnipeBackend:
         redisplay, for data headers and such that want to bypass filters on
         display.
         """
-        self.log.debug('walk(%s, %s, [filter], %s, %s)',
+        self.log.debug(
+            'walk(%s, %s, [filter], %s, %s)',
             repr(start), forward, util.timestr(backfill_to), search)
-        # I have some concerns that that this depends on the self.messages list
-        # being stable over the life of the iterator.  This doesn't seem to be a
-        # a problem as of when I write this comment, but defensive coding should
-        # address this at some point.   (If you are finding this comment because
-        # of weird message list behavior, this might be why...)
+        # I have some concerns that that this depends on the
+        # self.messages list being stable over the life of the
+        # iterator.  This doesn't seem to be a a problem as of when I
+        # write this comment, but defensive coding should address this
+        # at some point.  (If you are finding this comment because of
+        # weird message list behavior, this might be why...)
 
         if mfilter is not None:
             mfilter = mfilter.simplify({
                 'backend': self.name,
                 'context': self.context,
                 })
-            if mfilter == False:
+            if mfilter is False:
                 return
-            if mfilter == True:
+            if mfilter is True:
                 mfilter = None
 
         if mfilter is None:
-            mfilter = lambda m: True
+            def mfilter(m):
+                return True
 
         cachekey = (start, forward, mfilter)
         point = self.startcache.get(cachekey, None)
@@ -316,16 +320,18 @@ class SnipeBackend:
                 point = point if point is not None else right - 1
 
         if forward:
-            getnext = lambda x: x + 1
+            def getnext(x):
+                return x + 1
         else:
-            getnext = lambda x: x - 1
+            def getnext(x):
+                return x - 1
 
-        ## self.log.debug(
-        ##     'len(self.messages)=%d, point=%d', len(self.messages), point)
+        # self.log.debug(
+        #     'len(self.messages)=%d, point=%d', len(self.messages), point)
 
         adjkey = None
         while self.messages:
-            #self.log.debug(', point=%d', point)
+            # self.log.debug(', point=%d', point)
             if not 0 <= point < len(self.messages):
                 break
             m = self.messages[point]
@@ -430,7 +436,8 @@ class TerminusBackend(SnipeBackend):
         m.omega = True
         self.messages = [m]
 
-    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+    def walk(
+            self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
         self.log.debug('walk(..., search=%s)', search)
         if search:
@@ -464,10 +471,12 @@ class DateBackend(SnipeBackend):
                 self.start,
                 datetime.datetime.fromtimestamp(backfill_to))
 
-    def walk(self, start, forward=True, mfilter=None, backfill_to=None,
+    def walk(
+            self, start, forward=True, mfilter=None, backfill_to=None,
             search=False):
         # Note that this ignores mfilter
-        self.log.debug('walk(%s, %s, [filter], %s, %s)',
+        self.log.debug(
+            'walk(%s, %s, [filter], %s, %s)',
             repr(start), forward, util.timestr(backfill_to), search)
 
         self.backfill(mfilter, backfill_to)
@@ -488,9 +497,9 @@ class DateBackend(SnipeBackend):
             start = float(start)
 
             if math.isinf(start):
-                if start < 0: #-inf
+                if start < 0:  # -inf
                     start = self.start
-                else: # +inf
+                else:  # +inf
                     start = now
             else:
                 start = datetime.datetime.fromtimestamp(start)
@@ -557,7 +566,7 @@ class AggregatorBackend(SnipeBackend):
     messages = None
     loglevel = util.Level('log.aggregator', 'AggregatorBackend')
 
-    def __init__(self, context, backends = [], conf = {}):
+    def __init__(self, context, backends=[], conf={}):
         super().__init__(context, conf=conf)
         self.backends = [TerminusBackend(self.context)]
         for backend in backends:
@@ -566,7 +575,8 @@ class AggregatorBackend(SnipeBackend):
     def add(self, backend):
         self.backends.append(backend)
 
-    def walk(self, start, forward=True, filter=None, backfill_to=None,
+    def walk(
+            self, start, forward=True, filter=None, backfill_to=None,
             search=False):
         self.log.debug(
             'walk(%s, forward=%s, [filter], backfill_to=%s, search=%s',
@@ -590,7 +600,7 @@ class AggregatorBackend(SnipeBackend):
                     )
                 for backend in self.backends
                 ],
-            key = lambda m: m.time if forward else -m.time))
+            key=lambda m: m.time if forward else -m.time))
 
     @asyncio.coroutine
     def shutdown(self):
@@ -608,7 +618,8 @@ class AggregatorBackend(SnipeBackend):
         backends = [b for b in self if b.name.startswith(params[0])]
         if len(backends) != 1:
             raise util.SnipeException(
-                'backend query string %s results in %s' % (params[0], backends))
+                'backend query string %s results in %s' % (
+                    params[0], backends))
         yield from backends[0].send(''.join(params[1:]), msg)
 
     def backfill(self, filter, target=None):

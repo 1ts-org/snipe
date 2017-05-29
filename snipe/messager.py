@@ -39,16 +39,13 @@ import time
 import datetime
 import traceback
 import pprint
-import asyncio
 import bisect
 import codecs
 
 from . import filters
-from . import roost
 from . import keymap
 from . import window
 from . import help
-from . import editor
 from . import prompt
 from . import util
 from . import interactive
@@ -77,7 +74,7 @@ class Messager(window.Window, window.PagingMixIn):
         '*?* help',
         ]
 
-    cheatsheet_filter = [ #XXX not there yet
+    cheatsheet_filter = [  # XXX not there yet
         '*0* clear',
         '*,* pop',
         '*/* cleverly',
@@ -92,7 +89,7 @@ class Messager(window.Window, window.PagingMixIn):
         '*S*ave',
         ]
 
-    def __init__(self, *args, filter_new = None, prototype=None, **kw):
+    def __init__(self, *args, filter_new=None, prototype=None, **kw):
         super().__init__(*args, **kw)
 
         if prototype is None:
@@ -115,7 +112,8 @@ class Messager(window.Window, window.PagingMixIn):
         self.keymap['b'] = self.pageup
         self.keymap['?'] = help.keymap
         self.keymap['[escape] ?'] = help.keymap
-        self.log.debug('self.context.erasechar = %s', repr(self.context.erasechar))
+        self.log.debug(
+            'self.context.erasechar = %s', repr(self.context.erasechar))
         if self.context.erasechar != b'\x08':
             self.keymap['Control-H'] = help.keymap
         self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
@@ -238,11 +236,10 @@ class Messager(window.Window, window.PagingMixIn):
         if whence is None:
             return left, right
 
-
         try:
             then = datetime.datetime.fromtimestamp(float(whence))
         except OverflowError:
-            then = now # soon
+            then = now  # soon
 
         t = ''
         if then.year != now.year:
@@ -267,7 +264,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.move(-count)
 
-    @keymap.bind('}', 'Meta-n') #XXX should be Meta-[down] as well but curses
+    @keymap.bind('}', 'Meta-n')  # XXX should be Meta-[down] as well but curses
     def next_messsage_cleverly(self, arg: interactive.argument=None):
         """Move to the next message that's sort of like the current one.
         Control-Us increase specificity if the backend supports it.  Repeated
@@ -275,7 +272,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         self.move_cleverly(True, arg)
 
-    @keymap.bind('{', 'Meta-p') #XXX should be Meta-[down] as well but curses
+    @keymap.bind('{', 'Meta-p')  # XXX should be Meta-[down] as well but curses
     def prev_messsage_cleverly(self, arg: interactive.argument=None):
         """Move to the last message that's sort of like the current one.
         Repeated "clever" movement commands will retain the specificity."""
@@ -285,7 +282,7 @@ class Messager(window.Window, window.PagingMixIn):
     def move_cleverly(self, forward, arg):
         self.this_command = 'move_cleverly'
         if self.last_command != 'move_cleverly' or arg is not None:
-            if arg == None:
+            if arg is None:
                 cleverness = 0
             elif isinstance(arg, int):
                 cleverness = arg
@@ -347,7 +344,7 @@ class Messager(window.Window, window.PagingMixIn):
         """Start composing a message."""
 
         sill = self.renderer.display_range()[1]
-        if sill.omega: # We're at the bottom of the message list
+        if sill.omega:  # We're at the bottom of the message list
             self.secondary = self.cursor
             self.cursor = sill
 
@@ -437,7 +434,7 @@ class Messager(window.Window, window.PagingMixIn):
             if self.default_filter
             else None)
 
-    @keymap.bind(*['/ %d' % i for i in range(1,10)])
+    @keymap.bind(*['/ %d' % i for i in range(1, 10)])
     def filter_slot(
             self,
             key: interactive.keystroke,
@@ -451,7 +448,8 @@ class Messager(window.Window, window.PagingMixIn):
             filtertext = self.context.conf.get('filter', {}).get(name)
             if not filtertext:
                 raise util.SnipeException(
-                    'No filter set for %s. Set one with Control-u %s' % (key, keyseq))
+                    'No filter set for %s. Set one with Control-u %s' % (
+                        key, keyseq))
                 return
             self.filter_push(filters.makefilter(filtertext))
 
@@ -659,12 +657,13 @@ class Messager(window.Window, window.PagingMixIn):
             + '\n'
             + 'sender: ' + repr(str(self.cursor.sender)) + '\n'
             + 'body: ' + '\n '.join(pformat(self.cursor.body).split('\n'))
-             + '\n'
+            + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
 
     def goto_time(self, when):
         self.log.info(
-            'going to %s', datetime.datetime.fromtimestamp(when).isoformat(' '))
+            'going to %s',
+            datetime.datetime.fromtimestamp(when).isoformat(' '))
         self.cursor_set_walk_mark(when, True, when)
 
     @keymap.bind('Meta-g')
@@ -697,8 +696,8 @@ class Messager(window.Window, window.PagingMixIn):
             else:
                 when = datetime.datetime.fromtimestamp(self.cursor.time)
                 date = when.date()
-                if when.time() == datetime.time(0): #midnight
-                    #XXX should check if we're at the first message today
+                if when.time() == datetime.time(0):  # midnight
+                    # XXX should check if we're at the first message today
                     date -= datetime.timedelta(days=1)
             midnight = datetime.datetime.combine(date, datetime.time())
             delta = datetime.timedelta(days=count - 1)
@@ -734,10 +733,11 @@ class Messager(window.Window, window.PagingMixIn):
         .. [#] repeating the command after a ^U will continue to jump around
             rather than setting the mark.
         """
-        #XXX this documentation is weak and this could share a lot of code
-        #with the same command over in the editor
-        if prefix is not None or \
-          (self.last_command == 'set_mark' and self.set_mark_state == 1):
+        # XXX this documentation is weak and this could share a lot of code
+        # with the same command over in the editor
+        if (prefix is not None
+                or (self.last_command == 'set_mark'
+                    and self.set_mark_state == 1)):
             self.mark_ring.insert(
                 0, (where if where is not None else self.cursor))
             where = self.the_mark
@@ -808,7 +808,6 @@ class Messager(window.Window, window.PagingMixIn):
         self.show(
             '\n'.join(self.context.backends.destinations()))
 
-
     @keymap.bind('Control-X w')
     def write_region(self):
         filename = yield from self.read_filename('destination file: ')
@@ -817,3 +816,5 @@ class Messager(window.Window, window.PagingMixIn):
         with open(filename, 'w') as output:
             for m in self.walk(start, True, search=True):
                 output.write(str(m))
+                if m >= end:
+                    break

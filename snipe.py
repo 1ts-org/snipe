@@ -36,7 +36,9 @@ if __name__ == '__main__':
     sys.path[0:0] = [
         os.path.join(os.path.realpath(os.path.dirname(__file__)), 'lib')]
 
-import snipe.main
+
+import snipe.main  # noqa: E402
+
 
 if __name__ == '__main__':
     snipe.main.main()

@@ -42,7 +42,7 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.util
+import snipe.util  # noqa: E402
 
 
 class TestSafeWrite(unittest.TestCase):
@@ -58,4 +58,3 @@ class TestSafeWrite(unittest.TestCase):
 
             with open(pathname) as fp:
                 self.assertEquals(fp.read(), string)
-

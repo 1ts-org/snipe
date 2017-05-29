@@ -35,7 +35,6 @@ Utilities for managing color with curses.
 '''
 
 
-
 import curses
 import re
 import logging
@@ -130,7 +129,6 @@ class CleverColorAssigner(SimpleColorAssigner):
 
         self.colors = {}
 
-
     def strtorgb(self, name):
         if name in self.rgb:
             return self.rgb[name]
@@ -145,7 +143,8 @@ class CleverColorAssigner(SimpleColorAssigner):
 
         m = self.integer.match(name)
         if m and 0 <= int(name) <= 255:
-            m = self.hex_24bit.match(dict(colors_xterm_256color).get(int(name)))
+            m = self.hex_24bit.match(
+                dict(colors_xterm_256color).get(int(name)))
             if m is None:
                 return None
             return tuple(int(x, 16) for x in m.groups())
@@ -212,9 +211,7 @@ class DynamicColorAssigner(CleverColorAssigner):
         return color
 
 
-
 class StaticColorAssigner(CleverColorAssigner):
-
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 

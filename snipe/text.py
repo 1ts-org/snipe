@@ -57,7 +57,7 @@ WHITESPACE = re.compile(r'(\s+)')
 class RSTRenderer:
     loglevel = util.Level(
         'log.help.renderer', 'Renderer',
-        doc = 'logevel for Help text renderer')
+        doc='logevel for Help text renderer')
 
     def __init__(self):
         # output will be a list of (offset, [(tags, text), (tags, text)]) items
@@ -108,7 +108,7 @@ class RSTRenderer:
         if self.col == 0:
             words = self.indent + words
         if self.fill:
-            #words = words.strip('\n').replace('\n', ' ')
+            # words = words.strip('\n').replace('\n', ' ')
             words = words.replace('\n', ' ')
             self.log.debug('add cleaned: %s', repr(words))
         else:
@@ -169,14 +169,14 @@ class RSTRenderer:
             return False
         return bool(len(self.output[-1][1]) > 1 or self.output[-1][1][0][1])
 
-    def linebreak(self): # .br
+    def linebreak(self):  # .br
         self.log.debug('.linebreak')
         if self.notatendofline() and self.notatbeginingofline():
             fill, self.fill = self.fill, False
             self.add('\n')
             self.fill = fill
 
-    def space(self): # .sp
+    def space(self):  # .sp
         self.log.debug('.space')
         if self.state_space:
             return
@@ -228,9 +228,9 @@ class RSTRenderer:
         if isinstance(node, docutils.nodes.title):
             self.targets[''.join(node.astext().split())] = self.offset
 
-        if not isinstance(node, docutils.nodes.Inline) and \
-          not isinstance(node, docutils.nodes.line) and \
-          not isinstance(node, docutils.nodes.line_block):
+        if (not isinstance(node, docutils.nodes.Inline)
+                and not isinstance(node, docutils.nodes.line)
+                and not isinstance(node, docutils.nodes.line_block)):
             self.linebreak()
 
         if isinstance(node, docutils.nodes.section):
@@ -244,17 +244,17 @@ class RSTRenderer:
         if isinstance(node, docutils.nodes.line):
             self.add(' '*node.indent)
 
-        if isinstance(node, docutils.nodes.Titular) or \
-          isinstance(node, docutils.nodes.emphasis) or \
-          isinstance(node, docutils.nodes.literal) or \
-          isinstance(node, docutils.nodes.literal_block):
+        if (isinstance(node, docutils.nodes.Titular)
+                or isinstance(node, docutils.nodes.emphasis)
+                or isinstance(node, docutils.nodes.literal)
+                or isinstance(node, docutils.nodes.literal_block)):
             tagset += self.tagpush('bold')
 
         if isinstance(node, docutils.nodes.literal_block):
             self.linebreak()
 
-        if isinstance(node, docutils.nodes.literal_block) or \
-          isinstance(node, docutils.nodes.line):
+        if (isinstance(node, docutils.nodes.literal_block)
+                or isinstance(node, docutils.nodes.line)):
             fill, self.fill = self.fill, False
 
         if isinstance(node, docutils.nodes.reference):
@@ -264,8 +264,8 @@ class RSTRenderer:
         for x in node.children:
             self.process(x)
 
-        if isinstance(node, docutils.nodes.literal_block) or \
-          isinstance(node, docutils.nodes.line):
+        if (isinstance(node, docutils.nodes.literal_block)
+                or isinstance(node, docutils.nodes.line)):
             self.fill = fill
 
         self.tagpop(tagset)
@@ -277,11 +277,11 @@ class RSTRenderer:
         if isinstance(node, docutils.nodes.section):
             self.section_level -= 1
 
-        if not isinstance(node, docutils.nodes.Inline) and \
-          not isinstance(node, docutils.nodes.line_block):
+        if (not isinstance(node, docutils.nodes.Inline)
+                and not isinstance(node, docutils.nodes.line_block)):
             self.linebreak()
-            if not isinstance(node, docutils.nodes.term) and \
-              not isinstance(node, docutils.nodes.line):
+            if (not isinstance(node, docutils.nodes.term)
+                    and not isinstance(node, docutils.nodes.line)):
                 self.space()
 
         self.log.debug('leaving: %s', repr(node))
@@ -296,6 +296,7 @@ class Interrogator(docutils.parsers.rst.Directive):
     required_arguments = 1
     optional_arguments = 0
     has_content = True
+
     def run(self):
         import traceback
         from . import help
@@ -332,8 +333,8 @@ class InterrogateKeymap(Interrogator):
                 continue
             text += '\n%s *%s*\n' % (
                 ' '.join('``%s``' % (s,) for s in prop.snipe_seqs), attr)
-            #XXX if this faceplants on any of the relevant docstrings,
-            #It's a bug in the docstring, really
+            # XXX if this faceplants on any of the relevant docstrings,
+            # It's a bug in the docstring, really
             # Strip the leading indentation off of all but the first
             # line of the docstring
             l = prop.__doc__.splitlines()
@@ -371,6 +372,7 @@ class Toc(docutils.parsers.rst.Directive):
     required_arguments = 0
     optional_arguments = 0
     has_content = True
+
     def run(self):
         from . import help
         self.state_machine.insert_input(help.HelpBrowser.toclines, '<toc>')
@@ -443,7 +445,8 @@ class XHTMLRenderer(RSTRenderer):
 
 
 def xhtml_to_chunk(xhtml):
-    dom = xml.dom.minidom.parseString('<html><body>' + xhtml + '</body></html>')
+    dom = xml.dom.minidom.parseString(
+        '<html><body>' + xhtml + '</body></html>')
     renderer = XHTMLRenderer()
     renderer.process(dom.documentElement)
     out = []
@@ -457,7 +460,7 @@ def markdown_to_xhtml(s):
         s, safe_mode='escape', extensions=[
             SnipeFencedCodeExtension(),
             'markdown.extensions.nl2br',
-            ## 'markdown.extensions.tables',
+            # 'markdown.extensions.tables',
             ])
 
 
@@ -467,6 +470,7 @@ def markdown_to_chunk(s):
 
 class QuoteHack:
     CODE_WRAP = '<pre><code%s>%s</code></pre>'
+
     def __init__(self):
         self.reset()
 

@@ -40,10 +40,10 @@ import unittest
 
 sys.path.append('..')
 
-import snipe.text as text
+import snipe.text as text  # noqa: E402
 
 
-TEXT='''
+TEXT = '''
 =============
 a Title
 =============
@@ -68,60 +68,51 @@ it in ``~/.snipe/netrc`` like so: ::
 means.)
 
 Lorem ipsum dolor sit amet, consecteturadipiscingelit,seddoeiusmodtemporincididuntutlaboreetdoloremagnaaliqua.Utenimadminimveniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-'''
+'''  # noqa: E501
 
-TEXT_rendered=[(0, [((), ''), (('bold',), 'a Title'), ((), '\n')]),
- (8, [((), '\n')]),
- (9,
-  [((),
-    'Here is some text.  Here is some more text.  Blah blah blah.  Foo.\n')]),
- (76,
-  [((),
-    'Bar.  Flarb. (The previous should get wrapped if everything is '
-    'good.)\n')]),
- (146, [((), '\n')]),
- (147, [((), 'One. Two. Three. (The above shold end up on one line.)\n')]),
- (202, [((), '\n')]),
- (203,
-  [((), 'myslack.slack.com).  You add '),
-   (('bold',), '.slack name=myname'),
-   ((), ' to the '),
-   (('bold',), 'backends'),
-   ((), '\n')]),
- (267,
-  [((), 'configuration variable (which is '),
-   (('bold',), ';'),
-   ((), ' separated), and get an api key from '),
-   (('bold',), '\n')]),
- (339,
-  [(('bold',), 'https://api.slack.com/web'),
-   ((), ' and put it in '),
-   (('bold',), '~/.snipe/netrc'),
-   ((), ' like so:\n')]),
- (403, [((), '\n')]),
- (404,
-  [(('bold',),
-    'machine myslack.slack.com login myself@example.com password '
-    'frob-9782504613-8396512704-9784365210-7960cf'),
-   ((), '\n')]),
- (509, [((), '\n')]),
- (510,
-  [((),
-    '(You need to have already signed up for the relevant slack instance '
-    'by\n')]),
- (581, [((), 'other means.)\n')]),
- (595, [((), '\n')]),
- (596, [((), 'Lorem ipsum dolor sit amet,\n')]),
- (624,
-  [((),
-    'consecteturadipiscingelit,seddoeiusmodtemporincididuntutlaboreet'
-        'doloremagnaaliqua.Utenimadminimveniam,\n')]),
- (727,
-  [((),
-    'quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea '
-    'commodo\n')]),
- (799, [((), 'consequat.\n')]),
- (810, [((), '\n')])]
+TEXT_rendered = [
+    (0, [((), ''), (('bold',), 'a Title'), ((), '\n')]),
+    (8, [((), '\n')]),
+    (9, [((),
+          'Here is some text.  Here is some more text.  Blah blah blah.'
+          '  Foo.\n')]),
+    (76, [((),
+          'Bar.  Flarb. (The previous should get wrapped if everything is '
+           'good.)\n')]),
+    (146, [((), '\n')]),
+    (147, [((), 'One. Two. Three. (The above shold end up on one line.)\n')]),
+    (202, [((), '\n')]),
+    (203, [((), 'myslack.slack.com).  You add '),
+           (('bold',), '.slack name=myname'),
+           ((), ' to the '),
+           (('bold',), 'backends'),
+           ((), '\n')]),
+    (267, [((), 'configuration variable (which is '),
+           (('bold',), ';'),
+           ((), ' separated), and get an api key from '),
+           (('bold',), '\n')]),
+    (339, [(('bold',), 'https://api.slack.com/web'),
+           ((), ' and put it in '),
+           (('bold',), '~/.snipe/netrc'),
+           ((), ' like so:\n')]),
+    (403, [((), '\n')]),
+    (404, [(('bold',),
+            'machine myslack.slack.com login myself@example.com password '
+            'frob-9782504613-8396512704-9784365210-7960cf'),
+           ((), '\n')]),
+    (509, [((), '\n')]),
+    (510, [((), '(You need to have already signed up for the relevant slack '
+                'instance by\n')]),
+    (581, [((), 'other means.)\n')]),
+    (595, [((), '\n')]),
+    (596, [((), 'Lorem ipsum dolor sit amet,\n')]),
+    (624, [((), 'consecteturadipiscingelit,seddoeiusmodtemporincididuntut'
+                'laboreetdoloremagnaaliqua.Utenimadminimveniam,\n')]),
+    (727, [((), 'quis nostrud exercitation ullamco laboris nisi ut aliquip ex'
+                ' ea commodo\n')]),
+    (799, [((), 'consequat.\n')]),
+    (810, [((), '\n')]),
+    ]
 
 
 def parse_rest(text):
@@ -200,4 +191,10 @@ class TestRendering(unittest.TestCase):
             (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
 
 # So I can cut and paste it into test:
-# Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+# Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+# eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+# ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+# aliquip ex ea commodo consequat. Duis aute irure dolor in
+# reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+# pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+# culpa qui officia deserunt mollit anim id est laborum.

@@ -40,19 +40,14 @@ import contextlib
 import logging
 import json
 import netrc
-import time
 import collections
 import asyncio
 import importlib
 
 from . import messages
-from . import ttyfe
 from . import util
 from . import window
 from . import messager
-from . import roost
-from . import irccloud
-from . import slack
 
 
 class Context:
@@ -107,7 +102,7 @@ class Context:
         handler.context = self
         self.backends = messages.AggregatorBackend(
             self,
-            backends = [
+            backends=[
                 messages.StartupBackend(self),
                 messages.DateBackend(self),
                 messages.SinkBackend(self),
@@ -138,7 +133,7 @@ class Context:
             try:
                 line = string.split()
                 if not line:
-                    continue #XXX should complain
+                    continue  # XXX should complain
                 kwargs = {}
                 if len(line) > 1:
                     for arg in line[1:]:
@@ -175,7 +170,7 @@ class Context:
 
         os.mkdir(self.directory)
         os.chmod(self.directory, 0o700)
-        if os.path.realpath(self.directory).startswith('/afs/'): #XXX
+        if os.path.realpath(self.directory).startswith('/afs/'):  # XXX
             cmd = [
                 'fs', 'sa', self.directory,
                 'system:anyuser', 'none', 'system:authuser', 'none',
@@ -186,7 +181,7 @@ class Context:
             if p.returncode:
                 self.log.error(
                     '%s (=%d): %s', ' '.join(cmd), p.returncode, out)
-                #XXX should complain more
+                # XXX should complain more
             else:
                 self.log.debug('%s: %s', ' '.join(cmd), out)
 
@@ -260,13 +255,13 @@ class SnipeLogHandler(logging.Handler):
         'log.write',
         False,
         'automatically write out logs',
-        coerce = util.coerce_bool,
+        coerce=util.coerce_bool,
         )
     interval = util.Configurable(
         'log.write_interval',
         1.0,
         'if log.write, how often',
-        coerce = float,
+        coerce=float,
         )
 
     def __init__(self, level=logging.NOTSET):
@@ -296,7 +291,8 @@ class SnipeLogHandler(logging.Handler):
         return os.open(file, flags, mode=0o600)
 
     def dump(self, *args):
-        with self.the_lock(), open(self.filename, 'a', opener=self.opener) as fp:
+        with self.the_lock(), open(
+                self.filename, 'a', opener=self.opener) as fp:
             fp.writelines(s + '\n' for s in self.buffer)
             self.buffer.clear()
 

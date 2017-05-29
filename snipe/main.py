@@ -47,13 +47,15 @@ def main():
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
-            '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s: %(message)s', '%b %d %H:%M:%S'))
+            '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s:'
+            ' %(message)s',
+            '%b %d %H:%M:%S'))
         logging.getLogger().addHandler(handler)
         signal.signal(signal.SIGUSR1, handler.dump)
         log = logging.getLogger('Snipe')
         log.warning('snipe starting')
 
-        #XXX terriblest option parsing
+        # XXX terriblest option parsing
         options = [x[2:].split('=', 1) for x in sys.argv if x.startswith('-O')]
         options = [x if len(x) > 1 else x + ['true'] for x in options]
         options = dict(options)
@@ -80,6 +82,7 @@ def main():
         print('.', end='', flush=True)
     print('.', flush=True)
     sys.exit(0)
+
 
 if __name__ == '__main__':
     main()

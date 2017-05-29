@@ -40,8 +40,8 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.filters
-import snipe.messages
+import snipe.filters   # noqa: E402
+import snipe.messages  # noqa: E402
 
 
 class TestStartup(unittest.TestCase):
@@ -92,13 +92,14 @@ class TestAggregator(unittest.TestCase):
             ))), 4)
         self.assertEquals(len(list(a.walk(float('-Inf')))), 4)
 
-        for i in range(2): # because caching?
+        for i in range(2):  # because caching?
             forward = list(a.walk(None, True))
             for (x, y) in list(zip([None] + forward, forward + [None]))[1:-1]:
                 self.assertLess(x, y)
 
             backward = list(a.walk(None, False))
-            for (x, y) in list(zip([None] + backward, backward + [None]))[1:-1]:
+            for (x, y) in list(
+                    zip([None] + backward, backward + [None]))[1:-1]:
                 self.assertGreater(x, y)
         a.shutdown()
 

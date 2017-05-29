@@ -43,7 +43,7 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.editor
+import snipe.editor  # noqa: E402
 
 
 class TestEditor(unittest.TestCase):
@@ -74,7 +74,6 @@ class TestEditor(unittest.TestCase):
         e.insert('ac')
         m = e.buf.mark(1)
         m2 = e.buf.mark(1, right=True)
-        n = e.buf.mark(2)
         e.cursor.point = 1
         e.insert('b')
         self.assertEqual(m.point, 1)
@@ -92,37 +91,37 @@ class TestEditor(unittest.TestCase):
         e.insert('foo')
         self.assertEqual(str(e.buf), 'foobar')
         self.assertEqual(m.point, 4)
-        e.cursor.point=6
+        e.cursor.point = 6
         e.insert('baz')
         self.assertEqual(str(e.buf), 'foobarbaz')
         self.assertEqual(m.point, 4)
-        e.cursor.point=6
+        e.cursor.point = 6
         e.insert('quux')
         self.assertEqual(str(e.buf), 'foobarquuxbaz')
         self.assertEqual(m.point, 4)
-        e.cursor.point=3
-        e.insert('Q'*8192)
+        e.cursor.point = 3
+        e.insert('Q' * 8192)
         self.assertEqual(str(e.buf), 'foo' + 'Q'*8192 + 'barquuxbaz')
         self.assertEqual(m.point, 8196)
-        e.cursor.point=3
+        e.cursor.point = 3
         e.delete(8192)
         self.assertEqual(e.cursor.point, 3)
         self.assertEqual(str(e.buf), 'foobarquuxbaz')
         self.assertEqual(len(e.buf), 13)
         self.assertEqual(m.point, 4)
-        e.cursor.point=3
+        e.cursor.point = 3
         e.insert('honk')
         e.delete(3)
         self.assertEqual(str(e.buf), 'foohonkquuxbaz')
         self.assertEqual(m.point, 7)
-        e.cursor.point=4
+        e.cursor.point = 4
         e.insert('u')
         e.delete(1)
         self.assertEqual(str(e.buf)[4], 'u')
-        e.cursor.point=4
+        e.cursor.point = 4
         e.delete(1)
         self.assertEqual(str(e.buf), 'foohnkquuxbaz')
-        e.cursor.point=3
+        e.cursor.point = 3
         e.delete(3)
         self.assertEqual(str(e.buf), 'fooquuxbaz')
 
@@ -194,12 +193,12 @@ class TestEditor(unittest.TestCase):
             [(0, [((), 'abc'), (('cursor', 'visible'), ''), ((), '')])])
 
     def testfuzz(
-        self,
-        iterations=10000,
-        max_len=74,
-        max_op_len=10,
-        show_delay=0.01,
-        ):
+            self,
+            iterations=10000,
+            max_len=74,
+            max_op_len=10,
+            show_delay=0.01,
+            ):
         """
         For many <iterations> randomly either insert or delete up to
         <max_op_len> chars or just move the gap around.
@@ -241,7 +240,7 @@ class TestEditor(unittest.TestCase):
                     for i in range(howmany):
                         a.insert(pos, char)
             self.assertEqual(a.tounicode(), str(g.buf))
-            print (str(g.buf))
+            print(str(g.buf))
 
     def test_character_at_point(self):
         # really testing textrange

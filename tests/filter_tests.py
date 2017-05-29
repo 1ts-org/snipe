@@ -37,11 +37,16 @@ Unit tests for various filter-related things
 import sys
 import unittest
 
+
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.filters
-from snipe.filters import *
+
+import snipe.filters                                           # noqa: E402
+from snipe.filters import (
+    And, Compare, Identifier, Lexer, No, Parser, RECompare,
+    SnipeFilterError, Yes, makefilter,
+    )                                                          # noqa: E402
 
 
 class TestFilters(unittest.TestCase):
@@ -62,7 +67,7 @@ class TestFilters(unittest.TestCase):
         self.assertEqual(
             list(lexeme.type for lexeme in lexer.test(
                 'and or xor not')),
-                ['AND', 'OR', 'XOR', 'NOT'])
+            ['AND', 'OR', 'XOR', 'NOT'])
         self.assertRaises(
             SnipeFilterError,
             lambda: list(lexer.test("'foo'")))
@@ -72,7 +77,7 @@ class TestFilters(unittest.TestCase):
             'foo\\"bar')
 
     def testParser(self):
-        snipe.filters.parser = Parser(debug = True)
+        snipe.filters.parser = Parser(debug=True)
         self.assertEqual(
             makefilter('yes'),
             Yes())
@@ -182,7 +187,7 @@ class TestFilters(unittest.TestCase):
         self.assertFalse(makefilter('filter foo')(MockMsg()))
 
     def test_parser_python(self):
-        snipe.filters.parser = Parser(debug = True)
+        snipe.filters.parser = Parser(debug=True)
         self.assertEqual(
             str(makefilter("$'True'")),
             "$'True'")
@@ -196,6 +201,7 @@ class TestFilters(unittest.TestCase):
             str(makefilter('$"True or \'flase\'"')),
             "$\"True or 'flase'\"")
 
+
 class MockMsg:
     def __init__(self, **kw):
         self.dict = kw
@@ -208,6 +214,6 @@ class MockMsg:
             return self.dict[name.capitalize()]
         return self.dict.get(name, '')
 
+
 if __name__ == '__main__':
     unittest.main()
-

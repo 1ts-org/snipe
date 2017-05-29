@@ -40,6 +40,7 @@ def _keyword(name):
         return kw.get(name, None)
     return __get_keyword
 
+
 context = _keyword('context')
 window = _keyword('window')
 keystroke = _keyword('keystroke')
@@ -59,7 +60,7 @@ def integer_argument(*args, **kw):
 
 def positive_integer_argument(*args, **kw):
     arg = integer_argument(*args, **kw)
-    if not isinstance(arg, int): #coercion happens in integer_argument
+    if not isinstance(arg, int):  # coercion happens in integer_argument
         return arg
     return abs(arg)
 
@@ -168,7 +169,8 @@ class FileCompleter(Completer):
         if directory != self.directory:
             self.candidates = self.listdir(directory)
             self.directory = directory
-        return os.path.join(directory, Completer(self.candidates).expand(filename))
+        return os.path.join(
+            directory, Completer(self.candidates).expand(filename))
 
 
 class DestCompleter(Completer):
@@ -176,7 +178,7 @@ class DestCompleter(Completer):
         'completer.fancy',
         True,
         'enable the fancy destination completer',
-        coerce = util.coerce_bool,
+        coerce=util.coerce_bool,
         )
 
     def __init__(self, candidates, context):
@@ -201,4 +203,3 @@ class DestCompleter(Completer):
                 (b == ybackend and xaddress in yaddress) for b in backends)
         else:
             return xaddress in y.split(';', 1)[1]
-

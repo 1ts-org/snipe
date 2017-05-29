@@ -42,11 +42,9 @@ A layer of glue between the roost backend and the upstream code.
 '''
 
 import asyncio
-import json
 import urllib.parse
 import base64
 import logging
-import functools
 import socket
 
 import aiohttp
@@ -93,7 +91,6 @@ class Rooster(util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def auth(self, create_user=False):
-        loop = asyncio.get_event_loop()
         self.principal, token = get_auth_token(self.service)
 
         result = yield from self._post_json(
@@ -126,7 +123,6 @@ class Rooster(util.HTTP_JSONmixin):
             credentials=(yield from self.credentials()),
             ))
 
-
     @asyncio.coroutine
     def ping(self):
         yield from self.ensure_auth()
@@ -136,7 +132,6 @@ class Rooster(util.HTTP_JSONmixin):
     def subscriptions(self):
         yield from self.ensure_auth()
         return (yield from self._get('/v1/subscriptions'))
-
 
     @staticmethod
     def triplet_to_dict(triplet):
@@ -331,7 +326,7 @@ def get_auth_token(service):
 
 
 def get_zephyr_creds():
-    #XXX hardcoded ATHENA.MIT.EDU
+    # XXX hardcoded ATHENA.MIT.EDU
     context = krb5.Context()
     ccache = context.cc_default()
     principal = ccache.get_principal()

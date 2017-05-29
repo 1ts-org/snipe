@@ -35,7 +35,6 @@ snipe.window
 
 import logging
 import asyncio
-import itertools
 import math
 
 from . import interactive
@@ -50,6 +49,7 @@ Common commands in all windows
 
 .. interrogate_keymap:: Window
 """
+
 
 class Window:
     """
@@ -75,10 +75,11 @@ class Window:
         '*?* help',
         ]
 
-    def __init__(self, frontend, prototype=None, destroy=lambda: None, modes=[]):
+    def __init__(
+            self, frontend, prototype=None, destroy=lambda: None, modes=[]):
         self.fe = frontend
-        self.renderer = None #: associated renderer object
-        self.keymap = keymap.Keymap() #: assciated keymap
+        self.renderer = None  # : associated renderer object
+        self.keymap = keymap.Keymap()  # : assciated keymap
         self.keymap.interrogate(self)
         for mode in modes:
             self.keymap.interrogate(mode)
@@ -88,30 +89,30 @@ class Window:
         self.log = logging.getLogger(
             '%s.%x' % (self.__class__.__name__, id(self),))
         if prototype is None:
-            self.cursor = None #: current location
+            self.cursor = None  # : current location
             self.hints = {}
         else:
             self.cursor = prototype.cursor
             self.hints = prototype.renderer.get_hints()
         self._destroy = destroy
-        self.this_command = '' #: name of currently executing command
-        self.last_command = '' #: name of previous command
-        self.last_key = '' #: last key stroke processed
-        self.universal_argument = None #: current universal argument
-        #: callback for completed keysequence in kyempa
+        self.this_command = ''  # : name of currently executing command
+        self.last_command = ''  # : name of previous command
+        self.last_key = ''  # : last key stroke processed
+        self.universal_argument = None  # : current universal argument
+        # : callback for completed keysequence in kyempa
         self.keymap_action = interactive.call
-        #: callback for keystroke in incomplete keysequence
+        # : callback for keystroke in incomplete keysequence
         self.intermediate_action = None
-        #: callback for completed keysequence not in keymap
+        # : callback for completed keysequence not in keymap
         self.keyerror_action = None
-        #: callback for keymap we just "installed"
+        # : callback for keymap we just "installed"
         self.activated_keymap = self.maybe_install_cheatsheet
 
-        self.noactive = False #: don't let this window get focus
-        self.noresize = False #: don't resize this window
+        self.noactive = False  # : don't let this window get focus
+        self.noresize = False  # : don't resize this window
 
         self._normal_cheatsheet = self.cheatsheet
-        #: string describing the keystrokes that triggered the current command
+        # : string describing the keystrokes that triggered the current command
         self.keyseq = ''
 
     def set_cheatsheet(self, cheatsheet):
@@ -138,7 +139,8 @@ class Window:
         self._destroy()
 
     def focus(self):
-        """Called by the frontend when the window is focused.  Returns False."""
+        """Called by the frontend when the window is focused.
+        Returns False."""
 
         return not self.noactive
 
@@ -160,7 +162,7 @@ class Window:
             self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
 
             if self.intermediate_action is not None:
-                self.intermediate_action(keystroke = k)
+                self.intermediate_action(keystroke=k)
 
             try:
                 v = self.active_keymap[k]
@@ -175,7 +177,8 @@ class Window:
                     self.whine(k)
                 return
 
-            self.keyseq = self.keyseq + self.keymap.unkey(k, compact=True) + ' '
+            self.keyseq = (
+                self.keyseq + self.keymap.unkey(k, compact=True) + ' ')
 
             if not callable(v):
                 self.active_keymap = v
@@ -189,12 +192,12 @@ class Window:
                     self.before_command()
                     ret = self.keymap_action(
                         v,
-                        context = self.context,
-                        window = self,
-                        keystroke = k,
-                        argument = arg,
-                        keyseq = keyseq,
-                        keymap = self.keymap,
+                        context=self.context,
+                        window=self,
+                        keystroke=k,
+                        argument=arg,
+                        keyseq=keyseq,
+                        keymap=self.keymap,
                         )
                 finally:
                     self.after_command()
@@ -211,7 +214,7 @@ class Window:
                             self.whine(k)
                         self.redisplay()
 
-                    t = asyncio.Task(catch_and_log(ret))
+                    asyncio.Task(catch_and_log(ret))
 
         except Exception as e:
             self.context.message(str(e))
@@ -223,7 +226,6 @@ class Window:
                 self.activated_keymap(self.active_keymap)
             if self.keyseq:
                 self.keyecho(self.keyseq)
-
 
     def check_redisplay_hint(self, hint):
         """See if a redisplay hint dict applies to this window.  Called by the
@@ -264,7 +266,7 @@ class Window:
              [(('bold', 'visible'), 'some bold text, '), ((), 'Some normal text\\n')]
 
         Each chunk may be assumed to end a line.
-        """
+        """  # noqa: E501
         yield 0, [(('visible',), '')]
 
     def before_command(self):
@@ -317,7 +319,7 @@ class Window:
                 if not validate(result):
                     raise util.SnipeException('unspecified validation error')
             f.set_result(result)
-            self.fe.popdown_window()#XXX might not always be the right one
+            self.fe.popdown_window()  # XXX might not always be the right one
 
         def destroy_callback():
             if not f.done():
@@ -378,7 +380,8 @@ class Window:
     def show(self, string, what='what'):
         """Display a string in a popup Viewer window."""
         from .editor import PopViewer
-        self.fe.split_window(PopViewer(self.fe, content=string, name=what), True)
+        self.fe.split_window(
+            PopViewer(self.fe, content=string, name=what), True)
 
     # Commands the user can run that should be more or less present in
     # all windows.
@@ -421,7 +424,7 @@ class Window:
 
         self.fe.switch_window(1)
 
-    @keymap.bind('Control-X e')#XXX
+    @keymap.bind('Control-X e')  # XXX
     def split_to_editor(self):
         """Split to a new editor window."""
 
@@ -436,8 +439,8 @@ class Window:
         self.fe.split_window(
             Messager(
                 self.fe,
-                prototype = self if isinstance(self, Messager) else None,
-                filter_new = filter_new,
+                prototype=self if isinstance(self, Messager) else None,
+                filter_new=filter_new,
                 ),
             True,
             )
@@ -469,7 +472,7 @@ class Window:
 
         self.split_to_messager(filter_new=filters.makefilter(s))
 
-    @keymap.bind('Control-X c')#XXX
+    @keymap.bind('Control-X c')  # XXX
     def split_to_colordemo(self):
         """Split to a color demo window."""
 
@@ -498,9 +501,9 @@ class Window:
         while True:
             expr = yield from self.read_string(
                 out + '>>> ',
-                height = len(out.splitlines()) + 2,
-                window = ShortPrompt,
-                name = '*python*'
+                height=len(out.splitlines()) + 2,
+                window=ShortPrompt,
+                name='*python*'
                 )
             if not expr.strip():
                 break
@@ -542,7 +545,8 @@ class Window:
             self.show(pprint.pformat(self.context.conf))
 
     @asyncio.coroutine
-    def read_oneof(self, prompt, candidates, content=None, height=1, name='Prompt'):
+    def read_oneof(
+            self, prompt, candidates, content=None, height=1, name='Prompt'):
         from .prompt import ShortPrompt
 
         return (yield from self.read_string(
@@ -586,11 +590,11 @@ class Window:
             keyseq: interactive.keyseq,
             key: interactive.keystroke):
         """Universal argument.  Followed by digits sets an integer argument.
-        Without digits is interpreted as a four when an integer is needed.  More
-        ^Us multiply by four each time.""" #XXX revisit this
+        Without digits is interpreted as a four when an integer is needed.
+        More ^Us multiply by four each time."""  # XXX revisit this
 
         if isinstance(arg, int):
-            self.universal_argument = arg # shouldn't do this the second time?
+            self.universal_argument = arg  # shouldn't do this the second time?
 
         self.active_keymap = keymap.Keymap(self.keymap)
 
@@ -690,7 +694,7 @@ class StatusLine(Window):
             textwidth = self.renderer.glyphwidth(text)
             remaining = renderer.width - rightwidth - offset - 1
             if textwidth > remaining:
-                #XXX bugs on wide characters, need fe.truncate
+                # XXX bugs on wide characters, need fe.truncate
                 left[i:] = [(tags, '…' + text[len(text) - remaining + 1:])]
                 break
             offset += textwidth
@@ -722,7 +726,8 @@ class StatusLine(Window):
         widthrows = [widths[i::rows] for i in range(rows)]
 
         for (row, widths) in zip(sheetrows, widthrows):
-            pads = [((), ' ' * (colwidth - w)) for w in widths[:-1]] + [((), '\n')]
+            pads = [((), ' ' * (colwidth - w))
+                    for w in widths[:-1]] + [((), '\n')]
             out += sum((x + [p] for (x, p) in zip(row, pads)), [])
 
         return out
@@ -749,7 +754,8 @@ class StatusLine(Window):
 
     @classmethod
     def cheatsheetify(klass, s):
-        untag = lambda t: () if t else klass.KEYTAGS
+        def untag(t):
+            return () if t else klass.KEYTAGS
         out = [((), '')]
         while s != '':
             if s[0] == '*':

@@ -142,10 +142,12 @@ class LongPrompt(editor.Editor):
                     if off < self.divider:
                         if off + len(string) > self.divider:
                             newchunk.append(
-                                (tags + ('bold',), string[:self.divider - off]))
+                                (tags + ('bold',),
+                                    string[:self.divider - off]))
                             newchunk.append(
-                                (self.maybe_inverse(tags), string[self.divider - off:]))
-                        else: # string is all before the divider
+                                (self.maybe_inverse(tags),
+                                    string[self.divider - off:]))
+                        else:  # string is all before the divider
                             newchunk.append(
                                 ((tags + ('bold',)), string))
                     else:
@@ -165,6 +167,7 @@ class LongPrompt(editor.Editor):
 
 class KeySeqPrompt(LongPrompt):
     cheatsheet = ['Type a key sequence.']
+
     def __init__(self, *args, keymap=None, **kw):
         super().__init__(*args, **kw)
         self.keymap = keymap
@@ -235,7 +238,8 @@ class Leaper(LongPrompt):
         if self.state == 'preload':
             if self.this_command != 'complete_and_finish':
                 if ('insert' in self.this_command
-                    or self.this_command in ('roll_forward', 'roll_backward')):
+                        or self.this_command in (
+                            'roll_forward', 'roll_backward')):
                     self.clear_input()
 
     def clear_input(self):
@@ -316,8 +320,8 @@ class Leaper(LongPrompt):
         we're not completing right now."""
 
         result = None
-        if self.completer.live and \
-          (self.divider < self.cursor.point <= self.complete_end()):
+        if (self.completer.live
+                and (self.divider < self.cursor.point <= self.complete_end())):
             result = self.completer.expand(self.completed_text())
 
         if result is None:
@@ -382,9 +386,8 @@ class Composer(Leaper):
         self.log.debug('candidates %s', self.completer.candidates)
         self.keymap['[carriage return]'] = self.insert_newline
 
-        #wrong, bad, but expedient
+        # wrong, bad, but expedient
         self.completer.candidates.sort(key=lambda x: (len(x), x))
-
 
     def complete_end(self):
         with self.save_excursion():
@@ -421,7 +424,7 @@ class Composer(Leaper):
         if self.state != 'normal':
             if self.cursor.point > self.complete_end():
                 self.state_normal()
-        else: # normal
+        else:  # normal
             if self.cursor.point <= self.complete_end():
                 self.state_complete()
 
@@ -440,7 +443,7 @@ class Composer(Leaper):
         with self.save_excursion(eodest):
             self.end_of_line()
 
-        ind = int(self.cursor > eodest) # 0 or 1
+        ind = int(self.cursor > eodest)  # 0 or 1
         history = self.histx[ind]
         divisions = [
             (self.divider, int(eodest)),

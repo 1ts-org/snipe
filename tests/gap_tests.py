@@ -39,7 +39,7 @@ import array
 import random
 
 sys.path.append('..')
-import snipe.gap
+import snipe.gap  # noqa: E402
 
 
 class TestGapBuffer(unittest.TestCase):
@@ -93,12 +93,12 @@ class TestGapBuffer(unittest.TestCase):
         self.assertEqual(g.text, 'fooquuxbaz')
 
     def testfuzz(
-        self,
-        iterations=10000,
-        max_len=74,
-        max_op_len=10,
-        show_delay=0.01,
-        ):
+            self,
+            iterations=10000,
+            max_len=74,
+            max_op_len=10,
+            show_delay=0.01,
+            ):
         """
         For many <iterations> randomly either insert or delete up to
         <max_op_len> chars or just move the gap around.
@@ -138,7 +138,7 @@ class TestGapBuffer(unittest.TestCase):
                     for i in range(howmany):
                         a.insert(pos, char)
             self.assertEqual(a.tounicode(), g.text)
-            print (g.text)
+            print(g.text)
 
     def test_mark(self):
         g = snipe.gap.GapBuffer()

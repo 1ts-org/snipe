@@ -6,6 +6,7 @@ unkey = dict(
     for k in dir(curses)
     if k.startswith('KEY_'))
 
+
 def main():
     stdscr = curses.initscr()
     curses.noecho()
@@ -25,36 +26,35 @@ def main():
     stdscr.attrset(0)
     x = stdscr.inch(0, 0)
     stdscr.move(2, 0)
-    stdscr.addstr('inch(0,0) = %s; A_UNDERLINE=%d\n' % (repr(x), curses.A_UNDERLINE))
+    stdscr.addstr(
+        'inch(0,0) = %s; A_UNDERLINE=%d\n' % (repr(x), curses.A_UNDERLINE))
 
     stdscr.addstr(
         'COLORS=%d COLOR_PAIRS=%d has_colors()=%s can_change_color()=%s\n' % (
-            curses.COLORS, curses.COLOR_PAIRS, colors, curses.can_change_color()))
+            curses.COLORS,
+            curses.COLOR_PAIRS,
+            colors,
+            curses.can_change_color()))
     stdscr.addstr('%d\n' % (maxx,))
-    rgbs=[]
+    rgbs = []
     if colors:
         for i in range(curses.COLORS):
-            rgb = '%02x%02x%02x' % tuple(int((j/1000)*255.0) for j in  curses.color_content(i))
+            rgb = '%02x%02x%02x' % tuple(
+                int((j / 1000) * 255.0) for j in curses.color_content(i))
             rgbs.append(rgb)
             stdscr.addstr(' %s' % (rgb,))
             if (stdscr.getyx()[1] + 7) > maxx:
-                stdscr.addstr('\n')o
+                stdscr.addstr('\n')
     stdscr.addstr('\n')
     stdscr.addstr('press a key')
     stdscr.get_wch()
     stdscr.addstr('\n')
 
-    pairs = {}
     if colors:
         for i in range(min(curses.COLORS, curses.COLOR_PAIRS - 1)):
             curses.init_pair(i+1, -1, i)
 
-        ## if curses.can_change_color():
-        ##     for i in range(curses.COLORS):
-        ##         curses.init_color(i, 0, 1000, 0)
-
     for i in range(1, curses.COLOR_PAIRS):
-        #stdscr.addstr(' %03d' % (i,), curses.color_pair(i))
         stdscr.addstr(' %s' % (rgbs[i-1],), curses.color_pair(i))
         y, x = stdscr.getyx()
         if x + 7 > maxx:
@@ -89,6 +89,7 @@ def main():
     curses.nl()
     curses.echo()
     curses.endwin()
+
 
 if __name__ == '__main__':
     main()

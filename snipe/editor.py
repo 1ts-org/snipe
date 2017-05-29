@@ -107,7 +107,7 @@ class Buffer:
 
     def register(self, name):
         if name not in self.registry:
-            self.registry[name]  = self
+            self.registry[name] = self
             return name
 
         r = re.compile(r'^%s(?:|\[(\d+)\])$' % (re.escape(name),))
@@ -153,13 +153,13 @@ class Viewer(window.Window, window.PagingMixIn):
     EOL = '\n'
 
     def __init__(
-        self,
-        *args,
-        prototype=None,
-        chunksize=None,
-        content=None,
-        name=None,
-        **kw):
+            self,
+            *args,
+            prototype=None,
+            chunksize=None,
+            content=None,
+            name=None,
+            **kw):
 
         if not prototype:
             self.buf = Buffer(name=name, content=content, chunksize=chunksize)
@@ -190,7 +190,7 @@ class Viewer(window.Window, window.PagingMixIn):
             self.mark_ring = [self.buf.mark(i) for i in prototype.mark_ring]
 
             self.yank_state = prototype.yank_state
-            self.undo_state = prototype.undo_state #?
+            self.undo_state = prototype.undo_state  # ?
 
             self.goal_column = prototype.goal_column
 
@@ -242,7 +242,8 @@ class Viewer(window.Window, window.PagingMixIn):
 
         z = self.cursor.point
         # the setter does appropriate clamping
-        self.cursor.point = self.movable(self.cursor.point + delta, interactive)
+        self.cursor.point = self.movable(
+            self.cursor.point + delta, interactive)
         self.goal_column = None
         return self.cursor.point - z
 
@@ -318,7 +319,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 p, s = self.extract_current_line()
             l = len(s)
             if ((p <= self.cursor.point < p + l)
-                or (self.cursor.point == p + l == len(self.buf))):
+                    or (self.cursor.point == p + l == len(self.buf))):
                 yield (
                     self.buf.mark(p),
                     [
@@ -420,8 +421,8 @@ class Viewer(window.Window, window.PagingMixIn):
             interactive: interactive.isinteractive=False,
             ):
         """Move the point to the beginning of the buffer.  With a single-digit
-        count, move the point to the beginning of a line somewhere around n*10 %
-        of the way through the buffer."""
+        count, move the point to the beginning of a line somewhere around
+        n*10 % of the way through the buffer."""
 
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
         where = self.buf.mark(self.cursor)
@@ -476,7 +477,8 @@ class Viewer(window.Window, window.PagingMixIn):
     @staticmethod
     def iswordchar(c):
         cat = unicodedata.category(c)
-        return cat[0] == 'L' or cat[0] == 'N' or cat == 'Pc' or c == "'" # sigh
+        # sigh
+        return cat[0] == 'L' or cat[0] == 'N' or cat == 'Pc' or c == "'"
 
     def isword(self, delta=0):
         return self.ispred(self.iswordchar, delta)
@@ -490,7 +492,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 return False
             return pred(c)
 
-    @keymap.bind('Meta-f') #XXX should also be Meta-right but curses
+    @keymap.bind('Meta-f')  # XXX should also be Meta-right but curses
     def word_forward(
             self,
             count: interactive.integer_argument=1,
@@ -510,7 +512,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 if not self.move(1, interactive):
                     return
 
-    @keymap.bind('Meta-b') #XXX should also be Meta-left but curses
+    @keymap.bind('Meta-b')  # XXX should also be Meta-left but curses
     def word_backward(
             self,
             count: interactive.integer_argument=1,
@@ -561,11 +563,12 @@ class Viewer(window.Window, window.PagingMixIn):
         .. [#] repeating the command after a ^U will continue to jump around
             rather than setting the mark.
         """
-        #XXX this documentation is weak and this could share a lot of code
-        #with the same command over in the messager
+        # XXX this documentation is weak and this could share a lot of code
+        # with the same command over in the messager
 
-        if prefix is not None or \
-          (self.last_command == 'set_mark' and self.set_mark_state == 1):
+        if (prefix is not None
+                or (self.last_command == 'set_mark'
+                    and self.set_mark_state == 1)):
             self.mark_ring.insert(
                 0, self.buf.mark(where if where is not None else self.cursor))
             where = self.the_mark
@@ -650,6 +653,7 @@ class PopViewer(Viewer):
         '*q*uit viewer',
         '*[space]* scroll down',
         ]
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         from . import help
@@ -666,8 +670,8 @@ class PopViewer(Viewer):
             pct = '%d%%' % (sill / len(self.buf) * 100)
         except ZeroDivisionError:
             pct = '-'
-        return [((), '%s %s' % (pct, self.title()))], \
-          [(('right',), '%d' % (self.context.backends.count(),))]
+        return ([((), '%s %s' % (pct, self.title()))],
+                [(('right',), '%d' % (self.context.backends.count(),))])
 
     def destroy(self):
         self.buf.unregister()
@@ -720,16 +724,17 @@ class Editor(Viewer):
                 self.column = None
             if self.column is None:
                 self.column = self.current_column()
-            self.column += count #XXX tabs, wide characters
+            self.column += count  # XXX tabs, wide characters
 
         collapsible = True
         if self.last_command == 'self_insert':
             if (not self.last_key.isspace()) and key.isspace():
-                collapsible=False
+                collapsible = False
         for _ in range(count):
             self.insert(key, collapsible)
 
-        if self.fill_column and key.isspace() and self.column > self.fill_column:
+        if (self.fill_column and key.isspace()
+                and self.column > self.fill_column):
             self.log.debug('triggering autofill')
             self.do_auto_fill()
 
@@ -747,11 +752,13 @@ class Editor(Viewer):
             bol = self.cursor.point
 
             if not self.writable():
-                return # don't wrap prompt lines :-p
+                return  # don't wrap prompt lines :-p
 
             import textwrap
             ll = textwrap.wrap(
-                self.buf[bol:p0], width=self.fill_column, break_long_words=False)
+                self.buf[bol:p0],
+                width=self.fill_column,
+                break_long_words=False)
             s = '\n'.join(ll)
             if ll:
                 if len(ll[-1]) < self.fill_column:
@@ -763,9 +770,10 @@ class Editor(Viewer):
 
     @keymap.bind('Control-X f')
     def set_fill_column(self, column: interactive.argument=None):
-        """Set the current fill column.  With a non-numeric prefix argument, set
-        it to the current column.  With a numeric prefix argument, set it to the
-        given number.  Otherwise, ask."""
+        """Set the current fill column.  With a non-numeric prefix
+        argument, set it to the current column.  With a numeric prefix
+        argument, set it to the given number.  Otherwise, ask.
+        """
 
         if column is None:
             s = yield from self.read_string(
@@ -799,22 +807,24 @@ class Editor(Viewer):
 
     @keymap.bind('Control-H', 'Control-?', '[backspace]')
     def delete_backward(self, count: interactive.integer_argument=1):
-        """Delete characters before the point, one by default, n if specified."""
+        """Delete characters before the point, one by default, n if
+        specified."""
 
         self.delete_forward(-count)
 
     @keymap.bind('Control-k')
     def kill_to_end_of_line(self, count: interactive.integer_argument):
-        """Kill (delete and copy to the kill ring) the text until the end of the
-        line.  If the point is at the end of the line already, kill the line
-        boundary.  Given a count of zero, kill to the beginning of the line,
-        otherwise kill that many lines.
+        """Kill (delete and copy to the kill ring) the text until the
+        end of the line.  If the point is at the end of the line
+        already, kill the line boundary.  Given a count of zero, kill to
+        the beginning of the line, otherwise kill that many lines.
 
-        If the previous command was a kill command, append the killed text to the
-        text on the end of the kill ring."""
+        If the previous command was a kill command, append the killed
+        text to the text on the end of the kill ring.
+        """
 
         m = self.buf.mark(self.cursor)
-        if count is None: #"normal" case
+        if count is None:  # "normal" case
             self.end_of_line()
             if m == self.cursor:
                 # at the end of a line, move past it
@@ -822,7 +832,7 @@ class Editor(Viewer):
             if m == self.cursor:
                 # end of buffer
                 return
-        elif count == 0: # kill to beginning of line?
+        elif count == 0:  # kill to beginning of line?
             self.beginning_of_line()
         else:
             self.line_move(count, False)
@@ -835,8 +845,8 @@ class Editor(Viewer):
     def kill_region(self, mark=None, append=False):
         """Kill (delete and copy to the kill ring) the current region.
 
-        If the previous command was a kill command, append the killed text to the
-        text on the end of the kill ring."""
+        If the previous command was a kill command, append the killed text to
+        the text on the end of the kill ring."""
 
         if mark is None:
             mark = self.the_mark
@@ -858,22 +868,25 @@ class Editor(Viewer):
 
     @keymap.bind('Control-Y')
     def yank(self, arg: interactive.argument=None):
-        """Insert a copy of the the top of the kill ring to the buffer and leave
-        the mark set at the top of what was just inserted.  With an integer
-        argument, rotate the kill ring by n first.  With just a prexix argument,
-        exchange the point and the mark afterwards."""
+        """Insert a copy of the the top of the kill ring to the buffer
+        and leave the mark set at the top of what was just inserted.
+        With an integer argument, rotate the kill ring by n first.  With
+        just a prefix argument, exchange the point and the mark
+        afterwards.
+        """
 
         if arg and isinstance(arg, int):
             self.yank_state += arg - 1
         self.insert_region(self.context.yank(self.yank_state))
-        if arg is not None and not isinstance(nth, int):
+        if arg is not None and not isinstance(arg, int):
             self.exchange_point_and_mark()
 
     @keymap.bind('Meta-y')
     def yank_pop(self, arg: interactive.integer_argument=1):
-        """After a yank, rotate the kill ring by one (or n if specified) and
-        replace the just-yanked text with whatever's now at the top of the kill
-        ring."""
+        """After a yank, rotate the kill ring by one (or n if specified)
+        and replace the just-yanked text with whatever's now at the top
+        of the kill ring.
+        """
 
         if self.last_command not in ('yank', 'yank_pop'):
             self.whine('last command was not a yank')
@@ -897,7 +910,7 @@ class Editor(Viewer):
         for _ in range(count):
             self.undo_state, where = self.buf.undo(self.undo_state)
             self.cursor.point = where
-            if self.undo_state == None:
+            if self.undo_state is None:
                 self.whine('Nothing to undo')
                 break
 
@@ -915,7 +928,7 @@ class Editor(Viewer):
             self.whine('At beginning')
             return
         s = self.buf[self.cursor:int(self.cursor) + 2]
-        s = ''.join(reversed(s)) # *sigh*
+        s = ''.join(reversed(s))  # *sigh*
         self.replace(2, s)
         self.move(2)
 
@@ -958,4 +971,3 @@ class Editor(Viewer):
         """Toggle the readonly flag on the buffer."""
 
         self._writable = not self._writable
-

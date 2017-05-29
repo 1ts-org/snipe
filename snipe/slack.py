@@ -33,14 +33,10 @@ snipe.slack
 Backend for talking to `Slack <https://slack.com>`.
 '''
 
-_backend = 'Slack'
 
-
-import os
 import time
 import re
 import urllib.parse
-import json
 import pprint
 import contextlib
 import itertools
@@ -53,6 +49,9 @@ from . import util
 from . import keymap
 from . import interactive
 from . import filters
+
+
+_backend = 'Slack'
 
 SLACKDOMAIN = 'slack.com'
 SLACKAPI = '/api/'
@@ -69,18 +68,19 @@ The slack backend
 Slack setup
 -----------
 
-Setting up the slack backend is slightly more involved because it's not enabled
-by default, requires you get an API key from Slack, _and_ requires that you give
-the backend instance a name (e.g. myslack for myslack.slack.com).  You
-add ``.slack name=myname`` to the ``backends`` configuration variable (which is
-``;`` separated), and get an api key from ``https://api.slack.com/web`` and put
-it in ``~/.snipe/netrc`` like so: ::
+Setting up the slack backend is slightly more involved because it's
+not enabled by default, requires you get an API key from Slack, _and_
+requires that you give the backend instance a name (e.g. myslack for
+myslack.slack.com).  You add ``.slack name=myname`` to the
+``backends`` configuration variable (which is ``;`` separated), and
+get an api key from ``https://api.slack.com/web`` and put it in
+``~/.snipe/netrc`` like so: ::
 
  machine myslack.slack.com login myself@example.com password frob-9782504613-8396512704-9784365210-7960cf
 
 
-(You need to have already signed up for the relevant slack instance by other
-means.)
+(You need to have already signed up for the relevant slack instance by
+other means.)
 
 Slack-specific message actions
 ---------------------------------
@@ -93,7 +93,7 @@ Slack configuration
 
 .. interrogate_config:: Slack
 
-"""
+"""  # noqa: E501
 
 
 class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
@@ -111,7 +111,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     IGNORED_TYPE_PREFIXES = (
         'file_', 'pin_', 'star_',
         )
-        # XXX should really do updates & redisplays pin_ messages
+    # XXX should really do updates & redisplays pin_ messages
 
     def __init__(self, context, slackname=None, **kw):
         super().__init__(context, **kw)
@@ -179,7 +179,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.log.debug('websocket url is %s', url)
 
-            with  util.JSONWebSocket(self.log) as self.websocket:
+            with util.JSONWebSocket(self.log) as self.websocket:
                 yield from self.websocket.connect(url)
 
                 self.connected = True
@@ -274,16 +274,16 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 if t == 'reaction_added':
                     reaction = {'name': m['reaction'], 'count': 0, 'users': []}
                     msg.data.setdefault('reactions', []).append(reaction)
-                else: # 'reaction_removed', but not found
+                else:  # 'reaction_removed', but not found
                     return None
             if t == 'reaction_added':
                 reaction['count'] += 1
-                if m['user'] not in reaction['users']: # unreliable, but...
+                if m['user'] not in reaction['users']:  # unreliable, but...
                     reaction['users'].append(m['user'])
             elif t == 'reaction_removed':
                 reaction['count'] -= 1
                 if reaction['count'] == 0:
-                    del msg.data['reactions'][i] # leftover from that for loop
+                    del msg.data['reactions'][i]  # leftover from that for loop
                 else:
                     if m['user'] in reaction['users']:
                         reaction['users'].remove(m['user'])
@@ -364,9 +364,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 asyncio.Task(self.do_backfill_dest(dest, mfilter, target))
                 for dest in self.dests
                 if (self.dests[dest].type in ('im', 'group') or (
-                    self.dests[dest].type == 'channel'
-                    and self.dests[dest].data['is_member']))
-                    and not self.dests[dest].loaded]
+                        self.dests[dest].type == 'channel'
+                        and self.dests[dest].data['is_member']))
+                and not self.dests[dest].loaded]
             self.tasks += backfillers
             yield from asyncio.gather(*backfillers, return_exceptions=True)
 
@@ -388,7 +388,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if d.loaded:
             return
 
-        d.loaded=True
+        d.loaded = True
 
         data = yield from self.method(
             {
@@ -565,7 +565,7 @@ class SlackMessage(messages.SnipeMessage):
             bodylist = self.SLACKMARKUP.split(tx)
             self.body = ''
             for (n, s) in enumerate(bodylist):
-                if n%2 == 0:
+                if n % 2 == 0:
                     self.body += s
                 else:
                     if '|' in s:
@@ -578,15 +578,17 @@ class SlackMessage(messages.SnipeMessage):
 
             ch = m['channel']
             self.channel = self.displayname(ch)
-            if ch in self.backend.dests and self.backend.dests[ch].type == 'im':
+            if (ch in self.backend.dests
+                    and self.backend.dests[ch].type == 'im'):
                 self.personal = True
         elif t == 'presence_change':
-            self.body = backend.users[m['user']]['name'] + ' is ' + m['presence']
+            self.body = (
+                backend.users[m['user']]['name'] + ' is ' + m['presence'])
             self.noise = True
 
         self.unhandled = False
-        if (t == 'message' and 'text' not in self.data) or \
-          t not in ('message', 'presence_change',):
+        if ((t == 'message' and 'text' not in self.data)
+                or t not in ('message', 'presence_change',)):
             self.unhandled = True
 
     def displayname(self, s):
@@ -596,7 +598,7 @@ class SlackMessage(messages.SnipeMessage):
         chunk = []
         bodylist = self.SLACKMARKUP.split(text)
         for (n, s) in enumerate(bodylist):
-            if n%2 == 0:
+            if n % 2 == 0:
                 s = s.replace('&lt;', '<')
                 s = s.replace('&gt;', '>')
                 s = s.replace('&amp;', '&')
@@ -671,7 +673,7 @@ class SlackMessage(messages.SnipeMessage):
                         ]
 
                 for (field, markup) in [
-                        #('fallback', ()),
+                        # ('fallback', ()),
                         ('pretext', ('bold',)),
                         ('author_name', ()),
                         ('author_link', ()),
@@ -772,7 +774,8 @@ class SlackMessage(messages.SnipeMessage):
         emoji_list = (
             self.backend.used_emoji
             + list(sorted(custom_emoji - set(self.backend.used_emoji) - EMOJI))
-            + list(sorted(EMOJI - custom_emoji - set(self.backend.used_emoji))))
+            + list(sorted(
+                EMOJI - custom_emoji - set(self.backend.used_emoji))))
         reaction = yield from window.read_oneof(
             'Reaction: ', emoji_list)
         if reaction not in emoji_list:
@@ -784,6 +787,7 @@ class SlackMessage(messages.SnipeMessage):
             timestamp=self.data['ts'],
             )
         self.backend.check(response, 'responding to message')
+
 
 # the following was massaged from
 # https://raw.githubusercontent.com/iamcal/emoji-data/master/emoji.json

@@ -46,7 +46,6 @@ from . import interactive
 from . import keymap
 from . import text
 from . import util
-from . import window
 
 
 @keymap.bind('?', 'Control-H')
@@ -194,7 +193,8 @@ class HelpBrowser(editor.PopViewer):
 
         def lines(toc, offset=0):
             out = [
-                '| %s* `%s <%s#%s>`_' % (' ' * offset, toc[0], label, toc[0]), '']
+                '| %s* `%s <%s#%s>`_' % (
+                    ' ' * offset, toc[0], label, toc[0]), '']
             for entry in toc[1:]:
                 out += lines(entry, offset+2)
             return out
@@ -207,7 +207,8 @@ class HelpBrowser(editor.PopViewer):
             name, anchor = name.split('#')
         self.cursor.point = 0
         self.log.debug('loading: %s', name)
-        self.chunks, flat, self.refs, self.links, self._title = self.pages[name]
+        self.chunks, flat, self.refs, self.links, self._title = \
+            self.pages[name]
         self.log.debug('refs: %s', repr(self.refs))
         self.log.debug('links: %s', repr(self.links))
         self.replace(len(self.buf), flat)
@@ -219,8 +220,10 @@ class HelpBrowser(editor.PopViewer):
         self.page = name
 
     def view(self, origin, direction='forward'):
-        l = len(self.chunks) -1
-        i = min(bisect.bisect_left([x[0] for x in self.chunks], int(origin)), l)
+        l = len(self.chunks) - 1
+        i = min(
+            bisect.bisect_left([x[0] for x in self.chunks], int(origin)),
+            l)
 
         self.log.debug('helpbrowser.view: cursor=%d', int(self.cursor))
         while True:
@@ -244,16 +247,16 @@ class HelpBrowser(editor.PopViewer):
 
                 off = self.chunks[i][0]
                 c = int(self.cursor)
-                for (j, (tags, text)) in enumerate(self.chunks[i][1]):
+                for (j, (tags, txt)) in enumerate(self.chunks[i][1]):
                     self.log.debug('helpbrowser.view: j=%d', j)
-                    if off <= c < off + len(text):
+                    if off <= c < off + len(txt):
                         yield self.buf.mark(self.chunks[i][0]), (
                             self.chunks[i][1][:j] +
-                            ([(tags, text[:c - off])] if c > off else []) +
-                            [(tags + ('cursor', 'visible'), text[c - off:])] +
+                            ([(tags, txt[:c - off])] if c > off else []) +
+                            [(tags + ('cursor', 'visible'), txt[c - off:])] +
                             self.chunks[i][1][j + 1:])
                         break
-                    off += len(text)
+                    off += len(txt)
             else:
                 yield self.buf.mark(self.chunks[i][0]), self.chunks[i][1]
 
@@ -313,7 +316,6 @@ class HelpBrowser(editor.PopViewer):
         off, length, link = self.links[i]
         if off <= self.cursor.point < (off + length):
             self.load(link)
-
 
 
 HELP = """05

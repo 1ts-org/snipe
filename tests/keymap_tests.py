@@ -41,7 +41,7 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.keymap
+import snipe.keymap  # noqa: E402
 
 
 class TestKeymap(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestKeymap(unittest.TestCase):
         s = 'control-Shift-META-hyper-SUPER-aLT-ctl-[LATIN CAPITAL LETTER A]'
         m = snipe.keymap.Keymap.keyseq_re.match(s)
         self.assertTrue(m, msg='Keymap.keyseq_re.match(' + s + ')')
-        d = m.groupdict()
+
         self.assertEqual(
             m.groupdict(),
             {
@@ -77,8 +77,8 @@ class TestKeymap(unittest.TestCase):
         self.assertEqual(split('[F1]'), (curses.KEY_F1, None))
         self.assertEqual(split('Meta-A'), ('\x1b', 'A'))
         self.assertEqual(split('Meta-[F1]'), ('\x1b', '[F1]'))
-        self.assertEqual(split('Control-[F1]'), (None, None)) #XXX
-        self.assertEqual(split('Shift-[F1]'), (None, None)) #XXX
+        self.assertEqual(split('Control-[F1]'), (None, None))  # XXX
+        self.assertEqual(split('Shift-[F1]'), (None, None))    # XXX
         self.assertEqual(split('Control-?'), ('\x7f', None))
         self.assertEqual(split('Control-$'), (None, None))
         self.assertEqual(split('Meta--'), ('\x1b', '-'))

@@ -111,7 +111,8 @@ Standard Fields
 Booleans
 ++++++++
 
-Have a truth value themselves, and aren't for comparisons e.g. ``personal and not noise``.
+Have a truth value themselves, and aren't for comparisons
+e.g. ``personal and not noise``.
 
 ``personal``
   True if the message was directed at you.
@@ -258,7 +259,6 @@ class Conjunction(Filter):
                 self.operands += arg.operands
         self.operands = tuple(self.operands)
 
-
     def __str__(self):
         return (' ' + self.gname() + ' ').join(
             self.parenthesize(p) for p in self.operands
@@ -307,7 +307,7 @@ class And(Conjunction):
             elif result is False:
                 return False
             elif result is True:
-                pass # we can ignore it
+                pass  # we can ignore it
         if len(operands) == 0:
             return True
         elif len(operands) == 1:
@@ -334,7 +334,7 @@ class Or(Conjunction):
             elif result is True:
                 return True
             elif result is False:
-                pass # can ignore
+                pass  # can ignore
         if len(operands) == 0:
             return False
         elif len(operands) == 1:
@@ -374,7 +374,8 @@ class Python(Filter):
                 repr(m))
 
     def __eq__(self, other):
-        return self.__class__ is other.__class__ and self.string == other.string
+        return (self.__class__ is other.__class__
+                and self.string == other.string)
 
     def __hash__(self):
         return hash((self.__class__, self.string))
@@ -463,7 +464,7 @@ class Comparison(Filter):
 
     def __call__(self, m, state=None):
         v = self.value
-        if isinstance(v, Identifier): #XXX grumpiness about abstraction leakage
+        if isinstance(v, Identifier):  # XXX grumpiness re abstraction leakage
             v = m.field(str(v), self.canon)
         return self.do(self.op, m.field(self.field, self.canon), v)
 
@@ -515,8 +516,8 @@ class Compare(Comparison):
         try:
             return f(left, right)
         except:
-            #XXX log a snarky comment where the user will see?
-            self.log.exception('in filter')
+            # XXX log a snarky comment where the user will see?
+            logging.getLogger('filter').exception('in filter')
             return False
 
     @staticmethod
@@ -548,7 +549,8 @@ class RECompare(Comparison):
         try:
             regexp = re.compile(regexp)
         except:
-            self.log.exception('compiling regexp: %s', self.value)
+            logging.getLogger('filter').exception(
+                'compiling regexp: %s', value)
             return No()
 
         result = RECompare.do(op, regexp, value)
@@ -633,14 +635,15 @@ class Lexer(PlyShim):
 
     def t_STRING(self, t):
         r'"(?P<content>([^\\\n"]|(\\.))*)"'
-        #r'(?P<quote>[' "'" r'"])(?P<content>.*)(?P=quote)'
+        # r'(?P<quote>[' "'" r'"])(?P<content>.*)(?P=quote)'
         t.value = self.lexer.lexmatch.group('content')
-        t.value = '\\'.join(x.replace(r'\"', '"') for x in t.value.split('\\\\'))
+        t.value = '\\'.join(
+            x.replace(r'\"', '"') for x in t.value.split('\\\\'))
         return t
 
     def t_REGEXP(self, t):
         r'/(?P<content>(\\/|[^/])*)/'
-        t.value = self.lexer.lexmatch.group('content').replace(r'\/','/')
+        t.value = self.lexer.lexmatch.group('content').replace(r'\/', '/')
         return t
 
     def t_ID(self, t):
@@ -693,13 +696,14 @@ class Lexer(PlyShim):
 class Parser(PlyShim):
     def __init__(self, debug=False):
         super().__init__()
-        self.parser = ply.yacc.yacc(module=self, write_tables=False, debug=debug)
+        self.parser = ply.yacc.yacc(
+            module=self, write_tables=False, debug=debug)
 
     tokens = Lexer.tokens
 
     precedence = (
         ('left', 'XOR', 'OR', 'AND'),
-        ('right', 'NOT'), #?
+        ('right', 'NOT'),  # ?
     )
 
     def p_fil_exp(self, p):
@@ -800,8 +804,8 @@ class Parser(PlyShim):
         elif isinstance(p[3], Identifier):
             left, right = str(p[3]), p[1]
             op = {
-                '=': '=', '==': '==', '!=': '!=',           #symmetric
-                '<': '>=', '<=': '>', '>': '<=', '>=': '<', #not
+                '=': '=', '==': '==', '!=': '!=',            # symmetric
+                '<': '>=', '<=': '>', '>': '<=', '>=': '<',  # not
                 }[op]
         else:
             p[0] = Compare.static(op, p[1], p[3])

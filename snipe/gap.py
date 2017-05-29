@@ -123,7 +123,8 @@ class GapBuffer:
         # expand the gap if necessary
         if size > self.gaplength:
             increase = (
-                ((size - self.gaplength) // self.chunksize + 1) * self.chunksize)
+                ((size - self.gaplength) // self.chunksize + 1)
+                * self.chunksize)
             self.buf[self.gapstart:self.gapstart] = self._array(increase)
             self.gapend += increase
 
@@ -177,10 +178,10 @@ class UndoableGapBuffer(GapBuffer):
             'collapsible %s %d %d %s', collapsible, where, size, repr(string))
         if self.undolog:
             self.log.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
-        if collapsible and self.undolog \
-          and where == self.undolog[-1][0] + self.undolog[-1][1] \
-          and string != '' and self.undolog[-1][2] == '':
-            #XXX only "collapses" inserts
+        if (collapsible and self.undolog
+                and where == self.undolog[-1][0] + self.undolog[-1][1]
+                and string != '' and self.undolog[-1][2] == ''):
+            # XXX only "collapses" inserts
             self.log.debug('collapse %s', repr(self.undolog[-1]))
             self.undolog[-1] = (
                 self.undolog[-1][0],
@@ -233,4 +234,3 @@ class GapMark:
 
     def __int__(self):
         return self.point
-

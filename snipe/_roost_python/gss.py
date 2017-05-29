@@ -20,10 +20,12 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
 import ctypes
 import functools
 
 from . import gss_ctypes
+
 
 def _display_status(status_value, status_type):
     ret = []
@@ -40,6 +42,7 @@ def _display_status(status_value, status_type):
             break
     return ret
 
+
 class Error(Exception):
     def __init__(self, major, minor):
         self.major = major
@@ -53,6 +56,7 @@ class Error(Exception):
     def __str__(self):
         return '; '.join(self.messages)
 
+
 def check_error(fn):
     @functools.wraps(fn)
     def wrapped(*args):
@@ -62,6 +66,7 @@ def check_error(fn):
             raise Error(ret, minor.value)
         return ret
     return wrapped
+
 
 gss_acquire_cred = check_error(gss_ctypes.gss_acquire_cred)
 gss_release_cred = check_error(gss_ctypes.gss_release_cred)
@@ -75,10 +80,12 @@ gss_release_oid_set = check_error(gss_ctypes.gss_release_oid_set)
 gss_release_buffer = check_error(gss_ctypes.gss_release_buffer)
 gss_canonicalize_name = check_error(gss_ctypes.gss_canonicalize_name)
 
+
 def to_str(obj):
     if not isinstance(obj, bytes):
         return obj.encode('utf-8')
     return obj
+
 
 __all__ = [
     'C_NT_HOSTBASED_SERVICE',
@@ -89,6 +96,7 @@ __all__ = [
     'acquire_cred',
     'create_initiator',
     ]
+
 
 class OID(object):
     def __init__(self, handle, copy=False):
@@ -101,6 +109,7 @@ class OID(object):
             self._handle.length = len(self._data)
         else:
             self._handle = handle
+
 
 def oid_list_to_oid_set(oids):
     oid_set = gss_ctypes.gss_OID_set_desc()
@@ -117,11 +126,13 @@ def oid_list_to_oid_set(oids):
         oid_set_data.append(data)
     return (oid_set, (oid_set_elems, oid_set_data))
 
+
 C_NT_HOSTBASED_SERVICE = OID(gss_ctypes.GSS_C_NT_HOSTBASED_SERVICE.contents)
 C_NT_EXPORT_NAME = OID(gss_ctypes.GSS_C_NT_EXPORT_NAME.contents)
 
 KRB5_MECHANISM = OID(gss_ctypes.gss_mech_krb5.contents)
 KRB5_NT_PRINCIPAL_NAME = OID(gss_ctypes.GSS_KRB5_NT_PRINCIPAL_NAME.contents)
+
 
 def import_name(inp, oid):
     inp = to_str(inp)
@@ -131,6 +142,7 @@ def import_name(inp, oid):
     inp_buf.value = ctypes.cast(ctypes.c_char_p(inp), ctypes.c_void_p)
     gss_import_name(inp_buf, oid._handle, name._handle)
     return name
+
 
 def acquire_cred(name=None,
                  time_req=gss_ctypes.GSS_C_INDEFINITE,
@@ -158,8 +170,10 @@ def acquire_cred(name=None,
                      None, None)
     return cred
 
+
 def create_initiator(*args, **kwargs):
     return InitContext(*args, **kwargs)
+
 
 class Name(object):
     def __init__(self):
@@ -189,6 +203,7 @@ class Name(object):
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, str(self))
 
+
 class Credential(object):
     def __init__(self):
         self._handle = gss_ctypes.gss_cred_id_t()
@@ -196,6 +211,7 @@ class Credential(object):
     def __del__(self):
         if bool(self._handle):
             gss_release_cred(self._handle)
+
 
 class Context(object):
     def __init__(self, cred):
@@ -213,6 +229,7 @@ class Context(object):
 
     def is_established(self):
         return self._is_established
+
 
 class InitContext(Context):
     def __init__(self, target,

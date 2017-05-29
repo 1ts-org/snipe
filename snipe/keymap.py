@@ -59,12 +59,12 @@ class Keymap(collections.defaultdict):
     def __missing__(self, key):
         if (self.default is not None
                 and isinstance(key, str)
-                and ord(key) > ord(' ')): #not a number, not a control character
+                and ord(key) > ord(' ')):  # not a number, not a control char
             return self.default
         raise KeyError
 
     def interrogate(self, obj):
-        if hasattr(obj, 'input_char'): # looks like a Window
+        if hasattr(obj, 'input_char'):  # looks like a Window
             # the following somewhat abstruse code attempts to insure
             # that the bindings of a method in a child class override
             # the bindings in the parent class, both when the method
@@ -75,8 +75,9 @@ class Keymap(collections.defaultdict):
                 for name in dir(klass):
                     unbound = getattr(klass, name)
                     bound = getattr(obj, name)
-                    if hasattr(bound, 'snipe_seqs') and \
-                      unbound.__qualname__.startswith(klass.__name__ + '.'):
+                    if (hasattr(bound, 'snipe_seqs') and
+                            unbound.__qualname__.startswith(
+                                klass.__name__ + '.')):
                         if name in methods:
                             del methods[name]
                         methods[name] = bound
@@ -114,7 +115,7 @@ class Keymap(collections.defaultdict):
             key, rest = self.split(key)
             v = super().__getitem__(key)
             if key is None:
-                return None # default?
+                return None  # default?
             if rest:
                 return v[rest]
             return v
@@ -177,7 +178,7 @@ class Keymap(collections.defaultdict):
         )
 
     other_keys_spec = [
-        (('escape','esc'), '\x1b'),
+        (('escape', 'esc'), '\x1b'),
         (('delete', 'del'), '\x7f'),
         (('line feed', 'linefeed', 'newline'), '\x0a'),
         (('carriage return', 'return'), '\x0d'),
@@ -234,12 +235,12 @@ class Keymap(collections.defaultdict):
             raise TypeError('unknown name: %s' % name)
 
         if 'hyper' in modifiers or 'super' in modifiers:
-            return None, None #valid but untypable
+            return None, None  # valid but untypable
 
         if 'control' in modifiers:
             if not hasattr(key, 'upper'):
                 # XXX ignoring control+function keys for now
-                return None, None #valid but untypable
+                return None, None  # valid but untypable
             if key == '?':
                 key = '\x7f'
             elif ord('@') <= ord(key.upper()) <= ord('_'):
@@ -247,14 +248,14 @@ class Keymap(collections.defaultdict):
             elif key == ' ':
                 key = '\0'
             else:
-                return None, None #valid but untypable
+                return None, None  # valid but untypable
             modifiers.remove('control')
 
         if 'shift' in modifiers:
             # XXX ignoring SLEFT et al for now
             if not hasattr(key, 'upper'):
                 # XXX ignoring control+function keys for now
-                return None, None #valid but untypable
+                return None, None  # valid but untypable
             # XXX ignore e.g. shift-1 (!, on a US keyboard, argh) for now
             key = key.upper()
             modifiers.remove('shift')
@@ -273,10 +274,10 @@ class Keymap(collections.defaultdict):
             if rest:
                 name += ' ' + rest
             rest = name
-            key = '\x1b' # ESC
+            key = '\x1b'  # ESC
             modifiers.remove('meta')
 
-        assert bool(modifiers) == False
+        assert not bool(modifiers)
 
         return key, rest
 
@@ -296,7 +297,7 @@ class Keymap(collections.defaultdict):
                 return '[' + unicodedata.name(c).lower() + ']'
             except ValueError:
                 return '[?%x]' % ord(c)
-        else: # probably an integer?
+        else:  # probably an integer?
             if c in ttyfe.unkey:
                 return '[' + ttyfe.unkey[c].lower() + ']'
             else:
@@ -309,9 +310,9 @@ class Keymap(collections.defaultdict):
         eliding = None
         for (i, k) in enumerate(ks):
             keyseq = prefix + self.unkey(k)
-            if eliding is None and hasattr(k, 'upper') \
-              and ks[i + 1:i + 3] == [chr(ord(k) + 1), chr(ord(k) + 2)] \
-              and self[k] is self[ks[i+1]] is self[ks[i+2]]:
+            if (eliding is None and hasattr(k, 'upper')
+                    and ks[i + 1:i + 3] == [chr(ord(k) + 1), chr(ord(k) + 2)]
+                    and self[k] is self[ks[i+1]] is self[ks[i+2]]):
                 eliding = keyseq
                 continue
             if eliding is not None and (
