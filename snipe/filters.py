@@ -1,4 +1,4 @@
-#/usr/bin/python3
+#!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 # Copyright © 2014 the Snipe contributors
 # All rights reserved.
