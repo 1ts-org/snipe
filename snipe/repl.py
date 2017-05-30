@@ -56,6 +56,8 @@ class REPL(editor.Editor):
         super().__init__(*args, **kw)
         self.high_water_mark = self.buf.mark(0)
         self.stakes = []
+        self.in_ = []
+        self.out_ = []
 
         self.ps1 = '>>> '
 
@@ -72,7 +74,12 @@ class REPL(editor.Editor):
         self.environment = {
             'context': self.context,
             'window': self,
+            'In': self.in_,
+            'Out': self.out_,
             }
+
+    def title(self):
+        return super().title() + ' [%d]' % len(self.in_)
 
     def output(self, s):
         if (self.stakes and self.stakes[-1][0].point == len(self.buf)
@@ -118,6 +125,8 @@ class REPL(editor.Editor):
             self.undo()
         result = util.eval_output(input, self.environment)
         if result is not None:
+            self.in_.append(input)
+            self.out_.append(eval('_', self.environment))
             self.cursor.point = len(self.buf)
             self.cursor.insert('\n')
             self.output(result)

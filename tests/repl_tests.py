@@ -87,6 +87,8 @@ class TestREPL(unittest.TestCase):
         w.go()
         result = '\n' + str(4) + '\n' + w.ps1
         self.assertEqual(w.buf[-len(result):], result)
+        self.assertEqual(w.in_[0], '2 + 2')
+        self.assertEqual(w.out_[0], 4)
 
         t = 'def flurb():'
         w.cursor.insert(t)
@@ -99,6 +101,8 @@ class TestREPL(unittest.TestCase):
         w.go()
         result = result + t + '\n'
         self.assertEqual(w.buf[-len(result):], result)
+        self.assertEqual(w.in_[1], '2 + 2')
+        self.assertEqual(w.out_[1], 4)
 
     def test_bol(self):
         w = repl.REPL(None)
@@ -116,6 +120,10 @@ class TestREPL(unittest.TestCase):
         self.assertEqual(w.cursor.point, bol)
         w.electric_beginning_of_line(interactive=True)
         self.assertEqual(w.cursor.point, bol)
+
+    def test_title(self):
+        w = repl.REPL(None)
+        self.assertRegex(w.title(), r'^REPL\[\d\]+ \[0\]$')
 
 
 class MockContext:
