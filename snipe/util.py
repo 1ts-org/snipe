@@ -444,7 +444,7 @@ def safe_write(path, mode=0o600):
     os.rename(tmp, path)
 
 
-def eval_output(string, environment, mode='single'):
+def eval_output(string, globals=None, locals=None, mode='single'):
     import code
     import io
     import traceback
@@ -457,16 +457,21 @@ def eval_output(string, environment, mode='single'):
         if c is None:
             return None
         else:
-            sio = io.StringIO()
+            in_ = io.StringIO()
+            out = io.StringIO()
             try:
-                # sigh
                 stdin = sys.stdin
-                sys.stdin = io.StringIO()
-                with contextlib.redirect_stdout(sio):
-                    eval(c, environment)
+                stdout = sys.stdout
+                stderr = sys.stderr
+                sys.stdin = in_
+                sys.stdout = out
+                sys.stderr = out
+                eval(c, globals, locals)
             finally:
                 sys.stdin = stdin
-            out = sio.getvalue()
+                sys.stdout = stdout
+                sys.stderr = stderr
+            out = out.getvalue()
     except:
         out = traceback.format_exc()
 

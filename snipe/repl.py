@@ -71,12 +71,13 @@ class REPL(editor.Editor):
         self.output("Python (snipe) %s on %s\n%s\n" % (
             sys.version, sys.platform, cprt))
         self.output(self.ps1)
-        self.environment = {
+        self.locals = {
             'context': self.context,
             'window': self,
             'In': self.in_,
             'Out': self.out_,
             }
+        self.globals = {}
 
     def title(self):
         return super().title() + ' [%d]' % len(self.in_)
@@ -123,10 +124,20 @@ class REPL(editor.Editor):
             self.insert('\n')
             self.redisplay()
             self.undo()
-        result = util.eval_output(input, self.environment)
+        their_displayhook = sys.displayhook
+        result_val = None
+        def my_displayhook(val):
+            nonlocal result_val
+            result_val = val
+            return their_displayhook(val)
+        try:
+            sys.displayhook = my_displayhook
+            result = util.eval_output(input, self.globals, self.locals)
+        finally:
+            sys.displayhook = their_displayhook
         if result is not None:
             self.in_.append(input)
-            self.out_.append(eval('_', self.environment))
+            self.out_.append(result_val)
             self.cursor.point = len(self.buf)
             self.cursor.insert('\n')
             self.output(result)

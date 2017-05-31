@@ -125,6 +125,12 @@ class TestREPL(unittest.TestCase):
         w = repl.REPL(None)
         self.assertRegex(w.title(), r'^REPL\[\d\]+ \[0\]$')
 
+    def test_result(self):
+        w = repl.REPL(MockFE())
+        w.insert('import sys')
+        w.go()
+        self.assertEqual(w.out_[0], None)
+
 
 class MockContext:
     def __init__(self, *args, **kw):
