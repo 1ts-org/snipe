@@ -126,10 +126,12 @@ class REPL(editor.Editor):
             self.undo()
         their_displayhook = sys.displayhook
         result_val = None
+
         def my_displayhook(val):
             nonlocal result_val
             result_val = val
             return their_displayhook(val)
+
         try:
             sys.displayhook = my_displayhook
             result = util.eval_output(input, self.globals, self.locals)
