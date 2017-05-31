@@ -8,3 +8,5 @@ omit =
     */site-packages/nose/*
     */unittest2/*
     ../lib/*
+    lib/*
+    tests/*
