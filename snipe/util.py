@@ -401,6 +401,9 @@ class JSONWebSocket:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.resp is not None:
             self.resp.close()
+            if not self.resp._response._closed:
+                self.log.error('closing internal response object')
+                self.resp._response.close()
             self.resp = None
         self.session.close()
         return False
