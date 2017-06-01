@@ -436,6 +436,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @keymap.bind('I D')
     def disconnect(self):
+        self.reap_tasks()
         if self.new_task is None:
             return
         yield from self.shutdown()
