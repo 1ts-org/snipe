@@ -154,7 +154,8 @@ class Context:
         path = os.path.join(self.directory, 'config')
         try:
             if os.path.exists(path):
-                self.conf = json.load(open(path))
+                with open(path) as fp:
+                    self.conf = json.load(fp)
         finally:
             util.Configurable.immanentize(self)
 
