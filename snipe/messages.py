@@ -538,6 +538,8 @@ def merge(iterables, key=lambda x: x):
     # get the first item from all the iterables
     d = {}
 
+    last = None
+
     for it in iterables:
         it = iter(it)
         try:
@@ -551,6 +553,9 @@ def merge(iterables, key=lambda x: x):
             d[it] = next(it)
         except StopIteration:
             del d[it]
+        if v == last:
+            continue
+        last = v
         yield v
 
 
