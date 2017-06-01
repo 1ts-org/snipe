@@ -356,7 +356,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.reap_tasks()
         if not self.backfillers:
             for b in live:
-                t = asyncio.async(self.backfill_buffer(b, target))
+                t = asyncio.Task(self.backfill_buffer(b, target))
                 self.backfillers.append(t)
                 self.tasks.append(t)
 

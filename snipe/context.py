@@ -289,7 +289,7 @@ class SnipeLogHandler(logging.Handler):
                     self.buffer[-self.size:], maxlen=self.size)
             self.buffer.append(s)
             if self.writing and self.task is None:
-                self.task = asyncio.async(self.writer())
+                self.task = asyncio.Task(self.writer())
 
     @staticmethod
     def opener(file, flags):

@@ -109,7 +109,7 @@ class Roost(messages.SnipeBackend):
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
-        self.new_task = asyncio.async(self.new_messages())
+        self.new_task = asyncio.Task(self.new_messages())
         self.tasks.append(self.new_task)
         self.connected = False
         self._destinations = set()
@@ -351,7 +351,7 @@ class Roost(messages.SnipeBackend):
 
         self.reap_tasks()
         self.tasks.append(
-            asyncio.async(self.error_message(
+            asyncio.Task(self.error_message(
                 'backfilling',
                 self.do_backfill, msgid, mfilter, target, count, origin)))
 
@@ -511,7 +511,7 @@ class Roost(messages.SnipeBackend):
     def reconnect(self):
         if self.new_task is not None and not self.new_task.done():
             self.disconnect()
-        self.new_task = asyncio.async(self.new_messages())
+        self.new_task = asyncio.Task(self.new_messages())
         self.tasks.append(self.new_task)
 
     @keymap.bind('R D')
