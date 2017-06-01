@@ -100,6 +100,10 @@ class Context:
             self.conf_write()
 
         handler.context = self
+        self.backends = None
+
+    @asyncio.coroutine
+    def start(self):
         self.backends = messages.AggregatorBackend(
             self,
             backends=[
