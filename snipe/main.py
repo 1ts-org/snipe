@@ -36,6 +36,7 @@ import asyncio
 import logging
 import signal
 import sys
+import warnings
 
 from . import ttyfe
 from . import context
@@ -54,6 +55,9 @@ def main():
         signal.signal(signal.SIGUSR1, handler.dump)
         log = logging.getLogger('Snipe')
         log.warning('snipe starting')
+
+        logging.captureWarnings(True)
+        warnings.simplefilter('always')
 
         # XXX terriblest option parsing
         options = [x[2:].split('=', 1) for x in sys.argv if x.startswith('-O')]
