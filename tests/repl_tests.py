@@ -131,6 +131,23 @@ class TestREPL(unittest.TestCase):
         w.go()
         self.assertEqual(w.out_[0], None)
 
+    def test_func(self):
+        w = repl.REPL(MockFE())
+        w.insert('def func():\n return 2+2\n')
+        w.go()
+        w.insert('func()')
+        w.go()
+        self.assertEqual(w.out_[1], 4)
+        w.insert('''def fib(n):
+            if n < 2:
+                return n
+            return fib(n - 2) + fib(n - 1)
+''')
+        w.go()
+        w.insert('fib(6)')
+        w.go()
+        self.assertEqual(w.out_[3], 8)
+
 
 class MockContext:
     def __init__(self, *args, **kw):

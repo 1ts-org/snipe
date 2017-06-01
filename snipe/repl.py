@@ -39,6 +39,7 @@ Editor subclass for a python REPL
 
 import bisect
 import sys
+import unittest.mock as mock
 
 from . import editor
 from . import interactive
@@ -71,13 +72,12 @@ class REPL(editor.Editor):
         self.output("Python (snipe) %s on %s\n%s\n" % (
             sys.version, sys.platform, cprt))
         self.output(self.ps1)
-        self.locals = {
+        self.environment = {
             'context': self.context,
             'window': self,
             'In': self.in_,
             'Out': self.out_,
             }
-        self.globals = {}
 
     def title(self):
         return super().title() + ' [%d]' % len(self.in_)
@@ -124,19 +124,19 @@ class REPL(editor.Editor):
             self.insert('\n')
             self.redisplay()
             self.undo()
-        their_displayhook = sys.displayhook
+
         result_val = None
+
+        their_displayhook = sys.displayhook
 
         def my_displayhook(val):
             nonlocal result_val
             result_val = val
             return their_displayhook(val)
 
-        try:
-            sys.displayhook = my_displayhook
-            result = util.eval_output(input, self.globals, self.locals)
-        finally:
-            sys.displayhook = their_displayhook
+        with mock.patch('sys.displayhook', my_displayhook):
+            result = util.eval_output(input, self.environment)
+
         if result is not None:
             self.in_.append(input)
             self.out_.append(result_val)

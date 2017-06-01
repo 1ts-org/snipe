@@ -45,6 +45,7 @@ import time
 import datetime
 import math
 import json
+import unittest.mock as mock
 import urllib.parse
 
 import aiohttp
@@ -444,7 +445,7 @@ def safe_write(path, mode=0o600):
     os.rename(tmp, path)
 
 
-def eval_output(string, globals=None, locals=None, mode='single'):
+def eval_output(string, environment=None, mode='single'):
     import code
     import io
     import traceback
@@ -459,18 +460,10 @@ def eval_output(string, globals=None, locals=None, mode='single'):
         else:
             in_ = io.StringIO()
             out = io.StringIO()
-            try:
-                stdin = sys.stdin
-                stdout = sys.stdout
-                stderr = sys.stderr
-                sys.stdin = in_
-                sys.stdout = out
-                sys.stderr = out
-                eval(c, globals, locals)
-            finally:
-                sys.stdin = stdin
-                sys.stdout = stdout
-                sys.stderr = stderr
+            with mock.patch('sys.stdout', out), \
+                    mock.patch('sys.stderr', out), \
+                    mock.patch('sys.stdin', in_):
+                eval(c, environment)
             out = out.getvalue()
     except:
         out = traceback.format_exc()
