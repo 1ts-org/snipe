@@ -35,24 +35,27 @@ UNIX tty frontend.
 '''
 
 
-import asyncio
-import os
-import curses
-import locale
-import signal
-import logging
-import itertools
-import contextlib
-import unicodedata
 import array
-import termios
-import fcntl
-import textwrap
+import asyncio
+import asyncio.unix_events
+import contextlib
 import ctypes
+import curses
+import fcntl
+import itertools
+import locale
+import logging
+import os
 import select
+import signal
+import termios
+import textwrap
+import unicodedata
+import unittest.mock as mock
 
-from . import util
+
 from . import ttycolor
+from . import util
 
 
 class TTYRenderer:
@@ -520,6 +523,8 @@ class RedisplayInProgress(Exception):
 
 
 class TTYFrontend:
+    INTCHAR = 7  # Control-G # XXX
+
     def __init__(self):
         self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
         self.windows = []
@@ -538,6 +543,17 @@ class TTYFrontend:
         curses.noecho()
         curses.nonl()
         curses.raw()
+
+        termstate = termios.tcgetattr(0)
+        termstate[6][termios.VINTR] = bytes([self.INTCHAR])
+        nope = bytes([0])  # to disable a character
+        termstate[6][termios.VQUIT] = nope
+        termstate[6][termios.VSUSP] = nope
+        if hasattr(termios, 'VDSUSP'):
+            termstate[6][termios.VDSUSP] = nope  # pragma: nocover
+        termstate[3] |= termios.ISIG
+        termios.tcsetattr(0, termios.TCSANOW, termstate)
+
         self.stdscr.keypad(1)
         self.stdscr.nodelay(1)
         curses.start_color()
@@ -555,10 +571,31 @@ class TTYFrontend:
         self.main_pid = os.getpid()
         loop = asyncio.get_event_loop()
         loop.add_signal_handler(signal.SIGWINCH, self.sigwinch, loop)
+
+        with mock.patch(
+                'asyncio.unix_events._sighandler_noop', self.sighandler_op):
+            loop.add_signal_handler(signal.SIGINT, self.sigint)
+
         return self
 
     def sigwinch(self, loop):
         loop.call_soon(self.perform_resize)
+
+    def sigint(self):
+        curses.ungetch(chr(self.INTCHAR))
+        self.readable()
+
+    def sighandler_op(self, signum, frame):
+        from . import window
+
+        if signum != signal.SIGINT:
+            return
+        f = frame
+        while f is not None:
+            if (f.f_code is TTYFrontend.readable.__code__
+                    or f.f_code is window.Window.catch_and_log.__code__):
+                raise KeyboardInterrupt
+            f = f.f_back
 
     def initial(self, winfactory, statusline=None):
         self.default_window = winfactory
@@ -668,7 +705,10 @@ class TTYFrontend:
             elif self.active is not None:
                 # XXX
                 state = (list(self.windows), self.active)
-                self.windows[self.active].window.input_char(k)
+                try:
+                    self.windows[self.active].window.input_char(k)
+                except KeyboardInterrupt:
+                    pass
                 if state == (list(self.windows), self.active):
                     self.redisplay(
                         self.windows[self.active].window.redisplay_hint())

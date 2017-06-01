@@ -205,16 +205,7 @@ class Window:
                     self.last_key = k
 
                 if asyncio.iscoroutine(ret):
-                    def catch_and_log(coro):
-                        try:
-                            yield from coro
-                        except Exception as e:
-                            self.context.message(str(e))
-                            self.log.exception('Executing complex command')
-                            self.whine(k)
-                        self.redisplay()
-
-                    asyncio.Task(catch_and_log(ret))
+                    asyncio.Task(self.catch_and_log(ret))
 
         except Exception as e:
             self.context.message(str(e))
@@ -226,6 +217,16 @@ class Window:
                 self.activated_keymap(self.active_keymap)
             if self.keyseq:
                 self.keyecho(self.keyseq)
+
+    @asyncio.coroutine
+    def catch_and_log(self, coro):
+        try:
+            yield from coro
+        except Exception as e:
+            self.context.message(str(e))
+            self.log.exception('Executing complex command')
+            self.whine('')
+        self.redisplay()
 
     def check_redisplay_hint(self, hint):
         """See if a redisplay hint dict applies to this window.  Called by the
