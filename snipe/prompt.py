@@ -306,6 +306,9 @@ class Leaper(LongPrompt):
                 '|'.join(m[1:]) +
                 '}\n'))]
 
+    def complete_end(self):
+        return len(self.buf)
+
     def completed_text(self):
         return self.buf[self.divider:self.complete_end()]
 
@@ -350,9 +353,6 @@ class ShortPrompt(Leaper):
         self.keymap['[carriage return]'] = self.complete_and_finish
         self.keymap['Control-J'] = self.runcallback
 
-    def complete_end(self):
-        return len(self.buf)
-
     def after_command(self):
         self.state_complete()
         self.inverse_input = False
@@ -378,7 +378,7 @@ class Composer(Leaper):
             self.histories.setdefault(histprefix + '-body', []),
             ]
         self.histptrs = [0, 0]
-        self.stashes = [None, None]
+        self.stashes = ['', '']
 
         self.state = 'complete'
         if kw.get('content'):

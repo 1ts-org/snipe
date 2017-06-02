@@ -157,11 +157,17 @@ class MockContext:
     def message(self, s):
         self._message = s
 
+    def copy(*args, **kw):
+        pass
+
 
 class MockFE:
     context = MockContext()
 
     def redisplay(*args, **kw):
+        pass
+
+    def notify(*args, **kw):
         pass
 
 
