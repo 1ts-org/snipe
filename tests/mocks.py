@@ -44,12 +44,24 @@ class Backend:
     name = 'mock'
 
 
+class Aggregator:
+    def __init__(self):
+        self._backends = [Backend()]
+
+    def __iter__(self):
+        yield from self._backends
+
+    def walk(self, *args, **kw):
+        yield Message()
+
+
 class Context:
     def __init__(self, *args, **kw):
         self._message = ''
         self.conf = {}
-        self.backends = [Backend()]
+        self.backends = Aggregator()
         self.context = self
+        self.erasechar = chr(8)
 
     def message(self, s):
         self._message = s
@@ -67,6 +79,9 @@ class FE:
     def notify(*args, **kw):
         pass
 
+    def force_repaint(*args, **kw):
+        pass
+
 
 class Message:
     def __init__(self, **kw):
@@ -74,11 +89,15 @@ class Message:
         self.backend = self
         self.context = self
         self.conf = {}
+        self.data = {}
 
     def field(self, name, canon=True):
         if canon and name.capitalize() in self.dict:
             return self.dict[name.capitalize()]
         return self.dict.get(name, '')
+
+    def display(self, decoration):
+        return []
 
 
 class CursesWindow:

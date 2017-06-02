@@ -35,6 +35,8 @@ Unit tests for messager module
 import unittest
 import sys
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
@@ -42,5 +44,12 @@ import snipe.messager as messager  # noqa: E402,F401
 
 
 class TestMessager(unittest.TestCase):
-    def test_null(self):
-        pass
+    def test_0(self):
+        w = messager.Messager(mocks.FE())
+        self.assertEqual(
+            [[((), '\n')]],
+            [chunk for (mark, chunk) in w.view(0)])
+
+
+if __name__ == '__main__':
+    unittest.main()
