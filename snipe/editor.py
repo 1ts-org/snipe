@@ -319,7 +319,8 @@ class Viewer(window.Window, window.PagingMixIn):
                 p, s = self.extract_current_line()
             l = len(s)
             if ((p <= self.cursor.point < p + l)
-                    or (self.cursor.point == p + l == len(self.buf))):
+                    or (s[-1:] != '\n'
+                        and self.cursor.point == p + l == len(self.buf))):
                 yield (
                     self.buf.mark(p),
                     [

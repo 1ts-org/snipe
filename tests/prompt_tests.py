@@ -46,7 +46,7 @@ import snipe.keymap as keymap            # noqa: E402
 import snipe.interactive as interactive  # noqa: E402
 
 
-class PromptTest(unittest.TestCase):
+class TestPrompt(unittest.TestCase):
     def test_longprompt0(self):
         result = None
 
@@ -261,10 +261,9 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(
             [(0, [
                 (('bold',), '> '),
-                ((), 'a\n'),
-                (('cursor', 'visible'), ''),
-                ((), ''),
-                ((), ' {}\n')]),
+                ((), 'a'),
+                ((), ' {}\n'),
+                ]),
              (4, [
                 ((), ''),
                 (('cursor', 'visible'), ''),
@@ -475,8 +474,7 @@ class PromptTest(unittest.TestCase):
             [(0, [
                 (('bold',), '> '),
                 ((), 'm; foobar\n'),
-                (('cursor', 'visible'), ''),
-                ((), '')]),
+                ]),
              (12, [
                 ((), ''),
                 (('cursor', 'visible'), ''),
@@ -504,6 +502,7 @@ class PromptTest(unittest.TestCase):
                 ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
         w.previous_history()
+
         self.assertEqual(
             [(0, [
                 (('bold',), '> '),

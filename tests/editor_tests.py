@@ -269,6 +269,47 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.cursor.point, 1)
         self.assertEqual(len(e.buf), 1)
 
+    def test_view_cursor(self):
+        w = snipe.editor.Editor(None)
+        w.insert('> m; foobar')
+        w.insert_newline()
+
+        self.assertEqual(
+            [(0, [
+                ((), '> m; foobar\n'),
+                ]),
+             (12, [
+                ((), ''),
+                (('cursor', 'visible'), ''),
+                ((), '')]),
+             ],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        w.move_backward()
+        self.assertEqual(
+            [(0, [
+                ((), '> m; foobar'),
+                (('cursor', 'visible'), ''),
+                ((), '\n'),
+                ]),
+             (12, [
+                ((), '')]),
+             ],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        w.move_forward()
+
+        w.insert('x')
+        self.assertEqual(
+            [(0, [
+                ((), '> m; foobar\n')]),
+             (12, [
+                ((), 'x'),
+                (('cursor', 'visible'), ''),
+                ((), '')]),
+             ],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
 
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
