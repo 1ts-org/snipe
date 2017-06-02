@@ -5,6 +5,7 @@
 # python droppings
 *.pyc
 parser.out
+*,cover
 
 cover/
 .coverage
