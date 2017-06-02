@@ -37,10 +37,10 @@ Unit tests for various filter-related things
 import sys
 import unittest
 
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
-
 
 import snipe.filters                                           # noqa: E402
 from snipe.filters import (
@@ -112,45 +112,45 @@ class TestFilters(unittest.TestCase):
             makefilter('"foo" = /bar/'),
             No())
 
-        self.assertTrue(makefilter('foo = "bar"')(MockMsg(foo='bar')))
-        self.assertFalse(makefilter('foo = "bar"')(MockMsg(foo='baz')))
+        self.assertTrue(makefilter('foo = "bar"')(mocks.Message(foo='bar')))
+        self.assertFalse(makefilter('foo = "bar"')(mocks.Message(foo='baz')))
 
-        self.assertTrue(makefilter('foo = /b.*/')(MockMsg(foo='bar')))
-        self.assertTrue(makefilter('foo = /b.*/')(MockMsg(foo='baz')))
-        self.assertFalse(makefilter('foo = /b.*/')(MockMsg(foo='quux')))
+        self.assertTrue(makefilter('foo = /b.*/')(mocks.Message(foo='bar')))
+        self.assertTrue(makefilter('foo = /b.*/')(mocks.Message(foo='baz')))
+        self.assertFalse(makefilter('foo = /b.*/')(mocks.Message(foo='quux')))
 
         self.assertTrue(
-            makefilter('foo = bar')(MockMsg(
+            makefilter('foo = bar')(mocks.Message(
                 foo='quux',
                 bar='quux')))
 
         self.assertFalse(
-            makefilter('foo = bar')(MockMsg(
+            makefilter('foo = bar')(mocks.Message(
                 foo='quux',
                 bar='quuux')))
 
         self.assertTrue(
-            makefilter('foo = "bar"')(MockMsg(
+            makefilter('foo = "bar"')(mocks.Message(
                 foo='Bar',
                 Foo='bar',
                 )))
         self.assertFalse(
-            makefilter('not foo = "bar"')(MockMsg(
+            makefilter('not foo = "bar"')(mocks.Message(
                 foo='Bar',
                 Foo='bar',
                 )))
         self.assertFalse(
-            makefilter('foo == "bar"')(MockMsg(
+            makefilter('foo == "bar"')(mocks.Message(
                 foo='Bar',
                 Foo='bar',
                 )))
         self.assertTrue(
-            makefilter('foo = /bar/')(MockMsg(
+            makefilter('foo = /bar/')(mocks.Message(
                 foo='Bar',
                 Foo='bar',
                 )))
         self.assertFalse(
-            makefilter('foo == /bar/')(MockMsg(
+            makefilter('foo == /bar/')(mocks.Message(
                 foo='Bar',
                 Foo='bar',
                 )))
@@ -178,13 +178,13 @@ class TestFilters(unittest.TestCase):
             str(makefilter('yes and yes and no')),
             'yes and yes and no')
 
-        self.assertTrue(makefilter('foo')(MockMsg(foo=True)))
-        self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
-        self.assertFalse(makefilter('foo')(MockMsg(foo=0)))
+        self.assertTrue(makefilter('foo')(mocks.Message(foo=True)))
+        self.assertFalse(makefilter('foo')(mocks.Message(foo=0)))
+        self.assertFalse(makefilter('foo')(mocks.Message(foo=0)))
 
         self.assertIs(makefilter(''), None)
 
-        self.assertFalse(makefilter('filter foo')(MockMsg()))
+        self.assertFalse(makefilter('filter foo')(mocks.Message()))
 
     def test_parser_python(self):
         snipe.filters.parser = Parser(debug=True)
@@ -200,19 +200,6 @@ class TestFilters(unittest.TestCase):
         self.assertEqual(
             str(makefilter('$"True or \'flase\'"')),
             "$\"True or 'flase'\"")
-
-
-class MockMsg:
-    def __init__(self, **kw):
-        self.dict = kw
-        self.backend = self
-        self.context = self
-        self.conf = {}
-
-    def field(self, name, canon=True):
-        if canon and name.capitalize() in self.dict:
-            return self.dict[name.capitalize()]
-        return self.dict.get(name, '')
 
 
 if __name__ == '__main__':

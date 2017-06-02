@@ -35,6 +35,8 @@ Unit tests for REPL window
 import unittest
 import sys
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
@@ -81,7 +83,7 @@ class TestREPL(unittest.TestCase):
         self.assertFalse(w.writable())
 
     def test_go(self):
-        w = repl.REPL(MockFE())
+        w = repl.REPL(mocks.FE())
         w.cursor.insert('2 + 2')
         earlier = w.cursor.point
         w.go()
@@ -126,13 +128,13 @@ class TestREPL(unittest.TestCase):
         self.assertRegex(w.title(), r'^REPL\[\d\]+ \[0\]$')
 
     def test_result(self):
-        w = repl.REPL(MockFE())
+        w = repl.REPL(mocks.FE())
         w.insert('import sys')
         w.go()
         self.assertEqual(w.out_[0], None)
 
     def test_func(self):
-        w = repl.REPL(MockFE())
+        w = repl.REPL(mocks.FE())
         w.insert('def func():\n return 2+2\n')
         w.go()
         w.insert('func()')
@@ -147,28 +149,6 @@ class TestREPL(unittest.TestCase):
         w.insert('fib(6)')
         w.go()
         self.assertEqual(w.out_[3], 8)
-
-
-class MockContext:
-    def __init__(self, *args, **kw):
-        self._message = ''
-        self.conf = {}
-
-    def message(self, s):
-        self._message = s
-
-    def copy(*args, **kw):
-        pass
-
-
-class MockFE:
-    context = MockContext()
-
-    def redisplay(*args, **kw):
-        pass
-
-    def notify(*args, **kw):
-        pass
 
 
 if __name__ == '__main__':

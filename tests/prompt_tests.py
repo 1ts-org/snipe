@@ -35,7 +35,7 @@ Unit tests for prompt windows
 import unittest
 import sys
 
-from repl_tests import MockFE
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
@@ -94,7 +94,7 @@ class TestPrompt(unittest.TestCase):
 
     def test_longprompt1(self):
         ps = ': '
-        w = prompt.LongPrompt(MockFE(), prompt=ps)
+        w = prompt.LongPrompt(mocks.FE(), prompt=ps)
         w.insert('thing')
         w.beginning_of_line(interactive=False)
         self.assertEqual(w.cursor.point, 0)
@@ -156,7 +156,7 @@ class TestPrompt(unittest.TestCase):
             result = s
 
         w = prompt.KeySeqPrompt(
-            MockFE(),
+            mocks.FE(),
             prompt=': ',
             keymap=keymap.Keymap({'a': 0}), callback=cb)
 
@@ -372,10 +372,10 @@ class TestPrompt(unittest.TestCase):
             nonlocal result
             result = s
 
-        fe = MockFE()
-        mockirc = MockBackend()
+        fe = mocks.FE()
+        mockirc = mocks.Backend()
         mockirc.name = 'irccloud'
-        fe.context.backends = [MockBackend(), mockirc]
+        fe.context.backends.append(mockirc)
 
         w = prompt.Composer(
             fe,
@@ -514,10 +514,6 @@ class TestPrompt(unittest.TestCase):
                 ((), '')]),
              ],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
-
-
-class MockBackend:
-    name = 'mock'
 
 
 if __name__ == '__main__':

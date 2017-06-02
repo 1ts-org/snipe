@@ -37,6 +37,8 @@ import sys
 import time
 import unittest
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
@@ -46,51 +48,51 @@ import snipe.messages  # noqa: E402
 
 class TestStartup(unittest.TestCase):
     def testStartup(self):
-        context = MockContext()
+        context = mocks.Context()
         startup = snipe.messages.StartupBackend(context)
-        self.assertEquals(len(list(startup.walk(None))), 1)
-        self.assertEquals(len(list(startup.walk(None, False))), 1)
+        self.assertEqual(len(list(startup.walk(None))), 1)
+        self.assertEqual(len(list(startup.walk(None, False))), 1)
 
 
 class TestBackend(unittest.TestCase):
     def testBackend(self):
-        context = MockContext()
+        context = mocks.Context()
         synth = SyntheticBackend(context)
-        self.assertEquals(len(list(synth.walk(None))), 1)
-        self.assertEquals(len(list(synth.walk(None, False))), 1)
+        self.assertEqual(len(list(synth.walk(None))), 1)
+        self.assertEqual(len(list(synth.walk(None, False))), 1)
 
 
 class TestAggregator(unittest.TestCase):
     def testAggregator(self):
-        context = MockContext()
+        context = mocks.Context()
         startup = snipe.messages.StartupBackend(context)
         synth = SyntheticBackend(context)
         sink = snipe.messages.SinkBackend(context)
         a = snipe.messages.AggregatorBackend(context, [startup, synth, sink])
-        self.assertEquals(startup.count(), 1)
-        self.assertEquals(synth.count(), 1)
-        self.assertEquals(a.count(), 3)
-        self.assertEquals(len(list(a.walk(None, False))), 3)
+        self.assertEqual(startup.count(), 1)
+        self.assertEqual(synth.count(), 1)
+        self.assertEqual(a.count(), 3)
+        self.assertEqual(len(list(a.walk(None, False))), 3)
         list(a.send('sink', 'a message'))
-        self.assertEquals(a.count(), 4)
-        self.assertEquals(len(list(a.walk(None, False))), 4)
-        self.assertEquals(len(list(a.walk(None))), 4)
-        self.assertEquals(len(list(a.walk(None, search=True))), 3)
-        self.assertEquals(
+        self.assertEqual(a.count(), 4)
+        self.assertEqual(len(list(a.walk(None, False))), 4)
+        self.assertEqual(len(list(a.walk(None))), 4)
+        self.assertEqual(len(list(a.walk(None, search=True))), 3)
+        self.assertEqual(
             len(list(a.walk(None, filter=snipe.filters.makefilter('yes')))),
             4)
-        self.assertEquals(
+        self.assertEqual(
             len(list(a.walk(
                 None,
                 filter=snipe.filters.makefilter('backend == "sink"'),
                 search=True))),
             1)
-        self.assertEquals(len(list(a.walk(
+        self.assertEqual(len(list(a.walk(
             float('Inf'),
             forward=False,
             backfill_to=0.0,
             ))), 4)
-        self.assertEquals(len(list(a.walk(float('-Inf')))), 4)
+        self.assertEqual(len(list(a.walk(float('-Inf')))), 4)
 
         for i in range(2):  # because caching?
             forward = list(a.walk(None, True))
@@ -102,11 +104,6 @@ class TestAggregator(unittest.TestCase):
                     zip([None] + backward, backward + [None]))[1:-1]:
                 self.assertGreater(x, y)
         a.shutdown()
-
-
-class MockContext:
-    def __init__(self):
-        self.context = self
 
 
 class SyntheticBackend(snipe.messages.SnipeBackend):
@@ -129,3 +126,7 @@ class SyntheticBackend(snipe.messages.SnipeBackend):
                     i + width)),
                 now - count + i)
             for i in range(count)]
+
+
+if __name__ == '__main__':
+    unittest.main()

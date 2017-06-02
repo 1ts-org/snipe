@@ -39,10 +39,11 @@ import curses
 import sys
 import unittest
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.ttycolor  # noqa: E402
 import snipe.ttyfe     # noqa: E402
 
 
@@ -68,9 +69,9 @@ class TestTTYFE(unittest.TestCase):
             [('ab', 0), ('def', 0)])
 
     def testMockWindow(self):
-        w = MockWindow(cx(['']))
+        w = mocks.Window(cx(['']))
         self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
-        w = MockWindow(cx(['abc\n', 'def\n']))
+        w = mocks.Window(cx(['abc\n', 'def\n']))
         self.assertEqual(
             list(w.view(0, 'forward')),
             [
@@ -79,9 +80,9 @@ class TestTTYFE(unittest.TestCase):
             ])
 
     def testLocation0(self):
-        w = MockWindow(cx(['']))
+        w = mocks.Window(cx(['']))
         self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
-        ui = MockUI()
+        ui = mocks.UI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
         l = snipe.ttyfe.Location(renderer, 0, 0)
         m = l.shift(100)
@@ -92,8 +93,8 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(l.offset, m.offset)
 
     def testLocation1(self):
-        w = MockWindow(cx(['abc\n', 'def']))
-        ui = MockUI()
+        w = mocks.Window(cx(['abc\n', 'def']))
+        ui = mocks.UI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
 
         l = snipe.ttyfe.Location(renderer, 0, 0)
@@ -112,8 +113,8 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(l.offset, m.offset)
 
     def testLocation2(self):
-        w = MockWindow(cx(['abc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = MockUI()
+        w = mocks.Window(cx(['abc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
 
         l = snipe.ttyfe.Location(renderer, 0, 0)
@@ -132,8 +133,8 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(l.offset, m.offset)
 
     def testLocation3(self):
-        w = MockWindow(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = MockUI()
+        w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
 
         l = snipe.ttyfe.Location(renderer, 0, 0)
@@ -152,8 +153,8 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(l.offset, m.offset)
 
     def testChunksize(self):
-        w = MockWindow(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = MockUI(5)
+        w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI(5)
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
 
         doline = snipe.ttyfe.TTYRenderer.doline
@@ -216,8 +217,8 @@ class TestTTYFE(unittest.TestCase):
             2)
 
     def testRedisplayCalculate(self):
-        w = MockWindow(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = MockUI()
+        w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI()
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 6, w)
         ui.windows = [renderer]
 
@@ -246,9 +247,9 @@ class TestTTYFE(unittest.TestCase):
             (('bg:grey24', 'bold'), '?'), ((), ' help'), ((), '\n'),
             ]]
 
-        w = MockWindow(chunks)
+        w = mocks.Window(chunks)
 
-        ui = MockUI(maxx=205)
+        ui = mocks.UI(maxx=205)
         renderer = snipe.ttyfe.TTYRenderer(ui, 0, 2, w)
         ui.windows = [renderer]
 
@@ -272,41 +273,6 @@ class TestTTYFE(unittest.TestCase):
         self.assertTrue(visible)
         self.assertIsNone(cursor)
         self.assertTrue(all(a & curses.A_UNDERLINE for (a, t) in output[-1]))
-
-
-class MockCursesWindow:
-    def subwin(self, *args):
-        return self
-
-    def idlok(self, *args):
-        pass
-
-
-class MockUI:
-    def __init__(self, maxx=80, maxy=24):
-        self.stdscr = MockCursesWindow()
-        self.maxx = maxx
-        self.maxy = maxy
-        self.windows = []
-        self.active = 0
-        self.color_assigner = snipe.ttycolor.NoColorAssigner()
-
-
-class MockWindow:
-    hints = {}
-    cursor = 0
-
-    def __init__(self, chunks):
-        self.chunks = chunks
-
-    def view(self, origin, direction='forward'):
-        assert direction in ('forward', 'backward')
-        if direction == 'forward':
-            r = range(origin, len(self.chunks))
-        elif direction == 'backward':
-            r = range(origin, -1, -1)
-        for i in r:
-            yield i, self.chunks[i]
 
 
 def cx(chunks):
