@@ -85,9 +85,8 @@ class TTYRenderer:
     def get_hints(self):
         return {'head': self.head, 'sill': self.sill}
 
-    @property
     def active(self):
-        return self.ui.windows[self.ui.active] == self
+        return self.ui.windows[self.ui.output] == self
 
     def write(self, s):
         self.log.debug('someone used write(%s)', repr(s))
@@ -295,7 +294,7 @@ class TTYRenderer:
             if not output[y]:
                 output[y] = [(0, '')]
             bits = curses.A_REVERSE | (
-                curses.A_BOLD if self.active else curses.A_DIM)
+                curses.A_BOLD if self.active() else curses.A_DIM)
             output[y] = [(a | bits, t) for (a, t) in output[y]]
 
         self.log.debug(
@@ -360,7 +359,7 @@ class TTYRenderer:
         return visible
 
     def place_cursor(self):
-        if self.active:
+        if self.active():
             if self.cursorpos is not None:
                 self.log.debug(
                     'placing cursor(%s): %s',
@@ -526,7 +525,7 @@ class TTYFrontend:
     INTCHAR = 7  # Control-G # XXX
 
     def __init__(self):
-        self.stdscr, self.maxy, self.maxx, self.active = (None,)*4
+        self.stdscr, self.maxy, self.maxx, self.input, self.output = (None,)*5
         self.windows = []
         self.notify_silent = True
         self.log = logging.getLogger('%s.%x' % (
@@ -599,13 +598,13 @@ class TTYFrontend:
 
     def initial(self, winfactory, statusline=None):
         self.default_window = winfactory
-        if self.windows or self.active is not None:
+        if self.windows or self.input is not None or self.output is not None:
             raise ValueError
         if statusline is None:
-            self.active = 0
+            self.set_active(0)
             self.windows = [TTYRenderer(self, 0, self.maxy, winfactory())]
         else:
-            self.active = 1
+            self.set_active(1)
             self.windows = [
                 TTYRenderer(
                     self, 0, statusline.height(), statusline),
@@ -616,6 +615,10 @@ class TTYFrontend:
         for r in reversed(self.windows):
             r.w.refresh()
         self.stdscr.refresh()
+
+    def set_active(self, i):
+        self.input = i
+        self.output = i
 
     def __exit__(self, type, value, tb):
         # go to last line of screen, maybe cause scrolling?
@@ -670,7 +673,8 @@ class TTYFrontend:
                     victim.window,
                     self.maxy - remaining,
                     height,
-                    i == self.active,
+                    i == self.input,
+                    i == self.output,
                     ])
             remaining -= height
         if remaining:
@@ -681,12 +685,19 @@ class TTYFrontend:
                 self.popstack.remove(victim)
             victim.window.destroy()
 
-        self.active = 1
+        self.set_active(None)
         self.windows = []
-        for (i, (window, y, height, active)) in enumerate(new):
+        for (i, (window, y, height, input, output)) in enumerate(new):
             self.windows.append(TTYRenderer(self, y, height, window))
-            if active:
-                self.active = i
+            if input:
+                self.input = i
+            if output:
+                self.output = i
+
+        for candidate in (self.output, self.input, 1):
+            if candidate is not None:
+                self.set_active(candidate)
+                break
 
         self.windows[i].window.focus()
         self.log.debug('RESIZED %d windows', len(self.windows))
@@ -702,16 +713,16 @@ class TTYFrontend:
                 raise
             if k == curses.KEY_RESIZE:
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
-            elif self.active is not None:
+            elif self.input is not None:
                 # XXX
-                state = (list(self.windows), self.active)
+                state = (list(self.windows), self.input, self.output)
                 try:
-                    self.windows[self.active].window.input_char(k)
+                    self.windows[self.input].window.input_char(k)
                 except KeyboardInterrupt:
                     pass
-                if state == (list(self.windows), self.active):
+                if state == (list(self.windows), self.input, self.output):
                     self.redisplay(
-                        self.windows[self.active].window.redisplay_hint())
+                        self.windows[self.output].window.redisplay_hint())
                 else:
                     self.redisplay()
 
@@ -721,7 +732,7 @@ class TTYFrontend:
         self.full_redisplay = True
 
     def redisplay(self, hint=None):
-        self.log.debug('windows = %s:%d', repr(self.windows), self.active)
+        self.log.debug('windows = %s:%d', repr(self.windows), self.output)
 
         if self.in_redisplay:
             raise RedisplayInProgress
@@ -746,7 +757,7 @@ class TTYFrontend:
                 active = None
                 for i in range(len(self.windows) - 1, -1, -1):
                     w = self.windows[i]
-                    if i == self.active:
+                    if i == self.output:
                         active = w
                     if not hint or w.check_redisplay_hint(hint):
                         self.log.debug('calling redisplay on 0x%x', id(w))
@@ -767,13 +778,13 @@ class TTYFrontend:
             curses.beep()
 
     def split_window(self, new, select=False):
-        r = self.windows[self.active]
+        r = self.windows[self.output]
         nh = r.height // 2
 
         if nh == 0:
             raise Exception('too small to split')
 
-        self.windows[self.active:self.active + 1] = [
+        self.windows[self.output:self.output + 1] = [
             TTYRenderer(self, r.y, nh, r.window),
             TTYRenderer(self, r.y + nh, r.height - nh, new),
             ]
@@ -828,23 +839,26 @@ class TTYFrontend:
 
         del self.windows[n]
 
-        if n <= self.active:
-            self.active -= 1
-        if not self.windows[self.active].window.focus():
+        if n <= self.input:
+            self.input -= 1
+        if n <= self.output:
+            self.output -= 1
+        if not self.windows[self.output].window.focus():
             self.switch_window(1)
 
     def delete_current_window(self):
-        self.delete_window(self.active)
+        self.delete_window(self.output)
 
     def delete_other_windows(self):
         # clear the popstack
-        if self.popstack and self.windows[self.active] == self.popstack[-1][0]:
+        if self.popstack and self.windows[self.input] == self.popstack[-1][0]:
             return
+        self.set_active(self.input)
         for window, height in self.popstack[:-1]:
             window.destroy()
         del self.popstack[:-1]
         for n in range(len(self.windows) - 1, -1, -1):
-            if (n != self.active
+            if (n != self.input
                     and self.windows[n].window != self.context.status):
                 self.delete_window(n)
 
@@ -872,8 +886,8 @@ class TTYFrontend:
 
         self.popstack.append((new, height))
         if select:
-            self.active = len(self.windows) - 1
-            self.windows[self.active].focus()
+            self.set_active(len(self.windows) - 1)
+            self.windows[self.output].focus()
 
     def popdown_window(self):
         victim_window, _ = self.popstack.pop()
@@ -904,18 +918,20 @@ class TTYFrontend:
             else:
                 self.windows[-1] = TTYRenderer(
                     self, adj.y, adj.height + victim.height, adj.window)
-        if self.active >= len(self.windows):
-            self.active = len(self.windows) - 1
+
+        # XXX should remember where we came from
+        if self.input >= len(self.windows):
+            self.set_active(len(self.windows) - 1)
             self.windows[self.active].focus()
         self.redisplay()  # XXX force redisplay?
 
     def switch_window(self, adj):
-        current = self.active
+        current = self.output
         while True:
-            self.active = (self.active + adj) % len(self.windows)
-            if self.active == current:
+            self.set_active((self.output + adj) % len(self.windows))
+            if self.output == current:
                 break
-            if self.windows[self.active].window.focus():
+            if self.windows[self.output].window.focus():
                 break
 
     def get_windows(self):
