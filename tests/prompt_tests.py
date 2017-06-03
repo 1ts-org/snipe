@@ -375,7 +375,7 @@ class TestPrompt(unittest.TestCase):
         fe = mocks.FE()
         mockirc = mocks.Backend()
         mockirc.name = 'irccloud'
-        fe.context.backends.append(mockirc)
+        fe.context.backends._backends.append(mockirc)
 
         w = prompt.Composer(
             fe,
