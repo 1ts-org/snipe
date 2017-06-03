@@ -32,6 +32,7 @@ snipe.editor
 ------------
 '''
 
+import asyncio
 import contextlib
 import logging
 import functools
@@ -647,6 +648,22 @@ class Viewer(window.Window, window.PagingMixIn):
             self.insert(out)
         else:
             self.show(out)
+
+    @asyncio.coroutine
+    def search(self, string=None, forward=True):
+        if string is None:
+            yield from super().search(None, forward)
+        else:
+            if forward:
+                span = range(
+                    self.cursor.point + 1, len(self.buf) - len(string))
+            else:
+                span = range(self.cursor.point - 1, 0, -1)
+            for off in span:
+                if self.buf[off:off + len(string)] == string:
+                    self.cursor.point = off
+                    break
+                # else: whine
 
 
 class PopViewer(Viewer):

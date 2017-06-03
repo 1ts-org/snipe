@@ -631,6 +631,29 @@ class Window:
             self.reframe_state = (self.reframe_state + 1) % 3
         self.fe.force_repaint()
 
+    @keymap.bind('Control-S')
+    def search_forward(self, string=None):
+        """Search forwards."""
+        self.log.error('search_forward')
+        yield from self.search(string, forward=True)
+
+    @keymap.bind('Control-R')
+    def search_backward(self, string=None):
+        """Search backwards.."""
+        yield from self.search(string, forward=False)
+
+    def search(self, string=None, forward=True):
+        if string is None:
+            self.log.error('search: string is none')
+            direction = 'forward' if forward else 'backward'
+            string = yield from self.read_string(
+                'search %s: ' % (direction,),
+                name='search %s' % (direction,),
+                history='search')
+            yield from self.search(string, forward)
+        else:
+            pass
+
 
 class PagingMixIn:
     @keymap.bind('[ppage]', 'Meta-v')
