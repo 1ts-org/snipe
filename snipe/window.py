@@ -291,7 +291,7 @@ class Window:
 
     # Convenience functions for interacting with the user
 
-    def whine(self, k):
+    def whine(self, k=''):
         """Tell the frontend to flash the screen."""
         self.fe.notify()
 
@@ -642,17 +642,23 @@ class Window:
         """Search backwards.."""
         yield from self.search(string, forward=False)
 
+    @asyncio.coroutine
     def search(self, string=None, forward=True):
         if string is None:
+            from .prompt import Search
             self.log.error('search: string is none')
             direction = 'forward' if forward else 'backward'
             string = yield from self.read_string(
                 'search %s: ' % (direction,),
                 name='search %s' % (direction,),
-                history='search')
-            yield from self.search(string, forward)
-        else:
-            pass
+                history='search',
+                window=Search,
+                target=self)
+        yield from self.find(string, forward)
+
+    @asyncio.coroutine
+    def find(self, string, forward=True):
+        raise NotImplementedError
 
 
 class PagingMixIn:

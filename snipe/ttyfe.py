@@ -620,6 +620,16 @@ class TTYFrontend:
         self.input = i
         self.output = i
 
+    def set_active_input(self):
+        self.set_active(self.input)
+
+    def set_active_output(self, w):
+        for i, fe in enumerate(self.windows):
+            if fe.window is w:
+                self.output = i
+                return True
+        return False
+
     def __exit__(self, type, value, tb):
         # go to last line of screen, maybe cause scrolling?
         self.color_assigner.close()
@@ -922,7 +932,7 @@ class TTYFrontend:
         # XXX should remember where we came from
         if self.input >= len(self.windows):
             self.set_active(len(self.windows) - 1)
-            self.windows[self.active].focus()
+            self.windows[self.output].focus()
         self.redisplay()  # XXX force redisplay?
 
     def switch_window(self, adj):

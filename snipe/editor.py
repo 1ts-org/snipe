@@ -650,20 +650,17 @@ class Viewer(window.Window, window.PagingMixIn):
             self.show(out)
 
     @asyncio.coroutine
-    def search(self, string=None, forward=True):
-        if string is None:
-            yield from super().search(None, forward)
+    def find(self, string, forward=True):
+        if forward:
+            span = range(
+                self.cursor.point + 1, len(self.buf) - len(string))
         else:
-            if forward:
-                span = range(
-                    self.cursor.point + 1, len(self.buf) - len(string))
-            else:
-                span = range(self.cursor.point - 1, 0, -1)
-            for off in span:
-                if self.buf[off:off + len(string)] == string:
-                    self.cursor.point = off
-                    break
-                # else: whine
+            span = range(self.cursor.point - 1, 0, -1)
+        for off in span:
+            if self.buf[off:off + len(string)] == string:
+                self.cursor.point = off
+                break
+            # else: whine
 
 
 class PopViewer(Viewer):

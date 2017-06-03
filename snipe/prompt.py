@@ -505,3 +505,34 @@ class Composer(Leaper):
         for (history, (start, end)) in zip(self.histx, divisions):
             history.append(self.buf[start:end])
         super().destroy()
+
+
+class Search(LongPrompt):
+    def __init__(self, *args, target=None, **kw):
+        super().__init__(*args, **kw)
+        self.target = target
+        self.keymap.clear()
+
+        self.keymap['Control-G'] = self.delete_window
+        self.keymap['Control-S'] = self.search_forward
+        self.keymap['Control-R'] = self.search_backward
+        self.keymap['Control-J'] = self.runcallback
+        self.keymap['Control-M'] = self.runcallback
+
+    def search(self, string=None, forward=True):
+        assert string is None
+        if not self.input():
+            self.previous_history()
+            if not self.input():
+                self.whine()
+                return
+
+        self.fe.set_active_output(self.target)
+        yield from self.target.find(self.input(), forward)
+        self.target.redisplay()
+
+
+    def delete_window(self):
+        """Delelete current window."""
+        self.fe.set_active_input()
+        super().delete_window()
