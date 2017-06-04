@@ -644,22 +644,25 @@ class Window:
 
     @asyncio.coroutine
     def search(self, string=None, forward=True):
+        self.match('')  # probe to make sure this is supported here
         if string is None:
             from .prompt import Search
             self.log.error('search: string is none')
             direction = 'forward' if forward else 'backward'
             string = yield from self.read_string(
-                'search %s: ' % (direction,),
-                name='search %s' % (direction,),
+                'search ',
+                name='search',
                 history='search',
                 window=Search,
-                target=self)
-        yield from self.find(string, forward)
+                target=self,
+                forward=forward,
+                )
 
-    @asyncio.coroutine
     def find(self, string, forward=True):
         raise NotImplementedError
 
+    def match(self, string, forward=True):
+        raise NotImplementedError
 
 class PagingMixIn:
     @keymap.bind('[ppage]', 'Meta-v')

@@ -37,6 +37,8 @@ Editor subclasses for interacting withe user.
 '''
 
 
+import asyncio
+
 from . import editor
 from . import keymap
 from . import interactive
@@ -508,9 +510,15 @@ class Composer(Leaper):
 
 
 class Search(LongPrompt):
-    def __init__(self, *args, target=None, **kw):
+    def __init__(self, *args, forward=True, target=None, suffix=': ', **kw):
+        self.target = None
         super().__init__(*args, **kw)
         self.target = target
+        self.forward = forward
+        self.suffix = ': '
+
+        self.setprompt()
+
         self.keymap.clear()
 
         self.keymap['Control-G'] = self.delete_window
@@ -519,18 +527,44 @@ class Search(LongPrompt):
         self.keymap['Control-J'] = self.runcallback
         self.keymap['Control-M'] = self.runcallback
 
+    def direction(self):
+        return 'forward' if self.forward else 'backward'
+
+    def setprompt(self):
+        self.divider = self.buf.replace(
+            0,
+            self.divider, self.prompt + self.direction() + self.suffix,
+            False
+            )
+
+    def replace(self, count, string, collapsible=False):
+        result = super().replace(count, string, collapsible)
+        if self.target is not None:
+            self.redisplay()
+            term = self.input()
+            if not self.target.match(term, self.direction()):
+                self.do_find()
+        return result
+
+    @asyncio.coroutine
     def search(self, string=None, forward=True):
         assert string is None
+        if self.forward != forward:
+            self.forward = forward
+            self.setprompt()
+
         if not self.input():
             self.previous_history()
             if not self.input():
                 self.whine()
                 return
 
-        self.fe.set_active_output(self.target)
-        yield from self.target.find(self.input(), forward)
-        self.target.redisplay()
+        self.do_find()
 
+    def do_find(self):
+        self.fe.set_active_output(self.target)
+        self.target.find(self.input(), self.forward)
+        self.target.redisplay()
 
     def delete_window(self):
         """Delelete current window."""

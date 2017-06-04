@@ -32,7 +32,6 @@ snipe.editor
 ------------
 '''
 
-import asyncio
 import contextlib
 import logging
 import functools
@@ -649,18 +648,25 @@ class Viewer(window.Window, window.PagingMixIn):
         else:
             self.show(out)
 
-    @asyncio.coroutine
     def find(self, string, forward=True):
+        if string == '':
+            return
         if forward:
             span = range(
                 self.cursor.point + 1, len(self.buf) - len(string))
         else:
             span = range(self.cursor.point - 1, 0, -1)
+        # XXX FTR this is algorithmically laughable.  It also turns out to be
+        # prefectly fine on the machines and buffers we're search on and in at
+        # the moment, but replace it with something less embarrassing anyway.
         for off in span:
             if self.buf[off:off + len(string)] == string:
                 self.cursor.point = off
                 break
             # else: whine
+
+    def match(self, string, forward=True):
+        return self.buf[self.cursor:self.cursor.point + len(string)] == string
 
 
 class PopViewer(Viewer):
