@@ -187,6 +187,26 @@ class Messager(window.Window, window.PagingMixIn):
 
             prev = x
 
+    @staticmethod
+    def flatten(msg):
+        return ''.join(x[1] for x in msg.display({}))
+
+    def find(self, string, forward):
+
+        def skipone(iterator):
+            iterator = iter(iterator)
+            _ = next(iterator)
+            yield from iterator
+
+        for msg in skipone(self.walk(self.cursor, forward, search=True)):
+            if string in self.flatten(msg):
+                self.cursor = msg
+                return True
+        return False
+
+    def match(self, string, forward=True):
+        return string in self.flatten(self.cursor)
+
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):
             return True
