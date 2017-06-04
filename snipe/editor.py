@@ -662,8 +662,8 @@ class Viewer(window.Window, window.PagingMixIn):
         for off in span:
             if self.buf[off:off + len(string)] == string:
                 self.cursor.point = off
-                break
-            # else: whine
+                return True
+        return False
 
     def match(self, string, forward=True):
         return self.buf[self.cursor:self.cursor.point + len(string)] == string
