@@ -172,7 +172,7 @@ class Window:
                 if self.keyerror_action is not None:
                     self.keyerror_action()
                 else:
-                    self.context.message('no such key in map')
+                    self.context.message('unknown command')
                     self.active_keymap = self.keymap
                     self.keyseq = ''
                     self.log.error('no such key in map')
