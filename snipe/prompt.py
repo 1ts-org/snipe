@@ -533,7 +533,8 @@ class Search(LongPrompt):
     def setprompt(self):
         self.divider = self.buf.replace(
             0,
-            self.divider, self.prompt + self.direction() + self.suffix,
+            self.divider,
+            self.prompt + self.direction() + self.suffix,
             False
             )
 
@@ -543,7 +544,7 @@ class Search(LongPrompt):
             self.redisplay()
             term = self.input()
             self.target.search_term = term
-            if not self.target.match(term, self.direction()):
+            if not self.target.match(term, self.forward):
                 self.do_find()
             else:
                 self.target.redisplay()

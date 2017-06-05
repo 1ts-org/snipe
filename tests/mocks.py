@@ -72,15 +72,28 @@ class Context:
 
 class FE:
     context = Context()
+    called = set()
 
-    def redisplay(*args, **kw):
-        pass
+    def markcalled(self):
+        self.called |= {sys._getframe().f_back.f_code.co_name}
 
-    def notify(*args, **kw):
-        pass
+    def redisplay(self, *args, **kw):
+        self.markcalled()
 
-    def force_repaint(*args, **kw):
-        pass
+    def notify(self, *args, **kw):
+        self.markcalled()
+
+    def force_repaint(self, *args, **kw):
+        self.markcalled()
+
+    def set_active_output(self, *args, **kw):
+        self.markcalled()
+
+    def set_active_input(self, *args, **kw):
+        self.markcalled()
+
+    def delete_current_window(self, *args, **kw):
+        self.markcalled()
 
 
 class Message:
@@ -124,6 +137,23 @@ class Window:
 
     def __init__(self, chunks):
         self.chunks = chunks
+        self.match_string = None
+        self.match_forward = None
+        self.find_string = None
+        self.find_forward = None
+        self.match_ret = False
+
+    def match(self, string, forward=True):
+        self.match_string = string
+        self.match_forward = forward
+        return self.match_ret
+
+    def find(self, string, forward=True):
+        self.find_string = string
+        self.find_forward = forward
+
+    def redisplay(*args, **kw):
+        pass
 
     def view(self, origin, direction='forward'):
         assert direction in ('forward', 'backward')

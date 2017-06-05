@@ -515,6 +515,58 @@ class TestPrompt(unittest.TestCase):
              ],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
+    def test_search(self):
+        w = prompt.Search(
+            mocks.FE(),
+            forward=False,
+            prompt='search ',
+            history='test_search',
+            target=mocks.Window([]))
+
+        self.assertEqual(w.direction(), 'backward')
+        self.assertFalse(w.forward)
+        try:  # coroutine
+            w.search(None, True).send(None)
+        except StopIteration:
+            pass
+        self.assertTrue(w.forward)
+
+        self.assertEqual(w.direction(), 'forward')
+
+        w.setprompt()
+        self.assertEqual(w.buf[:w.divider], 'search forward: ')
+
+        self.assertIsNone(w.target.match_string)
+        self.assertIsNone(w.target.match_forward)
+        self.assertIsNone(w.target.find_string)
+        self.assertIsNone(w.target.find_forward)
+
+        w.insert('foo')
+        self.assertEqual(w.target.match_string, 'foo')
+        self.assertEqual(w.target.match_forward, True)
+        self.assertEqual(w.target.find_string, 'foo')
+        self.assertEqual(w.target.find_forward, True)
+
+        self.assertEqual(w.target.search_term, 'foo')
+
+        w.target.match_ret = True
+        w.insert('f')
+        self.assertEqual(w.target.match_string, 'foof')
+
+        # sneak around w.replace
+        w.buf.replace(w.divider, len(w.buf), 'bar', False)
+        try:  # coroutine
+            w.search(None, True).send(None)
+        except StopIteration:
+            pass
+        self.assertEqual(w.target.find_string, 'bar')
+
+        w.delete_window()
+        self.assertIn('set_active_input', w.fe.called)
+        self.assertIn('delete_current_window', w.fe.called)
+
+        w.destroy()
+        self.assertIsNone(w.target.search_term)
 
 if __name__ == '__main__':
     unittest.main()
