@@ -57,4 +57,43 @@ class TestSafeWrite(unittest.TestCase):
                 fp.write(string)
 
             with open(pathname) as fp:
-                self.assertEquals(fp.read(), string)
+                self.assertEqual(fp.read(), string)
+
+
+class TestChunkslice(unittest.TestCase):
+    def testChunkslice(self):
+        l = [((), 'abc'), ((), 'def'), ((), 'ghi')]
+        self.assertEqual(
+            snipe.util.chunkslice(l, 0),
+            ([], l))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 1),
+            ([((), 'a')], [((), 'bc'), ((), 'def'), ((), 'ghi')]))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 3),
+            ([((), 'abc')], [((), 'def'), ((), 'ghi')]))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 4),
+            ([((), 'abc'), ((), 'd')], [((), 'ef'), ((), 'ghi')]))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 6),
+            ([((), 'abc'), ((), 'def')], [((), 'ghi')]))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 7),
+            ([((), 'abc'), ((), 'def'), ((), 'g')], [((), 'hi')]))
+        self.assertEqual(
+            snipe.util.chunkslice(l, 9),
+            (l, []))
+        self.assertEqual(
+            snipe.util.chunkslice([((), 'abc'), ((), ''), ((), 'def')], 3),
+            ([((), 'abc')], [((), ''), ((), 'def')]))
+        self.assertEqual(
+            snipe.util.chunkslice([((), ''), ((), 'abc'), ((), 'def')], 3),
+            ([((), ''), ((), 'abc')], [((), 'def')]))
+        self.assertEqual(
+            snipe.util.chunkslice([((), ''), ((), 'abc'), ((), 'def')], 0),
+            ([], [((), ''), ((), 'abc'), ((), 'def')]))
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -476,3 +476,23 @@ def eval_output(string, environment=None, mode='single'):
 
 def val_oneof(vals):
     return lambda x: x in vals
+
+
+def chunkslice(chunk, cut):
+    left = []
+    right = []
+    off = 0
+    for i, (tags, s) in enumerate(chunk):
+        l = len(s)
+        if off + len(s) >= cut:
+            if off != cut:
+                left.append((tags, s[:cut - off]))
+            if l == 0 or cut - off < l:
+                right = [(tags, s[cut - off:])]
+            break
+        else:
+            left.append((tags, s))
+        off += l
+    right.extend(chunk[i + 1:])
+
+    return left, right

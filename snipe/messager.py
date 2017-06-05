@@ -35,20 +35,21 @@ UI for looking at messages.
 '''
 
 
-import time
-import datetime
-import traceback
-import pprint
 import bisect
 import codecs
+import datetime
+import pprint
+import re
+import time
+import traceback
 
 from . import filters
-from . import keymap
-from . import window
 from . import help
-from . import prompt
-from . import util
 from . import interactive
+from . import keymap
+from . import prompt
+from . import window
+from . import util
 
 
 class Messager(window.Window, window.PagingMixIn):
@@ -177,6 +178,34 @@ class Messager(window.Window, window.PagingMixIn):
                 # this is a bug so it will do the wrong thing sometimes
                 chunk = [((), '\n')]
 
+            try:
+                if self.search_term is not None:
+                    spans = [m.span() for m in re.finditer(
+                        re.escape(
+                            self.search_term), self.flatten_chunk(chunk))]
+                    new = []
+                    prev = 0
+                    # make start and end relative
+                    for i, (start, end) in enumerate(spans):
+                        spans[i] = (start - prev, end - start)
+                        prev = end
+
+                    for start, end in spans:
+                        before, chunk = util.chunkslice(chunk, start)
+                        new.extend(before)
+                        within, chunk = util.chunkslice(chunk, end)
+                        new.extend([
+                            (tuple(set(tags) ^ {'reverse'}), s)
+                            for (tags, s) in within])
+                    new.extend(chunk)
+                    chunk = new
+            except:
+                chunk = [
+                    (('bold',), repr(x) + '\n'),
+                    ((), traceback.format_exc()),
+                    ((), pprint.pformat(x.data) + '\n'),
+                    ]
+
             if x == self.cursor:
                 chunk = [(chunk[0][0] + ('visible',), chunk[0][1])] + chunk[1:]
 
@@ -188,18 +217,20 @@ class Messager(window.Window, window.PagingMixIn):
             prev = x
 
     @staticmethod
+    def flatten_chunk(chunk):
+        return ''.join(x[1] for x in chunk)
+
+    @staticmethod
     def flatten(msg):
-        return ''.join(x[1] for x in msg.display({}))
+        return Messager.flatten_chunk(msg.display({}))
 
     def find(self, string, forward):
 
-        def skipone(iterator):
-            iterator = iter(iterator)
-            _ = next(iterator)
-            yield from iterator
-
-        for msg in skipone(self.walk(self.cursor, forward, search=True)):
-            if string in self.flatten(msg):
+        for msg in self.walk(self.cursor, forward, search=True):
+            if msg is self.cursor:
+                continue
+            m = self.flatten(msg)
+            if string in m:
                 self.cursor = msg
                 return True
         return False

@@ -114,6 +114,8 @@ class Window:
         self._normal_cheatsheet = self.cheatsheet
         # : string describing the keystrokes that triggered the current command
         self.keyseq = ''
+        # : string that is currently being search for
+        self.search_term = None
 
     def set_cheatsheet(self, cheatsheet):
         self.cheatsheet = cheatsheet
@@ -648,7 +650,6 @@ class Window:
         if string is None:
             from .prompt import Search
             self.log.error('search: string is none')
-            direction = 'forward' if forward else 'backward'
             string = yield from self.read_string(
                 'search ',
                 name='search',
@@ -663,6 +664,7 @@ class Window:
 
     def match(self, string, forward=True):
         raise NotImplementedError
+
 
 class PagingMixIn:
     @keymap.bind('[ppage]', 'Meta-v')

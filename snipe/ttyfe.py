@@ -137,7 +137,12 @@ class TTYRenderer:
             nl = s.endswith('\n')
             if remaining:
                 ll = textwrap.wrap(s, remaining)
-                s = '\n'.join([ll[0]] + textwrap.wrap(' '.join(ll[1:]), width))
+                try:
+                    s = '\n'.join(
+                        ll[:1] + textwrap.wrap(' '.join(ll[1:]), width))
+                except:
+                    logging.error('%s %d', ll, width)
+                    raise
             else:
                 s = '\n'.join(textwrap.wrap(s, width))
             if nl:
@@ -293,9 +298,9 @@ class TTYRenderer:
                 continue
             if not output[y]:
                 output[y] = [(0, '')]
-            bits = curses.A_REVERSE | (
-                curses.A_BOLD if self.active() else curses.A_DIM)
-            output[y] = [(a | bits, t) for (a, t) in output[y]]
+            actbold = curses.A_BOLD if self.active() else curses.A_DIM
+            output[y] = [
+                ((a ^ curses.A_REVERSE) | actbold, t) for (a, t) in output[y]]
 
         self.log.debug(
             'redisplay_calculate exiting, cursor=%s, visible=%s',

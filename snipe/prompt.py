@@ -542,8 +542,11 @@ class Search(LongPrompt):
         if self.target is not None:
             self.redisplay()
             term = self.input()
+            self.target.search_term = term
             if not self.target.match(term, self.direction()):
                 self.do_find()
+            else:
+                self.target.redisplay()
         return result
 
     @asyncio.coroutine
@@ -570,3 +573,7 @@ class Search(LongPrompt):
         """Delelete current window."""
         self.fe.set_active_input()
         super().delete_window()
+
+    def destroy(self):
+        super().destroy()
+        self.target.search_term = None
