@@ -589,7 +589,7 @@ class TTYFrontend:
 
         if signum != signal.SIGINT:
             return
-        f = frame
+        f = frame.f_back
         while f is not None:
             if (f.f_code is TTYFrontend.readable.__code__
                     or f.f_code is window.Window.catch_and_log.__code__):
