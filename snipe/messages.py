@@ -262,7 +262,7 @@ class SnipeBackend:
         iteration.
 
         ``search`` lets backends behave differently when not called from the
-        redisplay, for data headers and such that want to bypass filters on
+        redisplay, for date headers and such that want to bypass filters on
         display.
         """
         self.log.debug(
