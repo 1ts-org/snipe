@@ -170,7 +170,7 @@ class Window:
                 v = self.active_keymap[k]
             except KeyError:
                 if self.keyerror_action is not None:
-                    self.keyerror_action()
+                    self.keyerror_action(k)
                 else:
                     self.context.message('unknown command')
                     self.active_keymap = self.keymap
@@ -657,6 +657,7 @@ class Window:
                 window=Search,
                 target=self,
                 forward=forward,
+                start=self.make_mark(self.cursor),
                 )
 
     def find(self, string, forward=True):
@@ -664,6 +665,18 @@ class Window:
 
     def match(self, string, forward=True):
         raise NotImplementedError
+
+    def beginning(self):
+        raise NotImplementedError
+
+    def end(self):
+        raise NotImplementedError
+
+    def make_mark(self, where):
+        return None
+
+    def go_mark(self, where):
+        pass
 
 
 class PagingMixIn:

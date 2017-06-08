@@ -40,6 +40,7 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
+import snipe.editor as editor            # noqa: E402
 import snipe.prompt as prompt            # noqa: E402
 import snipe.messages as messages        # noqa: E402
 import snipe.keymap as keymap            # noqa: E402
@@ -523,15 +524,12 @@ class TestPrompt(unittest.TestCase):
             history='test_search',
             target=mocks.Window([]))
 
-        self.assertEqual(w.direction(), 'backward')
         self.assertFalse(w.forward)
         try:  # coroutine
             w.search(None, True).send(None)
         except StopIteration:
             pass
         self.assertTrue(w.forward)
-
-        self.assertEqual(w.direction(), 'forward')
 
         w.setprompt()
         self.assertEqual(w.buf[:w.divider], 'search forward: ')
@@ -567,6 +565,104 @@ class TestPrompt(unittest.TestCase):
 
         w.destroy()
         self.assertIsNone(w.target.search_term)
+
+    def test_replace_cursor(self):
+        w = prompt.Search(
+            mocks.FE(),
+            forward=False,
+            prompt='search ',
+            history='test_search',
+            target=mocks.Window([]))
+
+        w.insert('fo')
+        mark = w.make_mark(w.cursor)
+        w.target.find_ret = False
+        w.insert('o')
+        self.assertEqual(w.cursor.point, mark.point + 1)
+
+    def test_search1(self):
+        x = editor.Editor(mocks.FE())
+        x.insert('\n\n\nfoo\n\n\nfoo\n\n\n')
+
+        self.assertEqual(x.cursor.point, len(x.buf))
+
+        w = prompt.Search(
+            mocks.FE(),
+            forward=True,
+            prompt='search ',
+            history='test_search',
+            target=x,
+            start=x.make_mark(x.cursor.point),
+            )
+
+        w.insert('foo')
+        try:
+            w.search_forward().send(None)
+        except StopIteration:
+            pass
+
+        self.assertEqual(x.cursor.point, 3)
+
+        try:
+            w.search_backward().send(None)
+        except StopIteration:
+            pass
+
+        self.assertEqual(w.buf[:7], 'failing')
+
+        try:
+            w.search_backward().send(None)
+        except StopIteration:
+            pass
+
+        self.assertEqual(x.cursor.point, 9)
+
+        w.abort()
+
+        self.assertEqual(x.cursor.point, len(x.buf))
+
+        del w
+
+        x.cursor.point = 0
+
+        w = prompt.Search(
+            mocks.FE(),
+            forward=True,
+            prompt='search ',
+            history='test_search',
+            target=x,
+            start=x.make_mark(x.cursor.point),
+            )
+
+        w.insert('foo')
+
+        self.assertEqual(x.cursor.point, 3)
+
+        w.callout('\n')
+
+        self.assertEqual(x.cursor.point, 3)
+        self.assertEqual(x.the_mark.point, 0)
+
+        del w
+
+        x.cursor.point = 6
+        w = prompt.Search(
+            mocks.FE(),
+            forward=True,
+            prompt='search ',
+            history='test_search',
+            target=x,
+            start=x.make_mark(x.cursor.point),
+            )
+
+        w.insert('bar')
+        try:
+            w.search_forward().send(None)
+        except StopIteration:
+            pass
+
+        self.assertEqual(x.cursor.point, 6)
+
 
 if __name__ == '__main__':
     unittest.main()

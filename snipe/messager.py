@@ -455,13 +455,13 @@ class Messager(window.Window, window.PagingMixIn):
         yield from self.send(msg.reply(), msg, 'reply to ' + msg.reply())
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
-    def last(self):
+    def end(self):
         """Move to the last message."""
 
         self.cursor_set_walk_mark(float('inf'), False)
 
     @keymap.bind('[HOME]', 'Shift-[HOME]', '[SHOME]', 'Meta-<', '<')
-    def first(self):
+    def beginning(self):
         """Move to the first (currently loaded) message."""
 
         self.cursor_set_walk_mark(float('-inf'), True)
@@ -800,6 +800,12 @@ class Messager(window.Window, window.PagingMixIn):
             self.the_mark = where if where is not None else self.cursor
             self.set_mark_state = 0
 
+    def make_mark(self, where):
+        return where
+
+    def go_mark(self, where):
+        self.cursor_set_walk(where, True)
+
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):
         """Move the point to where the mark is, and set the mark where the point
@@ -833,7 +839,7 @@ class Messager(window.Window, window.PagingMixIn):
             if self.cursor != where:
                 break
         else:
-            self.last()
+            self.end()
 
     @keymap.bind('.')
     def set_stark(self):

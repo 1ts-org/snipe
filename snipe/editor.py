@@ -79,6 +79,10 @@ class Mark:
     def __int__(self):
         return self.point
 
+    def __iadd__(self, delta):
+        self.point += delta
+        return self
+
     def __index__(self):
         return self.point
 
@@ -213,7 +217,7 @@ class Viewer(window.Window, window.PagingMixIn):
         return hint
 
     def insert(self, s, collapsible=False):
-        self.cursor.point += self.replace(0, s, collapsible)
+        self.cursor += self.replace(0, s, collapsible)
 
     def delete(self, count):
         self.log.debug('delete %d', count)
@@ -440,6 +444,8 @@ class Viewer(window.Window, window.PagingMixIn):
         self.cursor.point = self.movable(where.point, interactive)
         return self.cursor.point - oldpoint
 
+    beginning = beginning_of_buffer
+
     @keymap.bind('Shift-[END]', '[SEND]', 'Meta->')
     def end_of_buffer(
             self,
@@ -469,6 +475,8 @@ class Viewer(window.Window, window.PagingMixIn):
                 self.set_mark(oldpoint)
         self.cursor.point = self.movable(where.point, interactive)
         return self.cursor.point - oldpoint
+
+    end = end_of_buffer
 
     def input_char(self, k):
         self.log.debug('before command %s %s', self.cursor, self.the_mark)
@@ -581,6 +589,12 @@ class Viewer(window.Window, window.PagingMixIn):
             self.the_mark = self.buf.mark(
                 where if where is not None else self.cursor)
             self.set_mark_state = 0
+
+    def make_mark(self, where):
+        return self.buf.mark(where)
+
+    def go_mark(self, where):
+        self.cursor.point = where
 
     @keymap.bind('Control-X Control-X')
     def exchange_point_and_mark(self):

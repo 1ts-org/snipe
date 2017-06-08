@@ -586,7 +586,10 @@ class TTYFrontend:
         loop.call_soon(self.perform_resize)
 
     def sigint(self):
-        curses.ungetch(chr(self.INTCHAR))
+        self.ungetch(chr(self.INTCHAR))
+
+    def ungetch(self, k):
+        curses.ungetch(k)
         self.readable()
 
     def sighandler_op(self, signum, frame):

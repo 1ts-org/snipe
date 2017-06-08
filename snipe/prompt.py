@@ -176,7 +176,7 @@ class KeySeqPrompt(LongPrompt):
         self.active_keymap = keymap
         self.intermediate_action = self.echo_keystroke
         self.keymap_action = self.runcallback
-        self.keyerror_action = self.runcallback
+        self.keyerror_action = lambda k: self.runcallback()
         self.keystrokes = []
         self.activated_keymap = None
 
@@ -487,7 +487,7 @@ class Composer(Leaper):
             new = history[-new_ptr]
 
         self.cursor.point = start
-        self.cursor.point += self.replace(end - start, new)
+        self.cursor += self.replace(end - start, new)
         self.histptrs[ind] = new_ptr
 
     @keymap.bind('Meta-Control-p')
@@ -510,44 +510,97 @@ class Composer(Leaper):
 
 
 class Search(LongPrompt):
-    def __init__(self, *args, forward=True, target=None, suffix=': ', **kw):
+    cheatsheet = [
+        'type your search query',
+        '*Enter* or any normal command finishes',
+        '*C-s*earch again forward',
+        'search again *C-r*eversed',
+        ]
+
+    def __init__(
+            self,
+            *args,
+            forward=True,
+            target=None,
+            suffix=': ',
+            start=None,
+            **kw):
         self.target = None
         super().__init__(*args, **kw)
         self.target = target
         self.forward = forward
         self.suffix = ': '
+        self.start = start
+
+        self.fail = False
 
         self.setprompt()
 
         self.keymap.clear()
 
-        self.keymap['Control-G'] = self.delete_window
+        self.keymap['Control-G'] = self.abort
         self.keymap['Control-S'] = self.search_forward
         self.keymap['Control-R'] = self.search_backward
         self.keymap['Control-J'] = self.runcallback
         self.keymap['Control-M'] = self.runcallback
+        self.keymap['Control-H'] = self.delete_backward
+        self.keymap['Control-?'] = self.delete_backward
+        self.keymap['[backspace]'] = self.delete_backward
+        self.keymap['Control-Y'] = self.yank
+        # eventually:
+        # something about case insensitivity
+        # C-w   pull in next word/character
+        # C-M-w pull in next char
+        # M-s C-e pull in to end o fline
+        # with infrasrtucture for ungetching multikey sequences
+        # self.keymap['Meta-y'] = self.yank_pop
+        # self.keymap['Meta-p'] = self.previous_history
+        # self.keymap['Meta-n'] = self.next_history
+        # when implented elsewhere
+        # Control-Q   # with control character view
+        # Control-X 8
+        # C-j for insert-newline with linebreakless view
 
-    def direction(self):
-        return 'forward' if self.forward else 'backward'
+        self.keyerror_action = self.callout
+
+    def callout(self, k):
+        self.runcallback()
+        self.fe.ungetch(k)
+
+    def runcallback(self):
+        if self.start != self.target.cursor:
+            self.target.set_mark(self.start)
+            self.context.message('mark saved where search started')
+        super().runcallback()
 
     def setprompt(self):
-        self.divider = self.buf.replace(
-            0,
-            self.divider,
-            self.prompt + self.direction() + self.suffix,
-            False
-            )
+        direction = 'forward' if self.forward else 'backward'
+        failing = '' if not self.fail else 'failing '
+        with self.save_excursion():
+            save, self.divider = self.divider, 0
+            self.cursor.point = 0
+            self.divider = super().replace(
+                save,
+                failing + self.prompt + direction + self.suffix,
+                False
+                )
 
     def replace(self, count, string, collapsible=False):
+        self.log.debug(
+            'replace %d/[%d], cursor=%d',
+            count, len(string), self.cursor.point)
         result = super().replace(count, string, collapsible)
         if self.target is not None:
-            self.redisplay()
             term = self.input()
             self.target.search_term = term
             if not self.target.match(term, self.forward):
+                self.log.debug('no match, finding')
                 self.do_find()
-            else:
-                self.target.redisplay()
+            else:  # match
+                self.fail = False
+            self.setprompt()
+            self.target.redisplay()
+            self.redisplay()
         return result
 
     @asyncio.coroutine
@@ -564,11 +617,30 @@ class Search(LongPrompt):
                 return
 
         self.do_find()
+        self.setprompt()
 
-    def do_find(self):
+    def do_find(self, wrap=False):
         self.fe.set_active_output(self.target)
-        self.target.find(self.input(), self.forward)
+        if self.target.find(self.input(), self.forward):
+            self.fail = False
+        else:
+            if not self.fail:
+                self.fail = True
+                self.whine()
+            elif not wrap:
+                mark = self.target.make_mark(self.target.cursor)
+                if self.forward:
+                    self.target.beginning()
+                else:
+                    self.target.end()
+                self.do_find(True)
+                if self.fail:
+                    self.target.go_mark(mark)
         self.target.redisplay()
+
+    def abort(self):
+        self.target.go_mark(self.start)
+        self.delete_window()
 
     def delete_window(self):
         """Delelete current window."""

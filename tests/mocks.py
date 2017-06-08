@@ -95,6 +95,9 @@ class FE:
     def delete_current_window(self, *args, **kw):
         self.markcalled()
 
+    def ungetch(self, *args, **kw):
+        self.markcalled()
+
 
 class Message:
     def __init__(self, **kw):
@@ -141,6 +144,7 @@ class Window:
         self.match_forward = None
         self.find_string = None
         self.find_forward = None
+        self.find_ret = True
         self.match_ret = False
 
     def match(self, string, forward=True):
@@ -151,6 +155,7 @@ class Window:
     def find(self, string, forward=True):
         self.find_string = string
         self.find_forward = forward
+        return self.find_ret
 
     def redisplay(*args, **kw):
         pass
