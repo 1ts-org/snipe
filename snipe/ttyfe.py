@@ -38,6 +38,7 @@ UNIX tty frontend.
 import array
 import asyncio
 import asyncio.unix_events
+import collections
 import contextlib
 import ctypes
 import curses
@@ -526,6 +527,9 @@ class RedisplayInProgress(Exception):
     pass
 
 
+Popped = collections.namedtuple('Popped', ['window', 'height'])
+
+
 class TTYFrontend:
     INTCHAR = 7  # Control-G # XXX
 
@@ -819,7 +823,7 @@ class TTYFrontend:
 
         victim = self.windows[n]
 
-        if self.popstack and self.popstack[-1][0] is victim.window:
+        if self.popstack and self.popstack[-1].window is victim.window:
             self.popdown_window()
             return
 
@@ -869,11 +873,12 @@ class TTYFrontend:
 
     def delete_other_windows(self):
         # clear the popstack
-        if self.popstack and self.windows[self.input] == self.popstack[-1][0]:
+        if (self.popstack
+                and self.windows[self.input] == self.popstack[-1].window):
             return
         self.set_active(self.input)
-        for window, height in self.popstack[:-1]:
-            window.destroy()
+        for pop in self.popstack[:-1]:
+            pop.window.destroy()
         del self.popstack[:-1]
         for n in range(len(self.windows) - 1, -1, -1):
             if (n != self.input
@@ -884,12 +889,12 @@ class TTYFrontend:
         r = self.windows[-1]
 
         if (r.height <= height and self.popstack
-                and r.window != self.popstack[-1][0]):
-            self.popstack.append((r.window, r.height))
+                and r.window != self.popstack[-1].window):
+            self.popstack.append(Popped(r.window, r.height))
 
-        if self.popstack and r.window == self.popstack[-1][0]:
+        if self.popstack and r.window == self.popstack[-1].window:
             # update the height
-            self.popstack[-1] = (r.window, r.height)
+            self.popstack[-1] = Popped(r.window, r.height)
             self.windows[-1] = TTYRenderer(
                 self, r.y, r.height, new)
         else:
@@ -902,31 +907,31 @@ class TTYFrontend:
             self.windows.append(TTYRenderer(
                 self, r.y + r.height - height, height, new))
 
-        self.popstack.append((new, height))
+        self.popstack.append(Popped(new, height))
         if select:
             self.set_active(len(self.windows) - 1)
             self.windows[self.output].focus()
 
     def popdown_window(self):
-        victim_window, _ = self.popstack.pop()
+        victim = self.popstack.pop()
         try:
-            victim_window.destroy()
+            victim.window.destroy()
         except:
             self.log.exception('attempting window destroy callback')
         victim = self.windows.pop()
         adj = self.windows[-1]
         if self.popstack:
-            new_window, new_height = self.popstack[-1]
-            dheight = new_height - victim.height
+            new = self.popstack[-1]
+            dheight = new.height - victim.height
             if adj.window.noresize:
                 self.window.append(TTYRenderer(
-                    self, victim.y, victim.height, new_window))
+                    self, victim.y, victim.height, new.window))
             else:
                 self.windows[-1:] = [
                     TTYRenderer(
                         self, adj.y, adj.height - dheight, adj.window),
                     TTYRenderer(
-                        self, victim.y - dheight, new_height, new_window),
+                        self, victim.y - dheight, new.height, new.window),
                     ]
         else:
             if adj.window.noactive:
