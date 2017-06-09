@@ -60,7 +60,7 @@ from . import util
 
 
 class TTYRenderer:
-    def __init__(self, ui, y, h, window):
+    def __init__(self, ui, y, h, window, hints=None):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.curses_log = logging.getLogger(
             'TTYRender.curses.%x' % (id(self),))
@@ -76,8 +76,10 @@ class TTYRenderer:
         self.cursorpos = None
         self.context = None
 
-        self.head = self.window.hints.get('head')
-        self.sill = self.window.hints.get('sill')
+        if hints is None:
+            hints = self.window.hints
+        self.head = hints.get('head')
+        self.sill = hints.get('sill')
         self.window.hints = {}
 
         self.reframe_state = 'hard'
@@ -697,6 +699,7 @@ class TTYFrontend:
                     height,
                     i == self.input,
                     i == self.output,
+                    victim.get_hints(),
                     ])
             remaining -= height
         if remaining:
@@ -709,8 +712,9 @@ class TTYFrontend:
 
         self.set_active(None)
         self.windows = []
-        for (i, (window, y, height, input, output)) in enumerate(new):
-            self.windows.append(TTYRenderer(self, y, height, window))
+        for (i, (window, y, height, input, output, hints)) in enumerate(new):
+            self.windows.append(
+                TTYRenderer(self, y, height, window, hints=hints))
             if input:
                 self.input = i
             if output:
@@ -807,7 +811,7 @@ class TTYFrontend:
             raise Exception('too small to split')
 
         self.windows[self.output:self.output + 1] = [
-            TTYRenderer(self, r.y, nh, r.window),
+            TTYRenderer(self, r.y, nh, r.window, hints=r.get_hints()),
             TTYRenderer(self, r.y + nh, r.height - nh, new),
             ]
         if select:
@@ -853,11 +857,12 @@ class TTYFrontend:
         for i in tomove:
             u = self.windows[i]
             self.windows[i] = TTYRenderer(
-                self, u.y + moveby, u.height, u.window)
+                self, u.y + moveby, u.height, u.window, hints=u.get_hints())
 
         u = self.windows[beneficiary]
         self.windows[beneficiary] = TTYRenderer(
-            self, u.y + bmoveby, u.height + victim.height, u.window)
+            self, u.y + bmoveby, u.height + victim.height, u.window,
+            hints=u.get_hints())
 
         del self.windows[n]
 
@@ -896,13 +901,13 @@ class TTYFrontend:
             # update the height
             self.popstack[-1] = Popped(r.window, r.height)
             self.windows[-1] = TTYRenderer(
-                self, r.y, r.height, new)
+                self, r.y, r.height, new, hints=r.get_hints())
         else:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
             # shrink bottom window
             self.windows[-1] = TTYRenderer(
-                self, r.y, r.height - height, r.window)
+                self, r.y, r.height - height, r.window, hints=r.get_hints())
             # add; should be in the rotation right active active
             self.windows.append(TTYRenderer(
                 self, r.y + r.height - height, height, new))
@@ -929,7 +934,8 @@ class TTYFrontend:
             else:
                 self.windows[-1:] = [
                     TTYRenderer(
-                        self, adj.y, adj.height - dheight, adj.window),
+                        self, adj.y, adj.height - dheight, adj.window,
+                        hints=adj.get_hints()),
                     TTYRenderer(
                         self, victim.y - dheight, new.height, new.window),
                     ]
@@ -940,7 +946,8 @@ class TTYFrontend:
                         self, victim.y, victim.height, self.default_window()))
             else:
                 self.windows[-1] = TTYRenderer(
-                    self, adj.y, adj.height + victim.height, adj.window)
+                    self, adj.y, adj.height + victim.height, adj.window,
+                    hints=adj.get_hints())
 
         # XXX should remember where we came from
         if self.input >= len(self.windows):
@@ -974,7 +981,9 @@ class TTYFrontend:
 
         self.windows[:2] = [
             TTYRenderer(self, 0, height, statusr.window),
-            TTYRenderer(self, height, datar.height - delta, datar.window),
+            TTYRenderer(
+                self, height, datar.height - delta, datar.window,
+                hints=datar.get_hints()),
             ]
 
     def get_erasechar(self):

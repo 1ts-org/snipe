@@ -159,12 +159,12 @@ class Viewer(window.Window, window.PagingMixIn):
     def __init__(
             self,
             *args,
-            prototype=None,
             chunksize=None,
             content=None,
             name=None,
             **kw):
 
+        prototype = kw.get('prototype')
         if not prototype:
             self.buf = Buffer(name=name, content=content, chunksize=chunksize)
         else:

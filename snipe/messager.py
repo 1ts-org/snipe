@@ -90,8 +90,10 @@ class Messager(window.Window, window.PagingMixIn):
         '*S*ave',
         ]
 
-    def __init__(self, *args, filter_new=None, prototype=None, **kw):
+    def __init__(self, *args, filter_new=None, **kw):
         super().__init__(*args, **kw)
+
+        prototype = kw.get('prototype')
 
         if prototype is None:
             self.cursor = next(self.fe.context.backends.walk(None, False))
