@@ -487,7 +487,7 @@ class Window:
         if not hasattr(self, '_playground'):
             self._playground = {}
             self._playground.update(sys.modules)
-            self._playground['self'] = self
+            self._playground['window'] = self
             self._playground['context'] = self.context
 
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
