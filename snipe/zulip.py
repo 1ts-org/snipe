@@ -364,7 +364,7 @@ class ZulipMessage(messages.SnipeMessage):
 
         return [(tuple(x), y) for (x, y) in
                 [
-                (tags | {'bold'}, self._chat + '>'),
+                (tags | {'bold'}, '·' + self._chat + '>'),
                 (tags, subject + ' <'),
                 (tags | {'bold'}, self.data.get('sender_email', '?')),
                 (tags, '>' + name),
