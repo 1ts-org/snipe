@@ -59,7 +59,7 @@ from . import util
 
 
 class TTYRenderer:
-    def __init__(self, ui, y, h, window, hints=None):
+    def __init__(self, ui, y, h, window, hints=None, whence=None):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
         self.curses_log = logging.getLogger(
             'TTYRender.curses.%x' % (id(self),))
@@ -74,6 +74,7 @@ class TTYRenderer:
         self.w.idlok(1)
         self.cursorpos = None
         self.context = None
+        self.whence = whence
 
         if hints is None:
             hints = self.window.hints
@@ -83,6 +84,14 @@ class TTYRenderer:
 
         self.reframe_state = 'hard'
         self.old_cursor = None
+
+    def resize(self, y, h):
+        return TTYRenderer(
+            self.ui, y, h, self.window, hints=self.get_hints(),
+            whence=self.whence)
+
+    def popped(self):
+        return Popped(self.window, self.height, self.whence, self.get_hints())
 
     def get_hints(self):
         return {'head': self.head, 'sill': self.sill}
@@ -524,7 +533,9 @@ class RedisplayInProgress(Exception):
     pass
 
 
-Popped = collections.namedtuple('Popped', ['window', 'height'])
+Popped = collections.namedtuple(
+    'Popped', ['window', 'height', 'whence', 'hints'])
+Whence = collections.namedtuple('Whence', ['window'])
 
 
 class TTYFrontend:
@@ -583,6 +594,9 @@ class TTYFrontend:
 
         return self
 
+    def renderer(self, *args, **kw):
+        return TTYRenderer(self, *args, **kw)
+
     def sigwinch(self, loop):
         loop.call_soon(self.perform_resize)
 
@@ -611,15 +625,14 @@ class TTYFrontend:
             raise ValueError
         if statusline is None:
             self.set_active(0)
-            self.windows = [TTYRenderer(self, 0, self.maxy, winfactory())]
+            self.windows = [self.renderer(0, self.maxy, winfactory())]
         else:
             self.set_active(1)
             self.windows = [
-                TTYRenderer(
-                    self, 0, statusline.height(), statusline),
-                TTYRenderer(
-                    self, statusline.height(),
-                    self.maxy - statusline.height(), winfactory()),
+                self.renderer(0, statusline.height(), statusline),
+                self.renderer(
+                    statusline.height(), self.maxy - statusline.height(),
+                    winfactory()),
                 ]
         for r in reversed(self.windows):
             r.w.refresh()
@@ -700,16 +713,18 @@ class TTYFrontend:
         if remaining:
             new[-1][2] += remaining
 
-        for victim in orphans:  # it sounds terrible when you put it that way
-            with contextlib.suppress(ValueError):
-                self.popstack.remove(victim)
-            victim.window.destroy()
+        popstack = []
+        for pop in self.popstack:
+            if pop.window not in orphans:
+                popstack.append(pop)
+            else:
+                popstack.window.destroy()
+        self.popstack = popstack
 
         self.set_active(None)
         self.windows = []
         for (i, (window, y, height, input, output, hints)) in enumerate(new):
-            self.windows.append(
-                TTYRenderer(self, y, height, window, hints=hints))
+            self.windows.append(self.renderer(y, height, window, hints=hints))
             if input:
                 self.input = i
             if output:
@@ -806,8 +821,8 @@ class TTYFrontend:
             raise Exception('too small to split')
 
         self.windows[self.output:self.output + 1] = [
-            TTYRenderer(self, r.y, nh, r.window, hints=r.get_hints()),
-            TTYRenderer(self, r.y + nh, r.height - nh, new),
+            r.resize(r.y, nh),
+            self.renderer(r.y + nh, r.height - nh, new),
             ]
         if select:
             self.switch_window(1)
@@ -851,13 +866,11 @@ class TTYFrontend:
 
         for i in tomove:
             u = self.windows[i]
-            self.windows[i] = TTYRenderer(
-                self, u.y + moveby, u.height, u.window, hints=u.get_hints())
+            self.windows[i] = u.resize(u.y + moveby, u.height)
 
         u = self.windows[beneficiary]
-        self.windows[beneficiary] = TTYRenderer(
-            self, u.y + bmoveby, u.height + victim.height, u.window,
-            hints=u.get_hints())
+        self.windows[beneficiary] = u.resize(
+            u.y + bmoveby, u.height + victim.height)
 
         del self.windows[n]
 
@@ -885,32 +898,30 @@ class TTYFrontend:
                     and self.windows[n].window != self.context.status):
                 self.delete_window(n)
 
-    def popup_window(self, new, height=1, select=True):
+    def popup_window(self, new, height=1, whence=None):
         r = self.windows[-1]
 
         if (r.height <= height and self.popstack
                 and r.window != self.popstack[-1].window):
-            self.popstack.append(Popped(r.window, r.height))
+            self.popstack.append(r.popped())
 
         if self.popstack and r.window == self.popstack[-1].window:
             # update the height
-            self.popstack[-1] = Popped(r.window, r.height)
-            self.windows[-1] = TTYRenderer(
-                self, r.y, r.height, new, hints=r.get_hints())
+            self.popstack[-1] = r.popped()
+            self.windows[-1] = self.renderer(r.y, r.height, new, whence=Whence(whence))
         else:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
             # shrink bottom window
-            self.windows[-1] = TTYRenderer(
-                self, r.y, r.height - height, r.window, hints=r.get_hints())
+            self.windows[-1] = r.resize(r.y, r.height - height)
             # add; should be in the rotation right active active
-            self.windows.append(TTYRenderer(
-                self, r.y + r.height - height, height, new))
+            self.windows.append(self.renderer(
+                r.y + r.height - height, height, new, whence=Whence(whence)))
 
-        self.popstack.append(Popped(new, height))
-        if select:
-            self.set_active(len(self.windows) - 1)
-            self.windows[self.output].focus()
+        self.popstack.append(self.windows[-1].popped())
+
+        self.set_active(len(self.windows) - 1)
+        self.windows[self.output].focus()
 
     def popdown_window(self):
         victim = self.popstack.pop()
@@ -924,29 +935,32 @@ class TTYFrontend:
             new = self.popstack[-1]
             dheight = new.height - victim.height
             if adj.window.noresize:
-                self.window.append(TTYRenderer(
-                    self, victim.y, victim.height, new.window))
+                self.window.append(self.renderer(
+                    victim.y, victim.height, new.window, hints=new.hints, whence=new.whence))
             else:
                 self.windows[-1:] = [
-                    TTYRenderer(
-                        self, adj.y, adj.height - dheight, adj.window,
-                        hints=adj.get_hints()),
-                    TTYRenderer(
-                        self, victim.y - dheight, new.height, new.window),
+                    adj.resize(adj.y, adj.height - dheight),
+                    self.renderer(victim.y - dheight, new.height, new.window, hints=new.hints, whence=new.whence),
                     ]
         else:
             if adj.window.noactive:
                 self.windows.append(
-                    TTYRenderer(
-                        self, victim.y, victim.height, self.default_window()))
+                    self.renderer(
+                        victim.y, victim.height, self.default_window()))
             else:
-                self.windows[-1] = TTYRenderer(
-                    self, adj.y, adj.height + victim.height, adj.window,
-                    hints=adj.get_hints())
+                self.windows[-1] = adj.resize(
+                    adj.y, adj.height + victim.height)
 
-        # XXX should remember where we came from
-        if self.input >= len(self.windows):
-            self.set_active(len(self.windows) - 1)
+        for i, r in enumerate(self.windows):
+            if r.window is victim.whence.window:
+                focus = i
+                break
+        else:
+            focus = self.input
+            if focus >= len(self.windows):
+                focus = len(self.window) - 1
+        if focus != self.input:
+            self.set_active(focus)
             self.windows[self.output].focus()
         self.redisplay()  # XXX force redisplay?
 
@@ -975,10 +989,8 @@ class TTYFrontend:
             return False
 
         self.windows[:2] = [
-            TTYRenderer(self, 0, height, statusr.window),
-            TTYRenderer(
-                self, height, datar.height - delta, datar.window,
-                hints=datar.get_hints()),
+            self.renderer(0, height, statusr.window),
+            datar.resize(height, datar.height - delta),
             ]
 
     def get_erasechar(self):

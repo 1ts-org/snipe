@@ -346,7 +346,7 @@ class Window:
         wkw.update(kw)
 
         w = window(self.fe, **wkw)
-        self.fe.popup_window(w, height=height)
+        self.fe.popup_window(w, height=height, whence=self)
         w.renderer.reframe(-1)
         self.fe.redisplay()
 
