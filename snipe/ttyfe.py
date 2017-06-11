@@ -40,7 +40,6 @@ import asyncio
 import asyncio.unix_events
 import collections
 import contextlib
-import ctypes
 import curses
 import fcntl
 import itertools
@@ -124,10 +123,6 @@ class TTYRenderer:
         self.w.noutrefresh()
 
     @staticmethod
-    def glyphwidth(s):
-        return sum(wcwidth(c) for c in s)
-
-    @staticmethod
     @util.listify
     def doline(s, width, remaining, tags=()):
         '''string, window width, remaining width, tags ->
@@ -167,7 +162,7 @@ class TTYRenderer:
             elif c >= ' ' or c == '\t':
                 if c == '\t':
                     c = ' ' * (8 - col % 8)
-                l = TTYRenderer.glyphwidth(c)
+                l = util.glyphwidth(c)
                 if col + l > width:
                     if right and line == 0:
                         yield '', -1
@@ -275,7 +270,7 @@ class TTYRenderer:
             if l:
                 a, t = l[-1]
                 if t == '\n':
-                    w = sum(TTYRenderer.glyphwidth(s) for (a, s) in l[:-1])
+                    w = sum(util.glyphwidth(s) for (a, s) in l[:-1])
                     if w < (self.width - 1):
                         l[-1] = (a, '…\n')
                     else:
@@ -353,7 +348,7 @@ class TTYRenderer:
                     self.log.debug(
                         'addstr(%d, %d, %s, %d) errored.  *yawn*',
                         y, x, repr(text), attr)
-                x += self.glyphwidth(text)
+                x += util.glyphwidth(text)
             else:
                 if line != '\n':
                     self.clrtoeol()
@@ -1032,30 +1027,3 @@ class Location:
             return Location(self.fe, cursor, max(0, lines + delta))
 
 
-def setup_wcwidth():
-    LIBC = 'libc.so.6'  # XXX current versions of linux
-    try:
-        ctypes.cdll.LoadLibrary(LIBC)
-        libc = ctypes.CDLL(LIBC)
-        os_wcwidth = libc.wcwidth
-
-        def wcwidth(c):
-            return os_wcwidth(ord(c))
-    except (OSError, AttributeError):
-        def wcwidth(c):
-            # from http://bugs.python.org/msg155361
-            # http://bugs.python.org/issue12568
-            if (
-                    (c < ' ') or
-                    (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
-                    (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
-                        and c != u'\u00ad')  # 00ad = soft hyphen
-                    ):
-                return 0
-            if unicodedata.east_asian_width(c) in ('F', 'W'):
-                return 2
-            return 1
-    return wcwidth
-
-
-wcwidth = setup_wcwidth()

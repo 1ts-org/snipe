@@ -35,6 +35,7 @@ Assorted utility functions.
 '''
 
 
+import ctypes
 import sys
 import os
 import logging
@@ -496,3 +497,36 @@ def chunkslice(chunk, cut):
     right.extend(chunk[i + 1:])
 
     return left, right
+
+
+def _setup_wcwidth():
+    LIBC = 'libc.so.6'  # XXX current versions of linux
+    try:
+        ctypes.cdll.LoadLibrary(LIBC)
+        libc = ctypes.CDLL(LIBC)
+        os_wcwidth = libc.wcwidth
+
+        def wcwidth(c):
+            return os_wcwidth(ord(c))
+    except (OSError, AttributeError):
+        def wcwidth(c):
+            # from http://bugs.python.org/msg155361
+            # http://bugs.python.org/issue12568
+            if (
+                    (c < ' ') or
+                    (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
+                    (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+                        and c != u'\u00ad')  # 00ad = soft hyphen
+                    ):
+                return 0
+            if unicodedata.east_asian_width(c) in ('F', 'W'):
+                return 2
+            return 1
+    return wcwidth
+
+
+_wcwidth = _setup_wcwidth()
+
+
+def glyphwidth(s):
+    return sum(_wcwidth(c) for c in s)

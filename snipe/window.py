@@ -735,11 +735,11 @@ class StatusLine(Window):
             left = self._message
 
         rightwidth = sum(
-            self.renderer.glyphwidth(text) for (tags, text) in right)
+            util.glyphwidth(text) for (tags, text) in right)
 
         offset = 0
         for (i, (tags, text)) in enumerate(left):
-            textwidth = self.renderer.glyphwidth(text)
+            textwidth = util.glyphwidth(text)
             remaining = renderer.width - rightwidth - offset - 1
             if textwidth > remaining:
                 # XXX bugs on wide characters, need fe.truncate
@@ -759,7 +759,7 @@ class StatusLine(Window):
             self.cheatsheetify(x) for x in getattr(w, 'cheatsheet', ['*?*'])]
 
         widths = [
-            sum(self.renderer.glyphwidth(text) for (tags, text) in item)
+            sum(util.glyphwidth(text) for (tags, text) in item)
             for item in sheet]
 
         rows = 2 if self.fe.maxx < self.CHEATSHEET_SPLITCOLS else 1
