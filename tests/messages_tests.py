@@ -65,8 +65,8 @@ class TestBackend(unittest.TestCase):
 class TestAggregator(unittest.TestCase):
     def testAggregator(self):
         context = mocks.Context()
-        startup = snipe.messages.StartupBackend(context)
         synth = SyntheticBackend(context)
+        startup = snipe.messages.StartupBackend(context)
         sink = snipe.messages.SinkBackend(context)
         a = snipe.messages.AggregatorBackend(context, [startup, synth, sink])
         self.assertEqual(startup.count(), 1)
@@ -103,6 +103,8 @@ class TestAggregator(unittest.TestCase):
             for (x, y) in list(
                     zip([None] + backward, backward + [None]))[1:-1]:
                 self.assertGreater(x, y)
+
+        self.assertEqual(a.eldest(), synth.messages[0].time)
         a.shutdown()
 
 

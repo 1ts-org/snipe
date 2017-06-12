@@ -152,17 +152,9 @@ class Messager(window.Window, window.PagingMixIn):
 
     def view(self, origin, direction='forward'):
         self.log.debug('view(%s, %s)', repr(origin), repr(direction))
-        it = self.walk(origin, direction != 'forward')
-        try:
-            next(it)
-            prev = next(it)
-            backfill_to = prev.time
-        except StopIteration:
-            prev = None
-            backfill_to = None
 
         for x in self.walk(
-                origin, direction == 'forward', backfill_to=backfill_to):
+                origin, direction == 'forward'):
             try:
                 decoration = {}
                 for filt, decor in self.rules:

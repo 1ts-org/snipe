@@ -404,6 +404,12 @@ class SnipeBackend:
     def senders(self):
         return self._senders
 
+    def eldest(self):
+        """Return the time of the eldest message or None if there isn't one"""
+        if not self.messages:
+            return None
+        return self.messages[0].time
+
 
 class SinkBackend(SnipeBackend):
     name = 'sink'
@@ -465,11 +471,9 @@ class DateBackend(SnipeBackend):
         self.start = datetime.datetime.now()
 
     def backfill(self, mfilter, backfill_to):
-        if backfill_to is not None and not math.isinf(float(backfill_to)):
-            self.log.debug('backfill([filter], %s)', util.timestr(backfill_to))
-            self.start = min(
-                self.start,
-                datetime.datetime.fromtimestamp(backfill_to))
+        eldest = self.context.backends.eldest()
+        if eldest is not None:
+            self.start = datetime.datetime.fromtimestamp(eldest)
 
     def walk(
             self, start, forward=True, mfilter=None, backfill_to=None,
@@ -641,3 +645,12 @@ class AggregatorBackend(SnipeBackend):
     def senders(self):
         return set().union(
             *(backend.senders() for backend in self.backends))
+
+    def eldest(self):
+        data = [backend.eldest() for backend in self.backends]
+        filtered = [t for t in data if t is not None and not math.isinf(t)]
+        if filtered:
+            return min(filtered)
+        else:
+            # this really shouldn't happen, but
+            return None  # pragma: nocover
