@@ -341,7 +341,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         window.show(pprint.pformat(self.header))
 
     def backfill(self, mfilter, target=None):
-        self.log.debug('backfill([filter], %s)', repr(target))
+        self.log.debug('backfill([filter], %s)', util.timestr(target))
         live = [
             b for b in self.buffers.values()
             if (not b.get('deferred', False)
@@ -363,76 +363,93 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     @asyncio.coroutine
     def backfill_buffer(self, buf, target):
         self.log.debug(
-            'backfill_buffer([%s %s], %s)',
+            'top of backfill_buffer([%s %s], %s)',
             buf['bid'], buf.get('have_eid'), target)
-        try:
-            target = max(
-                target, buf['have_eid'] - self.backfill_length * 1000000)
+        while True:
+            self.log.debug(
+                'loop backfill_buffer([%s %s], %s)',
+                buf['bid'], buf.get('have_eid'), target)
+            try:
+                target = max(
+                    target, buf['have_eid'] - self.backfill_length * 1000000)
 
-            oob_data = yield from self._request(
-                'GET',
-                urllib.parse.urljoin(
-                    IRCCLOUD_API,
-                    '/chat/backlog'),
-                params={
-                        'cid': buf['cid'],
-                        'bid': buf['bid'],
-                        'num': 256,
-                        'beforeid': buf['have_eid'] - 1,
-                        },
-                headers={'Cookie': 'session=%s' % self.session},
-                compress='gzip',
-                )
-            included = []
+                oob_data = yield from self._request(
+                    'GET',
+                    urllib.parse.urljoin(
+                        IRCCLOUD_API,
+                        '/chat/backlog'),
+                    params={
+                            'cid': buf['cid'],
+                            'bid': buf['bid'],
+                            'num': 256,
+                            'beforeid': buf['have_eid'] - 1,
+                            },
+                    headers={'Cookie': 'session=%s' % self.session},
+                    compress='gzip',
+                    )
+                included = []
 
-            if isinstance(oob_data, dict):
-                raise Exception(str(oob_data))
+                if isinstance(oob_data, dict):
+                    raise Exception(str(oob_data))
 
-            oldest = buf['have_eid']
-            self.log.debug('t = %f', oldest / 1000000)
+                oldest = buf['have_eid']
+                self.log.debug('t = %f', oldest / 1000000)
 
-            for m in oob_data:
-                if m['bid'] == -1:
-                    self.log.error('? %s', repr(m))
-                    continue
-                yield from self.process_message(included, m)
+                for m in oob_data:
+                    if m['bid'] == -1:
+                        self.log.error('? %s', repr(m))
+                        continue
+                    yield from self.process_message(included, m)
 
-            included.sort()
-            self.log.debug('processed %d messages', len(included))
-
-            clip = None
-            included.reverse()
-            for i, m in enumerate(included):
-                if m.data['eid'] >= oldest:
-                    clip = i
+                if len(included) == 0:
                     self.log.debug(
-                        'BETRAYAL %d %f %s',
-                        i, m.data['eid'] / 1000000, repr(m.data))
-            if clip is not None:
-                included = included[clip + 1:]
-            included.reverse()
+                        'got zero messages, clamping min_eid from %d to %d',
+                        buf.get('min_eid', -1), buf['have_eid'])
+                    buf['min_eid'] = buf['have_eid']
+                    break
 
-            if included:
-                self.log.debug('merging %d messages', len(included))
-                l = len(self.messages)
-                self.messages = list(messages.merge([self.messages, included]))
-                self.log.debug(
-                    'len(self.messages): %d -> %d', l, len(self.messages))
-                self.drop_cache()
-                self.redisplay(included[0], included[-1])
+                included.sort()
+                self.log.debug('processed %d messages', len(included))
 
-        except asyncio.CancelledError:
-            return
-        except:
-            self.log.exception('backfilling %s', buf)
-            return
+                clip = None
+                included.reverse()
+                for i, m in enumerate(included):
+                    if m.data['eid'] >= oldest:
+                        clip = i
+                        self.log.debug(
+                            'BETRAYAL %d %f %s',
+                            i, m.data['eid'] / 1000000, repr(m.data))
+                if clip is not None:
+                    included = included[clip + 1:]
+                included.reverse()
 
-        if (math.isfinite(target)
-                and target < buf['have_eid']
-                and ('min_eid' not in buf
-                     or buf['have_eid'] > buf['min_eid'])):
+                if included:
+                    self.log.debug('merging %d messages', len(included))
+                    l = len(self.messages)
+                    self.messages = list(messages.merge(
+                        [self.messages, included]))
+                    self.log.debug(
+                        'len(self.messages): %d -> %d', l, len(self.messages))
+                    self.drop_cache()
+                    self.redisplay(included[0], included[-1])
+
+            except asyncio.CancelledError:
+                return
+            except:
+                self.log.exception('backfilling %s', buf)
+                return
+
+            self.log.debug(
+                'bottom of backfill_buffer([%s %s], %s) loop',
+                buf['bid'], buf.get('have_eid'), target)
+            self.log.debug(' have_eid %s', buf.get('have_eid', '-'))
+            self.log.debug(' min_eid %s', buf.get('min_eid', '-'))
+            if (not math.isfinite(target)
+                    or target >= buf['have_eid']
+                    or not ('min_eid' not in buf
+                         or buf['have_eid'] > buf['min_eid'])):
+                break
             yield from asyncio.sleep(.1)
-            yield from self.backfill_buffer(buf, target)
 
     @keymap.bind('I D')
     def disconnect(self):
