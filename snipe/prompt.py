@@ -422,7 +422,7 @@ class Composer(Leaper):
             self.saved_fill_column = self.fill_column
 
     def after_command(self):
-        self.log.error('after command: %s', self.state)
+        self.log.debug('after command: %s', self.state)
         if self.state != 'normal':
             if self.cursor.point > self.complete_end():
                 self.state_normal()
