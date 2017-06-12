@@ -46,6 +46,7 @@ import time
 import datetime
 import math
 import json
+import unicodedata
 import unittest.mock as mock
 import urllib.parse
 

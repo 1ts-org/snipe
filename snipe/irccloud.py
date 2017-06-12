@@ -446,8 +446,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.debug(' min_eid %s', buf.get('min_eid', '-'))
             if (not math.isfinite(target)
                     or target >= buf['have_eid']
-                    or not ('min_eid' not in buf
-                         or buf['have_eid'] > buf['min_eid'])):
+                    or not (
+                        'min_eid' not in buf
+                        or buf['have_eid'] > buf['min_eid'])):
                 break
             yield from asyncio.sleep(.1)
 

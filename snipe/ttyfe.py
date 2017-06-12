@@ -50,7 +50,6 @@ import select
 import signal
 import termios
 import textwrap
-import unicodedata
 import unittest.mock as mock
 
 
@@ -908,7 +907,8 @@ class TTYFrontend:
         if self.popstack and r.window == self.popstack[-1].window:
             # update the height
             self.popstack[-1] = r.popped()
-            self.windows[-1] = self.renderer(r.y, r.height, new, whence=Whence(whence))
+            self.windows[-1] = self.renderer(
+                r.y, r.height, new, whence=Whence(whence))
         else:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
@@ -936,11 +936,14 @@ class TTYFrontend:
             dheight = new.height - victim.height
             if adj.window.noresize:
                 self.window.append(self.renderer(
-                    victim.y, victim.height, new.window, hints=new.hints, whence=new.whence))
+                    victim.y, victim.height, new.window, hints=new.hints,
+                    whence=new.whence))
             else:
                 self.windows[-1:] = [
                     adj.resize(adj.y, adj.height - dheight),
-                    self.renderer(victim.y - dheight, new.height, new.window, hints=new.hints, whence=new.whence),
+                    self.renderer(
+                        victim.y - dheight, new.height, new.window,
+                        hints=new.hints, whence=new.whence),
                     ]
         else:
             if adj.window.noactive:
@@ -1037,5 +1040,3 @@ class Location:
                     break
                 delta += lines
             return Location(self.fe, cursor, max(0, lines + delta))
-
-
