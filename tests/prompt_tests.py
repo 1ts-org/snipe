@@ -81,6 +81,8 @@ class TestPrompt(unittest.TestCase):
 
         y.insert('frogs')
 
+        y.renderer = mocks.Renderer()
+
         result = None
         z = prompt.LongPrompt(None, prototype=y)
         z.runcallback()

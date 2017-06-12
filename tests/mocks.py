@@ -99,6 +99,11 @@ class FE:
         self.markcalled()
 
 
+class Renderer:
+    def get_hints(self):
+        return {}
+
+
 class Message:
     def __init__(self, **kw):
         self.dict = kw
