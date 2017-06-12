@@ -239,6 +239,10 @@ class Messager(window.Window, window.PagingMixIn):
         if mrange:
             head, sill = self.renderer.display_range()
             m1, m2 = mrange
+            if m1 is m2 and not self.filter(m1):
+                # if it doesn't pass the filter it can't cause
+                # a redisplay
+                return
             self.log.debug('head=%s, sill=%s', repr(head), repr(sill))
             self.log.debug('m1=%s, m2=%s', repr(m1), repr(m2))
             self.log.debug('max(head, m1)=%s', repr(max(head, m1)))
