@@ -388,6 +388,16 @@ class Messager(window.Window, window.PagingMixIn):
         if old != self.cursor:
             self.set_mark(old)
 
+    @keymap.bind('[ppage]', 'Meta-v')
+    def pageup(self):
+        """Scroll up a windowful."""
+        super().pageup()
+        # trigger backfill if we're at the earliest extant message
+        try:
+            next(self.walk(self.cursor, False, None))
+        except StopIteration:
+            next(self.walk(self.cursor, False, float('-inf')))
+
     @keymap.bind('s', 'z')
     def send(self, recipient='', msg=None, name='send message'):
         """Start composing a message."""
