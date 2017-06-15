@@ -37,6 +37,7 @@ Backend for talking to `Zulip <https://zulip.org>`.
 import aiohttp
 import asyncio
 import pprint
+import re
 import time
 import urllib.parse
 
@@ -274,6 +275,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         to = comps[0].strip()
         subject = comps[1].strip() if len(comps) > 1 else ''
         type_ = 'private' if '@' in to else 'stream'
+        body = re.sub('(?<!\n)\n(?!\n)', ' ', body)
         result = yield from self._post(
             'messages', type=type_, content=body, subject=subject, to=to)
         self.log.debug('send: %s', pprint.pformat(result))
