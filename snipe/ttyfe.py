@@ -830,6 +830,13 @@ class TTYFrontend:
             self.switch_window(1)
         self.redisplay({'window': new})
 
+    def delete_window_window(self, w):
+        for i, fe in enumerate(self.windows):
+            if fe.window is w:
+                return self.delete_window(i)
+        else:
+            pass  # walk the whence tree and clean up
+
     def delete_window(self, n):
         if len(self.windows) == 2:
             raise Exception('attempt to delete only window')

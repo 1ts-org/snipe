@@ -317,12 +317,14 @@ class Window:
 
         f = asyncio.Future()
 
+        w = None  # for the following to capture
+
         def done_callback(result):
             if validate is not None:
                 if not validate(result):
                     raise util.SnipeException('unspecified validation error')
             f.set_result(result)
-            self.fe.popdown_window()  # XXX might not always be the right one
+            self.fe.delete_window_window(w)
 
         def destroy_callback():
             if not f.done():
