@@ -846,49 +846,101 @@ class TTYFrontend:
 
         victim = self.windows[n]
 
-        if self.popstack and self.popstack[-1].window is victim.window:
-            self.popdown_window()
-            return
-
-        potentials = [
-            (i + n + (1 if n == 0 else -1)) % len(self.windows)
-            for i in range(len(self.windows))]
-        potentials = [
-            i for i in potentials
-            if not self.windows[i].window.noresize and i != n]
-
-        if not potentials:
-            raise Exception('attempt to delete sole resizeable window')
-
-        beneficiary = potentials[0]
-
         victim.window.destroy()
 
-        if n < beneficiary:
-            tomove = range(n + 1, beneficiary)
-            moveby = -victim.height
-            bmoveby = -victim.height
-        elif n > beneficiary:
-            tomove = range(n - 1, beneficiary, -1)
-            moveby = victim.height
-            bmoveby = 0
+        popdown = False
+        if self.popstack and self.popstack[-1].window is victim.window:
+            self.popstack.pop()
+            popdown = True
 
-        for i in tomove:
-            u = self.windows[i]
-            self.windows[i] = u.resize(u.y + moveby, u.height)
+        if popdown:
+            del self.windows[n]
 
-        u = self.windows[beneficiary]
-        self.windows[beneficiary] = u.resize(
-            u.y + bmoveby, u.height + victim.height)
+            # the now last window gets the real estate
+            adj = self.windows[-1]
+            #except
+            if self.popstack:
+                # there's something that replaces this window
+                new = self.popstack[-1]
+                dheight = new.height - victim.height
+                if adj.window.noresize:
+                    self.window.append(self.renderer(
+                        victim.y, victim.height, new.window, hints=new.hints,
+                        whence=new.whence))
+                else:
+                    self.windows[-1:] = [
+                        adj.resize(adj.y, adj.height - dheight),
+                        self.renderer(
+                            victim.y - dheight, new.height, new.window,
+                            hints=new.hints, whence=new.whence),
+                        ]
+            else:
+                # just make it go away
+                if adj.window.noactive:
+                    self.windows.append(
+                        self.renderer(
+                            victim.y, victim.height, self.default_window()))
+                else:
+                    self.windows[-1] = adj.resize(
+                        adj.y, adj.height + victim.height)
 
-        del self.windows[n]
+            # fix focus
+            for i, r in enumerate(self.windows):
+                if r.window is victim.whence.window:
+                    focus = i
+                    break
+            else:
+                focus = self.input
+                if focus >= len(self.windows):
+                    focus = len(self.window) - 1
+            if focus != self.input:
+                self.set_active(focus)
+                self.windows[self.output].focus()
 
-        if n <= self.input:
-            self.input -= 1
-        if n <= self.output:
-            self.output -= 1
-        if not self.windows[self.output].window.focus():
-            self.switch_window(1)
+        if not popdown:
+            # figure out who gets the real estate
+            potentials = [
+                (i + n + (1 if n == 0 else -1)) % len(self.windows)
+                for i in range(len(self.windows))]
+            potentials = [
+                i for i in potentials
+                if not self.windows[i].window.noresize and i != n]
+
+            if not potentials:
+                raise Exception('attempt to delete sole resizeable window')
+
+            beneficiary = potentials[0]
+
+            if n < beneficiary:
+                tomove = range(n + 1, beneficiary)
+                moveby = -victim.height
+                bmoveby = -victim.height
+            elif n > beneficiary:
+                tomove = range(n - 1, beneficiary, -1)
+                moveby = victim.height
+                bmoveby = 0
+
+            for i in tomove:
+                u = self.windows[i]
+                self.windows[i] = u.resize(u.y + moveby, u.height)
+
+            # perform the recise
+            u = self.windows[beneficiary]
+            self.windows[beneficiary] = u.resize(
+                u.y + bmoveby, u.height + victim.height)
+
+            # actually delete the window
+            del self.windows[n]
+
+            # fix focus
+            if n <= self.input:
+                self.input -= 1
+            if n <= self.output:
+                self.output -= 1
+            if not self.windows[self.output].window.focus():
+                self.switch_window(1)
+
+        self.redisplay()  # XXX force redisplay?
 
     def delete_current_window(self):
         self.delete_window(self.output)
@@ -934,50 +986,6 @@ class TTYFrontend:
 
         self.set_active(len(self.windows) - 1)
         self.windows[self.output].focus()
-
-    def popdown_window(self):
-        victim = self.popstack.pop()
-        try:
-            victim.window.destroy()
-        except:
-            self.log.exception('attempting window destroy callback')
-        victim = self.windows.pop()
-        adj = self.windows[-1]
-        if self.popstack:
-            new = self.popstack[-1]
-            dheight = new.height - victim.height
-            if adj.window.noresize:
-                self.window.append(self.renderer(
-                    victim.y, victim.height, new.window, hints=new.hints,
-                    whence=new.whence))
-            else:
-                self.windows[-1:] = [
-                    adj.resize(adj.y, adj.height - dheight),
-                    self.renderer(
-                        victim.y - dheight, new.height, new.window,
-                        hints=new.hints, whence=new.whence),
-                    ]
-        else:
-            if adj.window.noactive:
-                self.windows.append(
-                    self.renderer(
-                        victim.y, victim.height, self.default_window()))
-            else:
-                self.windows[-1] = adj.resize(
-                    adj.y, adj.height + victim.height)
-
-        for i, r in enumerate(self.windows):
-            if r.window is victim.whence.window:
-                focus = i
-                break
-        else:
-            focus = self.input
-            if focus >= len(self.windows):
-                focus = len(self.window) - 1
-        if focus != self.input:
-            self.set_active(focus)
-            self.windows[self.output].focus()
-        self.redisplay()  # XXX force redisplay?
 
     def switch_window(self, adj):
         current = self.output
