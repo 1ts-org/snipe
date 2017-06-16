@@ -534,7 +534,8 @@ class RedisplayInProgress(Exception):
 
 Popped = collections.namedtuple(
     'Popped', ['window', 'height', 'whence', 'hints'])
-Whence = collections.namedtuple('Whence', ['window'])
+Whence = collections.namedtuple(
+    'Whence', ['window', 'stole', 'stole_from', 'entire'])
 
 
 class TTYFrontend:
@@ -908,7 +909,8 @@ class TTYFrontend:
             # update the height
             self.popstack[-1] = r.popped()
             self.windows[-1] = self.renderer(
-                r.y, r.height, new, whence=Whence(whence))
+                r.y, r.height, new,
+                whence=Whence(whence, r.height, r.window, True))
         else:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
@@ -916,7 +918,8 @@ class TTYFrontend:
             self.windows[-1] = r.resize(r.y, r.height - height)
             # add; should be in the rotation right active active
             self.windows.append(self.renderer(
-                r.y + r.height - height, height, new, whence=Whence(whence)))
+                r.y + r.height - height, height, new,
+                whence=Whence(whence, height, r.window, False)))
 
         self.popstack.append(self.windows[-1].popped())
 
