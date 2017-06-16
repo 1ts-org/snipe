@@ -724,8 +724,12 @@ class StatusLine(Window):
 
     def view(self, origin=0, direction='forward'):
         # this is a "friend" class to the stuff in ttyfe for now
-        active = self.fe.windows[self.fe.output].window
+        try:
+            active = self.fe.windows[self.fe.output].window
+        except IndexError:
+            active = self
         left, right = active.modeline()
+
         renderer = self.renderer
 
         if not left:

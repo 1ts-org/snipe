@@ -750,6 +750,8 @@ class TTYFrontend:
             if k == curses.KEY_RESIZE:
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
             elif self.input is not None:
+                if self.input >= len(self.windows):
+                    self.input = 1
                 # XXX
                 state = (list(self.windows), self.input, self.output)
                 try:
