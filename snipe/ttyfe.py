@@ -992,7 +992,7 @@ class TTYFrontend:
             return False
 
         self.windows[:2] = [
-            self.renderer(0, height, statusr.window),
+            statusr.resize(0, height),
             datar.resize(height, datar.height - delta),
             ]
 
