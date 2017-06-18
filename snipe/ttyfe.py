@@ -89,9 +89,6 @@ class TTYRenderer:
             self.ui, y, h, self.window, hints=self.get_hints(),
             whence=self.whence)
 
-    def popped(self):
-        return Popped(self.window, self.height, self.whence, self.get_hints())
-
     def get_hints(self):
         return {'head': self.head, 'sill': self.sill}
 
@@ -532,10 +529,9 @@ class RedisplayInProgress(Exception):
     pass
 
 
-Popped = collections.namedtuple(
-    'Popped', ['window', 'height', 'whence', 'hints'])
 Whence = collections.namedtuple(
-    'Whence', ['window', 'stole', 'stole_from', 'entire'])
+    'Whence', [
+        'window', 'stole_lines', 'stole_from', 'stole_entire', 'stole_hints'])
 
 
 class TTYFrontend:
@@ -549,7 +545,6 @@ class TTYFrontend:
             self.__class__.__name__,
             id(self),
             ))
-        self.popstack = []
         self.full_redisplay = False
         self.in_redisplay = False
 
@@ -713,13 +708,11 @@ class TTYFrontend:
         if remaining:
             new[-1][2] += remaining
 
-        popstack = []
-        for pop in self.popstack:
-            if pop.window not in orphans:
-                popstack.append(pop)
-            else:
-                popstack.window.destroy()
-        self.popstack = popstack
+        for victim in orphans:
+            # it sounds terrible when I put it that way
+            if victim.whence is not None:
+                _destroy_whence(victim.whence)
+                victim.window.destroy()
 
         self.set_active(None)
         self.windows = []
@@ -848,71 +841,44 @@ class TTYFrontend:
 
         victim.window.destroy()
 
-        popdown = False
-        if self.popstack and self.popstack[-1].window is victim.window:
-            self.popstack.pop()
-            popdown = True
+        del self.windows[n]
 
-        if popdown:
-            del self.windows[n]
-
-            # the now last window gets the real estate
-            adj = self.windows[-1]
-            #except
-            if self.popstack:
-                # there's something that replaces this window
-                new = self.popstack[-1]
-                dheight = new.height - victim.height
-                if adj.window.noresize:
-                    self.window.append(self.renderer(
-                        victim.y, victim.height, new.window, hints=new.hints,
-                        whence=new.whence))
-                else:
-                    self.windows[-1:] = [
-                        adj.resize(adj.y, adj.height - dheight),
-                        self.renderer(
-                            victim.y - dheight, new.height, new.window,
-                            hints=new.hints, whence=new.whence),
-                        ]
+        if victim.whence and victim.whence.stole_entire:
+            # the now next window up gets the real estate
+            adj = self.windows[n - 1]
+            # there's something that replaces this window
+            dheight = victim.whence.stole_lines - victim.height
+            if adj.window.noresize:
+                self.window.append(self.renderer(
+                    victim.y, victim.height, victim.whence.stole_from,
+                    hints=victim.whence.stole_hints,
+                    whence=victim.whence.stole_entire))
             else:
-                # just make it go away
-                if adj.window.noactive:
-                    self.windows.append(
-                        self.renderer(
-                            victim.y, victim.height, self.default_window()))
-                else:
-                    self.windows[-1] = adj.resize(
-                        adj.y, adj.height + victim.height)
-
-            # fix focus
-            for i, r in enumerate(self.windows):
-                if r.window is victim.whence.window:
-                    focus = i
-                    break
-            else:
-                focus = self.input
-                if focus >= len(self.windows):
-                    focus = len(self.window) - 1
-            if focus != self.input:
-                self.set_active(focus)
-                self.windows[self.output].focus()
-
-        if not popdown:
+                self.windows[-1:] = [
+                    adj.resize(adj.y, adj.height - dheight),
+                    self.renderer(
+                        victim.y - dheight,
+                        victim.whence.stole_lines,
+                        victim.whence.stole_from,
+                        hints=victim.whence.stole_hints,
+                        whence=victim.whence.stole_entire),
+                    ]
+        else:
             # figure out who gets the real estate
             potentials = [
                 (i + n + (1 if n == 0 else -1)) % len(self.windows)
                 for i in range(len(self.windows))]
             potentials = [
                 i for i in potentials
-                if not self.windows[i].window.noresize and i != n]
+                if not self.windows[i].window.noresize]
 
             if not potentials:
                 raise Exception('attempt to delete sole resizeable window')
 
             beneficiary = potentials[0]
 
-            if n < beneficiary:
-                tomove = range(n + 1, beneficiary)
+            if n <= beneficiary:
+                tomove = range(n, beneficiary)
                 moveby = -victim.height
                 bmoveby = -victim.height
             elif n > beneficiary:
@@ -924,65 +890,53 @@ class TTYFrontend:
                 u = self.windows[i]
                 self.windows[i] = u.resize(u.y + moveby, u.height)
 
-            # perform the recise
+            # perform the resize
             u = self.windows[beneficiary]
             self.windows[beneficiary] = u.resize(
                 u.y + bmoveby, u.height + victim.height)
 
-            # actually delete the window
-            del self.windows[n]
-
-            # fix focus
+        # fix focus
+        wmap = {self.windows[i].window: i for i in range(len(self.windows))}
+        if victim.whence is not None and victim.whence.window in wmap:
+            self.set_active(wmap[victim.whence.window])
+        else:
             if n <= self.input:
                 self.input -= 1
             if n <= self.output:
                 self.output -= 1
-            if not self.windows[self.output].window.focus():
-                self.switch_window(1)
+        if not self.windows[self.output].window.focus():
+            self.switch_window(1)
 
-        self.redisplay()  # XXX force redisplay?
+        self.full_redisplay = True
 
     def delete_current_window(self):
         self.delete_window(self.output)
 
     def delete_other_windows(self):
-        # clear the popstack
-        if (self.popstack
-                and self.windows[self.input] == self.popstack[-1].window):
-            return
-        self.set_active(self.input)
-        for pop in self.popstack[:-1]:
-            pop.window.destroy()
-        del self.popstack[:-1]
         for n in range(len(self.windows) - 1, -1, -1):
             if (n != self.input
                     and self.windows[n].window != self.context.status):
+                if self.windows[n].whence is not None:
+                    _destroy_whence(self.windows[n].whence)
                 self.delete_window(n)
 
     def popup_window(self, new, height=1, whence=None):
         r = self.windows[-1]
 
-        if (r.height <= height and self.popstack
-                and r.window != self.popstack[-1].window):
-            self.popstack.append(r.popped())
-
-        if self.popstack and r.window == self.popstack[-1].window:
-            # update the height
-            self.popstack[-1] = r.popped()
+        if r.whence is not None:
             self.windows[-1] = self.renderer(
                 r.y, r.height, new,
-                whence=Whence(whence, r.height, r.window, True))
+                whence=Whence(
+                    whence, r.height, r.window, r.whence, r.get_hints()))
         else:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
             # shrink bottom window
             self.windows[-1] = r.resize(r.y, r.height - height)
-            # add; should be in the rotation right active active
+            # add; should be in the rotation right after active
             self.windows.append(self.renderer(
                 r.y + r.height - height, height, new,
-                whence=Whence(whence, height, r.window, False)))
-
-        self.popstack.append(self.windows[-1].popped())
+                whence=Whence(whence, height, r.window, None, None)))
 
         self.set_active(len(self.windows) - 1)
         self.windows[self.output].focus()
@@ -1060,3 +1014,10 @@ class Location:
                     break
                 delta += lines
             return Location(self.fe, cursor, max(0, lines + delta))
+
+
+# clear the ~popstack
+def _destroy_whence(whence):
+    whence.window.destroy()
+    if whence.stole_entire is not None:
+        _destroy_whence(whence.stole_entire)
