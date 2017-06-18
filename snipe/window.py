@@ -305,6 +305,7 @@ class Window:
             window=None,
             name='Prompt',
             validate=None,
+            near=False,
             **kw):
         """Pop a prompt window to read a string from the user.
 
@@ -348,7 +349,7 @@ class Window:
         wkw.update(kw)
 
         w = window(self.fe, **wkw)
-        self.fe.popup_window(w, height=height, whence=self)
+        self.fe.popup_window(w, height=height, whence=self, near=near)
         w.renderer.reframe(-1)
         self.fe.redisplay()
 
@@ -660,6 +661,7 @@ class Window:
                 target=self,
                 forward=forward,
                 start=self.make_mark(self.cursor),
+                near=True,
                 )
 
     def find(self, string, forward=True):

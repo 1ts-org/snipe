@@ -508,6 +508,20 @@ class Composer(Leaper):
             history.append(self.buf[start:end])
         super().destroy()
 
+    @keymap.bind('Control-S')
+    def roll_or_search_forward(self):
+        if self.cursor.point <= self.complete_end():
+            super().roll_forward()
+        else:
+            yield from self.search_forward()
+
+    @keymap.bind('Control-R')
+    def roll_or_search_backward(self):
+        if self.cursor.point <= self.complete_end():
+            super().roll_backward()
+        else:
+            yield from self.search_backward()
+
 
 class Search(LongPrompt):
     cheatsheet = [

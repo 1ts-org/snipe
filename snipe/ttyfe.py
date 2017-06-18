@@ -837,11 +837,12 @@ class TTYFrontend:
         if self.windows[n].window == self.context.status:
             raise Exception('attempt to delete status line')
 
+        wmap = {self.windows[i].window: i for i in range(len(self.windows))}
         victim = self.windows[n]
 
         victim.window.destroy()
 
-        if victim.whence and victim.whence.stole_entire:
+        if victim.whence is not None and victim.whence.stole_entire:
             # there's something that replaces this window
             self.windows[n] = self.renderer(
                 victim.y,
@@ -854,17 +855,20 @@ class TTYFrontend:
             del self.windows[n]
 
             # figure out who gets the real estate
-            potentials = [
-                (i + n + (1 if n == 0 else -1)) % len(self.windows)
-                for i in range(len(self.windows))]
-            potentials = [
-                i for i in potentials
-                if not self.windows[i].window.noresize]
+            if victim.whence is not None and victim.whence.stole_from in wmap:
+                beneficiary = wmap[victim.whence.stole_from]
+            else:
+                potentials = [
+                    (i + n + (1 if n == 0 else -1)) % len(self.windows)
+                    for i in range(len(self.windows))]
+                potentials = [
+                    i for i in potentials
+                    if not self.windows[i].window.noresize]
 
-            if not potentials:
-                raise Exception('attempt to delete sole resizeable window')
+                if not potentials:
+                    raise Exception('attempt to delete sole resizeable window')
 
-            beneficiary = potentials[0]
+                beneficiary = potentials[0]
 
             if n <= beneficiary:
                 tomove = range(n, beneficiary)
@@ -885,7 +889,6 @@ class TTYFrontend:
                 u.y + bmoveby, u.height + victim.height)
 
         # fix focus
-        wmap = {self.windows[i].window: i for i in range(len(self.windows))}
         if victim.whence is not None and victim.whence.window in wmap:
             self.set_active(wmap[victim.whence.window])
         else:
@@ -909,11 +912,15 @@ class TTYFrontend:
                     _destroy_whence(self.windows[n].whence)
                 self.delete_window(n)
 
-    def popup_window(self, new, height=1, whence=None):
-        r = self.windows[-1]
+    def popup_window(self, new, height=1, whence=None, near=False):
+        if near:
+            which = self.output
+        else:
+            which = len(self.windows) - 1
+        r = self.windows[which]
 
-        if r.whence is not None:
-            self.windows[-1] = self.renderer(
+        if r.whence is not None and not near:
+            self.windows[which] = self.renderer(
                 r.y, r.height, new,
                 whence=Whence(
                     whence, r.height, r.window, r.whence, r.get_hints()))
@@ -921,13 +928,15 @@ class TTYFrontend:
             # don't eat the entire bottom window
             height = min(height, r.height - 1)
             # shrink bottom window
-            self.windows[-1] = r.resize(r.y, r.height - height)
-            # add; should be in the rotation right after active
-            self.windows.append(self.renderer(
-                r.y + r.height - height, height, new,
-                whence=Whence(whence, height, r.window, None, None)))
+            self.windows[which:which + 1] = [
+                r.resize(r.y, r.height - height),
+                self.renderer(
+                    r.y + r.height - height, height, new,
+                    whence=Whence(whence, height, r.window, None, None)),
+                ]
+            which += 1
 
-        self.set_active(len(self.windows) - 1)
+        self.set_active(which)
         self.windows[self.output].focus()
 
     def switch_window(self, adj):
