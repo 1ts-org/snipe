@@ -841,29 +841,18 @@ class TTYFrontend:
 
         victim.window.destroy()
 
-        del self.windows[n]
-
         if victim.whence and victim.whence.stole_entire:
-            # the now next window up gets the real estate
-            adj = self.windows[n - 1]
             # there's something that replaces this window
-            dheight = victim.whence.stole_lines - victim.height
-            if adj.window.noresize:
-                self.window.append(self.renderer(
-                    victim.y, victim.height, victim.whence.stole_from,
-                    hints=victim.whence.stole_hints,
-                    whence=victim.whence.stole_entire))
-            else:
-                self.windows[-1:] = [
-                    adj.resize(adj.y, adj.height - dheight),
-                    self.renderer(
-                        victim.y - dheight,
-                        victim.whence.stole_lines,
-                        victim.whence.stole_from,
-                        hints=victim.whence.stole_hints,
-                        whence=victim.whence.stole_entire),
-                    ]
+            self.windows[n] = self.renderer(
+                victim.y,
+                victim.whence.stole_lines,
+                victim.whence.stole_from,
+                hints=victim.whence.stole_hints,
+                whence=victim.whence.stole_entire,
+                )
         else:
+            del self.windows[n]
+
             # figure out who gets the real estate
             potentials = [
                 (i + n + (1 if n == 0 else -1)) % len(self.windows)
