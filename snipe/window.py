@@ -644,7 +644,7 @@ class Window:
 
     @keymap.bind('Control-R')
     def search_backward(self, string=None):
-        """Search backwards.."""
+        """Search backwards."""
         yield from self.search(string, forward=False)
 
     @asyncio.coroutine
