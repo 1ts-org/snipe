@@ -667,9 +667,9 @@ class Viewer(window.Window, window.PagingMixIn):
             return
         if forward:
             span = range(
-                self.cursor.point + 1, len(self.buf) - len(string))
+                self.cursor.point + 1, len(self.buf) - len(string) + 1)
         else:
-            span = range(self.cursor.point - 1, 0, -1)
+            span = range(self.cursor.point - 1, -1, -1)
         # XXX FTR this is algorithmically laughable.  It also turns out to be
         # prefectly fine on the machines and buffers we're search on and in at
         # the moment, but replace it with something less embarrassing anyway.

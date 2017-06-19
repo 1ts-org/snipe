@@ -310,6 +310,17 @@ class TestEditor(unittest.TestCase):
              ],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
+    def test_find(self):
+        w = snipe.editor.Editor(None)
+        w.insert('abc.def.ghi')
+        w.cursor.point = 0
+        w.find('def', True)
+        self.assertEqual(w.cursor.point, 4)
+        w.find('ghi', True)
+        self.assertEqual(w.cursor.point, 8)
+        w.find('abc', False)
+        self.assertEqual(w.cursor.point, 0)
+
 
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
