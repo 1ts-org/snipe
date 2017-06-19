@@ -663,6 +663,8 @@ class Window:
                 start=self.make_mark(self.cursor),
                 near=True,
                 )
+        else:
+            self.find(string, forward)
 
     def find(self, string, forward=True):
         raise NotImplementedError

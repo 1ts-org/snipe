@@ -509,18 +509,18 @@ class Composer(Leaper):
         super().destroy()
 
     @keymap.bind('Control-S')
-    def roll_or_search_forward(self):
+    def roll_or_search_forward(self, word=None):
         if self.cursor.point <= self.complete_end():
             super().roll_forward()
         else:
-            yield from self.search_forward()
+            yield from self.search_forward(word)
 
     @keymap.bind('Control-R')
-    def roll_or_search_backward(self):
+    def roll_or_search_backward(self, word=None):
         if self.cursor.point <= self.complete_end():
             super().roll_backward()
         else:
-            yield from self.search_backward()
+            yield from self.search_backward(word)
 
 
 class Search(LongPrompt):

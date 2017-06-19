@@ -518,6 +518,60 @@ class TestPrompt(unittest.TestCase):
              ],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
+        w.destroy()
+        del w
+
+        w = prompt.Composer(
+            fe,
+            completer=interactive.Completer([
+                'mock; foobar', 'mock; foobaz', 'mock; fooquux']),
+            callback=cb)
+
+        self.assertEqual(
+            [(0, [
+                (('bold',), '> '),
+                (('cursor', 'visible'), ''),
+                ((), ''),
+                ((), ' {'),
+                (('bold',), 'mock; foobar'),
+                ((), '|mock; foobaz|mock; fooquux}\n'),
+                ])],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        do(w.roll_or_search_forward())
+
+        self.assertEqual(
+            [(0, [
+                (('bold',), '> '),
+                (('cursor', 'visible'), ''),
+                ((), ''),
+                ((), ' {'),
+                (('bold',), 'mock; foobaz'),
+                ((), '|mock; fooquux|mock; foobar}\n'),
+                ])],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        do(w.roll_or_search_backward('bar'))
+
+        self.assertEqual(
+            [(0, [
+                (('bold',), '> '),
+                (('cursor', 'visible'), ''),
+                ((), ''),
+                ((), ' {'),
+                (('bold',), 'mock; foobar'),
+                ((), '|mock; foobaz|mock; fooquux}\n'),
+                ])],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        w.insert('foobar')
+        w.insert_newline()
+        w.insert('abc\ndef\nghi\n')
+        do(w.roll_or_search_backward('abc'))
+        self.assertEqual(w.buf[w.cursor.point:w.cursor.point + 3], 'abc')
+        do(w.roll_or_search_forward('ghi'))
+        self.assertEqual(w.buf[w.cursor.point:w.cursor.point + 3], 'ghi')
+
     def test_search(self):
         w = prompt.Search(
             mocks.FE(),
@@ -527,10 +581,9 @@ class TestPrompt(unittest.TestCase):
             target=mocks.Window([]))
 
         self.assertFalse(w.forward)
-        try:  # coroutine
-            w.search(None, True).send(None)
-        except StopIteration:
-            pass
+
+        do(w.search(None, True))
+
         self.assertTrue(w.forward)
 
         w.setprompt()
@@ -555,10 +608,7 @@ class TestPrompt(unittest.TestCase):
 
         # sneak around w.replace
         w.buf.replace(w.divider, len(w.buf), 'bar', False)
-        try:  # coroutine
-            w.search(None, True).send(None)
-        except StopIteration:
-            pass
+        do(w.search(None, True))
         self.assertEqual(w.target.find_string, 'bar')
 
         w.delete_window()
@@ -598,24 +648,16 @@ class TestPrompt(unittest.TestCase):
             )
 
         w.insert('foo')
-        try:
-            w.search_forward().send(None)
-        except StopIteration:
-            pass
+
+        do(w.search_forward())
 
         self.assertEqual(x.cursor.point, 3)
 
-        try:
-            w.search_backward().send(None)
-        except StopIteration:
-            pass
+        do(w.search_backward())
 
         self.assertEqual(w.buf[:7], 'failing')
 
-        try:
-            w.search_backward().send(None)
-        except StopIteration:
-            pass
+        do(w.search_backward())
 
         self.assertEqual(x.cursor.point, 9)
 
@@ -658,12 +700,16 @@ class TestPrompt(unittest.TestCase):
             )
 
         w.insert('bar')
-        try:
-            w.search_forward().send(None)
-        except StopIteration:
-            pass
+        do(w.search_forward())
 
         self.assertEqual(x.cursor.point, 6)
+
+
+def do(x):
+    try:
+        x.send(None)
+    except StopIteration:
+        pass
 
 
 if __name__ == '__main__':
