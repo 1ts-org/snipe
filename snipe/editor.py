@@ -325,16 +325,20 @@ class Viewer(window.Window, window.PagingMixIn):
             if ((p <= self.cursor.point < p + l)
                     or (s[-1:] != '\n'
                         and self.cursor.point == p + l == len(self.buf))):
-                yield (
-                    self.buf.mark(p),
-                    [
-                        ((), s[:self.cursor.point - p]),
-                        (('cursor', 'visible'), ''),
-                        ((), s[self.cursor.point - p:]),
-                        ],
-                    )
+                chunk = [
+                    ((), s[:self.cursor.point - p]),
+                    (('cursor', 'visible'), ''),
+                    ((), s[self.cursor.point - p:]),
+                    ]
             else:
-                yield self.buf.mark(p), [((), s)]
+                chunk = [((), s)]
+
+            if self.search_term is not None:
+                chunk = util.chunk_mark_re(
+                    chunk, re.escape(self.search_term), util.mark_reverse)
+
+            yield self.buf.mark(p), chunk
+
             if direction == 'forward':
                 if p == len(self.buf) or s[-1:] != '\n':
                     break
