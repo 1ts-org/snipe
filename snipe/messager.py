@@ -174,27 +174,10 @@ class Messager(window.Window, window.PagingMixIn):
 
             try:
                 if self.search_term is not None:
-                    spans = [m.span() for m in re.finditer(
-                        re.escape(
-                            self.search_term), self.flatten_chunk(chunk))]
-                    new = []
-                    prev = 0
-                    # make start and end relative
-                    for i, (start, end) in enumerate(spans):
-                        spans[i] = (start - prev, end - start)
-                        prev = end
-
-                    for start, end in spans:
-                        before, chunk = util.chunkslice(chunk, start)
-                        new.extend(before)
-                        within, chunk = util.chunkslice(chunk, end)
-                        new.extend([
-                            (tuple(set(tags) ^ {'reverse'}), s)
-                            for (tags, s) in within])
-                    new.extend(chunk)
-                    chunk = new
+                    chunk = util.chunk_mark_re(
+                        chunk, re.escape(self.search_term), util.mark_reverse)
             except:
-                chunk = [
+                chunk = chunk + [
                     (('bold',), repr(x) + '\n'),
                     ((), traceback.format_exc()),
                     ((), pprint.pformat(x.data) + '\n'),
@@ -208,18 +191,11 @@ class Messager(window.Window, window.PagingMixIn):
 
             yield x, chunk
 
-            prev = x
-
-    @staticmethod
-    def flatten_chunk(chunk):
-        return ''.join(x[1] for x in chunk)
-
     @staticmethod
     def flatten(msg):
-        return Messager.flatten_chunk(msg.display({}))
+        return util.flatten_chunk(msg.display({}))
 
     def find(self, string, forward):
-
         for msg in self.walk(self.cursor, forward, search=True):
             if msg is self.cursor:
                 continue

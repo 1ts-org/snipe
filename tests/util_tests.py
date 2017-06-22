@@ -95,5 +95,34 @@ class TestChunkslice(unittest.TestCase):
             ([], [((), ''), ((), 'abc'), ((), 'def')]))
 
 
+class TestChunkMarkRe(unittest.TestCase):
+    def test_chunk_mark_re(self):
+        self.assertEqual(
+            snipe.util.chunk_mark_re([
+                ((), 'xxx'),
+                ((), 'abc'),
+                ((), 'xxxab'),
+                ((), ''),
+                ((), 'cxxx'),
+                ((), 'abcxxx'),
+                ((), 'xxxabc'),
+                ],
+                'abc',
+                snipe.util.mark_reverse,
+            ), [
+                ((), 'xxx'),
+                (('reverse',), 'abc'),
+                ((), 'xxx'),
+                (('reverse',), ('ab'),),
+                (('reverse',), ''),
+                (('reverse',), 'c'),
+                ((), 'xxx'),
+                (('reverse',), 'abc'),
+                ((), 'xxx'),
+                ((), 'xxx'),
+                (('reverse',), 'abc'),
+            ])
+
+
 if __name__ == '__main__':
     unittest.main()

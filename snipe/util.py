@@ -35,17 +35,18 @@ Assorted utility functions.
 '''
 
 
-import ctypes
-import sys
-import os
-import logging
 import asyncio
-import functools
 import contextlib
-import time
+import ctypes
 import datetime
-import math
 import json
+import functools
+import logging
+import math
+import os
+import re
+import sys
+import time
 import unicodedata
 import unittest.mock as mock
 import urllib.parse
@@ -498,6 +499,35 @@ def chunkslice(chunk, cut):
     right.extend(chunk[i + 1:])
 
     return left, right
+
+
+def chunk_mark_re(chunk, regexp, mark):
+    """call mark() on portions of chunk that match regexp"""
+    spans = [m.span() for m in re.finditer(regexp, flatten_chunk(chunk))]
+    new = []
+    prev = 0
+
+    # make start and end relative
+    for i, (start, end) in enumerate(spans):
+        spans[i] = (start - prev, end - start)
+        prev = end
+
+    for start, end in spans:
+        before, chunk = chunkslice(chunk, start)
+        new.extend(before)
+        within, chunk = chunkslice(chunk, end)
+        new.extend([(mark(tags), s) for (tags, s) in within])
+    new.extend(chunk)
+
+    return new
+
+
+def mark_reverse(tags):
+    return tuple(set(tags) ^ {'reverse'})
+
+
+def flatten_chunk(chunk):
+    return ''.join(x[1] for x in chunk)
 
 
 def _setup_wcwidth():
