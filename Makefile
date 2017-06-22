@@ -1,5 +1,5 @@
 NOSE=nosetests3
-NOSETESTS=$(NOSE) -w tests
+NOSETESTS=$(NOSE) -v -w tests
 
 all check:
 	flake8 snipe tests
