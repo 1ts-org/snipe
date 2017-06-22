@@ -161,7 +161,8 @@ class Window:
 
         self.context.clear()
         try:
-            self.log.debug('got key %s', repr(self.active_keymap.unkey(k)))
+            self.log.debug(
+                'got key %s = %s', repr(self.active_keymap.unkey(k)), repr(k))
 
             if self.intermediate_action is not None:
                 self.intermediate_action(keystroke=k)

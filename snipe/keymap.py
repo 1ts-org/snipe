@@ -54,12 +54,14 @@ class Keymap(collections.defaultdict):
         super().__init__()
         self.update(d)
         self.default = None
+        self.controldefault = False
         self['Control-G'] = noop
 
     def __missing__(self, key):
         if (self.default is not None
                 and isinstance(key, str)
-                and ord(key) > ord(' ')):  # not a number, not a control char
+                and (ord(key) > ord(' ')  # not a number, not a control char
+                     or self.controldefault)):
             return self.default
         raise KeyError
 

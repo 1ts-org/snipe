@@ -1008,3 +1008,11 @@ class Editor(Viewer):
         """Toggle the readonly flag on the buffer."""
 
         self._writable = not self._writable
+
+    @keymap.bind('Control-Q')
+    def quote_insert(self):
+        """Insert the next non-function key press into the buffer."""
+        kmap = keymap.Keymap()
+        kmap.default = self.self_insert
+        kmap.controldefault = True
+        self.active_keymap = kmap
