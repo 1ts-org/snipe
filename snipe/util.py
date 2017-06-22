@@ -481,7 +481,7 @@ def val_oneof(vals):
     return lambda x: x in vals
 
 
-def chunkslice(chunk, cut):
+def chunk_slice(chunk, cut):
     left = []
     right = []
     off = 0
@@ -513,9 +513,9 @@ def chunk_mark_re(chunk, regexp, mark):
         prev = end
 
     for start, end in spans:
-        before, chunk = chunkslice(chunk, start)
+        before, chunk = chunk_slice(chunk, start)
         new.extend(before)
-        within, chunk = chunkslice(chunk, end)
+        within, chunk = chunk_slice(chunk, end)
         new.extend([(mark(tags), s) for (tags, s) in within])
     new.extend(chunk)
 

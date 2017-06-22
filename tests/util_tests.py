@@ -64,34 +64,34 @@ class TestChunkslice(unittest.TestCase):
     def testChunkslice(self):
         l = [((), 'abc'), ((), 'def'), ((), 'ghi')]
         self.assertEqual(
-            snipe.util.chunkslice(l, 0),
+            snipe.util.chunk_slice(l, 0),
             ([], l))
         self.assertEqual(
-            snipe.util.chunkslice(l, 1),
+            snipe.util.chunk_slice(l, 1),
             ([((), 'a')], [((), 'bc'), ((), 'def'), ((), 'ghi')]))
         self.assertEqual(
-            snipe.util.chunkslice(l, 3),
+            snipe.util.chunk_slice(l, 3),
             ([((), 'abc')], [((), 'def'), ((), 'ghi')]))
         self.assertEqual(
-            snipe.util.chunkslice(l, 4),
+            snipe.util.chunk_slice(l, 4),
             ([((), 'abc'), ((), 'd')], [((), 'ef'), ((), 'ghi')]))
         self.assertEqual(
-            snipe.util.chunkslice(l, 6),
+            snipe.util.chunk_slice(l, 6),
             ([((), 'abc'), ((), 'def')], [((), 'ghi')]))
         self.assertEqual(
-            snipe.util.chunkslice(l, 7),
+            snipe.util.chunk_slice(l, 7),
             ([((), 'abc'), ((), 'def'), ((), 'g')], [((), 'hi')]))
         self.assertEqual(
-            snipe.util.chunkslice(l, 9),
+            snipe.util.chunk_slice(l, 9),
             (l, []))
         self.assertEqual(
-            snipe.util.chunkslice([((), 'abc'), ((), ''), ((), 'def')], 3),
+            snipe.util.chunk_slice([((), 'abc'), ((), ''), ((), 'def')], 3),
             ([((), 'abc')], [((), ''), ((), 'def')]))
         self.assertEqual(
-            snipe.util.chunkslice([((), ''), ((), 'abc'), ((), 'def')], 3),
+            snipe.util.chunk_slice([((), ''), ((), 'abc'), ((), 'def')], 3),
             ([((), ''), ((), 'abc')], [((), 'def')]))
         self.assertEqual(
-            snipe.util.chunkslice([((), ''), ((), 'abc'), ((), 'def')], 0),
+            snipe.util.chunk_slice([((), ''), ((), 'abc'), ((), 'def')], 0),
             ([], [((), ''), ((), 'abc'), ((), 'def')]))
 
 
