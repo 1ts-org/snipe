@@ -240,7 +240,6 @@ class TestEditor(unittest.TestCase):
                     for i in range(howmany):
                         a.insert(pos, char)
             self.assertEqual(a.tounicode(), str(g.buf))
-            print(str(g.buf))
 
     def test_character_at_point(self):
         # really testing textrange
