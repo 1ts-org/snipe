@@ -321,17 +321,17 @@ class Viewer(window.Window, window.PagingMixIn):
         while True:
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
+
+            chunk = [((), s)]
+
             l = len(s)
             if ((p <= self.cursor.point < p + l)
                     or (s[-1:] != '\n'
                         and self.cursor.point == p + l == len(self.buf))):
-                chunk = [
-                    ((), s[:self.cursor.point - p]),
-                    (('cursor', 'visible'), ''),
-                    ((), s[self.cursor.point - p:]),
-                    ]
-            else:
-                chunk = [((), s)]
+                halves = util.chunk_slice(chunk, self.cursor.point - p)
+                # preserve the edge-case behavior of the previous iteration
+                halves = [x if x != [] else [((), '')] for x in halves]
+                chunk = halves[0] + [(('cursor', 'visible'), '')] + halves[1]
 
             if self.search_term is not None:
                 chunk = util.chunk_mark_re(
