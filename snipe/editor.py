@@ -328,10 +328,8 @@ class Viewer(window.Window, window.PagingMixIn):
             if ((p <= self.cursor.point < p + l)
                     or (s[-1:] != '\n'
                         and self.cursor.point == p + l == len(self.buf))):
-                halves = util.chunk_slice(chunk, self.cursor.point - p)
-                # preserve the edge-case behavior of the previous iteration
-                halves = [x if x != [] else [((), '')] for x in halves]
-                chunk = halves[0] + [(('cursor', 'visible'), '')] + halves[1]
+                left, right = util.chunk_slice(chunk, self.cursor.point - p)
+                chunk = left + [(('cursor', 'visible'), '')] + right
 
             if self.search_term is not None:
                 chunk = util.chunk_mark_re(

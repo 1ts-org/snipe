@@ -118,7 +118,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), ': '),
                 ((), 'foo'),
                 (('cursor', 'visible'), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
         w.inverse_input = True
         self.assertEqual(
@@ -126,7 +126,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), ': '),
                 (('reverse',), 'foo'),
                 (('cursor', 'visible', 'reverse'), ''),
-                (('reverse',), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
         w.inverse_input = False
@@ -138,7 +138,7 @@ class TestPrompt(unittest.TestCase):
              (6, [
                 ((), 'even more stuff'),
                 (('cursor', 'visible'), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
         x = prompt.LongPrompt(None, prompt='multiline\nprompt: ')
@@ -148,7 +148,7 @@ class TestPrompt(unittest.TestCase):
              (10, [(('bold',), 'prompt: '),
                    ((), 'bar'),
                    (('cursor', 'visible'), ''),
-                   ((), '')])],
+                   ])],
             [(int(mark), chunk) for (mark, chunk) in x.view(0)])
 
     def test_keyseqprompt(self):
@@ -176,7 +176,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), ': '),
                 ((), 'a '),
                 (('cursor', 'visible'), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
     def test_replymode(self):
@@ -195,7 +195,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'a'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'aaa'),
                 ((), '|aab|abc}\n')])],
@@ -207,7 +206,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'a'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'aab'),
                 ((), '|abc|aaa}\n')])],
@@ -219,7 +217,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'a'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'aaa'),
                 ((), '|aab|abc}\n')])],
@@ -231,7 +228,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'abc'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'abc'),
                 ((), '}\n')])],
@@ -242,7 +238,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'abc'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'abc'),
                 ((), '}\n')])],
@@ -253,7 +248,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'abc'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'abc'),
                 ((), '}\n')])],
@@ -268,7 +262,6 @@ class TestPrompt(unittest.TestCase):
                 ((), ' {}\n'),
                 ]),
              (4, [
-                ((), ''),
                 (('cursor', 'visible'), ''),
                 ((), ''),
                 ((), ' {}\n')])],
@@ -281,7 +274,6 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'a'),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
@@ -336,7 +328,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), ': '),
                 (('cursor', 'visible'), ''),
                 ((), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
     def test_shortprompt(self):
@@ -427,7 +419,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'mock; foobaz'),
                 (('cursor', 'visible'), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
         w.previous_history_full()
@@ -440,7 +432,7 @@ class TestPrompt(unittest.TestCase):
              (13, [
                 ((), 'blob'),
                 (('cursor', 'visible'), ''),
-                ((), '')]),
+                ]),
              ],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
@@ -451,7 +443,7 @@ class TestPrompt(unittest.TestCase):
                 (('bold',), '> '),
                 ((), 'mock; foobaz'),
                 (('cursor', 'visible'), ''),
-                ((), '')])],
+                ])],
             [(int(mark), chunk) for (mark, chunk) in w.view(0)])
 
         w.beginning_of_buffer(interactive=True)
@@ -479,7 +471,6 @@ class TestPrompt(unittest.TestCase):
                 ((), 'm; foobar\n'),
                 ]),
              (12, [
-                ((), ''),
                 (('cursor', 'visible'), ''),
                 ((), '')]),
              ],
@@ -498,7 +489,6 @@ class TestPrompt(unittest.TestCase):
             [(0, [
                 (('bold',), '> '),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
@@ -531,7 +521,6 @@ class TestPrompt(unittest.TestCase):
             [(0, [
                 (('bold',), '> '),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
@@ -544,7 +533,6 @@ class TestPrompt(unittest.TestCase):
             [(0, [
                 (('bold',), '> '),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'mock; foobaz'),
                 ((), '|mock; fooquux|mock; foobar}\n'),
@@ -557,7 +545,6 @@ class TestPrompt(unittest.TestCase):
             [(0, [
                 (('bold',), '> '),
                 (('cursor', 'visible'), ''),
-                ((), ''),
                 ((), ' {'),
                 (('bold',), 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
