@@ -311,8 +311,6 @@ class Viewer(window.Window, window.PagingMixIn):
             return result
 
     def view(self, origin, direction='forward'):
-        # this is the right place to do special processing of
-        # e.g. control characters
         m = self.buf.mark(origin)
 
         if direction not in ('forward', 'backward'):
@@ -330,6 +328,16 @@ class Viewer(window.Window, window.PagingMixIn):
                         and self.cursor.point == p + l == len(self.buf))):
                 left, right = util.chunk_slice(chunk, self.cursor.point - p)
                 chunk = left + [(('cursor', 'visible'), '')] + right
+
+            for i, ch in reversed(list(enumerate(s))):
+                c = ord(ch)
+                if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
+                    left, rest = util.chunk_slice(chunk, i)
+                    middle, right = util.chunk_slice(rest, 1)
+                    uncontrol = [(('bold',), '^' + chr((c + ord('@')) & 127))]
+                    if middle[:1] == [(('cursor', 'visible'), '')]:
+                        uncontrol = middle[:1] + uncontrol
+                    chunk = left + uncontrol + right
 
             if self.search_term is not None:
                 chunk = util.chunk_mark_re(
