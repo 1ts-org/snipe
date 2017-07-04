@@ -80,7 +80,8 @@ def call(callable, *args, **kw):
             d[name] = val
         elif arg.default == inspect.Parameter.empty:
             raise Exception(
-                'insufficient defaults calling %s' % (repr(callable),))
+                'insufficient defaults for %s calling %s' % (
+                    name, repr(callable),))
     return callable(**d)
 
 
