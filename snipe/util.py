@@ -485,6 +485,7 @@ def chunk_slice(chunk, cut):
     left = []
     right = []
     off = 0
+    i = 0
     for i, (tags, s) in enumerate(chunk):
         l = len(s)
         if off + len(s) >= cut:

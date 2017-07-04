@@ -93,6 +93,8 @@ class TestChunkslice(unittest.TestCase):
         self.assertEqual(
             snipe.util.chunk_slice([((), ''), ((), 'abc'), ((), 'def')], 0),
             ([], [((), ''), ((), 'abc'), ((), 'def')]))
+        self.assertEqual(
+            snipe.util.chunk_slice([], 0), ([], []))
 
 
 class TestChunkMarkRe(unittest.TestCase):
