@@ -334,7 +334,7 @@ class Keymap(collections.defaultdict):
         mappings = list(self.pairify())
         width = max(len(keyseq) for (keyseq, action) in mappings)
         return '\n'.join(
-            '%-*s  %s' % (width, keyseq, action)
+            '%-*s  %s' % (width, keyseq, action.replace('_', ' '))
             for (keyseq, action) in mappings)
 
 
