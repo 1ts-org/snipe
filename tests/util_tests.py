@@ -126,5 +126,19 @@ class TestChunkMarkRe(unittest.TestCase):
             ])
 
 
+class TestGlyphwidth(unittest.TestCase):
+    def test_glyphwidth(self):
+        self.assertEqual(snipe.util.glyphwidth('fred'), 4)
+        self.assertEqual(snipe.util.glyphwidth(' '), 1)
+        self.assertEqual(snipe.util.glyphwidth('\N{COMBINING DIAERESIS}'), 0)
+        self.assertEqual(snipe.util.glyphwidth('a\N{COMBINING DIAERESIS}'), 1)
+        self.assertEqual(
+            snipe.util.glyphwidth('\N{CJK UNIFIED IDEOGRAPH-54C1}'), 2)
+        self.assertEqual(
+            snipe.util.glyphwidth(
+                'x\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
+            1)
+
+
 if __name__ == '__main__':
     unittest.main()
