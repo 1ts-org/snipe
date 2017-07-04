@@ -256,7 +256,7 @@ class TTYRenderer:
                         x += remaining
                         remaining = 0
                     output[-1].append((attr, line))
-                    x += len(line)
+                    x += util.glyphwidth(line)
                     if remaining < 0:
                         output[-1].append((attr, '\n'))
 
