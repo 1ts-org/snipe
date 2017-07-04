@@ -745,6 +745,23 @@ class Editor(Viewer):
         else:
             self._writable = getattr(prototype, '_writable', True)
 
+        self.keymap['Control-X 8 " a'] = self._inserter(
+            '\N{LATIN SMALL LETTER A WITH DIAERESIS}')
+        self.keymap['Control-X 8 " [space]'] = self._inserter(
+            '\N{COMBINING DIAERESIS}')
+        self.keymap['Control-X 8 , [space]'] = self._inserter(
+            '\N{COMBINING CEDILLA}')
+        self.keymap['Control-X 8 - [space]'] = self._inserter(
+            '\N{COMBINING LONG STROKE OVERLAY}')
+        self.keymap['Control-X 8 / [space]'] = self._inserter(
+            '\N{COMBINING LONG SOLIDUS OVERLAY}')
+
+    def _inserter(self, s):
+        def inserter(count: interactive.positive_integer_argument=1):
+            self.self_insert(count=count, key=s)
+        inserter.__name__ = 'insert %s' % (repr(s),)
+        return inserter
+
     def writable(self):
         return self._writable
 
@@ -1024,3 +1041,13 @@ class Editor(Viewer):
         kmap.default = self.self_insert
         kmap.controldefault = True
         self.active_keymap = kmap
+
+    @keymap.bind('Control-X 8 [Return]')
+    def insert_unicode(self):
+        """Reads a code point name or number and inserts it"""
+        s = yield from self.read_string('Insert code point (name or hex): ')
+        s = s.strip()
+        if re.match(r'^[a-fA-F0-9]+$', s):
+            return self.self_insert(key=chr(int(s, base=16)))
+        else:
+            return self.self_insert(key=unicodedata.lookup(s))
