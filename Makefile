@@ -1,8 +1,12 @@
 NOSE=nosetests3
 NOSETESTS=$(NOSE) -v -w tests
 
-all check:
+all check: flake8 nosetests
+
+flake8:
 	flake8 snipe tests
+
+nosetests:
 	$(NOSETESTS)
 
 coverage:
@@ -14,4 +18,4 @@ clean:
 
 install:
 
-.PHONY: all clean install
+.PHONY: all clean install check flake8 nosetests
