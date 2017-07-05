@@ -33,10 +33,11 @@ snipe.editor
 '''
 
 import contextlib
-import logging
 import functools
-import unicodedata
+import itertools
+import logging
 import re
+import unicodedata
 
 from . import window
 from . import interactive
@@ -326,7 +327,47 @@ class Viewer(window.Window, window.PagingMixIn):
             if ((p <= self.cursor.point < p + l)
                     or (s[-1:] != '\n'
                         and self.cursor.point == p + l == len(self.buf))):
-                left, right = util.chunk_slice(chunk, self.cursor.point - p)
+                coff = self.cursor.point - p
+                if coff < len(s) and unicodedata.combining(s[coff]):
+                    # and self.hasfocus, however you spell that
+
+                    # run forward to see how many there are
+                    for explode_end in range(coff, len(s)):
+                        if not unicodedata.combining(s[explode_end]):
+                            break
+                    # and backward
+                    for explode_start in range(coff - 1, -1, -1):
+                        if not unicodedata.combining(s[explode_start]):
+                            explode_start += 1
+                            break
+                    # adjust the cursor pointer for what we're about to do
+                    adj = coff - explode_start
+                    self.log.debug('coff = %d, adj = %d', coff, adj)
+                    coff = coff + adj
+                    # insert spaces in front of the combining code units
+                    exploded = ''.join(itertools.chain(*zip(
+                        ' ' * (explode_end - explode_start),
+                        s[explode_start:explode_end])))
+                    if explode_start != 0:
+                        # put the modified character in the visually
+                        # distinctive bit
+                        explode_start -= 1
+                        exploded = s[explode_start] + exploded
+                    chunk = [
+                        ((), s[:explode_start]),
+                        (('bold', 'fg:red'), exploded[:coff - explode_start]),
+                        (('bold', 'fg:blue'), exploded[coff - explode_start:]),
+                        ((), s[explode_end:]),
+                        ]
+                    self.log.debug(
+                        'len(s) = %d, coff = %d, explode_start = %d,'
+                        ' explode_end = %d: %s %s %s ',
+                        len(s), coff, explode_start, explode_end,
+                        util.unirepr(chunk[0][1]),
+                        util.unirepr(chunk[1][1]),
+                        util.unirepr(chunk[2][1]))
+                    s = s[:explode_start] + exploded + s[explode_end:]
+                left, right = util.chunk_slice(chunk, coff)
                 chunk = left + [(('cursor', 'visible'), '')] + right
 
             for i, ch in reversed(list(enumerate(s))):
