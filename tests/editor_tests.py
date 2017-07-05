@@ -40,6 +40,8 @@ import random
 import sys
 import unittest
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
@@ -446,6 +448,88 @@ class TestBuffer(unittest.TestCase):
         b = snipe.editor.Buffer(name='foo')
         self.assertEqual(b.name, 'foo[3]')
         self.assertIs(snipe.editor.Buffer.registry['foo[3]'], b)
+
+        b.unregister()
+        self.assertTrue(b.name not in b.registry)
+
+    def test_Mark(self):
+        b = snipe.editor.Buffer()
+        m = b.mark(0)
+        self.assertRegex(
+            repr(m),
+            r'^<Mark [0-9a-f]+ <GapMark [0-9a-f]+ \([0-9a-f]+\) 0 \(0\)>>$')
+        self.assertTrue(m == 0)
+        self.assertFalse(m == 1)
+        self.assertFalse(m == 'dogs')
+        self.assertTrue(m < 1)
+        self.assertFalse(m < 0)
+
+        self.assertEqual(b[:], '')
+        m.insert('foo')
+        self.assertEqual(b[:], 'foo')
+        m.point = 0
+        m.delete(3)
+        self.assertEqual(b[:], '')
+
+    def test_getitem(self):
+        b = snipe.editor.Buffer()
+        m = b.mark(0)
+        TEXT = 'abcdef'
+        m.insert(TEXT)
+
+        self.assertEqual(b[:], TEXT)
+        self.assertEqual(b[3], TEXT[3])
+        self.assertEqual(b[-3], TEXT[-3])
+        self.assertEqual(b[:-1], TEXT[:-1])
+        self.assertEqual(b[:-2], TEXT[:-2])
+        self.assertEqual(b[-1:], TEXT[-1:])
+        self.assertEqual(b[-2:], TEXT[-2:])
+        self.assertEqual(b[1:], TEXT[1:])
+        self.assertEqual(b[2:], TEXT[2:])
+
+    def test_undo(self):
+        b = snipe.editor.Buffer()
+        m = b.mark(0)
+        TEXT = 'abcdef'
+        m.insert(TEXT)
+        self.assertEqual(b[:], TEXT)
+        b.undo(None)
+        self.assertEqual(b[:], '')
+
+
+class TestView(unittest.TestCase):
+    def test_constructor_misc(self):
+        e = snipe.editor.Viewer(None)
+        e.renderer = mocks.Renderer()
+        f = snipe.editor.Viewer(None, prototype=e)
+        self.assertIs(e.buf, f.buf)
+
+    def test_misc(self):
+        snipe.editor.Buffer.registry.clear()
+        e = snipe.editor.Viewer(None, name='foo')
+        self.assertEqual(e.title(), 'foo')
+
+        self.assertTrue(e.check_redisplay_hint(e.redisplay_hint()))
+        self.assertFalse(e.check_redisplay_hint({}))
+
+        e.renderer = mocks.Renderer()
+        f = snipe.editor.Viewer(None, prototype=e)
+        self.assertTrue(e.check_redisplay_hint(f.redisplay_hint()))
+
+    def test_line_movement(self):
+        e = snipe.editor.Viewer(None)
+        e.insert('abc\ndef\nghi\nklm\nnop\nqrs\ntuv\nwxyz')
+        e.cursor.point = 0
+        e.line_next()
+        self.assertEqual(e.cursor.point, 4)
+        e.line_previous()
+        self.assertEqual(e.cursor.point, 0)
+        e.line_next(6)
+        self.assertEqual(e.cursor.point, 24)
+        e.line_next()
+        self.assertEqual(e.cursor.point, 28)
+        e.line_next()
+        self.assertEqual(e.cursor.point, 28)
 
 
 if __name__ == '__main__':
