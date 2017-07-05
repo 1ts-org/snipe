@@ -142,7 +142,7 @@ class Buffer:
             return self.buf.textrange(start, stop)
         else:
             if k < 0:
-                k = len(self) - k
+                k += self.buf.size
             return self.buf.textrange(k, k+1)
 
     def undo(self, which):
