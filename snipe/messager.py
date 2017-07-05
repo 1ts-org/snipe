@@ -691,7 +691,7 @@ class Messager(window.Window, window.PagingMixIn):
                 in ('personal', 'outgoing', 'noise', 'omega', 'error'))
             + '\n'
             + 'sender: ' + repr(str(self.cursor.sender)) + '\n'
-            + 'body: ' + '\n '.join(pformat(self.cursor.body).split('\n'))
+            + 'body: ' + util.unirepr(self.cursor.body) + '\n'
             + '\n'
             + pformat(getattr(self.cursor, 'data', None)))
 

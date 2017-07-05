@@ -140,5 +140,28 @@ class TestGlyphwidth(unittest.TestCase):
             1)
 
 
+class TestUnirepr(unittest.TestCase):
+    def test_escapify(self):
+        self.assertEqual(
+            snipe.util.escapify('a'), r'\N{LATIN SMALL LETTER A}')
+        self.assertEqual(
+            snipe.util.escapify('\b'), r'\010')
+        self.assertEqual(
+            snipe.util.escapify(chr(0xffff)), r'\uFFFF')
+        self.assertEqual(
+            snipe.util.escapify(chr(0xeffff)), r'\U000EFFFF')
+
+    def test_unirepr(self):
+        self.assertEqual(
+            snipe.util.unirepr('foo'),
+            '"foo"')
+        self.assertEqual(
+            snipe.util.unirepr('foo\nbar'),
+            '"""foo\nbar"""')
+        self.assertEqual(
+            snipe.util.unirepr('""'),
+            r'"\"\""')
+
+
 if __name__ == '__main__':
     unittest.main()

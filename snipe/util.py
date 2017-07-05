@@ -562,3 +562,27 @@ _wcwidth = _setup_wcwidth()
 
 def glyphwidth(s):
     return sum(_wcwidth(c) for c in s)
+
+
+def escapify(c):
+    try:
+        return r'\N{%s}' % (unicodedata.name(c),)
+    except ValueError:
+        i = ord(c)
+        if i < 0xff:
+            return r'\%03o' % i
+        elif i <= 0xffff:
+            return r'\u%04X' % i
+        else:
+            return r'\U%08X' % i
+
+
+def unirepr(x):
+    s = ''.join(
+        c if (c == '\n' or ord(' ') <= ord(c) < 0xff) else escapify(c)
+        for c in x)
+    s = s.replace('"', r'\"')
+    if '\n' in s:
+        return '"""' + s + '"""'
+    else:
+        return '"' + s + '"'
