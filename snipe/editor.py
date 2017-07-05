@@ -344,12 +344,15 @@ class Viewer(window.Window, window.PagingMixIn):
                     for explode_end in range(coff + 1, len(s)):
                         if not unicodedata.combining(s[explode_end]):
                             break
+                    else:
+                        explode_end = len(s)
                     # and backward
-                    explode_start = coff
                     for explode_start in range(coff - 1, -1, -1):
                         if not unicodedata.combining(s[explode_start]):
                             explode_start += 1
                             break
+                    else:
+                        explode_start = coff
                     # adjust the cursor pointer for what we're about to do
                     adj = coff - explode_start
                     self.log.debug('coff = %d, adj = %d', coff, adj)

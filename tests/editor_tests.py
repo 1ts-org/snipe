@@ -293,6 +293,36 @@ class TestEditor(unittest.TestCase):
                     'a \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'),
                 ((), 'a'),
             ])])
+        e.insert('a')
+        e.end_of_line()
+        e.delete_backward()
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [
+                ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
+                (('cursor', 'visible'), ''),
+            ])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [
+                ((), 'a'),
+                (e.SHOW_COMBINING, 'a \N{COMBINING DIAERESIS}'),
+                (('cursor', 'visible'), ''),
+                (e.SHOW_COMBINING, ' \N{COMBINING CEDILLA}'),
+                ((), ''),
+            ])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [
+                ((), 'a'),
+                (e.SHOW_COMBINING, 'a'),
+                (('cursor', 'visible'), ''),
+                (e.SHOW_COMBINING, ' \N{COMBINING DIAERESIS}'
+                    ' \N{COMBINING CEDILLA}'),
+                ((), ''),
+            ])])
 
     def testfuzz(
             self,
