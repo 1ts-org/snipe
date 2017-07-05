@@ -295,7 +295,7 @@ def timestr(t):
 
     try:
         return '[' + datetime.datetime.fromtimestamp(t).isoformat(' ') + ']'
-    except OverflowError:
+    except (OverflowError, ValueError, OSError):
         pass
 
     if t < 0:
@@ -309,7 +309,7 @@ def timestr(t):
         else:
             return '[unknown]'
 
-    return '[impossible]'
+    return '[impossible]'  # pragma: nocover
 
 
 class JSONDecodeError(SnipeException):
@@ -531,8 +531,24 @@ def flatten_chunk(chunk):
     return ''.join(x[1] for x in chunk)
 
 
+def _fallback_wcwidth(c):
+    # from http://bugs.python.org/msg155361
+    # http://bugs.python.org/issue12568
+    if (
+            (c < ' ') or
+            (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
+            (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+                and c != u'\u00ad')  # 00ad = soft hyphen
+            ):
+        return 0
+    if unicodedata.east_asian_width(c) in ('F', 'W'):
+        return 2
+    return 1
+
+
 def _setup_wcwidth():
     LIBC = 'libc.so.6'  # XXX current versions of linux
+    wcwidth = _fallback_wcwidth
     try:
         ctypes.cdll.LoadLibrary(LIBC)
         libc = ctypes.CDLL(LIBC)
@@ -541,19 +557,7 @@ def _setup_wcwidth():
         def wcwidth(c):
             return os_wcwidth(ord(c))
     except (OSError, AttributeError):
-        def wcwidth(c):
-            # from http://bugs.python.org/msg155361
-            # http://bugs.python.org/issue12568
-            if (
-                    (c < ' ') or
-                    (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
-                    (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
-                        and c != u'\u00ad')  # 00ad = soft hyphen
-                    ):
-                return 0
-            if unicodedata.east_asian_width(c) in ('F', 'W'):
-                return 2
-            return 1
+        pass  # pragma: nocover
     return wcwidth
 
 

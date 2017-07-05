@@ -139,6 +139,13 @@ class TestGlyphwidth(unittest.TestCase):
                 'x\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
             1)
 
+    def test_fallback_wcwidth(self):
+        self.assertEqual(snipe.util._fallback_wcwidth('a'), 1)
+        self.assertEqual(
+            snipe.util._fallback_wcwidth('\N{COMBINING DIAERESIS}'), 0)
+        self.assertEqual(
+            snipe.util._fallback_wcwidth('\N{CJK UNIFIED IDEOGRAPH-54C1}'), 2)
+
 
 class TestUnirepr(unittest.TestCase):
     def test_escapify(self):
@@ -161,6 +168,47 @@ class TestUnirepr(unittest.TestCase):
         self.assertEqual(
             snipe.util.unirepr('""'),
             r'"\"\""')
+
+
+class TestOneof(unittest.TestCase):
+    def test_val_oneof(self):
+        f = snipe.util.val_oneof({1, 2, 3})
+        self.assertTrue(callable(f))
+        self.assertTrue(f(2))
+        self.assertFalse(f(4))
+
+
+class TestTimestr(unittest.TestCase):
+    def test_timestr(self):
+        self.assertEqual(snipe.util.timestr(None), '[not]')
+        self.assertEqual(snipe.util.timestr('frog'), "[?'frog']")
+        os.environ['TZ'] = 'America/New_York'
+        self.assertEqual(snipe.util.timestr(0), '[1969-12-31 19:00:00]')
+        self.assertEqual(snipe.util.timestr(-999999999999999), '[undefined]')
+        self.assertEqual(snipe.util.timestr(float('-inf')), '[immemorial]')
+        self.assertEqual(snipe.util.timestr(float('inf')), '[omega]')
+        self.assertEqual(snipe.util.timestr(float('nan')), '[unknown]')
+
+
+class TestListify(unittest.TestCase):
+    def test_listify(self):
+        self.assertNotEqual(range(10), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        lrange = snipe.util.listify(range)
+        self.assertEqual(lrange(10), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+
+class TestEvalOutput(unittest.TestCase):
+    def test_eval_output(self):
+        self.assertEqual(snipe.util.eval_output('2 + 2'), '4\n')
+        self.assertEqual(snipe.util.eval_output(''), '')
+        self.assertEqual(snipe.util.eval_output('if True:'), None)
+        self.assertTrue(snipe.util.eval_output('2 + ').startswith('Traceback'))
+        self.assertTrue(snipe.util.eval_output('2 + ', mode='exec').startswith(
+            'Traceback'))
+        self.assertTrue(snipe.util.eval_output('{}[0]').startswith(
+            'Traceback'))
+        self.assertEqual(
+            snipe.util.eval_output('print(2+2)\n', mode='exec'), '4\n')
 
 
 if __name__ == '__main__':
