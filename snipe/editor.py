@@ -451,7 +451,7 @@ class Viewer(window.Window, window.PagingMixIn):
             interactive: interactive.isinteractive=False,
             ):
         """Move the point to the end of the line.  Given a count, move the
-        point to the beginning of the n-1th line down."""
+        point to the end of the n-1th line down."""
 
         where = self.buf.mark(self.cursor)
         with self.save_excursion(where):
@@ -736,8 +736,9 @@ class Viewer(window.Window, window.PagingMixIn):
         else:
             span = range(self.cursor.point - 1, -1, -1)
         # XXX FTR this is algorithmically laughable.  It also turns out to be
-        # prefectly fine on the machines and buffers we're search on and in at
-        # the moment, but replace it with something less embarrassing anyway.
+        # prefectly fine on the machines and buffers we're searching on and in
+        # at the moment, but replace it with something less embarrassing
+        # anyway.
         for off in span:
             if self.buf[off:off + len(string)] == string:
                 self.cursor.point = off
