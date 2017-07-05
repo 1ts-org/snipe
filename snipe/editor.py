@@ -311,6 +311,9 @@ class Viewer(window.Window, window.PagingMixIn):
             self.buf.cache['extract_current_line'][p] = result
             return result
 
+    SHOW_COMBINING = ('bg:blue', 'bold')
+    SHOW_CONTROL = ('bold',)
+
     def view(self, origin, direction='forward'):
         m = self.buf.mark(origin)
 
@@ -328,14 +331,21 @@ class Viewer(window.Window, window.PagingMixIn):
                     or (s[-1:] != '\n'
                         and self.cursor.point == p + l == len(self.buf))):
                 coff = self.cursor.point - p
-                if coff < len(s) and unicodedata.combining(s[coff]):
+                if ((coff < len(s) and unicodedata.combining(s[coff]))
+                        or ((coff < (len(s) - 1))
+                            and unicodedata.combining(s[coff + 1]))):
                     # and self.hasfocus, however you spell that
 
+                    self.log.debug(
+                        'exploding from %s %s',
+                        util.unirepr(s[coff]), util.unirepr(s[coff:]))
+
                     # run forward to see how many there are
-                    for explode_end in range(coff, len(s)):
+                    for explode_end in range(coff + 1, len(s)):
                         if not unicodedata.combining(s[explode_end]):
                             break
                     # and backward
+                    explode_start = coff
                     for explode_start in range(coff - 1, -1, -1):
                         if not unicodedata.combining(s[explode_start]):
                             explode_start += 1
@@ -348,15 +358,18 @@ class Viewer(window.Window, window.PagingMixIn):
                     exploded = ''.join(itertools.chain(*zip(
                         ' ' * (explode_end - explode_start),
                         s[explode_start:explode_end])))
-                    if explode_start != 0:
+                    if (explode_start != 0
+                            and unicodedata.combining(s[explode_start])):
                         # put the modified character in the visually
                         # distinctive bit
                         explode_start -= 1
                         exploded = s[explode_start] + exploded
+                    else:
+                        # we added an extra space up there
+                        exploded = exploded[1:]
                     chunk = [
                         ((), s[:explode_start]),
-                        (('bold', 'fg:red'), exploded[:coff - explode_start]),
-                        (('bold', 'fg:blue'), exploded[coff - explode_start:]),
+                        (self.SHOW_COMBINING, exploded),
                         ((), s[explode_end:]),
                         ]
                     self.log.debug(
@@ -375,7 +388,8 @@ class Viewer(window.Window, window.PagingMixIn):
                 if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
                     left, rest = util.chunk_slice(chunk, i)
                     middle, right = util.chunk_slice(rest, 1)
-                    uncontrol = [(('bold',), '^' + chr((c + ord('@')) & 127))]
+                    uncontrol = [
+                        (self.SHOW_CONTROL, '^' + chr((c + ord('@')) & 127))]
                     if middle[:1] == [(('cursor', 'visible'), '')]:
                         uncontrol = middle[:1] + uncontrol
                     chunk = left + uncontrol + right
