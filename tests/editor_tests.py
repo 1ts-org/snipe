@@ -192,6 +192,53 @@ class TestEditor(unittest.TestCase):
             [(int(m), l) for (m, l) in e.view(0, 'forward')],
             [(0, [((), 'abc'), (('cursor', 'visible'), '')])])
 
+    def test_view_search(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abcdefghi')
+        e.search_term = 'def'
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'abc'), (('reverse',), 'def'), ((), 'ghi'),(('cursor', 'visible'), '')])])
+
+    def test_view_control(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abcdef\007hi')
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'abcdef'), (('bold',), '^G'), ((), 'hi'), (('cursor', 'visible'), '')])])
+        e.move(-3, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'abcdef'), (('cursor', 'visible'), ''), (('bold',), '^G'), ((), 'hi')])])
+
+    def test_view_explode_combining(self):
+        e = snipe.editor.Editor(None)
+        e.insert('aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a')
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'), (('cursor', 'visible'), '')])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'), (('cursor', 'visible'), ''), ((), 'a')])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'a'), (('bold', 'fg:red'), 'a \N{COMBINING DIAERESIS}'), (('cursor', 'visible'), ''), (('bold', 'fg:blue'), ' \N{COMBINING CEDILLA}'), ((), 'a')])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'a'), (('bold', 'fg:red'), 'a'), (('cursor', 'visible'), ''), (('bold', 'fg:blue'), ' \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'), ((), 'a')])])
+        e.move(-1, False)
+        # this should change in the future
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'a'), (('cursor', 'visible'), ''), ((), 'a\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a')])])
+        e.move(-1, False)
+        self.assertEqual(
+            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(0, [(('cursor', 'visible'), ''), ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a')])])
+
     def testfuzz(
             self,
             iterations=10000,
