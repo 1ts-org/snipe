@@ -182,8 +182,8 @@ class TestTimestr(unittest.TestCase):
     def test_timestr(self):
         self.assertEqual(snipe.util.timestr(None), '[not]')
         self.assertEqual(snipe.util.timestr('frog'), "[?'frog']")
-        os.environ['TZ'] = 'America/New_York'
-        self.assertEqual(snipe.util.timestr(0), '[1969-12-31 19:00:00]')
+        os.environ['TZ'] = 'GMT'
+        self.assertEqual(snipe.util.timestr(0), '[1970-01-01 00:00:00]')
         self.assertEqual(snipe.util.timestr(-999999999999999), '[undefined]')
         self.assertEqual(snipe.util.timestr(float('-inf')), '[immemorial]')
         self.assertEqual(snipe.util.timestr(float('inf')), '[omega]')
