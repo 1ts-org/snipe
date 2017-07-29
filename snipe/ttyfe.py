@@ -131,7 +131,7 @@ class TTYRenderer:
     @util.listify
     def doline(s, width, remaining, tags=()):
         '''string, window width, remaining width, tags ->
-        iter([(displayline, remaining), ...])'''
+        [(displayline, remaining), ...]'''
         # turns tabs into spaces at n*8 cell intervals
 
         right = 'right' in tags
@@ -140,12 +140,8 @@ class TTYRenderer:
             nl = s.endswith('\n')
             if remaining:
                 ll = textwrap.wrap(s, remaining)
-                try:
-                    s = '\n'.join(
-                        ll[:1] + textwrap.wrap(' '.join(ll[1:]), width))
-                except:
-                    logging.error('%s %d', ll, width)
-                    raise
+                s = '\n'.join(
+                    ll[:1] + textwrap.wrap(' '.join(ll[1:]), width))
             else:
                 s = '\n'.join(textwrap.wrap(s, width))
             if nl:
@@ -168,6 +164,9 @@ class TTYRenderer:
                 if c == '\t':
                     c = ' ' * (8 - col % 8)
                 l = util.glyphwidth(c)
+                if not l:
+                    # non printing characters... don't
+                    continue
                 if col + l > width:
                     if right and line == 0:
                         yield '', -1
@@ -181,7 +180,6 @@ class TTYRenderer:
                         continue
                 out += c
                 col += l
-            # non printing characters... don't
         if out:
             yield out, width - col
 

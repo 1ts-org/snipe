@@ -138,6 +138,7 @@ class TestGlyphwidth(unittest.TestCase):
             snipe.util.glyphwidth(
                 'x\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
             1)
+        self.assertEqual(snipe.util.glyphwidth('\x96'), 0)
 
     def test_fallback_wcwidth(self):
         self.assertEqual(snipe.util._fallback_wcwidth('a'), 1)
@@ -145,6 +146,8 @@ class TestGlyphwidth(unittest.TestCase):
             snipe.util._fallback_wcwidth('\N{COMBINING DIAERESIS}'), 0)
         self.assertEqual(
             snipe.util._fallback_wcwidth('\N{CJK UNIFIED IDEOGRAPH-54C1}'), 2)
+        self.assertEqual(
+            snipe.util._fallback_wcwidth('\x96'), 0)
 
 
 class TestUnirepr(unittest.TestCase):

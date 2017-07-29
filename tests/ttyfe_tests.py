@@ -67,6 +67,18 @@ class TestTTYFE(unittest.TestCase):
         self.assertEqual(
             snipe.ttyfe.TTYRenderer.doline('ab\tdef', 3, 3),
             [('ab', 0), ('def', 0)])
+        self.assertEqual(
+            snipe.ttyfe.TTYRenderer.doline('ab\x96cdef', 3, 3),
+            [('abc', 0), ('def', 0)])
+        self.assertEqual(
+            snipe.ttyfe.TTYRenderer.doline('ab def', 3, 3, ('fill',)),
+            [('ab', -1), ('def', 0)])
+        self.assertEqual(
+            snipe.ttyfe.TTYRenderer.doline('abc def', 3, 0, ('fill',)),
+            [('abc', 0), ('def', 0)])
+        self.assertEqual(
+            snipe.ttyfe.TTYRenderer.doline('abc def\n', 3, 0, ('fill',)),
+            [('abc', 0), ('def', 0)])
 
     def testMockWindow(self):
         w = mocks.Window(cx(['']))
@@ -226,7 +238,7 @@ class TestTTYFE(unittest.TestCase):
 
         visible, cursor, sill, output = renderer.redisplay_calculate()
 
-        self.assertEquals(len(output), 6)
+        self.assertEqual(len(output), 6)
         self.assertFalse(visible)
         self.assertIsNone(cursor)
 
@@ -257,7 +269,7 @@ class TestTTYFE(unittest.TestCase):
 
         visible, cursor, sill, output = renderer.redisplay_calculate()
 
-        self.assertEquals(len(output), 2)
+        self.assertEqual(len(output), 2)
         self.assertTrue(visible)
         self.assertIsNone(cursor)
         self.assertTrue(all(a & curses.A_UNDERLINE for (a, t) in output[-1]))
@@ -269,7 +281,7 @@ class TestTTYFE(unittest.TestCase):
 
         visible, cursor, sill, output = renderer.redisplay_calculate()
 
-        self.assertEquals(len(output), 3)
+        self.assertEqual(len(output), 3)
         self.assertTrue(visible)
         self.assertIsNone(cursor)
         self.assertTrue(all(a & curses.A_UNDERLINE for (a, t) in output[-1]))

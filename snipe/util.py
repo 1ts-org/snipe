@@ -537,7 +537,7 @@ def _fallback_wcwidth(c):
     if (
             (c < ' ') or
             (u'\u1160' <= c <= u'\u11ff') or  # hangul jamo
-            (unicodedata.category(c) in ('Mn', 'Me', 'Cf')
+            (unicodedata.category(c) in ('Mn', 'Me', 'Cf', 'Cc')
                 and c != u'\u00ad')  # 00ad = soft hyphen
             ):
         return 0
@@ -555,7 +555,7 @@ def _setup_wcwidth():
         os_wcwidth = libc.wcwidth
 
         def wcwidth(c):
-            return os_wcwidth(ord(c))
+            return max(os_wcwidth(ord(c)), 0)
     except (OSError, AttributeError):
         pass  # pragma: nocover
     return wcwidth
