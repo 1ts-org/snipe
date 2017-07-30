@@ -95,6 +95,9 @@ class TestKeymap(unittest.TestCase):
             split('Control-C Control-D oogledyboo'),
             ('\x03', 'Control-D oogledyboo'))
         self.assertEqual(split(-5), (-5, None))
+        self.assertEqual(
+            split('Meta-\N{LATIN SMALL LETTER A WITH DIAERESIS}'),
+            ('\x1b', '[LATIN SMALL LETTER A WITH DIAERESIS]'))
 
     def testdict(self):
         k = snipe.keymap.Keymap()
@@ -125,6 +128,66 @@ class TestKeymap(unittest.TestCase):
         k = snipe.keymap.Keymap()
         k.set_cheatsheet('foo')
         self.assertEquals(k.get_cheatsheet(), 'foo')
+
+    def test_default(self):
+        k = snipe.keymap.Keymap()
+        k.default = 5
+        self.assertEqual(k['9'], 5)
+
+    def test_repr(self):
+        k = snipe.keymap.Keymap()
+        self.assertRegex(
+            repr(k),
+            r"^Keymap\({'\\x07': <function noop at 0x[0-9a-f]+>}\)$")
+
+    def test_get_misc(self):
+        k = snipe.keymap.Keymap()
+        k[5] = 5
+        self.assertEqual(k[5], 5)
+
+    def test_del_misc(self):
+        k = snipe.keymap.Keymap()
+        k[5] = 5
+        del k[5]
+        self.assertNotIn(5, k)
+
+        k['a'] = 5
+        self.assertRaises(KeyError, lambda: k.__delitem__('a b'))
+
+    def test_unkey(self):
+        unkey = snipe.keymap.Keymap.unkey
+
+        self.assertEqual(unkey('a'), 'a')
+        self.assertEqual(unkey('\x01'), 'Control-A')
+        self.assertEqual(unkey('\x01', True), '^A')
+        self.assertEqual(unkey('\x1b'), '[escape]')
+        self.assertEqual(
+            unkey('\N{latin small letter a with diaeresis}'),
+            '[latin small letter a with diaeresis]')
+        self.assertEqual(unkey('\x96'), '[?96]')
+        self.assertEqual(unkey(curses.KEY_LEFT), '[left]')
+        self.assertEqual(unkey(65535), '[ffff?]')
+
+    def test_str(self):
+        k = snipe.keymap.Keymap()
+
+        self.assertEqual(str(k), 'Control-G  noop')
+
+        del k['Control-G']
+        for c in 'abc':
+            k[c] = snipe.keymap.noop
+        self.assertEqual(str(k), 'a .. c  noop')
+
+        k = snipe.keymap.Keymap()
+        del k['Control-G']
+        k['a b'] = snipe.keymap.noop
+        del k['a Control-G']
+        self.assertEqual(str(k), 'a b  noop')
+
+        k = snipe.keymap.Keymap()
+        del k['Control-G']
+        k['a'] = 5
+        self.assertEqual(str(k), 'a  ???')
 
 
 if __name__ == '__main__':

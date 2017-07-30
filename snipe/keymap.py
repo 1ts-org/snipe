@@ -106,7 +106,7 @@ class Keymap(collections.defaultdict):
         return (
             self.__class__.__name__
             + '('
-            + super().__repr__()
+            + repr(dict(self))
             + ')'
             )
 
@@ -117,7 +117,7 @@ class Keymap(collections.defaultdict):
             key, rest = self.split(key)
             v = super().__getitem__(key)
             if key is None:
-                return None  # default?
+                return None  # pragma: nocover
             if rest:
                 return v[rest]
             return v
@@ -340,4 +340,4 @@ class Keymap(collections.defaultdict):
 
 def noop():
     """Do nothing; abort the key sequence."""
-    pass
+    pass  # pragma: nocover
