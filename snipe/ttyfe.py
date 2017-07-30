@@ -565,16 +565,7 @@ class TTYFrontend:
 
         self.stdscr.keypad(1)
         self.stdscr.nodelay(1)
-        curses.start_color()
-        self.color = curses.has_colors()
-        if not self.color:
-            self.color_assigner = ttycolor.NoColorAssigner()
-        else:
-            curses.use_default_colors()
-            if curses.can_change_color():
-                self.color_assigner = ttycolor.DynamicColorAssigner()
-            else:
-                self.color_assigner = ttycolor.StaticColorAssigner()
+        self.color_assigner = ttycolor.get_assigner()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
         self.main_pid = os.getpid()

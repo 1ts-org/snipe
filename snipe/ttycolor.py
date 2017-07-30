@@ -238,6 +238,17 @@ class StaticColorAssigner(CleverColorAssigner):
             key=lambda x: x[1])[0]
 
 
+def get_assigner():
+    curses.start_color()
+    if curses.has_colors():
+        curses.use_default_colors()
+        if curses.can_change_color():
+            return DynamicColorAssigner()
+        else:
+            return StaticColorAssigner()
+    return NoColorAssigner()
+
+
 colors_simple = [
     (curses.COLOR_BLACK,   '#000'),
     (curses.COLOR_RED,     '#f00'),
