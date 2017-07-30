@@ -555,7 +555,7 @@ class Viewer(window.Window, window.PagingMixIn):
     def iswordchar(c):
         cat = unicodedata.category(c)
         # sigh
-        return cat[0] == 'L' or cat[0] == 'N' or cat == 'Pc' or c == "'"
+        return cat[0] in 'LMN' or cat == 'Pc' or c == "'"
 
     def isword(self, delta=0):
         return self.ispred(self.iswordchar, delta)
@@ -804,21 +804,17 @@ class Editor(Viewer):
         else:
             self._writable = getattr(prototype, '_writable', True)
 
-        self.keymap['Control-X 8 " a'] = self._inserter(
-            '\N{LATIN SMALL LETTER A WITH DIAERESIS}')
-        self.keymap['Control-X 8 " [space]'] = self._inserter(
-            '\N{COMBINING DIAERESIS}')
-        self.keymap['Control-X 8 , [space]'] = self._inserter(
-            '\N{COMBINING CEDILLA}')
-        self.keymap['Control-X 8 - [space]'] = self._inserter(
-            '\N{COMBINING LONG STROKE OVERLAY}')
-        self.keymap['Control-X 8 / [space]'] = self._inserter(
-            '\N{COMBINING LONG SOLIDUS OVERLAY}')
+        for keystroke, character in COMPOSE_SEQUENCES:
+            self.keymap[
+                'Control-X 8 ' + keystroke] = self._inserter(character)
 
     def _inserter(self, s):
         def inserter(count: interactive.positive_integer_argument=1):
             self.self_insert(count=count, key=s)
-        inserter.__name__ = 'insert %s' % (repr(s),)
+        if len(s) == 1:
+            inserter.__name__ = 'insert %s' % (unicodedata.name(s).lower(),)
+        else:
+            inserter.__name__ = 'insert %s' % (util.unirepr(s),)
         return inserter
 
     def writable(self):
@@ -1110,3 +1106,158 @@ class Editor(Viewer):
             return self.self_insert(key=chr(int(s, base=16)))
         else:
             return self.self_insert(key=unicodedata.lookup(s))
+
+
+# wherein we work out and write down a bunch of compose key sequences for
+# various interesting non-ASCII things
+
+COMPOSE_SEQUENCES = []
+
+# just see what canonical compositions we can find in unicode and bind them
+for key, diacritic in [
+        ('`', 'grave accent'),
+        ("'", 'acute accent'),
+        ("^", 'circumflex accent'),
+        ('"', 'diaeresis'),
+        (',', 'cedilla'),
+        ('=', 'macron'),
+        ('~', 'tilde')]:
+    combiner = unicodedata.lookup('combining ' + diacritic)
+    COMPOSE_SEQUENCES.append((key + ' [space]', combiner))
+    COMPOSE_SEQUENCES.append(
+        (key + ' ' + key, unicodedata.lookup(diacritic)))
+    for letter in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ':
+        char = unicodedata.normalize('NFC', letter + combiner)
+        if len(char) == 1:
+            COMPOSE_SEQUENCES.append((key + ' ' + letter, char))
+
+COMPOSE_SEQUENCES += [
+    ('1 / 4', '\N{vulgar fraction one quarter}'),
+    ('1 / 2', '\N{vulgar fraction one half}'),
+    ('3 / 4', '\N{vulgar fraction three quarters}'),
+    ('1 / 7', '\N{vulgar fraction one seventh}'),
+    ('1 / 9', '\N{vulgar fraction one ninth}'),
+    ('1 / 1 0', '\N{vulgar fraction one tenth}'),
+    ('1 / 3', '\N{vulgar fraction one third}'),
+    ('2 / 3', '\N{vulgar fraction two thirds}'),
+    ('1 / 5', '\N{vulgar fraction one fifth}'),
+    ('2 / 5', '\N{vulgar fraction two fifths}'),
+    ('3 / 5', '\N{vulgar fraction three fifths}'),
+    ('4 / 5', '\N{vulgar fraction four fifths}'),
+    ('1 / 6', '\N{vulgar fraction one sixth}'),
+    ('5 / 6', '\N{vulgar fraction five sixths}'),
+    ('1 / 8', '\N{vulgar fraction one eighth}'),
+    ('3 / 8', '\N{vulgar fraction three eighths}'),
+    ('5 / 8', '\N{vulgar fraction five eighths}'),
+    ('7 / 8', '\N{vulgar fraction seven eighths}'),
+    ('0 / 3', '\N{vulgar fraction zero thirds}'),
+    ('- [space]', '\N{combining long stroke overlay}'),
+    ('/ [space]', '\N{combining long solidus overlay}'),
+    ('\ [space]', '\N{combining reverse solidus overlay}'),
+    ('_ [space]', '\N{combining low line}'),
+    ('s s', '\N{latin small letter sharp s}'),
+    ('" s', '\N{latin small letter sharp s}'),  # *frown*
+    ('/ A', '\N{latin capital letter a with ring above}'),
+    ('/ E', '\N{latin capital letter ae}'),
+    ('/ O', '\N{latin capital letter o with stroke}'),
+    ('/ a', '\N{latin small letter a with ring above}'),
+    ('/ e', '\N{latin small letter ae}'),
+    ('/ o', '\N{latin small letter o with stroke}'),
+    ('/ D', '\N{latin capital letter eth}'),
+    ('/ T', '\N{latin capital letter thorn}'),
+    ('/ P', '\N{latin capital letter thorn}'),
+    ('/ d', '\N{latin small letter eth}'),
+    ('/ t', '\N{latin small letter thorn}'),
+    ('/ p', '\N{latin small letter thorn}'),
+    ('/ /', '\N{division sign}'),
+    ('/ =', '\N{not equal to}'),
+    ('^ 0', '\N{superscript zero}'),
+    ('^ 1', '\N{superscript one}'),
+    ('^ 2', '\N{superscript two}'),
+    ('^ 3', '\N{superscript three}'),
+    ('^ 4', '\N{superscript four}'),
+    ('^ 5', '\N{superscript five}'),
+    ('^ 6', '\N{superscript six}'),
+    ('^ 7', '\N{superscript seven}'),
+    ('^ 8', '\N{superscript eight}'),
+    ('^ 9', '\N{superscript nine}'),
+    ('^ +', '\N{superscript plus sign}'),
+    ('^ -', '\N{superscript minus}'),
+    ('^ =', '\N{superscript equals sign}'),
+    ('^ (', '\N{superscript left parenthesis}'),
+    ('^ )', '\N{superscript right parenthesis}'),
+    ('^ n', '\N{superscript latin small letter n}'),
+    ('^ _ i', '\N{superscript latin small letter i}'),
+    # the above is weird so as not to conflict with ^ i -> î
+    ('_ 0', '\N{subscript zero}'),
+    ('_ 1', '\N{subscript one}'),
+    ('_ 2', '\N{subscript two}'),
+    ('_ 3', '\N{subscript three}'),
+    ('_ 4', '\N{subscript four}'),
+    ('_ 5', '\N{subscript five}'),
+    ('_ 6', '\N{subscript six}'),
+    ('_ 7', '\N{subscript seven}'),
+    ('_ 8', '\N{subscript eight}'),
+    ('_ 9', '\N{subscript nine}'),
+    ('_ +', '\N{subscript plus sign}'),
+    ('_ -', '\N{subscript minus}'),
+    ('_ =', '\N{subscript equals sign}'),
+    ('_ (', '\N{subscript left parenthesis}'),
+    ('_ )', '\N{subscript right parenthesis}'),
+    ('_ a', '\N{latin subscript small letter a}'),
+    ('_ e', '\N{latin subscript small letter e}'),
+    ('_ o', '\N{latin subscript small letter o}'),
+    ('_ x', '\N{latin subscript small letter x}'),
+    ('_ E', '\N{latin subscript small letter schwa}'),
+    ('+ a', '\N{feminine ordinal indicator}'),
+    ('+ o', '\N{masculine ordinal indicator}'),
+    ('+ -', '\N{plus-minus sign}'),
+    ('- +', '\N{plus-minus sign}'),
+    ('- >', '\N{rightwards arrow}'),
+    ('< -', '\N{leftwards arrow}'),
+    ('< >', '\N{left right arrow}'),
+    ('< <', '\N{left-pointing double angle quotation mark}'),
+    ('< =', '\N{less-than or equal to}'),
+    ('> =', '\N{greater-than or equal to}'),
+    ('> >', '\N{right-pointing double angle quotation mark}'),
+    ('- [space]', '\N{soft hyphen}'),
+    ('- -', '\N{minus sign}'),
+    ('- !', '\N{not sign}'),
+    ("- '", '\N{prime}'),
+    ('- "', '\N{double prime}'),
+    ('- h', '\N{hyphen}'),
+    ('- H', '\N{non-breaking hyphen}'),
+    ('- f', '\N{figure dash}'),
+    ('- n', '\N{en dash}'),
+    ('- m', '\N{em dash}'),
+    ('- q', '\N{horizontal bar}'),
+    ('- ~', '\N{almost equal to}'),
+    ('~ =', '\N{almost equal to}'),
+    ('* *', '\N{bullet}'),
+    ('* +', '\N{dagger}'),
+    ('* #', '\N{double dagger}'),
+    ('n o', '\N{numero sign}'),
+    ('t m', '\N{trade mark sign}'),
+    ('[space]', '\N{no-break space}'),
+    ('$ E', '\N{euro sign}'),
+    ('$ *', '\N{currency sign}'),
+    ('$ c', '\N{cent sign}'),
+    ('$ Y', '\N{yen sign}'),
+    ('$ L', '\N{pound sign}'),
+    ('!', '\N{inverted exclamation mark}'),
+    ('.', '\N{middle dot}'),
+    ('?', '\N{inverted question mark}'),
+    ('C', '\N{copyright sign}'),
+    ('P', '\N{pilcrow sign}'),
+    ('R', '\N{registered sign}'),
+    ('S', '\N{section sign}'),
+    ('c', '\N{cent sign}'),
+    ('o', '\N{degree sign}'),
+    ('u', '\N{micro sign}'),
+    ('x', '\N{multiplication sign}'),
+    ('|', '\N{broken bar}'),
+    ('[', '\N{left single quotation mark}'),
+    (']', '\N{right single quotation mark}'),
+    ('{', '\N{left double quotation mark}'),
+    ('}', '\N{right double quotation mark}'),
+    ]
