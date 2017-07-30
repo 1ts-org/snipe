@@ -57,7 +57,7 @@ class NoColorAssigner:
         pass
 
     def close(self):
-        pass
+        pass  # pragma: nocover
 
 
 class SimpleColorAssigner(NoColorAssigner):
@@ -111,19 +111,22 @@ class CleverColorAssigner(SimpleColorAssigner):
 
         self.rgb = {}
 
-        with open(self.rgbtxt) as fp:
-            for line in fp:
-                if '!' in line:
-                    line = line[:line.find('!')]
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    items = line.split(maxsplit=3)
-                    r, g, b = [int(x) for x in items[:3]]
-                    self.rgb[items[3].strip()] = (r, g, b)
-                except:
-                    self.log.exception('reading rgb.txt line')
+        try:
+            with open(self.rgbtxt) as fp:
+                for line in fp:
+                    if '!' in line:
+                        line = line[:line.find('!')]
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        items = line.split(maxsplit=3)
+                        r, g, b = [int(x) for x in items[:3]]
+                        self.rgb[items[3].strip()] = (r, g, b)
+                    except:  # pragma: nocover
+                        self.log.exception('reading rgb.txt line')
+        except FileNotFoundError:  # pragma: nocover
+            pass  # cue hyperdrive failure noise
 
         self.log.debug('read %d entries from %s', len(self.rgb), self.rgbtxt)
 
@@ -145,7 +148,7 @@ class CleverColorAssigner(SimpleColorAssigner):
         if m and 0 <= int(name) <= 255:
             m = self.hex_24bit.match(
                 dict(colors_xterm_256color).get(int(name)))
-            if m is None:
+            if m is None:  # pragma: nocover
                 return None
             return tuple(int(x, 16) for x in m.groups())
 
