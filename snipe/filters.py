@@ -275,16 +275,6 @@ class Conjunction(Filter):
             and self.operands == other.operands
             )
 
-    def push(self, other):
-        self.operands.append(other)
-
-    def pop(self):
-        if len(self.operands) > 2:
-            self.operands.pop()
-            return self
-        else:
-            return self.operands[0]
-
     def __hash__(self):
         return hash((self.__class__, self.operands))
 
@@ -372,6 +362,7 @@ class Python(Filter):
                 'executing python filter %s on %s',
                 repr(self.string),
                 repr(m))
+            return False
 
     def __eq__(self, other):
         return (self.__class__ is other.__class__
@@ -575,6 +566,7 @@ class Lexeme:
         return self.value
 
     def __repr__(self):
+        # pragma: nocover
         return self.__class__.__name__ + '(' + repr(self.value) + ')'
 
     def __eq__(self, other):
