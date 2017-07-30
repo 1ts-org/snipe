@@ -41,6 +41,6 @@ sys.path.append('../lib')
 import snipe.context as context  # noqa: E402,F401
 
 
-class TestContexto(unittest.TestCase):
+class TestContext(unittest.TestCase):
     def test_null(self):
         pass
