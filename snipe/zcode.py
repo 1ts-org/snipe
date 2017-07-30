@@ -103,7 +103,8 @@ def tree(s):
                     _, cur = stack.pop()
                     c = ''
             else:
-                raise AssertionError('unknown action in state table')
+                raise AssertionError(
+                    'unknown action in state table')  # pragma: nocover
             log.debug(' %s %s %s %s', action, out, repr(saved), cur)
     return out
 

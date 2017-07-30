@@ -540,3 +540,53 @@ class TestZcode(unittest.TestCase):
             zcode.tree('@bloop'),
             ['', '@bloop'],
             )
+
+    def test_tag(self):
+        self.assertEqual(
+            zcode.tag('', ()),
+            [],
+            )
+        self.assertEqual(
+            zcode.tag('foo', ()),
+            [((), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@color(green)foo', ()),
+            [(('fg:green',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@i(foo)', ()),
+            [(('underline',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@b(foo)', ()),
+            [(('bold',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@b(@i(@roman(foo)))', ()),
+            [((), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@font(fixed)foo', ()),
+            [((), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@color(red)@{@color(green)foo}', ()),
+            [(('fg:green',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@color(green)foo', ('fg:red',)),
+            [(('fg:green',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('foo', ('bold',)),
+            [(('bold',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('foo', ('fg:red',)),
+            [(('fg:red',), 'foo')],
+            )
+        self.assertEqual(
+            zcode.tag('@i{foo\nbar}', ()),
+            [(('underline',), 'foo'), ((), '\n'), (('underline',), 'bar')],
+            )
