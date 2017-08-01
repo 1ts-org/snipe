@@ -47,6 +47,7 @@ import traceback
 import codecs
 import subprocess
 import inspect
+import unicodedata
 
 from . import messages
 from . import _rooster
@@ -637,7 +638,7 @@ class RoostMessage(messages.SnipeMessage):
             if value[-atrealmlen:] == '@' + self.backend.realm:
                 return value[:-atrealmlen]
         elif field == 'class':
-            value = value.lower()  # XXX do proper unicode thing
+            value = unicodedata.normalize('NFKC', value).lower()
             x1, x2 = self.class_un.search(value).span()
             value = value[x2:]
             x1, x2 = self.class_dotd.search(value).span()
