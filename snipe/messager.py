@@ -778,7 +778,8 @@ class Messager(window.Window, window.PagingMixIn):
             self.cursor_set_walk(where, True)
             self.set_mark_state = 1
         else:
-            self.mark_ring.append(self.the_mark)
+            if self.the_mark is not None:
+                self.mark_ring.append(self.the_mark)
             self.the_mark = where if where is not None else self.cursor
             self.set_mark_state = 0
 
