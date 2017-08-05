@@ -130,7 +130,9 @@ class Messager(window.Window, window.PagingMixIn):
         for (filt, decor) in self.context.conf.get('rule', []):
             try:
                 self.rules.append((filters.makefilter(filt), decor))
-            except:
+            except:  # pragma: nocover
+                # XXX If we actually stuck this somewhere for the user to see,
+                # it would actually be testable
                 self.log.exception(
                     'error in filter %s for decor %s', filt, decor)
         self.real_keymap = self.keymap
@@ -328,6 +330,7 @@ class Messager(window.Window, window.PagingMixIn):
         target = None
         if count < 0:
             target = float('-inf')
+        self.log.debug('move %d: target: %s', count, target)
 
         it = iter(self.fe.context.backends.walk(
             self.cursor, count > 0, mfilter, target, infilter is not None))
@@ -343,7 +346,8 @@ class Messager(window.Window, window.PagingMixIn):
                 # but the omega message has code to buypass filters.  meh.
                 if infilter is None or not candidate.omega:
                     self.cursor = candidate
-                self.log.debug('move %d: cursor: %s', count, repr(self.cursor))
+                self.log.debug(
+                    'move_ %d: cursor: %s', count, repr(self.cursor))
         except StopIteration:
             self.whine('No more messages')
 
@@ -851,8 +855,8 @@ class Messager(window.Window, window.PagingMixIn):
     @keymap.bind('Control-X w')
     def write_region(self):
         filename = yield from self.read_filename('destination file: ')
-        start = min(self.the_mark, self.cursor)
-        end = max(self.the_mark, self.cursor)
+        start = min(self.the_mark or self.cursor, self.cursor)
+        end = max(self.the_mark or self.cursor, self.cursor)
         with open(filename, 'w') as output:
             for m in self.walk(start, True, search=True):
                 output.write(str(m))

@@ -32,12 +32,15 @@
 Various mocks for testing purposes
 '''
 
+import functools
+import itertools
 import sys
 
 sys.path.append('..')
 sys.path.append('../lib')
 
 import snipe.ttycolor  # noqa: E402
+import snipe.filters   # noqa: E402
 
 
 class Backend:
@@ -47,12 +50,102 @@ class Backend:
 class Aggregator:
     def __init__(self):
         self._backends = [Backend()]
+        self._messages = [Message()]
+        self._target = None
+        self._sent = []
 
     def __iter__(self):
         yield from self._backends
 
-    def walk(self, *args, **kw):
-        yield Message()
+    def walk(
+            self, origin, direction, filter=None, backfill_to=None,
+            search=False,
+            ):
+        if backfill_to is not None:
+            self._target = backfill_to
+        if direction:
+            for m in self._messages:
+                if origin is not None and float(origin) > float(m.time):
+                    continue
+                yield m
+        else:
+            for m in reversed(self._messages):
+                if origin is not None and float(origin) < float(m.time):
+                    continue
+                yield m
+
+    def count(self):
+        return len(self._messages)
+
+    def send(self, params, body):
+        self._sent.append((params, body))
+        return ()
+
+    def destinations(self):
+        return ()
+
+    def senders(self):
+        return ()
+
+
+@functools.total_ordering
+class Message:
+    time_counter = itertools.count()
+
+    def __init__(self, **kw):
+        self.dict = kw
+        self.backend = self
+        self.context = kw.get('context', self)
+        self.time = next(self.time_counter)
+        self.conf = {}
+        self.data = {}
+        self._display = []
+        self.omega = False
+        self.personal = False
+        self.outgoing = False
+        self.noise = False
+        self.error = False
+        self.sender = None
+        self.body = ''
+        self.transformed = None
+
+    def field(self, name, canon=True):
+        if canon and name.capitalize() in self.dict:
+            return self.dict[name.capitalize()]
+        return self.dict.get(name, '')
+
+    def display(self, decoration):
+        return self._display
+
+    def __eq__(self, other):
+        return self.time == other.time
+
+    def __lt__(self, other):
+        return self.time < other.time
+
+    def __float__(self):
+        return float(self.time)
+
+    def filter(self, cleverness):
+        return snipe.filters.Yes()
+
+    def followup(self):
+        return 'followup'
+
+    def reply(self):
+        return 'reply'
+
+    def __repr__(self):
+        return (
+            '<' + self.__class__.__module__
+            + '.' + self.__class__.__name__ + '>')
+
+    def __str__(self):
+        return self.body
+
+    def transform(self, encoding, body):
+        self.transfored = encoding
+        self.body = body
 
 
 class Context:
@@ -62,6 +155,7 @@ class Context:
         self.backends = Aggregator()
         self.context = self
         self.erasechar = chr(8)
+        self.starks = []
 
     def message(self, s):
         self._message = s
@@ -69,10 +163,17 @@ class Context:
     def copy(*args, **kw):
         pass
 
+    def write_starks(self):
+        pass
+
+    def conf_write(self):
+        pass
+
 
 class FE:
-    context = Context()
-    called = set()
+    def __init__(self):
+        self.context = Context()
+        self.called = set()
 
     def markcalled(self):
         self.called |= {sys._getframe().f_back.f_code.co_name}
@@ -100,25 +201,17 @@ class FE:
 
 
 class Renderer:
+    def __init__(self, range=(None, None)):
+        self._range = range
+
     def get_hints(self):
         return {}
 
+    def display_range(self):
+        return self._range
 
-class Message:
-    def __init__(self, **kw):
-        self.dict = kw
-        self.backend = self
-        self.context = self
-        self.conf = {}
-        self.data = {}
-
-    def field(self, name, canon=True):
-        if canon and name.capitalize() in self.dict:
-            return self.dict[name.capitalize()]
-        return self.dict.get(name, '')
-
-    def display(self, decoration):
-        return []
+    def reframe(self, *args, **kw):
+        pass
 
 
 class CursesWindow:
