@@ -260,7 +260,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         try:
             then = datetime.datetime.fromtimestamp(float(whence))
-        except OverflowError:
+        except (OverflowError, OSError):
             then = now  # soon
 
         t = ''
