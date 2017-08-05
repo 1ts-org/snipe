@@ -39,6 +39,7 @@ import sys
 import unittest
 
 sys.path.append('..')
+sys.path.append('../lib')
 
 import snipe.text as text  # noqa: E402
 
@@ -190,7 +191,18 @@ class TestRendering(unittest.TestCase):
             rest_chunks('A line of ``text.``')[0],
             (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
 
-# So I can cut and paste it into test:
+
+class TestXHTML(unittest.TestCase):
+    def test_xhtml_to_chunk(self):
+        self.assertEqual(text.xhtml_to_chunk(
+            '<blarf>foo</blarf>'), [
+                (('bold',), '<blarf>'),
+                ((), 'foo'),
+                (('bold',), '</blarf>'),
+                ((), '\n')])
+        self.assertEqual(text.xhtml_to_chunk('foo'), [((), 'foo'), ((), '\n')])
+
+# So I can cut and paste it into tests:
 # Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
 # eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
 # ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut

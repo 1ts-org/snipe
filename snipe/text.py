@@ -452,6 +452,9 @@ def xhtml_to_chunk(xhtml):
     out = []
     for mark, chunk in renderer.output:
         out.extend(chunk)
+    if out and out[-1][-1][-1:] != '\n':
+        out.append(((), '\n'))
+
     return out
 
 
