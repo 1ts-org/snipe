@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 from pip.req import parse_requirements
 setup(
     name='snipe',
-    version='0',
+    version='0.dev0',
     packages=find_packages(),
     entry_points={'console_scripts': [
         'snipe = snipe.main:main',
