@@ -676,9 +676,10 @@ body: ""
             print(args)
             yield fp
 
-        with mock.patch('snipe.messager.open', mock_open):
-            for _ in w.write_region():
-                pass
+        messager.open = mock_open
+        for _ in w.write_region():
+            pass
+        del messager.open
         self.assertEquals(fp.getvalue(), 'foo')
 
 
