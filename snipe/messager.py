@@ -484,7 +484,6 @@ class Messager(window.Window, window.PagingMixIn):
                 raise util.SnipeException(
                     'No filter set for %s. Set one with Control-u %s' % (
                         key, keyseq))
-                return
             self.filter_push(filters.makefilter(filtertext))
 
     @keymap.bind('/ =', 'Meta-/ =')
