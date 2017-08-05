@@ -287,7 +287,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.move(-count)
 
     @keymap.bind('}', 'Meta-n')  # XXX should be Meta-[down] as well but curses
-    def next_messsage_cleverly(self, arg: interactive.argument=None):
+    def next_message_cleverly(self, arg: interactive.argument=None):
         """Move to the next message that's sort of like the current one.
         Control-Us increase specificity if the backend supports it.  Repeated
         "clever" movement commands will retain the specificity."""
@@ -295,7 +295,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.move_cleverly(True, arg)
 
     @keymap.bind('{', 'Meta-p')  # XXX should be Meta-[down] as well but curses
-    def prev_messsage_cleverly(self, arg: interactive.argument=None):
+    def prev_message_cleverly(self, arg: interactive.argument=None):
         """Move to the last message that's sort of like the current one.
         Repeated "clever" movement commands will retain the specificity."""
 
