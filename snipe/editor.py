@@ -653,7 +653,8 @@ class Viewer(window.Window, window.PagingMixIn):
             self.cursor = where
             self.set_mark_state = 1
         else:
-            self.mark_ring.append(self.the_mark)
+            if self.the_mark is not None:
+                self.mark_ring.append(self.the_mark)
             self.the_mark = self.buf.mark(
                 where if where is not None else self.cursor)
             self.set_mark_state = 0
