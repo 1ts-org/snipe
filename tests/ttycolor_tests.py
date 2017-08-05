@@ -72,7 +72,7 @@ class MockCurses:
         return pair
 
     def color_content(self, number):
-        pass
+        return None, None, None
 
     def init_color(self, color, r, g, b):
         pass
@@ -106,6 +106,11 @@ class TestTTYColor(unittest.TestCase):
                 MockCurses(colors=256, dynamic=False)):
             self.assertIsInstance(
                 ttycolor.get_assigner(), ttycolor.StaticColorAssigner)
+
+    def test_NoColorAssigner(self):
+        assign = ttycolor.NoColorAssigner()
+        self.assertEqual(assign(None, None), 0)
+        assign.close()
 
     def test_SimpleColorAssigner(self):
         with unittest.mock.patch(
@@ -169,6 +174,7 @@ class TestTTYColor(unittest.TestCase):
             self.assertEqual(assign.getcolor('#006'), 6)
             self.assertEqual(assign.getcolor('#007'), 7)
             self.assertEqual(assign.getcolor('#008'), -1)
+            assign.close()
 
 
 if __name__ == '__main__':
