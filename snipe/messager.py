@@ -155,36 +155,37 @@ class Messager(window.Window, window.PagingMixIn):
 
         for x in self.walk(
                 origin, direction == 'forward'):
+            chunk = None
             try:
                 decoration = {}
                 for filt, decor in self.rules:
                     if filt(x):
                         decoration.update(decor)
                 chunk = x.display(decoration)
-            except:
-                chunk = [
-                    (('bold',), repr(x) + '\n'),
-                    ((), traceback.format_exc()),
-                    ((), pprint.pformat(x.data) + '\n'),
-                    ]
 
-            if not chunk:
-                # this is a bug so it will do the wrong thing sometimes
-                chunk = [((), '\n')]
+                if not chunk:
+                    # this is a bug so it will do the wrong thing sometimes
+                    chunk = [((), '\n')]
 
-            try:
                 if self.search_term is not None:
                     chunk = util.chunk_mark_re(
                         chunk, re.escape(self.search_term), util.mark_reverse)
+
+                # unpack as a structure assertion
+                assert len(chunk) > 0
+                for (tag, text) in chunk:
+                    pass
             except:
-                chunk = chunk + [
+                chunk = [
+                    ((), repr(chunk) + '\n'),
                     (('bold',), repr(x) + '\n'),
                     ((), traceback.format_exc()),
                     ((), pprint.pformat(x.data) + '\n'),
                     ]
 
             if x == self.cursor:
-                chunk = [(chunk[0][0] + ('visible',), chunk[0][1])] + chunk[1:]
+                tags, text = chunk[0]
+                chunk = [(tags + ('visible',), text)] + chunk[1:]
 
             if x == (self.secondary or self.cursor):
                 chunk = [(chunk[0][0] + ('bar',), chunk[0][1])] + chunk[1:]
