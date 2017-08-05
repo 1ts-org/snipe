@@ -61,6 +61,22 @@ class TestBackend(unittest.TestCase):
         self.assertEqual(len(list(synth.walk(None))), 1)
         self.assertEqual(len(list(synth.walk(None, False))), 1)
 
+        synth = SyntheticBackend(context, conf={'count': 3})
+        self.assertEqual(len(list(synth.walk(None))), 3)
+        self.assertEqual(len(list(synth.walk(None, False))), 3)
+
+        self.assertEqual(len(list(synth.walk(None))), 3)
+        self.assertEqual(len(list(synth.walk(None, False))), 3)
+        self.assertEquals(
+            list(synth.walk(synth.messages[1], True)),
+            [synth.messages[1], synth.messages[2]])
+        self.assertEquals(
+            list(synth.walk(synth.messages[1], False)),
+            [synth.messages[1], synth.messages[0]])
+        self.assertEquals(
+            list(synth.walk(synth.messages[0], False)),
+            [synth.messages[0]])
+
 
 class TestAggregator(unittest.TestCase):
     def testAggregator(self):
