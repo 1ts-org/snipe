@@ -192,22 +192,18 @@ class Messager(window.Window, window.PagingMixIn):
 
             yield x, chunk
 
-    @staticmethod
-    def flatten(msg):
-        return util.flatten_chunk(msg.display({}))
-
     def find(self, string, forward):
         for msg in self.walk(self.cursor, forward, search=True):
             if msg is self.cursor:
                 continue
-            m = self.flatten(msg)
+            m = util.flatten_chunk(msg.display({}))
             if string in m:
                 self.cursor = msg
                 return True
         return False
 
     def match(self, string, forward=True):
-        return string in self.flatten(self.cursor)
+        return string in util.flatten_chunk(self.cursor.display({}))
 
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):
