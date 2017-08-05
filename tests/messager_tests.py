@@ -682,6 +682,18 @@ body: ""
         del messager.open
         self.assertEquals(fp.getvalue(), 'foo')
 
+    def test_set_stark(self):
+        w = messager.Messager(mocks.FE())
+        m = w.context.backends._messages
+
+        self.assertFalse(w.context.starks)
+        m[0].omega = True
+        w.set_stark()
+        self.assertFalse(w.context.starks)
+        m[0].omega = False
+        w.set_stark()
+        self.assertEqual(w.context.starks, [m[0].time])
+
 
 def returning(s):
     def mocked(*args, **kw):
