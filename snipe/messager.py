@@ -367,7 +367,9 @@ class Messager(window.Window, window.PagingMixIn):
         super().pageup()
         # trigger backfill if we're at the earliest extant message
         try:
-            next(self.walk(self.cursor, False, None))
+            it = self.walk(self.cursor, False, None)
+            next(it)
+            next(it)
         except StopIteration:
             next(self.walk(self.cursor, False, float('-inf')))
 
