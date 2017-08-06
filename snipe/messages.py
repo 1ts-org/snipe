@@ -296,9 +296,6 @@ class SnipeBackend:
         if backfill_to is not None and math.isfinite(backfill_to):
             self.backfill(mfilter, backfill_to)
 
-        if point is False:
-            return
-
         needcache = False
         if point is None:
             needcache = True
