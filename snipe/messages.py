@@ -125,7 +125,7 @@ class SnipeMessage:
 
     def display(self, decoration):
         s = str(self)
-        if not s:
+        if not s:  # pragma: nocover
             s = '?\n'
         elif s[-1] != '\n':
             s += '\n'
