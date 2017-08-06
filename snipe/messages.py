@@ -588,7 +588,7 @@ class AggregatorBackend(SnipeBackend):
         self.log.debug(
             'walk(%s, forward=%s, [filter], backfill_to=%s, search=%s',
             repr(start), forward, util.timestr(backfill_to), search)
-        # what happends when someone calls .add for an
+        # what happens when someone calls .add for an
         # in-progress iteration?
         if hasattr(start, 'backend'):
             startbackend = start.backend
