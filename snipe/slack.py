@@ -65,6 +65,10 @@ HELP = """50
 The slack backend
 ==================
 
+This is unsupported, You probably shouldn't use this for various
+reasons.  Also there is an omission in the setup instructors that I am
+deliberately not fixing because see above.
+
 Slack setup
 -----------
 
