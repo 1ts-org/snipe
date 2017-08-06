@@ -151,7 +151,8 @@ class SnipeMessage:
             val = ''
         return val
 
-    def _coerce(self, other):
+    @staticmethod
+    def _coerce(other):
         if hasattr(other, 'time'):
             return other.time
         elif hasattr(other, '__float__'):
