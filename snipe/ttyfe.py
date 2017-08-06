@@ -598,8 +598,8 @@ class TTYFrontend:
             return
         f = frame.f_back
         while f is not None:
-            if (f.f_code is TTYFrontend.readable.__code__
-                    or f.f_code is window.Window.catch_and_log.__code__):
+            if (f.f_code is TTYFrontend.readable_int.__code__
+                    or f.f_code is window.Window.catch_and_log_int.__code__):
                 raise KeyboardInterrupt
             f = f.f_back
 
@@ -737,7 +737,7 @@ class TTYFrontend:
                 # XXX
                 state = (list(self.windows), self.input, self.output)
                 try:
-                    self.windows[self.input].window.input_char(k)
+                    self.readable_int(k)
                 except KeyboardInterrupt:
                     pass
                 if state == (list(self.windows), self.input, self.output):
@@ -745,6 +745,9 @@ class TTYFrontend:
                         self.windows[self.output].window.redisplay_hint())
                 else:
                     self.redisplay()
+
+    def readable_int(self, k):
+        self.windows[self.input].window.input_char(k)
 
     def force_repaint(self):
         self.stdscr.clearok(1)

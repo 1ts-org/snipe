@@ -224,12 +224,16 @@ class Window:
     @asyncio.coroutine
     def catch_and_log(self, coro):
         try:
-            yield from coro
+            yield from self.catch_and_log_int(coro)
         except Exception as e:
             self.context.message(str(e))
             self.log.exception('Executing complex command')
             self.whine('')
         self.redisplay()
+
+    @asyncio.coroutine
+    def catch_and_log_int(self, coro):
+        yield from coro
 
     def check_redisplay_hint(self, hint):
         """See if a redisplay hint dict applies to this window.  Called by the
