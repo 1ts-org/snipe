@@ -48,7 +48,6 @@ key      | binding
 ^X e  | pop up an empty editor window
 ^X 4 m | split to a messager window
 ^X 4 / | split to a messager window with a specified filter
-^X c  | test colors
 Meta–Escape | evaluate python expressions
 Meta–=      | set configuration keys  (^U Alt-= shows you the current configuration)
 Meta–[number], ^U | emacs-like arguments

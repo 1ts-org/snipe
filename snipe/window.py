@@ -483,12 +483,6 @@ class Window:
 
         self.split_to_messager(filter_new=filters.makefilter(s))
 
-    @keymap.bind('Control-X c')  # XXX
-    def split_to_colordemo(self):
-        """Split to a color demo window."""
-
-        self.fe.split_window(ColorDemo(self.fe))
-
     def setup_playground(self):
         import sys
 
@@ -702,17 +696,6 @@ class PagingMixIn:
         """Scroll down a windowful."""
         self.cursor = self.renderer.display_range()[1]
         self.renderer.reframe(action='pagedown')
-
-
-class ColorDemo(Window):
-    def view(self, origin=0, direction='forward'):
-        yield 0, [
-            (('visible', 'fg:green'), 'green '),
-            (('fg:white', 'bg:blue'), 'blue'),
-            (('fg:cornflower blue',), ' cornflower'),
-            (('fg:bisque',), ' bisque '),
-            (('bg:#f00',), '#f00'),
-            ]
 
 
 class StatusLine(Window):
