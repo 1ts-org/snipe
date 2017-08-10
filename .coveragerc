@@ -10,3 +10,4 @@ omit =
     ../lib/*
     lib/*
     tests/*
+    snipe/_roost_python/*.py
