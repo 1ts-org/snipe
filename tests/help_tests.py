@@ -42,5 +42,33 @@ import snipe.help as help  # noqa: E402,F401
 
 
 class TestHelp(unittest.TestCase):
-    def test_null(self):
-        pass
+    def test_follow_link(self):
+        w = help.HelpBrowser(None)
+
+        called = []
+
+        w.load = lambda link: called.append(link)
+        w.links = [(10, 10, 'one'), (30, 10, 'two')]
+
+        w.cursor = 5
+        w.follow_link()
+        self.assertFalse(called)
+        w.cursor = 25
+        w.follow_link()
+        self.assertFalse(called)
+        w.cusor = 45
+        w.follow_link()
+        self.assertFalse(called)
+        w.cursor = 10
+        w.follow_link()
+        self.assertEqual(called[-1], 'one')
+        w.cursor = 35
+        w.follow_link()
+        self.assertEqual(called[-1], 'two')
+        w.cursor = 20
+        w.follow_link()
+        self.assertEqual(called[-1], 'one')
+
+
+if __name__ == '__main__':
+    unittest.main()

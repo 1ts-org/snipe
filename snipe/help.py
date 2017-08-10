@@ -312,9 +312,11 @@ class HelpBrowser(editor.PopViewer):
     @keymap.bind('[return]')
     def follow_link(self):
         offs = [off for (off, length, ref) in self.links]
-        i = min(bisect.bisect_left(offs, int(self.cursor)), len(offs) - 1)
+        i = bisect.bisect(offs, int(self.cursor)) - 1
+        if i < 0:
+            return
         off, length, link = self.links[i]
-        if off <= self.cursor.point < (off + length):
+        if off <= int(self.cursor) <= (off + length):
             self.load(link)
 
 
