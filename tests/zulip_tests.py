@@ -32,15 +32,62 @@
 Unit tests for zulip backend
 '''
 
+import os
 import unittest
 import sys
+
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.zulip as zulip  # noqa: E402,F401
+import snipe.messages as messages  # noqa: E402,F401
+import snipe.zulip as zulip        # noqa: E402,F401
 
 
-class TestZulip(unittest.TestCase):
-    def test_null(self):
-        pass
+class TestZulipDecor(unittest.TestCase):
+    def test_headline(self):
+        Decor = zulip.ZulipMessage.Decor
+        msg = mocks.Message(data={
+            'timestamp': 0.0,
+            'sender_email': 'baz',
+            })
+        msg._chat = 'foo'
+        msg.sender = messages.SnipeAddress(mocks.Backend())
+        os.environ['TZ'] = 'GMT'
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '·foo>'),
+                ((), ' <'),
+                (('bold',), 'baz'),
+                ((), '>'),
+                (('right',), ' 00:00:00\n')
+                ])
+
+        msg.data['subject'] = 'zog'
+        msg.data['sender_full_name'] = 'The Great Quux'
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '·foo>'),
+                ((), ' zog <'),
+                (('bold',), 'baz'),
+                ((), '> The Great Quux'),
+                (('right',), ' 00:00:00\n')
+                ])
+
+    def test_format(self):
+        Decor = zulip.ZulipMessage.Decor
+        msg = mocks.Message(data={
+            'content': 'bar'
+            })
+
+        self.assertEqual(
+            Decor.format(msg, ()), [
+                ((), 'bar\n'),
+                ])
+
+
+if __name__ == '__main__':
+    unittest.main()

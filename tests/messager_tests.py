@@ -410,6 +410,18 @@ class TestMessager(unittest.TestCase):
             f.context.conf['rule'],
             [('yes', {'background': 'green'})])
 
+        w.read_string = returning('messager_tests.TestMessager')
+        w.filter = filters.Yes()
+        for _ in w.filter_decor():
+            pass
+        self.assertEquals(
+            f.context.conf['rule'],
+            [('yes', {'decor': 'messager_tests.TestMessager'})])
+
+        w.read_string = returning('nonexistent.object')
+        w.filter = filters.Yes()
+        self.assertRaises(util.SnipeException, lambda: list(w.filter_decor()))
+
     def test_filter_push(self):
         f = mocks.FE()
         w = messager.Messager(f)

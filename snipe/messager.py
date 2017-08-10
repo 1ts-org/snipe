@@ -584,6 +584,19 @@ class Messager(window.Window, window.PagingMixIn):
             'Background: ', name='background color')
         self.filter_clear_decorate({'background': bg})
 
+    @keymap.bind('/ D', 'Meta-/ D')
+    def filter_decor(self):
+        "Take the current filter and set a decor for messages that match it."""
+
+        decor = (yield from self.read_string(
+            'Decor object: ', name='decor object')).strip()
+        try:
+            util.getobj(decor)
+        except:
+            self.log.exception('getting specified decor object %s', decor)
+            raise util.SnipeException("can't find %s" % (decor,))
+        self.filter_clear_decorate({'decor': decor})
+
     def filter_push_and_replace(self, new_filter):
         if self.filter is not None:
             self.filter_stack.append(self.filter)

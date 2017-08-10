@@ -202,6 +202,16 @@ class TestXHTML(unittest.TestCase):
                 ((), '\n')])
         self.assertEqual(text.xhtml_to_chunk('foo'), [((), 'foo'), ((), '\n')])
 
+
+class TestMarkdownXHTMLChunk(unittest.TestCase):
+    def test(self):
+        input = 'foo'
+        xhtml = text.markdown_to_xhtml(input)
+        self.assertEqual(xhtml, '<p>foo</p>')
+        chunk = text.xhtml_to_chunk(xhtml)
+        self.assertEqual(chunk, [((), 'foo\n')])
+
+
 # So I can cut and paste it into tests:
 # Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
 # eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim

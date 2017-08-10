@@ -32,15 +32,165 @@
 Unit tests for slack backend
 '''
 
+import os
 import unittest
 import sys
+
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.slack as slack  # noqa: E402,F401
+import snipe.messages as messages  # noqa: E402,F401
+import snipe.slack as slack        # noqa: E402,F401
 
 
-class TestSlack(unittest.TestCase):
-    def test_null(self):
-        pass
+class TestSlackDecor(unittest.TestCase):
+    def test(self):
+        Decor = slack.SlackMessage.Decor
+        msg = mocks.Message(data={
+            'type': 'message',
+            'subtype': 'me_message',
+            'edited': '?',
+            'is_starred': True,
+            'pinned_to': True,
+            'text': 'baz',
+            })
+        msg.time = 0.0
+        msg.channel = '#foo'
+        msg.body = 'bar'
+        msg.sender = messages.SnipeAddress(mocks.Backend())
+        os.environ['TZ'] = 'GMT'
+        msg.slackmarkup = lambda text, tags: [(tags, text)]
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                ((), '~'),
+                ((), '*'),
+                ((), '+'),
+                (('bold',), 'mock'),
+                ((), ' '),
+                ((), 'baz'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        msg.data['is_starred'] = False
+        msg.data['pinned_to'] = False
+        del msg.data['edited']
+        msg.data['subtype'] = ''
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                (('bold',), 'mock'),
+                ((), ': '),
+                ((), 'baz'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        msg.data['file'] = {'url': 'file:///'}
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                (('bold',), 'mock'),
+                ((), ': '),
+                ((), 'baz'),
+                ((), '\nfile:///'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        del msg.data['file']
+
+        msg.data['reactions'] = [{'name': 'over', 'count': 9000}]
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                (('bold',), 'mock'),
+                ((), ': '),
+                ((), 'baz'),
+                ((), '\n:over: 9000'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        del msg.data['reactions']
+        msg.data['attachments'] = [
+            {
+                'color': 'danger',
+                'title_link': 'file:///',
+                'text': 'things',
+                'fields': [{'title': 'key', 'value': 'value'}],
+            }, {
+                'color': 'f0f0f0',
+                'text': 'stuff',
+            }]
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                (('bold',), 'mock'),
+                ((), ': '),
+                ((), 'baz'),
+                ((), '\n'),
+                (('bg:red',), ' '),
+                ((), ' '),
+                ((), 'file:///'),
+                ((), '\n'),
+                (('bg:red',), ' '),
+                ((), ' '),
+                ((), 'things'),
+                ((), '\n'),
+                (('bg:red',), ' '),
+                ((), ' '),
+                (('bold',), 'key'),
+                ((), '\n'),
+                (('bg:red',), ' '),
+                ((), ' '),
+                ((), 'value'),
+                ((), '\n'),
+                (('bg:#f0f0f0',), ' '),
+                ((), ' '),
+                ((), 'stuff'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        del msg.data['attachments']
+
+        msg.data['type'] = 'presence_change'
+        msg.data['presence'] = 'active'
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                ((), '+ '),
+                (('bold',), 'mock'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        msg.data['presence'] = 'passive'  # ?
+
+        self.assertEqual(
+            Decor.headline(msg, ()), [
+                (('bold',), '#foo '),
+                ((), '- '),
+                (('bold',), 'mock'),
+                (('right',), ' 00:00:00'),
+                ])
+
+        msg.data['type'] = None
+
+        self.assertEqual(
+            [(set(x), y)
+                for (x, y) in Decor.headline(msg, ('fg:white', 'bg:blue'))], [
+                    ({'fg:white', 'bg:blue', 'bold'}, 'followup'),
+                    ({'fg:white', 'bg:blue'}, ' : '),
+                    ({'fg:white', 'bg:blue', 'bold'}, 'mock'),
+                    ({'fg:white', 'bg:blue', 'right'}, ' 00:00:00'),
+                    ({'fg:white', 'bg:blue'}, 'bar\n')
+                ])
+
+
+if __name__ == '__main__':
+    unittest.main()

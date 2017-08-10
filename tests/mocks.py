@@ -45,6 +45,7 @@ import snipe.filters   # noqa: E402
 
 class Backend:
     name = 'mock'
+    index = ''
 
 
 class Aggregator:
@@ -95,10 +96,11 @@ class Message:
     def __init__(self, **kw):
         self.dict = kw
         self.backend = self
+        self.indent = ''
         self.context = kw.get('context', self)
         self.time = next(self.time_counter)
         self.conf = {}
-        self.data = {}
+        self.data = kw.get('data', {})
         self._display = []
         self.omega = False
         self.personal = False

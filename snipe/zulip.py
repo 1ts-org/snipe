@@ -284,7 +284,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
 
 class ZulipMessage(messages.SnipeMessage):
-
     def __init__(self, backend, data):
         super().__init__(
             backend,
@@ -337,42 +336,6 @@ class ZulipMessage(messages.SnipeMessage):
         self.data = data
         self.backend.log.debug('updated: %s', pprint.pformat(self.data))
         self.backend.redisplay(self, self)
-
-    def display(self, decoration):
-        tags = set(self.decotags(decoration))
-
-        subject = self.data.get('subject')
-        if subject:
-            subject = ' ' + subject
-        else:
-            subject = ''
-
-        name = self.data.get('sender_full_name')
-        if name:
-            name = ' ' + name
-        else:
-            name = ''
-
-        timestamp = time.strftime(
-            ' %H:%M:%S\n', time.localtime(self.data['timestamp']))
-
-        body = self.data.get('content')
-        body = body.replace('\r\n', '\n')  # conform to local custom
-
-        if '_html' not in self.data:
-            self.data['_html'] = text.markdown_to_xhtml(body)
-        if '_rendered' not in self.data:
-            self.data['_rendered'] = text.xhtml_to_chunk(self.data['_html'])
-
-        return [(tuple(x), y) for (x, y) in
-                [
-                (tags | {'bold'}, '·' + self._chat + '>'),
-                (tags, subject + ' <'),
-                (tags | {'bold'}, self.data.get('sender_email', '?')),
-                (tags, '>' + name),
-                (tags | {'right'}, timestamp),
-                ] + [((tags | set(x)), y)
-                     for (x, y) in self.data['_rendered']]]
 
     def reply(self):
         if self.personal:
@@ -444,6 +407,47 @@ class ZulipMessage(messages.SnipeMessage):
             'messages/' + str(self.data['id']), **kw)
         if result['result'] != 'success':
             raise util.SnipeException(result['msg'])
+
+    class Decor(messages.SnipeMessage.Decor):
+        @classmethod
+        def headline(self, msg, tags):
+            tags = set(tags)
+
+            subject = msg.data.get('subject')
+            if subject:
+                subject = ' ' + subject
+            else:
+                subject = ''
+
+            name = msg.data.get('sender_full_name')
+            if name:
+                name = ' ' + name
+            else:
+                name = ''
+
+            timestamp = time.strftime(
+                ' %H:%M:%S\n', time.localtime(msg.data['timestamp']))
+
+            return [(tuple(x), y) for (x, y) in [
+                (tags | {'bold'}, '·' + msg._chat + '>'),
+                (tags, subject + ' <'),
+                (tags | {'bold'}, msg.data.get('sender_email', '?')),
+                (tags, '>' + name),
+                (tags | {'right'}, timestamp),
+                ]]
+
+        @classmethod
+        def format(self, msg, tags):
+            tags = set(tags)
+            if '_html' not in msg.data:
+                body = msg.data.get('content', '')
+                body = body.replace('\r\n', '\n')  # conform to local custom
+                msg.data['_html'] = text.markdown_to_xhtml(body)
+            if '_rendered' not in msg.data:
+                msg.data['_rendered'] = text.xhtml_to_chunk(msg.data['_html'])
+            # XXX what if there is color in the rendered data
+            return [
+                (tuple(tags | set(x)), y) for (x, y) in msg.data['_rendered']]
 
 
 class ZulipAddress(messages.SnipeAddress):

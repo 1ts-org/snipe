@@ -86,10 +86,6 @@ class Roost(messages.SnipeBackend):
         'Name-ish field on messages')
     subunify = util.Configurable(
         'roost.subunify', False, 'un-ify subscriptions')
-    indent = util.Configurable(
-        'roost.barnowl_indent_body_string', '',
-        'Indent message bodies with this string (barnowl expats may '
-        'wish to set it to eight spaces)')
     FORMAT_TYPES = {'strip', 'raw', 'format'}
     FORMAT_DOC = (
         '\n\nstrip - Remove markup\n'
@@ -557,77 +553,6 @@ class RoostMessage(messages.SnipeMessage):
                 + ('' if self.body and self.body[-1] == '\n' else '\n'),
             )
 
-    def display(self, decoration):
-        tags = self.decotags(decoration)
-        instance = self.data['instance']
-        instance = instance or "''"
-        chunk = []
-
-        if self.personal:
-            if self.outgoing:
-                chunk += [(
-                    (tags + ('bold',)),
-                    '(personal> <' + self.field('recipient') + '>')]
-            else:
-                chunk += [(tags + ('bold',), '<personal)')]
-
-        if not self.personal or self.data['class'].lower() != 'message':
-            chunk += [
-                (tags, '-c '),
-                (tags + ('bold',), self.data['class']),
-                ]
-        if instance.lower() != 'personal':
-            chunk += [
-                (tags, ' -i ' + instance),
-                ]
-
-        if self.data['recipient'] and self.data['recipient'][0] == '@':
-            chunk += [(tags + ('bold',), ' ' + self.data['recipient'])]
-
-        if self.data['opcode']:
-            chunk += [(tags, ' [' + self.data['opcode'] + ']')]
-
-        chunk += [
-            (tags, ' <'),
-            (tags + ('bold',), self.sender.short()),
-            (tags, '>'),
-            ]
-
-        sig = self.data.get('signature', '').strip()
-        if sig:
-            sigl = sig.split('\n')
-            sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
-            if self.backend.format_zsig == 'format':
-                chunk += [(tags, ' ')] + zcode.tag(sig, tags)
-            else:
-                if self.backend.format_zsig == 'strip':
-                    sig = zcode.strip(sig)
-                chunk += [
-                    (tags, ' ' + sig),
-                    ]
-
-        chunk.append(
-            (tags + ('right',),
-             time.strftime(
-                ' %H:%M:%S', time.localtime(self.data['time'] / 1000))))
-
-        body = self.body
-        if body and body[-1] != '\n':
-            body = body + '\n'
-        body = '\n'.join(
-            [self.backend.indent + line for line in body.split('\n')][:-1])
-        if body:
-            if not body.endswith('\n'):
-                body += '\n'
-            if self.backend.format_body == 'format':
-                chunk += zcode.tag(body, tags)
-            else:
-                if self.backend.format_body == 'strip':
-                    body = zcode.strip(body)
-                chunk += [(tags, body)]
-
-        return chunk
-
     class_un = re.compile(r'^(un)*')
     class_dotd = re.compile(r'(\.d)*$')
 
@@ -719,6 +644,80 @@ class RoostMessage(messages.SnipeMessage):
             return nfilter
 
         return super().filter(specificity)
+
+    class Decor(messages.SnipeMessage.Decor):
+        @classmethod
+        def headline(self, msg, tags):
+            instance = msg.data['instance']
+            instance = instance or "''"
+            chunk = []
+
+            if msg.personal:
+                if msg.outgoing:
+                    chunk += [(
+                        (tags + ('bold',)),
+                        '(personal> <' + msg.field('recipient') + '>')]
+                else:
+                    chunk += [(tags + ('bold',), '<personal)')]
+
+            if not msg.personal or msg.data['class'].lower() != 'message':
+                chunk += [
+                    (tags, '-c '),
+                    (tags + ('bold',), msg.data['class']),
+                    ]
+            if instance.lower() != 'personal':
+                chunk += [
+                    (tags, ' -i ' + instance),
+                    ]
+
+            if msg.data['recipient'] and msg.data['recipient'][0] == '@':
+                chunk += [(tags + ('bold',), ' ' + msg.data['recipient'])]
+
+            if msg.data['opcode']:
+                chunk += [(tags, ' [' + msg.data['opcode'] + ']')]
+
+            chunk += [
+                (tags, ' <'),
+                (tags + ('bold',), msg.sender.short()),
+                (tags, '>'),
+                ]
+
+            sig = msg.data.get('signature', '').strip()
+            if sig:
+                sigl = sig.split('\n')
+                sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
+                if msg.backend.format_zsig == 'format':
+                    chunk += [(tags, ' ')] + zcode.tag(sig, tags)
+                else:
+                    if msg.backend.format_zsig == 'strip':
+                        sig = zcode.strip(sig)
+                    chunk += [
+                        (tags, ' ' + sig),
+                        ]
+
+            chunk.append(
+                (tags + ('right',),
+                 time.strftime(
+                    ' %H:%M:%S', time.localtime(msg.data['time'] / 1000))))
+
+            return chunk
+
+        @classmethod
+        def format(self, msg, tags):
+            body = msg.body
+            if body:
+                if not body.endswith('\n'):
+                    body += '\n'
+                if msg.backend.format_body == 'format':
+                    chunk = zcode.tag(body, tags)
+                else:
+                    if msg.backend.format_body == 'strip':
+                        body = zcode.strip(body)
+                    chunk = [(tags, body)]
+            else:
+                chunk = []
+
+            return chunk
 
 
 class RoostPrincipal(messages.SnipeAddress):

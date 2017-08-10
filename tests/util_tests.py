@@ -214,5 +214,10 @@ class TestEvalOutput(unittest.TestCase):
             snipe.util.eval_output('print(2+2)\n', mode='exec'), '4\n')
 
 
+class TestGetobj(unittest.TestCase):
+    def test(self):
+        self.assertIs(snipe.util.getobj('util_tests.TestGetobj'), TestGetobj)
+
+
 if __name__ == '__main__':
     unittest.main()

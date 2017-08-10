@@ -34,17 +34,17 @@ Utilities and base classes for dealin with messages.
 '''
 
 
-import time
-import datetime
-import logging
-import functools
-import bisect
 import asyncio
-import math
+import bisect
 import contextlib
+import datetime
+import functools
+import logging
+import math
+import time
 
-from . import util
 from . import filters
+from . import util
 
 
 class SnipeAddress:
@@ -114,22 +114,18 @@ class SnipeMessage:
             + str(len(self.body)) + ' chars>'
             )
 
-    @staticmethod
-    def decotags(decoration):
-        tags = []
-        if 'foreground' in decoration:
-            tags.append('fg:' + decoration['foreground'])
-        if 'background' in decoration:
-            tags.append('bg:' + decoration['background'])
-        return tuple(tags)
-
     def display(self, decoration):
-        s = str(self)
-        if not s:  # pragma: nocover
-            s = '?\n'
-        elif s[-1] != '\n':
-            s += '\n'
-        return [(self.decotags(decoration), s)]
+        decor = self.get_decor(decoration)
+        return decor.decorate(self, decoration)
+
+    def get_decor(self, decoration):
+        decor = decoration.get('decor')
+        if decor is not None:
+            try:
+                return util.getobj(decor)
+            except:
+                self.backend.log.exception('loading decor %s', decor)
+        return self.Decor
 
     @staticmethod
     def canon(field, value):
@@ -195,6 +191,84 @@ class SnipeMessage:
         self.transformed = encoding
         self.body = body
 
+    class Decor:
+        @classmethod
+        def decorate(self, msg, decoration):
+            tags = self.decotags(decoration)
+            return self.headline(msg, tags) + self.body(msg, tags)
+
+        @classmethod
+        def headline(self, msg, tags):
+            chunk = [(tags + ('bold',), msg.followup())]
+            sender = str(msg.sender)
+            if sender != chunk[0][1]:
+                chunk += [(tags, ' : '), (tags + ('bold',), sender)]
+            chunk += [(
+                tags + ('right',),
+                time.strftime(' %H:%M:%S', time.localtime(msg.time)),
+                )]
+            return chunk
+
+        @classmethod
+        def format(self, msg, tags):
+            return [(tags, msg.body + ('\n' if msg.body[-1:] != '\n' else ''))]
+
+        @classmethod
+        def body(self, msg, tags):
+            body = self.format(msg, tags)
+            if not msg.backend.indent:
+                return body
+            return self.prefix_chunk(msg.backend.indent, body)
+
+        @staticmethod
+        def prefix_chunk(prefix, chunk):
+            if not chunk:
+                return chunk
+
+            UNDERLINE = frozenset(['underline'])
+
+            flat = util.flatten_chunk(chunk)
+            new = []
+            rest = list(chunk)
+            for l in (len(s) for s in flat.split('\n')):
+                line, rest = util.chunk_slice(rest, l)
+                if not line:
+                    if rest:
+                        if new:
+                            t = new[-1][0]
+                        else:
+                            t = tuple(set(rest[-1][0]) - UNDERLINE)
+                        line = [(t, prefix + '\n')]
+                else:
+                    ltags, ltext = line[0]
+                    if 'underline' in ltags:
+                        line[0:0] = [(tuple(set(ltags) - UNDERLINE), prefix)]
+                    else:
+                        line[0] = (ltags, prefix + ltext)
+                    ltags, ltext = line[-1]
+                    if 'underline' in ltags:
+                        line += [(tuple(set(ltags) - UNDERLINE), '\n')]
+                    else:
+                        line[-1] = (ltags, ltext + '\n')
+                new.extend(line)
+                if rest:
+                    _, rest = util.chunk_slice(rest, 1)
+            return new
+
+        @staticmethod
+        def decotags(decoration):
+            tags = []
+            if 'foreground' in decoration:
+                tags.append('fg:' + decoration['foreground'])
+            if 'background' in decoration:
+                tags.append('bg:' + decoration['background'])
+            return tuple(tags)
+
+    class OnelineDecor(Decor):
+        @classmethod
+        def body(self, msg, tags):
+            return []
+
 
 class SnipeErrorMessage(SnipeMessage):
     def __init__(self, backend, body, tb=None):
@@ -222,6 +296,11 @@ class SnipeBackend:
     #  (not all backends will export this, it can be None)
     messages = ()
     principal = None
+
+    indent = util.Configurable(
+        'message.indent_body_string', '',
+        'Indent message bodies with this string (barnowl expats may '
+        'wish to set it to eight spaces)')
 
     def __init__(self, context, name=None, conf={}):
         self.context = context
@@ -426,8 +505,10 @@ class InfoMessage(SnipeMessage):
     def __str__(self):
         return self.body
 
-    def display(self, decoration):
-        return [(self.decotags(decoration) + ('bold',), str(self))]
+    class Decor(SnipeMessage.Decor):
+        @classmethod
+        def decorate(self, msg, decoration):
+            return [(self.decotags(decoration) + ('bold',), msg.body)]
 
 
 class TerminusBackend(SnipeBackend):

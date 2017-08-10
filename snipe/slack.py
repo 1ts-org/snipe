@@ -623,94 +623,6 @@ class SlackMessage(messages.SnipeMessage):
 
         return chunk
 
-    def display(self, decoration):
-        tags = self.decotags(decoration)
-        timestring = time.strftime(' %H:%M:%S', time.localtime(self.time))
-        chunk = []
-        if self.channel is not None:
-            chunk += [((tags + ('bold',)), self.channel + ' ')]
-
-        if 'edited' in self.data:
-            chunk += [(tags, '~')]
-
-        if self.data.get('is_starred', False):
-            chunk += [(tags, '*')]
-
-        if self.data.get('pinned_to', False):
-            chunk += [(tags, '+')]
-
-        t = self.data['type']
-        t_ = self.data.get('subtype')
-        if t == 'message':
-            chunk += [(tags + ('bold',), self.sender.short())]
-            if t_ != 'me_message':
-                chunk += [(tags, ': ')]
-            else:
-                chunk += [(tags, ' ')]
-
-            chunk += self.slackmarkup(self.data.get('text') or '', tags)
-
-            if self.data.get('reactions'):
-                chunk += [
-                    (tags, '\n' + ' '.join(
-                        ':%s: %d' % (reaction['name'], reaction['count'])
-                        for reaction in self.data['reactions']))]
-
-            for attachment in self.data.get('attachments', []):
-                left = [(tags, '\n> ')]
-                color = attachment.get('color', '')
-                if color:
-                    cmap = {
-                        'good': 'green',
-                        'warning': 'yellow',
-                        'danger': 'red',
-                        }
-                    if color.lower() in cmap:
-                        color = cmap[color.lower()]
-                    elif HEXCOLOR.match(color):
-                        color = '#' + color
-
-                    left = [
-                        (tags, '\n'),
-                        (tags + (('bg:%s' % color),), ' '),
-                        (tags, ' '),
-                        ]
-
-                for (field, markup) in [
-                        # ('fallback', ()),
-                        ('pretext', ('bold',)),
-                        ('author_name', ()),
-                        ('author_link', ()),
-                        ('title', ('bold',)),
-                        ('title_link', ()),
-                        ]:
-                    if field in attachment:
-                        chunk += left + [((tags + markup), attachment[field])]
-
-                if 'text' in attachment:
-                    chunk += left + self.slackmarkup(attachment['text'], tags)
-
-                for field in attachment.get('fields', []):
-                    chunk += left + [(tags + ('bold',), field['title'])]
-                    chunk += left + [(tags, field['value'])]
-
-            if 'file' in self.data and 'url' in self.data['file']:
-                chunk += [(tags, ('\n' + self.data['file']['url']))]
-
-            chunk += [(tags + ('right',), timestring)]
-        elif t == 'presence_change':
-            if self.data['presence'] == 'active':
-                chunk += [(tags, '+ ')]
-            else:
-                chunk += [(tags, '- ')]
-            chunk += [
-                (tags + ('bold',), self.sender.short()),
-                (tags + ('right',), timestring),
-                ]
-        else:
-            return super().display(decoration)
-        return chunk
-
     def followup(self):
         if self.channel is None:
             return self.reply()
@@ -791,6 +703,105 @@ class SlackMessage(messages.SnipeMessage):
             timestamp=self.data['ts'],
             )
         self.backend.check(response, 'responding to message')
+
+    class Decor(messages.SnipeMessage.OnelineDecor):
+        @classmethod
+        def headline(self, msg, tags):
+            timestring = time.strftime(' %H:%M:%S', time.localtime(msg.time))
+            chunk = []
+            if msg.channel is not None:
+                chunk += [((tags + ('bold',)), msg.channel + ' ')]
+
+            if 'edited' in msg.data:
+                chunk += [(tags, '~')]
+
+            if msg.data.get('is_starred', False):
+                chunk += [(tags, '*')]
+
+            if msg.data.get('pinned_to', False):
+                chunk += [(tags, '+')]
+
+            t = msg.data['type']
+            t_ = msg.data.get('subtype')
+            if t == 'message':
+                chunk += [(tags + ('bold',), msg.sender.short())]
+                if t_ != 'me_message':
+                    chunk += [(tags, ': ')]
+                else:
+                    chunk += [(tags, ' ')]
+
+                chunk += msg.slackmarkup(msg.data.get('text', ''), tags)
+
+                # XXX some of this stuff should probably be in the body,
+                # format-wise
+                if msg.data.get('reactions'):
+                    chunk += [
+                        (tags, '\n' + ' '.join(
+                            ':%s: %d' % (reaction['name'], reaction['count'])
+                            for reaction in msg.data['reactions']))]
+
+                for attachment in msg.data.get('attachments', []):
+                    left = [(tags, '\n> ')]
+                    color = attachment.get('color', '')
+                    if color:
+                        cmap = {
+                            'good': 'green',
+                            'warning': 'yellow',
+                            'danger': 'red',
+                            }
+                        if color.lower() in cmap:
+                            color = cmap[color.lower()]
+                        elif HEXCOLOR.match(color):
+                            color = '#' + color
+
+                        left = [
+                            (tags, '\n'),
+                            (tags + (('bg:%s' % color),), ' '),
+                            (tags, ' '),
+                            ]
+
+                    for (field, markup) in [
+                            # ('fallback', ()),
+                            ('pretext', ('bold',)),
+                            ('author_name', ()),
+                            ('author_link', ()),
+                            ('title', ('bold',)),
+                            ('title_link', ()),
+                            ]:
+                        if field in attachment:
+                            chunk += left + [
+                                ((tags + markup), attachment[field])]
+
+                    if 'text' in attachment:
+                        chunk += left + msg.slackmarkup(
+                            attachment['text'], tags)
+
+                    for field in attachment.get('fields', []):
+                        chunk += left + [(tags + ('bold',), field['title'])]
+                        chunk += left + [(tags, field['value'])]
+
+                if 'file' in msg.data and 'url' in msg.data['file']:
+                    chunk += [(tags, ('\n' + msg.data['file']['url']))]
+
+                chunk += [(tags + ('right',), timestring)]
+            elif t == 'presence_change':
+                if msg.data['presence'] == 'active':
+                    chunk += [(tags, '+ ')]
+                else:
+                    chunk += [(tags, '- ')]
+                chunk += [
+                    (tags + ('bold',), msg.sender.short()),
+                    (tags + ('right',), timestring),
+                    ]
+            else:
+                decor = {}
+                for x in tags:
+                    if x.startswith('fg:'):
+                        decor['foreground'] = x[3:]
+                    if x.startswith('bg:'):
+                        decor['background'] = x[3:]
+                return messages.SnipeMessage.Decor.decorate(msg, decor)
+            return chunk
 
 
 # the following was massaged from

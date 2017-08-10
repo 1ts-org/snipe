@@ -32,15 +32,140 @@
 Unit tests for roost backend
 '''
 
+import os
 import unittest
 import sys
+
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.roost as roost  # noqa: E402,F401
+import snipe.messages as messages  # noqa: E402,F401
+import snipe.roost as roost        # noqa: E402,F401
 
 
-class TestRoost(unittest.TestCase):
-    def test_null(self):
-        pass
+class TestRoostDecor(unittest.TestCase):
+    def test_headline(self):
+        Decor = roost.RoostMessage.Decor
+        msg = mocks.Message(data={
+            'class': 'foo',
+            'instance': 'bar',
+            'recipient': '',
+            'opcode': 'baz',
+            'time': 0.0,
+            })
+        msg.sender = messages.SnipeAddress(mocks.Backend())
+        os.environ['TZ'] = 'GMT'
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                ((), ' [baz]'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                (('right',), ' 00:00:00')])
+
+        msg.data['recipient'] = '@QUUX'
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                (('bold',), ' @QUUX'),
+                ((), ' [baz]'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                (('right',), ' 00:00:00')])
+
+        msg.data['recipient'] = 'someone'
+        msg.personal = True
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                (('bold',), '<personal)'),
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                ((), ' [baz]'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                (('right',), ' 00:00:00')])
+
+        msg.outgoing = True
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                (('bold',), '(personal> <>'),
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                ((), ' [baz]'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                (('right',), ' 00:00:00')])
+
+        msg.data['opcode'] = ''
+        msg.data['recipient'] = ''
+        msg.personal = False
+        msg.outgoing = False
+
+        msg.data['signature'] = '@{The Great Quux}'
+
+        msg.backend.format_zsig = 'format'
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                ((), ' '),
+                ((), 'The Great Quux'),
+                (('right',), ' 00:00:00')])
+
+        msg.backend.format_zsig = 'strip'
+
+        self.assertEquals(
+            Decor.headline(msg, ()), [
+                ((), '-c '),
+                (('bold',), 'foo'),
+                ((), ' -i bar'),
+                ((), ' <'),
+                (('bold',), 'mock'),
+                ((), '>'),
+                ((), ' The Great Quux'),
+                (('right',), ' 00:00:00')])
+
+    def test_format(self):
+        Decor = roost.RoostMessage.Decor
+        msg = mocks.Message()
+
+        self.assertEquals(Decor.format(msg, ()), [])
+
+        msg.body = '@[foo]'
+
+        msg.backend.format_body = 'format'
+        self.assertEquals(
+            Decor.format(msg, ()), [
+                ((), 'foo'), ((), '\n'),
+                ])
+
+        msg.backend.format_body = 'strip'
+        self.assertEquals(
+            Decor.format(msg, ()), [
+                ((), 'foo\n'),
+                ])
+
+
+if __name__ == '__main__':
+    unittest.main()

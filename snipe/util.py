@@ -39,6 +39,7 @@ import asyncio
 import contextlib
 import ctypes
 import datetime
+import importlib
 import json
 import functools
 import logging
@@ -590,3 +591,9 @@ def unirepr(x):
         return '"""' + s + '"""'
     else:
         return '"' + s + '"'
+
+
+def getobj(qualname):
+    modname, name = qualname.rsplit('.', 1)
+    module = importlib.import_module(modname, __package__)
+    return getattr(module, name)
