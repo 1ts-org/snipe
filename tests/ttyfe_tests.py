@@ -44,132 +44,48 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.ttyfe     # noqa: E402
+import snipe.ttyfe as ttyfe  # noqa: E402
 
 
-class TestTTYFE(unittest.TestCase):
-    def testTTYRendererDoline(self):
+class TestTTYRenderer(unittest.TestCase):
+    def test_doline(self):
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('abc', 80, 80),
+            ttyfe.TTYRenderer.doline('abc', 80, 80),
             [('abc', 77)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline("\tabc", 80, 0),
+            ttyfe.TTYRenderer.doline("\tabc", 80, 0),
             [('        abc', 69)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('abc\n', 80, 80),
+            ttyfe.TTYRenderer.doline('abc\n', 80, 80),
             [('abc', -1)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('a\01bc', 80, 80),
+            ttyfe.TTYRenderer.doline('a\01bc', 80, 80),
             [('abc', 77)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('abcdef', 3, 3),
+            ttyfe.TTYRenderer.doline('abcdef', 3, 3),
             [('abc', 0), ('def', 0)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('ab\tdef', 3, 3),
+            ttyfe.TTYRenderer.doline('ab\tdef', 3, 3),
             [('ab', 0), ('def', 0)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('ab\x96cdef', 3, 3),
+            ttyfe.TTYRenderer.doline('ab\x96cdef', 3, 3),
             [('abc', 0), ('def', 0)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('ab def', 3, 3, ('fill',)),
+            ttyfe.TTYRenderer.doline('ab def', 3, 3, ('fill',)),
             [('ab', -1), ('def', 0)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('abc def', 3, 0, ('fill',)),
+            ttyfe.TTYRenderer.doline('abc def', 3, 0, ('fill',)),
             [('abc', 0), ('def', 0)])
         self.assertEqual(
-            snipe.ttyfe.TTYRenderer.doline('abc def\n', 3, 0, ('fill',)),
+            ttyfe.TTYRenderer.doline('abc def\n', 3, 0, ('fill',)),
             [('abc', 0), ('def', 0)])
 
-    def testMockWindow(self):
-        w = mocks.Window(cx(['']))
-        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
-        w = mocks.Window(cx(['abc\n', 'def\n']))
-        self.assertEqual(
-            list(w.view(0, 'forward')),
-            [
-                (0, [((), 'abc\n')]),
-                (1, [((), 'def\n')]),
-            ])
-
-    def testLocation0(self):
-        w = mocks.Window(cx(['']))
-        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
-        ui = mocks.UI()
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
-        l = snipe.ttyfe.Location(renderer, 0, 0)
-        m = l.shift(100)
-        self.assertEqual(l.cursor, m.cursor)
-        self.assertEqual(l.offset, m.offset)
-        m = l.shift(-100)
-        self.assertEqual(l.cursor, m.cursor)
-        self.assertEqual(l.offset, m.offset)
-
-    def testLocation1(self):
-        w = mocks.Window(cx(['abc\n', 'def']))
-        ui = mocks.UI()
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
-
-        l = snipe.ttyfe.Location(renderer, 0, 0)
-        self.assertEqual(l.cursor, 0)
-        self.assertEqual(l.offset, 0)
-        m = l.shift(100)
-        self.assertEqual(m.cursor, 1)
-        self.assertEqual(l.offset, 0)
-
-        m = l.shift(1)
-        self.assertEqual(m.cursor, 1)
-        self.assertEqual(l.offset, 0)
-
-        m = m.shift(-1)
-        self.assertEqual(l.cursor, m.cursor)
-        self.assertEqual(l.offset, m.offset)
-
-    def testLocation2(self):
-        w = mocks.Window(cx(['abc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = mocks.UI()
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
-
-        l = snipe.ttyfe.Location(renderer, 0, 0)
-        self.assertEqual(l.cursor, 0)
-        self.assertEqual(l.offset, 0)
-        m = l.shift(100)
-        self.assertEqual(m.cursor, 3)
-        self.assertEqual(l.offset, 0)
-
-        m = l.shift(3)
-        self.assertEqual(m.cursor, 3)
-        self.assertEqual(l.offset, 0)
-
-        m = m.shift(-3)
-        self.assertEqual(l.cursor, m.cursor)
-        self.assertEqual(l.offset, m.offset)
-
-    def testLocation3(self):
-        w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
-        ui = mocks.UI()
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
-
-        l = snipe.ttyfe.Location(renderer, 0, 0)
-        self.assertEqual(l.cursor, 0)
-        self.assertEqual(l.offset, 0)
-        m = l.shift(100)
-        self.assertEqual(m.cursor, 3)
-        self.assertEqual(l.offset, 0)
-
-        m = l.shift(3)
-        self.assertEqual(m.cursor, 2)
-        self.assertEqual(l.offset, 0)
-
-        m = m.shift(-3)
-        self.assertEqual(l.cursor, m.cursor)
-        self.assertEqual(l.offset, m.offset)
-
-    def testChunksize(self):
+    def test_chunksize(self):
         w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
         ui = mocks.UI(5)
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 24, w)
+        renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
 
-        doline = snipe.ttyfe.TTYRenderer.doline
+        doline = ttyfe.TTYRenderer.doline
 
         def _chunksize(chunk):  # essentially chunksize classic
             return len(doline(''.join(c[1] for c in chunk), 24, 24))
@@ -228,10 +144,10 @@ class TestTTYFE(unittest.TestCase):
             renderer.chunksize([((), 'aaaa'), (('right'), 'bbbb\n')]),
             2)
 
-    def testRedisplayCalculate(self):
+    def test_redisplay_calculate(self):
         w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
         ui = mocks.UI()
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 6, w)
+        renderer = ttyfe.TTYRenderer(ui, 0, 6, w)
         ui.windows = [renderer]
 
         renderer.reframe()
@@ -262,7 +178,7 @@ class TestTTYFE(unittest.TestCase):
         w = mocks.Window(chunks)
 
         ui = mocks.UI(maxx=205)
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 2, w)
+        renderer = ttyfe.TTYRenderer(ui, 0, 2, w)
         ui.windows = [renderer]
 
         renderer.reframe()
@@ -274,7 +190,7 @@ class TestTTYFE(unittest.TestCase):
         self.assertIsNone(cursor)
         self.assertTrue(all(a & curses.A_UNDERLINE for (a, t) in output[-1]))
 
-        renderer = snipe.ttyfe.TTYRenderer(ui, 0, 3, w)
+        renderer = ttyfe.TTYRenderer(ui, 0, 3, w)
         ui.windows = [renderer]
 
         renderer.reframe()
@@ -285,6 +201,92 @@ class TestTTYFE(unittest.TestCase):
         self.assertTrue(visible)
         self.assertIsNone(cursor)
         self.assertTrue(all(a & curses.A_UNDERLINE for (a, t) in output[-1]))
+
+
+class TestLocation(unittest.TestCase):
+    def test_mocks_Window(self):
+        w = mocks.Window(cx(['']))
+        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        w = mocks.Window(cx(['abc\n', 'def\n']))
+        self.assertEqual(
+            list(w.view(0, 'forward')),
+            [
+                (0, [((), 'abc\n')]),
+                (1, [((), 'def\n')]),
+            ])
+
+    def test_Location_0(self):
+        w = mocks.Window(cx(['']))
+        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        ui = mocks.UI()
+        renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
+        l = ttyfe.Location(renderer, 0, 0)
+        m = l.shift(100)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+        m = l.shift(-100)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def test_Location_1(self):
+        w = mocks.Window(cx(['abc\n', 'def']))
+        ui = mocks.UI()
+        renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 1)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(1)
+        self.assertEqual(m.cursor, 1)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-1)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def test_Location_2(self):
+        w = mocks.Window(cx(['abc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI()
+        renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(3)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-3)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
+
+    def test_Location_3(self):
+        w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))
+        ui = mocks.UI()
+        renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
+
+        l = ttyfe.Location(renderer, 0, 0)
+        self.assertEqual(l.cursor, 0)
+        self.assertEqual(l.offset, 0)
+        m = l.shift(100)
+        self.assertEqual(m.cursor, 3)
+        self.assertEqual(l.offset, 0)
+
+        m = l.shift(3)
+        self.assertEqual(m.cursor, 2)
+        self.assertEqual(l.offset, 0)
+
+        m = m.shift(-3)
+        self.assertEqual(l.cursor, m.cursor)
+        self.assertEqual(l.offset, m.offset)
 
 
 def cx(chunks):
