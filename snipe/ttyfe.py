@@ -84,6 +84,8 @@ class TTYRenderer:
         self.reframe_state = 'hard'
         self.old_cursor = None
 
+        self.minheight = min(h, 3)
+
     def resize(self, y, h):
         return TTYRenderer(
             self.ui, y, h, self.window, hints=self.get_hints(),
@@ -692,6 +694,7 @@ class TTYFrontend:
                     i == self.input,
                     i == self.output,
                     victim.get_hints(),
+                    victim.whence,
                     ])
             remaining -= height
         if remaining:
@@ -705,8 +708,10 @@ class TTYFrontend:
 
         self.set_active(None)
         self.windows = []
-        for (i, (window, y, height, input, output, hints)) in enumerate(new):
-            self.windows.append(self.renderer(y, height, window, hints=hints))
+        for (i, (window, y, height, input, output, hints, whence)) \
+                in enumerate(new):
+            self.windows.append(
+                self.renderer(y, height, window, hints=hints, whence=whence))
             if input:
                 self.input = i
             if output:
@@ -804,7 +809,7 @@ class TTYFrontend:
         r = self.windows[self.output]
         nh = r.height // 2
 
-        if nh == 0:
+        if nh < r.minheight:
             raise Exception('too small to split')
 
         self.windows[self.output:self.output + 1] = [
@@ -823,7 +828,7 @@ class TTYFrontend:
             pass  # walk the whence tree and clean up
 
     def delete_window(self, n):
-        if len(self.windows) == 2:
+        if len(self.windows) == (2 if self.context.status is not None else 1):
             raise Exception('attempt to delete only window')
 
         if self.windows[n].window == self.context.status:
@@ -844,23 +849,24 @@ class TTYFrontend:
                 whence=victim.whence.stole_entire,
                 )
         else:
-            del self.windows[n]
-
+            future = self.windows[:n] + self.windows[n + 1:]
             # figure out who gets the real estate
             if victim.whence is not None and victim.whence.stole_from in wmap:
                 beneficiary = wmap[victim.whence.stole_from]
             else:
                 potentials = [
-                    (i + n + (1 if n == 0 else -1)) % len(self.windows)
-                    for i in range(len(self.windows))]
+                    (i + n + (1 if n == 0 else -1)) % len(future)
+                    for i in range(len(future))]
                 potentials = [
                     i for i in potentials
-                    if not self.windows[i].window.noresize]
+                    if not future[i].window.noresize]
 
                 if not potentials:
                     raise Exception('attempt to delete sole resizeable window')
 
                 beneficiary = potentials[0]
+
+            del self.windows[n]
 
             if n <= beneficiary:
                 tomove = range(n, beneficiary)
@@ -885,9 +891,9 @@ class TTYFrontend:
             self.set_active(wmap[victim.whence.window])
         else:
             if n <= self.input:
-                self.input -= 1
+                self.input = max(self.input - 1, 0)
             if n <= self.output:
-                self.output -= 1
+                self.output = max(self.output - 1, 0)
         if not self.windows[self.output].window.focus():
             self.switch_window(1)
 
@@ -944,7 +950,7 @@ class TTYFrontend:
         return (w.window for w in self.windows)
 
     def resize_statuswindow(self):
-        if len(self.windows) < 2:
+        if len(self.windows) < 2 or self.context.status is None:
             return False
 
         statusr, datar = self.windows[:2]

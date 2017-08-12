@@ -142,7 +142,7 @@ class Window:
 
     def focus(self):
         """Called by the frontend when the window is focused.
-        Returns False."""
+        Returns whether the window is focusable."""
 
         return not self.noactive
 

@@ -38,13 +38,190 @@ Unit tests for the TTY frontend objects
 import curses
 import sys
 import unittest
+import unittest.mock
 
 import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.ttyfe as ttyfe  # noqa: E402
+import snipe.ttyfe as ttyfe        # noqa: E402
+import snipe.window as window      # noqa: E402
+import snipe.ttycolor as ttycolor  # noqa: E402
+
+
+class TestTTYFrontend(unittest.TestCase):
+    def test_window_management(self):
+        curses = mocks.Curses()
+        with unittest.mock.patch('snipe.ttyfe.curses', curses):
+            fe = ttyfe.TTYFrontend()
+            # emulating fe.__enter_
+            fe.stdscr = curses.stdscr
+            fe.maxy = curses.LINES
+            fe.maxx = curses.COLUMNS
+            fe.context = mocks.Context()
+            fe.color_assigner = ttycolor.NoColorAssigner()
+
+            fe.windows = [ttyfe.TTYRenderer(fe, 0, fe.maxy, window.Window(fe))]
+            fe.set_active(0)
+
+            self.assertEqual(fe.maxy, 24)
+
+            fe.split_window(window.Window(fe), False)
+
+            self.assertEqual(fe.input, 0)
+
+            fe.delete_current_window()
+
+            self.assertEqual(fe.input, 0)
+
+            fe.split_window(window.Window(fe), True)
+
+            self.assertEqual(fe.input, 1)
+
+            self.assertEqual(len(fe.windows), 2)
+
+            fe.split_window(window.Window(fe))
+
+            self.assertEqual(len(fe.windows), 3)
+
+            fe.split_window(window.Window(fe))
+
+            self.assertEqual(len(fe.windows), 4)
+
+            self.assertRaises(
+                Exception, lambda: fe.split_window(window.Window(fe)))
+
+            fe.delete_current_window()
+
+            self.assertEqual(len(fe.windows), 3)
+
+            fe.delete_other_windows()
+
+            self.assertEqual(len(fe.windows), 1)
+
+            self.assertRaises(
+                Exception,
+                lambda: fe.delete_window_window(fe.windows[0].window))
+
+            # would raise if it actually tried to delete anything
+            fe.delete_window_window(window.Window(fe))
+
+            fe.split_window(window.Window(fe))
+            fe.split_window(window.Window(fe))
+
+            fe.context.status = fe.windows[fe.output].window
+
+            self.assertRaises(
+                Exception,
+                lambda: fe.delete_current_window())
+
+            fe.context.status = None
+
+            fe.delete_other_windows()
+
+            self.assertEqual(len(fe.windows), 1)
+            self.assertEqual(fe.output, 0)
+            # popup a window
+            fe.popup_window(window.Window(fe), 1, fe.windows[0].window)
+            self.assertEqual(len(fe.windows), 2)
+            self.assertEqual(fe.output, 1)
+            # popup one over that
+            fe.popup_window(window.Window(fe), 1, fe.windows[1].window)
+            self.assertEqual(len(fe.windows), 2)
+            self.assertEqual(fe.output, 1)
+
+            # should bring the old popup back
+            fe.delete_current_window()
+            # XXX switches back to the original indow
+            self.assertEqual(fe.output, 0)
+
+            self.assertEqual(len(fe.windows), 2)
+
+            fe.set_active(1)
+            fe.delete_current_window()
+            # should take care of that
+            self.assertEqual(fe.output, 0)
+
+            self.assertEqual(len(fe.windows), 1)
+
+            print(fe.output, fe.windows)
+            fe.split_window(window.Window(fe))
+            print(fe.output, fe.windows)
+            self.assertEqual(len(fe.windows), 2)
+
+            fe.split_window(window.Window(fe))
+            self.assertEqual(len(fe.windows), 3)
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 6)
+            self.assertEqual(fe.windows[2].height, 12)
+
+            fe.delete_window(1)
+
+            self.assertEqual(len(fe.windows), 2)
+            self.assertEqual(fe.windows[0].height, 12)
+            self.assertEqual(fe.windows[1].height, 12)
+
+            fe.delete_window(0)
+            self.assertEqual(fe.windows[0].height, 24)
+
+            fe.split_window(window.Window(fe))
+            fe.split_window(window.Window(fe))
+            fe.set_active(2)
+            fe.split_window(window.Window(fe))
+
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 6)
+            self.assertEqual(fe.windows[2].height, 6)
+            self.assertEqual(fe.windows[3].height, 6)
+
+            fe.windows[1].window.noresize = True
+
+            fe.delete_window(0)
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 12)
+            self.assertEqual(fe.windows[2].height, 6)
+
+            fe.delete_window(1)
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 18)
+
+            self.assertRaises(Exception, lambda: fe.delete_window(1))
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 18)
+
+            fe.set_active(1)
+            fe.windows[0].window.noactive = True
+            fe.switch_window(1)
+            self.assertEqual(fe.output, 1)
+
+            fe.delete_window(0)
+            self.assertEqual(fe.windows[0].height, 24)
+
+            fe.split_window(window.Window(fe))
+            self.assertEqual(fe.windows[0].height, 12)
+            self.assertEqual(fe.windows[1].height, 12)
+
+            fe.popup_window(window.Window(fe), 1, fe.windows[0].window, True)
+            self.assertEqual(fe.windows[0].height, 11)
+            self.assertEqual(fe.windows[1].height, 1)
+            self.assertEqual(fe.windows[2].height, 12)
+
+            fe.set_active(0)
+            fe.delete_other_windows()
+            self.assertEqual(fe.windows[0].height, 24)
+
+            fe.split_window(window.Window(fe))
+            fe.split_window(window.Window(fe))
+            self.assertEqual(len(fe.windows), 3)
+            self.assertEqual(fe.windows[0].height, 6)
+            self.assertEqual(fe.windows[1].height, 6)
+            self.assertEqual(fe.windows[2].height, 12)
+
+            fe.windows[1].window.noactive = True
+            self.assertEqual(fe.output, 0)
+            fe.delete_current_window()
+            self.assertEqual(fe.output, 1)
 
 
 class TestTTYRenderer(unittest.TestCase):

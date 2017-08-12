@@ -32,6 +32,7 @@
 Various mocks for testing purposes
 '''
 
+import curses
 import functools
 import itertools
 import sys
@@ -158,6 +159,7 @@ class Context:
         self.context = self
         self.erasechar = chr(8)
         self.starks = []
+        self.status = None
 
     def message(self, s):
         self._message = s
@@ -216,14 +218,6 @@ class Renderer:
         pass
 
 
-class CursesWindow:
-    def subwin(self, *args):
-        return self
-
-    def idlok(self, *args):
-        pass
-
-
 class UI:
     def __init__(self, maxx=80, maxy=24):
         self.stdscr = CursesWindow()
@@ -268,3 +262,109 @@ class Window:
             r = range(origin, -1, -1)
         for i in r:
             yield i, self.chunks[i]
+
+
+class CursesWindow:
+    def __init__(self, height=0, width=0, y=0, x=0):
+        self.height = height
+        self.width = width
+        self.y = y
+        self.x = x
+
+    def subwin(self, height, width, y, x):
+        return CursesWindow(height, width, y, x)
+
+    def idlok(self, *args):
+        pass
+
+    def erase(self):
+        pass
+
+    def move(self, *args):
+        pass
+
+    def bkgdset(self, *args):
+        pass
+
+    def addstr(self, *args):
+        pass
+
+    def clrtoeol(self):
+        pass
+
+    def noutrefresh(self):
+        pass
+
+
+class Curses:
+    A_ALTCHARSET = curses.A_ALTCHARSET
+    A_ATTRIBUTES = curses.A_ATTRIBUTES
+    A_BLINK = curses.A_BLINK
+    A_BOLD = curses.A_BOLD
+    A_CHARTEXT = curses.A_CHARTEXT
+    A_COLOR = curses.A_COLOR
+    A_DIM = curses.A_DIM
+    A_HORIZONTAL = curses.A_HORIZONTAL
+    A_INVIS = curses.A_INVIS
+    A_LEFT = curses.A_LEFT
+    A_LOW = curses.A_LOW
+    A_NORMAL = curses.A_NORMAL
+    A_PROTECT = curses.A_PROTECT
+    A_REVERSE = curses.A_REVERSE
+    A_RIGHT = curses.A_RIGHT
+    A_STANDOUT = curses.A_STANDOUT
+    A_TOP = curses.A_TOP
+    A_UNDERLINE = curses.A_UNDERLINE
+    A_VERTICAL = curses.A_VERTICAL
+    COLOR_BLACK = curses.COLOR_BLACK
+    COLOR_RED = curses.COLOR_RED
+    COLOR_GREEN = curses.COLOR_GREEN
+    COLOR_YELLOW = curses.COLOR_YELLOW
+    COLOR_BLUE = curses.COLOR_BLUE
+    COLOR_MAGENTA = curses.COLOR_MAGENTA
+    COLOR_CYAN = curses.COLOR_CYAN
+    COLOR_WHITE = curses.COLOR_WHITE
+
+    COLOR_PAIRS = None
+    COLORS = None
+    dynamic = None
+    pairs = []
+
+    COLUMNS = 80
+    LINES = 24
+
+    error = Exception
+
+    def __init__(self, colors=0, dynamic=False, color_pairs=256):
+        self.COLORS = colors
+        self.COLOR_PAIRS = color_pairs
+        self.dynamic = dynamic
+        self.pairs = [None] * self.COLOR_PAIRS
+        self.stdscr = CursesWindow(self.LINES, self.COLUMNS, 0, 0)
+
+    def init_pair(self, pair, fg, bg):
+        self.pairs[pair] = (fg, bg)
+
+    def color_pair(self, pair):
+        return pair
+
+    def color_content(self, number):
+        return None, None, None
+
+    def init_color(self, color, r, g, b):
+        pass
+
+    def has_colors(self):
+        return bool(self.COLORS)
+
+    def start_color(self):
+        pass
+
+    def use_default_colors(self):
+        pass
+
+    def can_change_color(self):
+        return self.dynamic
+
+    def doupdate(self):
+        pass
