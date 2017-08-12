@@ -12,6 +12,7 @@ setup(
         'Framework :: AsyncIO',
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python :: 3 :: Only',
+        'Operating System :: POSIX',
         ],
     long_description="""
 snipe is a text-oriented (currently curses-based) "instant" messaging
