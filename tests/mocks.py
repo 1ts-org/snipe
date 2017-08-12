@@ -160,6 +160,7 @@ class Context:
         self.erasechar = chr(8)
         self.starks = []
         self.status = None
+        self.keys = []
 
     def message(self, s):
         self._message = s
@@ -172,6 +173,9 @@ class Context:
 
     def conf_write(self):
         pass
+
+    def keyecho(self, keystroke):
+        self.keys.append(keystroke)
 
 
 class FE:
@@ -198,6 +202,9 @@ class FE:
         self.markcalled()
 
     def delete_current_window(self, *args, **kw):
+        self.markcalled()
+
+    def balance_windows(self, *args, **kw):
         self.markcalled()
 
     def ungetch(self, *args, **kw):

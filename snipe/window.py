@@ -429,6 +429,12 @@ class Window:
 
         self.fe.delete_other_windows()
 
+    @keymap.bind('Control-X +')
+    def balance_windows(self):
+        """Resize the resizable windows to be balanced in size."""
+
+        self.fe.balance_windows()
+
     @keymap.bind('Control-X o')
     def other_window(self):
         """Switch to other window."""

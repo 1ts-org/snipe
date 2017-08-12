@@ -946,6 +946,31 @@ class TTYFrontend:
             if self.windows[self.output].window.focus():
                 break
 
+    def balance_windows(self):
+        def pred(w):
+            return not (w.window.noresize or w.window.noactive)
+        height = sum(w.height for w in self.windows if pred(w))
+        count = sum(1 for w in self.windows if pred(w))
+        target = height // count
+
+        remainder = height % count
+        y = 0
+        for i, w in enumerate(self.windows):
+            if not pred(w):
+                height = w.height
+            else:
+                height = target
+                if remainder:
+                    height += 1
+                    remainder -= 1
+            if y != w.y or height != w.height:
+                self.windows[i] = self.renderer(
+                    y, height, w.window, w.get_hints(), w.whence)
+            y += height
+
+        self.full_redisplay = True
+
+
     def get_windows(self):
         return (w.window for w in self.windows)
 

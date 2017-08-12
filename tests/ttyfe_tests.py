@@ -145,9 +145,7 @@ class TestTTYFrontend(unittest.TestCase):
 
             self.assertEqual(len(fe.windows), 1)
 
-            print(fe.output, fe.windows)
             fe.split_window(window.Window(fe))
-            print(fe.output, fe.windows)
             self.assertEqual(len(fe.windows), 2)
 
             fe.split_window(window.Window(fe))
@@ -222,6 +220,46 @@ class TestTTYFrontend(unittest.TestCase):
             self.assertEqual(fe.output, 0)
             fe.delete_current_window()
             self.assertEqual(fe.output, 1)
+
+            fe.delete_window(0)
+            self.assertEqual([w.height for w in fe.windows], [24])
+
+            fe.balance_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [24])
+
+            fe.split_window(window.Window(fe))
+            fe.split_window(window.Window(fe))
+            self.assertEqual([w.height for w in fe.windows], [6, 6, 12])
+
+            fe.balance_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [8, 8, 8])
+
+            fe.split_window(window.Window(fe))
+            fe.balance_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [6, 6, 6, 6])
+
+            fe.split_window(window.Window(fe))
+            fe.balance_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [5, 5, 5, 5, 4])
+
+            fe.windows[0].window.noresize = True
+            fe.context.status = fe.windows[0].window
+            fe.set_active(1)
+            fe.delete_other_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [5, 19])
+
+            fe.split_window(window.Window(fe))
+            fe.split_window(window.Window(fe))
+            self.assertEqual([w.height for w in fe.windows], [5, 4, 5, 10])
+
+            fe.balance_windows()
+
+            self.assertEqual([w.height for w in fe.windows], [5, 7, 6, 6])
 
 
 class TestTTYRenderer(unittest.TestCase):

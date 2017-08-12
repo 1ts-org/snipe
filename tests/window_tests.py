@@ -35,16 +35,49 @@ Unit tests for stuff in windows.py
 import sys
 import unittest
 
+import mocks
+
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.window  # noqa: E402
+import snipe.keymap as keymap  # noqa: E402
+import snipe.window as window  # noqa: E402
 
 
-class TestCheatsheetify(unittest.TestCase):
-    def testCheatsheetify(self):
-        cheatsheetify = snipe.window.StatusLine.cheatsheetify
-        TAGS = snipe.window.StatusLine.KEYTAGS
+class TestWindow(unittest.TestCase):
+    def test_init(self):
+        w = window.Window(mocks.FE())
+        w.renderer = mocks.Renderer()
+        w.cursor = object()
+        x = window.Window(mocks.FE(), prototype=w)
+        self.assertIs(w.cursor, x.cursor)
+
+    def test_balance_windows(self):
+        w = window.Window(mocks.FE())
+        w.balance_windows()
+        self.assertIn('balance_windows', w.fe.called)
+
+    def test_mode(self):
+        class AMode:
+            cheatsheet = ['foo']
+        w = window.Window(None, modes=[AMode()])
+        self.assertEqual(w.cheatsheet[-1], 'foo')
+
+    def test_set_cheatsheet(self):
+        w = window.Window(None)
+        c = []
+        w.set_cheatsheet(c)
+        self.assertIs(w.cheatsheet, c)
+        self.assertIs(w._normal_cheatsheet, c)
+
+        k = keymap.Keymap()
+        k.set_cheatsheet(['bar'])
+        w.maybe_install_cheatsheet(k)
+        self.assertEqual(w.cheatsheet, ['bar'])
+
+    def test_cheatsheetify(self):
+        cheatsheetify = window.StatusLine.cheatsheetify
+        TAGS = window.StatusLine.KEYTAGS
         self.assertEquals(cheatsheetify(''), [])
         self.assertEquals(cheatsheetify('foo'), [((), 'foo')])
         self.assertEquals(cheatsheetify('*foo*'), [(TAGS, 'foo')])
@@ -53,3 +86,7 @@ class TestCheatsheetify(unittest.TestCase):
         self.assertEquals(cheatsheetify('f\*o'), [((), 'f*o')])
         self.assertEquals(cheatsheetify('f**oo'), [((), 'foo')])
         self.assertEquals(cheatsheetify('f*\*oo'), [((), 'f'), (TAGS, '*oo')])
+
+
+if __name__ == '__main__':
+    unittest.main()
