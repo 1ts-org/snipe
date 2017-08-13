@@ -52,20 +52,8 @@ import snipe.ttycolor as ttycolor  # noqa: E402
 
 
 class TestTTYFrontend(unittest.TestCase):
-    def test_window_management(self):
-        curses = mocks.Curses()
-        with unittest.mock.patch('snipe.ttyfe.curses', curses):
-            fe = ttyfe.TTYFrontend()
-            # emulating fe.__enter_
-            fe.stdscr = curses.stdscr
-            fe.maxy = curses.LINES
-            fe.maxx = curses.COLUMNS
-            fe.context = mocks.Context()
-            fe.color_assigner = ttycolor.NoColorAssigner()
-
-            fe.windows = [ttyfe.TTYRenderer(fe, 0, fe.maxy, window.Window(fe))]
-            fe.set_active(0)
-
+    def test_window_management_0(self):
+        with mocked_up_fe() as fe:
             self.assertEqual(fe.maxy, 24)
 
             fe.split_window(window.Window(fe), False)
@@ -108,6 +96,8 @@ class TestTTYFrontend(unittest.TestCase):
             # would raise if it actually tried to delete anything
             fe.delete_window_window(window.Window(fe))
 
+    def test_window_management_1(self):
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
             fe.split_window(window.Window(fe))
 
@@ -123,6 +113,9 @@ class TestTTYFrontend(unittest.TestCase):
 
             self.assertEqual(len(fe.windows), 1)
             self.assertEqual(fe.output, 0)
+
+    def test_window_management_2(self):
+        with mocked_up_fe() as fe:
             # popup a window
             fe.popup_window(window.Window(fe), 1, fe.windows[0].window)
             self.assertEqual(len(fe.windows), 2)
@@ -134,7 +127,7 @@ class TestTTYFrontend(unittest.TestCase):
 
             # should bring the old popup back
             fe.delete_current_window()
-            # XXX switches back to the original indow
+            # switches back to the original indow
             self.assertEqual(fe.output, 0)
 
             self.assertEqual(len(fe.windows), 2)
@@ -146,20 +139,17 @@ class TestTTYFrontend(unittest.TestCase):
 
             self.assertEqual(len(fe.windows), 1)
 
+    def test_window_management_3(self):
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
             self.assertEqual(len(fe.windows), 2)
 
             fe.split_window(window.Window(fe))
-            self.assertEqual(len(fe.windows), 3)
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 6)
-            self.assertEqual(fe.windows[2].height, 12)
+            self.assertEqual([w.height for w in fe.windows], [6, 6, 12])
 
             fe.delete_window(1)
 
-            self.assertEqual(len(fe.windows), 2)
-            self.assertEqual(fe.windows[0].height, 12)
-            self.assertEqual(fe.windows[1].height, 12)
+            self.assertEqual([w.height for w in fe.windows], [12, 12])
 
             fe.delete_window(0)
             self.assertEqual(fe.windows[0].height, 24)
@@ -169,25 +159,18 @@ class TestTTYFrontend(unittest.TestCase):
             fe.set_active(2)
             fe.split_window(window.Window(fe))
 
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 6)
-            self.assertEqual(fe.windows[2].height, 6)
-            self.assertEqual(fe.windows[3].height, 6)
+            self.assertEqual([w.height for w in fe.windows], [6, 6, 6, 6])
 
             fe.windows[1].window.noresize = True
 
             fe.delete_window(0)
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 12)
-            self.assertEqual(fe.windows[2].height, 6)
+            self.assertEqual([w.height for w in fe.windows], [6, 12, 6])
 
             fe.delete_window(1)
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 18)
+            self.assertEqual([w.height for w in fe.windows], [6, 18])
 
             self.assertRaises(Exception, lambda: fe.delete_window(1))
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 18)
+            self.assertEqual([w.height for w in fe.windows], [6, 18])
 
             fe.set_active(1)
             fe.windows[0].window.noactive = True
@@ -197,25 +180,21 @@ class TestTTYFrontend(unittest.TestCase):
             fe.delete_window(0)
             self.assertEqual(fe.windows[0].height, 24)
 
+    def test_window_management_4(self):
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
-            self.assertEqual(fe.windows[0].height, 12)
-            self.assertEqual(fe.windows[1].height, 12)
+            self.assertEqual([w.height for w in fe.windows], [12, 12])
 
             fe.popup_window(window.Window(fe), 1, fe.windows[0].window, True)
-            self.assertEqual(fe.windows[0].height, 11)
-            self.assertEqual(fe.windows[1].height, 1)
-            self.assertEqual(fe.windows[2].height, 12)
+            self.assertEqual([w.height for w in fe.windows], [11, 1, 12])
 
             fe.set_active(0)
             fe.delete_other_windows()
-            self.assertEqual(fe.windows[0].height, 24)
+            self.assertEqual([w.height for w in fe.windows], [24])
 
             fe.split_window(window.Window(fe))
             fe.split_window(window.Window(fe))
-            self.assertEqual(len(fe.windows), 3)
-            self.assertEqual(fe.windows[0].height, 6)
-            self.assertEqual(fe.windows[1].height, 6)
-            self.assertEqual(fe.windows[2].height, 12)
+            self.assertEqual([w.height for w in fe.windows], [6, 6, 12])
 
             fe.windows[1].window.noactive = True
             self.assertEqual(fe.output, 0)
@@ -225,6 +204,8 @@ class TestTTYFrontend(unittest.TestCase):
             fe.delete_window(0)
             self.assertEqual([w.height for w in fe.windows], [24])
 
+    def test_balance_windows(self):
+        with mocked_up_fe() as fe:
             fe.balance_windows()
 
             self.assertEqual([w.height for w in fe.windows], [24])
@@ -263,7 +244,7 @@ class TestTTYFrontend(unittest.TestCase):
             self.assertEqual([w.height for w in fe.windows], [5, 7, 6, 6])
 
     def test_resize_window(self):
-        with mocked_fe() as fe:
+        with mocked_up_fe() as fe:
             self.assertEqual(fe.maxy, 24)
             self.assertEqual([w.height for w in fe.windows], [24])
             self.assertEqual([w.y for w in fe.windows], [0])
@@ -306,7 +287,7 @@ class TestTTYFrontend(unittest.TestCase):
             self.assertEqual([w.y for w in fe.windows], [0, 10, 13, 16])
 
     def test_resize_window0(self):
-        with mocked_fe() as fe:
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
             self.assertEqual([w.height for w in fe.windows], [12, 12])
             fe.set_active(1)
@@ -315,7 +296,7 @@ class TestTTYFrontend(unittest.TestCase):
             self.assertEqual([w.y for w in fe.windows], [0, 11])
 
     def test_resize_window1(self):
-        with mocked_fe() as fe:
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
             fe.split_window(window.Window(fe))
             fe.balance_windows()
@@ -329,30 +310,12 @@ class TestTTYFrontend(unittest.TestCase):
             self.assertEqual([w.y for w in fe.windows], [0, 7, 21])
 
     def test_resize_window_noresize(self):
-        with mocked_fe() as fe:
+        with mocked_up_fe() as fe:
             fe.split_window(window.Window(fe))
             fe.windows[0].window.noresize = True
             self.assertEquals(fe.resize_current_window(1), 0)
             self.assertEqual([w.height for w in fe.windows], [12, 12])
             self.assertEqual([w.y for w in fe.windows], [0, 12])
-
-
-@contextlib.contextmanager
-def mocked_fe():
-    curses = mocks.Curses()
-    with unittest.mock.patch('snipe.ttyfe.curses', curses):
-        fe = ttyfe.TTYFrontend()
-        # emulating fe.__enter_
-        fe.stdscr = curses.stdscr
-        fe.maxy = curses.LINES
-        fe.maxx = curses.COLUMNS
-        fe.context = mocks.Context()
-        fe.color_assigner = ttycolor.NoColorAssigner()
-
-        fe.windows = [ttyfe.TTYRenderer(fe, 0, fe.maxy, window.Window(fe))]
-        fe.set_active(0)
-
-        yield fe
 
 
 class TestTTYRenderer(unittest.TestCase):
@@ -599,6 +562,24 @@ class TestLocation(unittest.TestCase):
 
 def cx(chunks):
     return [[((), chunk)] for chunk in chunks]
+
+
+@contextlib.contextmanager
+def mocked_up_fe():
+    curses = mocks.Curses()
+    with unittest.mock.patch('snipe.ttyfe.curses', curses):
+        fe = ttyfe.TTYFrontend()
+        # emulating fe.__enter_
+        fe.stdscr = curses.stdscr
+        fe.maxy = curses.LINES
+        fe.maxx = curses.COLUMNS
+        fe.context = mocks.Context()
+        fe.color_assigner = ttycolor.NoColorAssigner()
+
+        fe.windows = [ttyfe.TTYRenderer(fe, 0, fe.maxy, window.Window(fe))]
+        fe.set_active(0)
+
+        yield fe
 
 
 if __name__ == '__main__':
