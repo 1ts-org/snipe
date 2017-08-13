@@ -435,6 +435,14 @@ class Window:
 
         self.fe.balance_windows()
 
+    @keymap.bind('Control-X ^')
+    def enlarge_window(self, arg: interactive.integer_argument=1):
+        """Enlarge the current window by a line, respecting minimum
+        sizes.  With an argument, grow by n lines.  If n is negative,
+        shrink."""
+
+        self.fe.resize_current_window(arg)
+
     @keymap.bind('Control-X o')
     def other_window(self):
         """Switch to other window."""

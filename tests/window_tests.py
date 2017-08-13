@@ -57,6 +57,11 @@ class TestWindow(unittest.TestCase):
         w.balance_windows()
         self.assertIn('balance_windows', w.fe.called)
 
+    def test_enlarge_windows(self):
+        w = window.Window(mocks.FE())
+        w.enlarge_window()
+        self.assertIn('resize_current_window', w.fe.called)
+
     def test_mode(self):
         class AMode:
             cheatsheet = ['foo']

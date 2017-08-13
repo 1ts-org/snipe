@@ -207,6 +207,9 @@ class FE:
     def balance_windows(self, *args, **kw):
         self.markcalled()
 
+    def resize_current_window(self, *args, **kw):
+        self.markcalled()
+
     def ungetch(self, *args, **kw):
         self.markcalled()
 

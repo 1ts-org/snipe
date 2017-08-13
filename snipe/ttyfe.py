@@ -970,6 +970,43 @@ class TTYFrontend:
 
         self.full_redisplay = True
 
+    def resize_current_window(self, delta):
+        return self.resize_window(self.output, delta)
+
+    def resize_window(self, n, delta):
+        count = len(self.windows)
+        changes = [0] * count
+        w = self.windows[n]
+
+        # make sure we aren't shrinking below minheight
+        delta = max(delta, w.minheight - w.height)
+        if w.window.noresize:
+            delta = 0
+
+        allocated = 0
+
+        for i, w in itertools.chain(
+                ((i, self.windows[i]) for i in range(n + 1, count)),
+                ((i, self.windows[i]) for i in range(n - 1, -1, -1))):
+            if not w.window.noresize:
+                change = max(-delta, w.minheight - w.height)
+                changes[i] = change
+                allocated += -change
+                delta -= -change
+
+        changes[n] = allocated
+
+        dy = 0
+        for ((i, w), dh) in zip(enumerate(self.windows), changes):
+            if dy == 0 and dh == 0:
+                continue
+            self.windows[i] = self.renderer(
+                w.y + dy, w.height + dh, w.window, w.get_hints(), w.whence)
+            dy += dh
+
+        if allocated:
+            self.full_redisplay = True
+        return allocated
 
     def get_windows(self):
         return (w.window for w in self.windows)
