@@ -32,16 +32,20 @@
 Various mocks for testing purposes
 '''
 
+import contextlib
 import curses
 import functools
 import itertools
 import sys
+import unittest
 
 sys.path.append('..')
 sys.path.append('../lib')
 
 import snipe.ttycolor  # noqa: E402
 import snipe.filters   # noqa: E402
+import snipe.ttyfe     # noqa: E402
+import snipe.window    # noqa: E402
 
 
 class Backend:
@@ -378,3 +382,32 @@ class Curses:
 
     def doupdate(self):
         pass
+
+
+@contextlib.contextmanager
+def mocked_up_actual_fe(window_factory=None):
+    curses = Curses()
+    with unittest.mock.patch('snipe.ttyfe.curses', curses):
+        fe = snipe.ttyfe.TTYFrontend()
+        # emulating fe.__enter_
+        fe.stdscr = curses.stdscr
+        fe.maxy = curses.LINES
+        fe.maxx = curses.COLUMNS
+        fe.context = Context()
+        fe.color_assigner = snipe.ttycolor.NoColorAssigner()
+
+        if window_factory is None:
+            window_factory = snipe.window.Window
+
+        fe.windows = [
+            snipe.ttyfe.TTYRenderer(fe, 0, fe.maxy, window_factory(fe)),
+            ]
+        fe.set_active(0)
+
+        yield fe
+
+
+@contextlib.contextmanager
+def mocked_up_actual_fe_window(window_factory=None):
+    with mocked_up_actual_fe(window_factory) as fe:
+        yield fe.windows[0].window

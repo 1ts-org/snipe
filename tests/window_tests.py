@@ -29,7 +29,7 @@
 # SUCH DAMAGE.
 
 '''
-Unit tests for stuff in windows.py
+Unit tests for stuff in window.py
 '''
 
 import sys
@@ -53,14 +53,17 @@ class TestWindow(unittest.TestCase):
         self.assertIs(w.cursor, x.cursor)
 
     def test_balance_windows(self):
-        w = window.Window(mocks.FE())
-        w.balance_windows()
-        self.assertIn('balance_windows', w.fe.called)
+        with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            w.split_window()
+            w.split_window()
+            w.balance_windows()
+            self.assertEqual([w.height for w in w.fe.windows], [8, 8, 8])
 
     def test_enlarge_windows(self):
-        w = window.Window(mocks.FE())
-        w.enlarge_window()
-        self.assertIn('resize_current_window', w.fe.called)
+        with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            w.split_window()
+            w.enlarge_window()
+            self.assertEqual([w.height for w in w.fe.windows], [13, 11])
 
     def test_mode(self):
         class AMode:
