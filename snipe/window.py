@@ -279,15 +279,15 @@ class Window:
 
     def before_command(self):
         """Executed before an interactive command."""
-        pass
+        pass  # pragma: nocover
 
     def after_command(self):
         """Executed after an interactive command."""
-        pass
+        pass  # pragma: nocover
 
     def quit_hook(self):
         """Called on visible windows just before quitting."""
-        pass
+        pass  # pragma: nocover
 
     def title(self):
         return self.__class__.__name__

@@ -34,6 +34,7 @@
 Unit tests for various filter-related things
 '''
 
+import re
 import sys
 import unittest
 
@@ -45,7 +46,7 @@ sys.path.append('../lib')
 import snipe.filters                                           # noqa: E402
 from snipe.filters import (
     And, Compare, Identifier, Lexer, No, Not, Or, Parser, RECompare,
-    SnipeFilterError, Truth, Yes, makefilter,
+    SnipeFilterError, Truth, Yes, Xor, makefilter,
     )                                                          # noqa: E402
 
 
@@ -88,6 +89,9 @@ class TestFilters(unittest.TestCase):
             makefilter('foo = "bar"'),
             Compare('=', 'foo', 'bar'))
         self.assertEqual(
+            makefilter('foo < "bar"'),
+            Compare('<', 'foo', 'bar'))
+        self.assertEqual(
             makefilter('"bar" = foo'),
             Compare('=', 'foo', 'bar'))
         self.assertEqual(
@@ -111,6 +115,18 @@ class TestFilters(unittest.TestCase):
         self.assertEqual(
             makefilter('"foo" = /bar/'),
             No())
+        self.assertEqual(
+            makefilter('"Foo" = /foo/i'),
+            Yes())
+        self.assertEqual(
+            makefilter('"Foo" != /foo/i'),
+            No())
+        self.assertEqual(
+            makefilter('(yes or no) and yes'),
+            And(Or(Yes(), No()), Yes()))
+        self.assertEqual(
+            makefilter('yes xor no'),
+            Xor(Yes(), No()))
 
         self.assertTrue(makefilter('foo = "bar"')(mocks.Message(foo='bar')))
         self.assertFalse(makefilter('foo = "bar"')(mocks.Message(foo='baz')))
@@ -257,6 +273,7 @@ class TestFilters(unittest.TestCase):
             And(Yes(), Truth('foo'), Truth('bar')).simplify({}),
             And(Truth('foo'), Truth('bar')).simplify({}))
         self.assertTrue(And().simplify(None))
+        self.assertEqual(hash(And(Yes(), No())), hash(And(Yes(), No())))
 
     def test_Or(self):
         self.assertEqual(repr(Or(None, Yes(), No())), 'Or(Yes(), No())')
@@ -293,6 +310,8 @@ class TestFilters(unittest.TestCase):
         self.assertEqual(
             hash(snipe.filters.Python('True')),
             hash(snipe.filters.Python('True')))
+        self.assertEqual(
+            repr(snipe.filters.Python('True')), "Python('True')")
 
     def test_FilterLookup(self):
         self.assertEqual(
@@ -317,6 +336,9 @@ class TestFilters(unittest.TestCase):
         m.conf['filter']['self_reference'] = 'filter self_reference'
         self.assertFalse(
             snipe.filters.FilterLookup('self_reference')(m))
+        m.conf['filter']['bad'] = '== == =='
+        self.assertFalse(
+            snipe.filters.FilterLookup('bad')(m))
 
         self.assertFalse(
             snipe.filters.FilterLookup('nonexistent').simplify({'context': m}))
@@ -327,10 +349,38 @@ class TestFilters(unittest.TestCase):
         m.conf['filter']['wrong'] = 'and and and nope'
         self.assertFalse(
             snipe.filters.FilterLookup('wrong').simplify({'context': m}))
+        self.assertEqual(
+            repr(snipe.filters.FilterLookup('foo')), "FilterLookup('foo')")
+        self.assertEqual(
+            str(snipe.filters.FilterLookup('foo')), 'filter foo')
 
     def test_validate(self):
         self.assertTrue(snipe.filters.validatefilter('yes'))
         self.assertFalse(snipe.filters.validatefilter('and and and nope'))
+
+    def test_misc(self):
+        self.assertEqual(
+            repr(Compare('=', 'foo', 'bar')), "Compare('=', 'foo', 'bar')")
+        self.assertEqual(
+            hash(Compare('=', 'foo', 'bar')), hash(Compare('=', 'foo', 'bar')))
+        self.assertEqual(
+            str(Compare('=', 'foo', 'bar')), 'foo = "bar"')
+        self.assertEqual(
+            str(Compare('=', 'foo', Identifier('bar'))), 'foo = bar')
+        self.assertEqual(
+            str(Compare('=', 'foo', 5)), 'foo = 5')
+
+        self.assertEqual(
+            repr(Identifier('bar')), "Identifier('bar')")
+
+        self.assertFalse(Compare.do('<=', 15, 'pants'))
+
+        self.assertEqual(RECompare.deflag('s'), re.DOTALL)
+        self.assertEqual(RECompare.deflag('7'), 0)
+        self.assertEqual(RECompare.static('==', '[', ''), No())
+
+        self.assertEqual(
+            str(RECompare('=', 'key', 'value', flags='i')), 'key = /value/i')
 
 
 if __name__ == '__main__':

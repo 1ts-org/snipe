@@ -70,11 +70,13 @@ Integer literals, e.g. ``17``.
 
 String literals between double quotes. e.g. ``"foo"``.
 
-Regexp literals, between forward slashes, e.g. ``/^bar$/``.  For
-the moment, always cases sensitive (but what you're comparing to
-may have already been put in a canonical case if you use ``=``).
+Regexp literals, between forward slashes, e.g. ``/^bar$/``.  You can append
+flags, e.g. ``/foo/i`` turns on case insensitivity.  Possible flags are ``a``,
+``i``, ``m``, ``s``, and ``x`` and match the corresponding flags in the Python
+``re`` module documentation.  (Remember that what you're comparing to may have
+already been put in a canonical case if you use ``=``).
 
-Identifier are bare words that match ``/[a-zA-Z_][a-zA-Z_0-9]*/``.
+Identifiers are bare words that match ``/[a-zA-Z_][a-zA-Z_0-9]*/``.
 These usually refer to message fields but can refer to named filters.
 
 The keyword ``filter`` (which introduces a reference to a named filter),
@@ -518,27 +520,46 @@ class Compare(Comparison):
 
 
 class RECompare(Comparison):
-    def __init__(self, *args):
+    def __init__(self, *args, flags=''):
         super(RECompare, self).__init__(*args)
         try:
-            self.re = re.compile(self.value, re.DOTALL)
+            self.re = re.compile(self.value, self.deflag(flags))
+            self.flags = flags
         except:
             self.log.exception('compiling regexp: %s', self.value)
             self.re = None
 
     @staticmethod
+    def deflag(s):
+        flags = 0
+        for c in s.lower():
+            val = {
+                'a': re.ASCII,
+                'i': re.IGNORECASE,
+                'm': re.MULTILINE,
+                's': re.DOTALL,
+                'x': re.VERBOSE,
+                }.get(c)
+            if val is None:
+                log = logging.getLogger('filter.RECompare')
+                log.error('unknown RE flag "%s"', c)
+            else:
+                flags |= val
+        return flags
+
+    @staticmethod
     def do(op, regexp, value):
         if regexp is None:
             return False
-        result = bool(regexp.match(str(value)))
+        result = bool(regexp.search(str(value)))
         if op[0] == '!':
             result = not result
         return result
 
     @staticmethod
-    def static(op, regexp, value):
+    def static(op, regexp, value, flags=''):
         try:
-            regexp = re.compile(regexp)
+            regexp = re.compile(regexp, RECompare.deflag(flags))
         except:
             logging.getLogger('filter').exception(
                 'compiling regexp: %s', value)
@@ -551,10 +572,11 @@ class RECompare(Comparison):
         return self.do(self.op, self.re, str(m.field(self.field, self.canon)))
 
     def __str__(self):
-        return '%s %s /%s/' % (
+        return '%s %s /%s/%s' % (
             self.field,
             self.op,
             self.value.replace('/', r'\/'),
+            self.flags,
             )
 
 
@@ -566,7 +588,6 @@ class Lexeme:
         return self.value
 
     def __repr__(self):
-        # pragma: nocover
         return self.__class__.__name__ + '(' + repr(self.value) + ')'
 
     def __eq__(self, other):
@@ -578,7 +599,9 @@ class Identifier(Lexeme):
 
 
 class Regexp(Lexeme):
-    pass
+    def __init__(self, value, flags):
+        self.value = value
+        self.flags = flags
 
 
 class PlyShim:
@@ -634,8 +657,11 @@ class Lexer(PlyShim):
         return t
 
     def t_REGEXP(self, t):
-        r'/(?P<content>(\\/|[^/])*)/'
-        t.value = self.lexer.lexmatch.group('content').replace(r'\/', '/')
+        r'/(?P<content>(\\/|[^/])*)/(?P<flags>[a-zA-Z]*)'
+        t.value = (
+            self.lexer.lexmatch.group('content').replace(r'\/', '/'),
+            self.lexer.lexmatch.group('flags'),
+            )
         return t
 
     def t_ID(self, t):
@@ -784,7 +810,8 @@ class Parser(PlyShim):
         '''
         re  : REGEXP
         '''
-        p[0] = Regexp(p[1])
+        string, flags = p[1]
+        p[0] = Regexp(string, flags)
 
     def p_exp_comparison(self, p):
         '''
@@ -811,12 +838,14 @@ class Parser(PlyShim):
         '''
         if isinstance(p[1], Regexp):
             regexp, val = p[1], p[3]
+            flags = p[1].flags
         else:
             regexp, val = p[3], p[1]
+            flags = p[3].flags
         if not isinstance(val, Identifier):
-            p[0] = RECompare.static(p[2], str(regexp), str(val))
+            p[0] = RECompare.static(p[2], str(regexp), str(val), flags=flags)
         else:
-            p[0] = RECompare(p[2], str(val), str(regexp))
+            p[0] = RECompare(p[2], str(val), str(regexp), flags=flags)
 
     def p_truth(self, p):
         '''
