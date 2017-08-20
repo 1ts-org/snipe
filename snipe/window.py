@@ -695,7 +695,7 @@ class Window:
         return None
 
     def go_mark(self, where):
-        pass
+        pass  # pragma: nocover
 
 
 class PagingMixIn:

@@ -157,7 +157,6 @@ class Message:
 
 class Context:
     def __init__(self, *args, **kw):
-        self._message = ''
         self.conf = {}
         self.backends = Aggregator()
         self.context = self
@@ -165,6 +164,10 @@ class Context:
         self.starks = []
         self.status = None
         self.keys = []
+        self.clear()
+
+    def clear(self):
+        self._message = ''
 
     def message(self, s):
         self._message = s
@@ -309,6 +312,9 @@ class CursesWindow:
     def noutrefresh(self):
         pass
 
+    def refresh(self):
+        pass
+
 
 class Curses:
     A_ALTCHARSET = curses.A_ALTCHARSET
@@ -383,9 +389,12 @@ class Curses:
     def doupdate(self):
         pass
 
+    def flash(self):
+        pass
+
 
 @contextlib.contextmanager
-def mocked_up_actual_fe(window_factory=None):
+def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
     curses = Curses()
     with unittest.mock.patch('snipe.ttyfe.curses', curses):
         fe = snipe.ttyfe.TTYFrontend()
@@ -399,15 +408,18 @@ def mocked_up_actual_fe(window_factory=None):
         if window_factory is None:
             window_factory = snipe.window.Window
 
-        fe.windows = [
-            snipe.ttyfe.TTYRenderer(fe, 0, fe.maxy, window_factory(fe)),
-            ]
-        fe.set_active(0)
+        if statusline_factory is None:
+            fe.windows = [
+                snipe.ttyfe.TTYRenderer(fe, 0, fe.maxy, window_factory(fe)),
+                ]
+            fe.set_active(0)
+        else:
+            fe.initial(window_factory, statusline_factory)
 
         yield fe
 
 
 @contextlib.contextmanager
-def mocked_up_actual_fe_window(window_factory=None):
-    with mocked_up_actual_fe(window_factory) as fe:
-        yield fe.windows[0].window
+def mocked_up_actual_fe_window(window_factory=None, statusline_factory=None):
+    with mocked_up_actual_fe(window_factory, statusline_factory) as fe:
+        yield fe.windows[fe.output].window

@@ -516,6 +516,7 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(b[-2:], TEXT[-2:])
         self.assertEqual(b[1:], TEXT[1:])
         self.assertEqual(b[2:], TEXT[2:])
+        self.assertRaises(ValueError, lambda: b[::2])
 
     def test_undo(self):
         b = snipe.editor.Buffer()

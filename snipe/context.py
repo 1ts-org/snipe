@@ -86,6 +86,7 @@ class Context:
             }
         self.ui = ui
         self.ui.context = self
+        self.status = None
         self.killring = []
         self.log = logging.getLogger('Snipe')
         self.context = self
@@ -116,9 +117,7 @@ class Context:
         # we may have just newly imported a backend
         util.Configurable.immanentize(self)
 
-        self.status = window.StatusLine(self.ui)
-        self.ui.initial(
-            lambda: messager.Messager(self.ui), statusline=self.status)
+        self.ui.initial(messager.Messager, statusline=window.StatusLine)
         self.messagelog = []
 
         self.starks = []
@@ -212,13 +211,16 @@ class Context:
 
     def message(self, s):
         self.messagelog.append(s)
-        self.status.message(s)
+        if self.status is not None:
+            self.status.message(s)
 
     def keyecho(self, s):
-        self.status.message(s, ())
+        if self.status is not None:
+            self.status.message(s, ())
 
     def clear(self):
-        self.status.clear()
+        if self.status is not None:
+            self.status.clear()
 
     def stark_path(self):
         return os.path.join(self.directory, self.stark_file)

@@ -610,16 +610,18 @@ class TTYFrontend:
         if self.windows or self.input is not None or self.output is not None:
             raise ValueError
         if statusline is None:
-            self.set_active(0)
             self.windows = [self.renderer(0, self.maxy, winfactory())]
+            self.set_active(0)
         else:
-            self.set_active(1)
+            statusline = statusline(self)
             self.windows = [
                 self.renderer(0, statusline.height(), statusline),
                 self.renderer(
                     statusline.height(), self.maxy - statusline.height(),
-                    winfactory()),
+                    winfactory(self)),
                 ]
+            self.context.status = statusline
+            self.set_active(1)
         for r in reversed(self.windows):
             r.w.refresh()
         self.stdscr.refresh()

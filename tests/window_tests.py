@@ -71,6 +71,54 @@ class TestWindow(unittest.TestCase):
         w = window.Window(None, modes=[AMode()])
         self.assertEqual(w.cheatsheet[-1], 'foo')
 
+    def test_input_char(self):
+        with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            save = []
+            w.intermediate_action = (
+                lambda keystroke=None: save.append(keystroke))
+            with self.assertLogs(w.log.name, level='ERROR'):
+                w.input_char('x')
+            self.assertEqual(w.context._message, 'unknown command')
+            w.keyerror_action = lambda k: save.append('E' + k)
+            w.input_char('x')
+            self.assertEqual(save, ['x', 'x', 'Ex'])
+
+            w.keymap['y'] = lambda: save.append('y')
+            w.input_char('y')
+            self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y'])
+
+            w.intermediate_action = None
+            w.keymap['z'] = keymap.Keymap()
+            w.keymap['z']['Z'] = lambda: save.append('z')
+            w.input_char('z')
+            w.input_char('Z')
+            self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y', 'z'])
+
+    def test_misc(self):
+        called = False
+
+        def destroy_cb():
+            nonlocal called
+            called = True
+        with mocks.mocked_up_actual_fe_window(
+                lambda fe: window.Window(fe, destroy=destroy_cb)) as w:
+            self.assertEqual(w.focus(), True)
+            w.destroy()
+            self.assertEqual(called, True)
+
+            self.assertEqual(w.title(), 'Window')
+            self.assertEqual(w.modeline(), (
+                [((), 'Window')],
+                [(('right',), '1')]))
+
+    def test_search_interface(self):
+        with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            self.assertRaises(NotImplementedError, lambda: w.find('foo'))
+            self.assertRaises(NotImplementedError, lambda: w.match('foo'))
+            self.assertRaises(NotImplementedError, w.beginning)
+            self.assertRaises(NotImplementedError, w.end)
+            self.assertEqual(w.make_mark(None), None)
+
     def test_set_cheatsheet(self):
         w = window.Window(None)
         c = []
@@ -86,14 +134,80 @@ class TestWindow(unittest.TestCase):
     def test_cheatsheetify(self):
         cheatsheetify = window.StatusLine.cheatsheetify
         TAGS = window.StatusLine.KEYTAGS
-        self.assertEquals(cheatsheetify(''), [])
-        self.assertEquals(cheatsheetify('foo'), [((), 'foo')])
-        self.assertEquals(cheatsheetify('*foo*'), [(TAGS, 'foo')])
-        self.assertEquals(
+        self.assertEqual(cheatsheetify(''), [])
+        self.assertEqual(cheatsheetify('foo'), [((), 'foo')])
+        self.assertEqual(cheatsheetify('*foo*'), [(TAGS, 'foo')])
+        self.assertEqual(
             cheatsheetify('f*o*o'), [((), 'f'), (TAGS, 'o'), ((), 'o')])
-        self.assertEquals(cheatsheetify('f\*o'), [((), 'f*o')])
-        self.assertEquals(cheatsheetify('f**oo'), [((), 'foo')])
-        self.assertEquals(cheatsheetify('f*\*oo'), [((), 'f'), (TAGS, '*oo')])
+        self.assertEqual(cheatsheetify('f\*o'), [((), 'f*o')])
+        self.assertEqual(cheatsheetify('f**oo'), [((), 'foo')])
+        self.assertEqual(cheatsheetify('f*\*oo'), [((), 'f'), (TAGS, '*oo')])
+
+
+class TestStatusLine(unittest.TestCase):
+    def test(self):
+        with mocks.mocked_up_actual_fe_window(
+                window.Window, window.StatusLine) as w:
+            s = w.context.status
+            self.assertEqual([[
+                (('visible',), ''),
+                ((), 'Window'),
+                (('right',), '1'),
+                ((), 'You'),
+                ((), '                 '),
+                ((), 'be'),
+                ((), '                  '),
+                ((), 'this'),
+                ((), '                '),
+                (('bold',), '^Z'),
+                ((), ' suspend'),
+                ((), '\n'),
+                ((), "shouldn't"),
+                ((), '           '),
+                ((), 'seeing'),
+                ((), '              '),
+                (('bold',), '^X^C'),
+                ((), ' quit'),
+                ((), '           '),
+                (('bold',), '?'),
+                ((), ' help'),
+                ((), '\n')
+                ]], [chunk for (mark, chunk) in s.view(0)])
+
+            w.context.conf['set'] = {'cheatsheet': False}
+            w.fe.resize_statuswindow()
+            self.assertEqual([[
+                (('visible',), ''),
+                ((), 'Window'),
+                (('right',), '1'),
+                ]], [chunk for (mark, chunk) in s.view(0)])
+
+            s.message('X'*80)
+            self.assertEqual([[
+                (('visible',), ''),
+                (('fg:white', 'bg:red'), '…' + ('X' * 77)),
+                (('right',), '1'),
+                ]], [chunk for (mark, chunk) in s.view(0)])
+
+            # defensiveness time
+
+            class W2(window.Window):
+                def modeline(self):
+                    return None, []
+
+            s.clear()
+            w.fe.split_window(W2(w.fe), True)
+
+            self.assertEqual([[
+                (('visible',), ''),
+                ]], [chunk for (mark, chunk) in s.view(0)])
+
+            w.fe.output = 99
+            self.assertEqual([[
+                (('visible',), ''),
+                ((), 'StatusLine'),
+                (('right',), '1'),
+                ]], [chunk for (mark, chunk) in s.view(0)])
 
 
 if __name__ == '__main__':
