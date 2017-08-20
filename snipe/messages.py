@@ -43,6 +43,7 @@ import logging
 import math
 import time
 
+from . import chunks
 from . import filters
 from . import util
 
@@ -198,23 +199,25 @@ class SnipeMessage:
             return self.headline(msg, tags) + self.body(msg, tags)
 
         @classmethod
-        def headline(self, msg, tags):
-            chunk = [(tags + ('bold',), msg.followup())]
+        def headline(self, msg, tags=set()):
+            followup = msg.followup()
+            chunk = chunks.Chunk([(tags | {'bold'}, followup)])
             sender = str(msg.sender)
-            if sender != chunk[0][1]:
-                chunk += [(tags, ' : '), (tags + ('bold',), sender)]
+            if sender != followup:
+                chunk += [(tags, ' : '), (tags | {'bold'}, sender)]
             chunk += [(
-                tags + ('right',),
+                tags | {'right'},
                 time.strftime(' %H:%M:%S', time.localtime(msg.time)),
                 )]
             return chunk
 
         @classmethod
-        def format(self, msg, tags):
-            return [(tags, msg.body + ('\n' if msg.body[-1:] != '\n' else ''))]
+        def format(self, msg, tags=set()):
+            return chunks.Chunk(
+                [(tags, msg.body + ('\n' if msg.body[-1:] != '\n' else ''))])
 
         @classmethod
-        def body(self, msg, tags):
+        def body(self, msg, tags=set()):
             body = self.format(msg, tags)
             if not msg.backend.indent:
                 return body
@@ -227,46 +230,46 @@ class SnipeMessage:
 
             UNDERLINE = frozenset(['underline'])
 
-            flat = util.flatten_chunk(chunk)
-            new = []
-            rest = list(chunk)
+            flat = str(chunk)
+            new = chunks.Chunk()
+            rest = chunk
             for l in (len(s) for s in flat.split('\n')):
-                line, rest = util.chunk_slice(rest, l)
+                line, rest = rest.slice(l)
                 if not line:
                     if rest:
                         if new:
                             t = new[-1][0]
                         else:
-                            t = tuple(set(rest[-1][0]) - UNDERLINE)
-                        line = [(t, prefix + '\n')]
+                            t = set(rest[-1][0]) - UNDERLINE
+                        line = chunks.Chunk([(t, prefix + '\n')])
                 else:
                     ltags, ltext = line[0]
                     if 'underline' in ltags:
-                        line[0:0] = [(tuple(set(ltags) - UNDERLINE), prefix)]
+                        line[0:0] = [(set(ltags) - UNDERLINE, prefix)]
                     else:
                         line[0] = (ltags, prefix + ltext)
                     ltags, ltext = line[-1]
                     if 'underline' in ltags:
-                        line += [(tuple(set(ltags) - UNDERLINE), '\n')]
+                        line += [(set(ltags) - UNDERLINE, '\n')]
                     else:
                         line[-1] = (ltags, ltext + '\n')
                 new.extend(line)
                 if rest:
-                    _, rest = util.chunk_slice(rest, 1)
+                    _, rest = rest.slice(1)
             return new
 
         @staticmethod
         def decotags(decoration):
-            tags = []
+            tags = set()
             if 'foreground' in decoration:
-                tags.append('fg:' + decoration['foreground'])
+                tags.add('fg:' + decoration['foreground'])
             if 'background' in decoration:
-                tags.append('bg:' + decoration['background'])
-            return tuple(tags)
+                tags.add('bg:' + decoration['background'])
+            return tags
 
     class OnelineDecor(Decor):
         @classmethod
-        def body(self, msg, tags):
+        def body(self, msg, tags=set()):
             return []
 
 
@@ -508,7 +511,8 @@ class InfoMessage(SnipeMessage):
     class Decor(SnipeMessage.Decor):
         @classmethod
         def decorate(self, msg, decoration):
-            return [(self.decotags(decoration) + ('bold',), msg.body)]
+            return chunks.Chunk(
+                [(self.decotags(decoration) | {'bold'}, msg.body)])
 
 
 class TerminusBackend(SnipeBackend):

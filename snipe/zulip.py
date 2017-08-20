@@ -41,6 +41,7 @@ import re
 import time
 import urllib.parse
 
+from . import chunks
 from . import filters
 from . import text
 from . import interactive
@@ -410,9 +411,7 @@ class ZulipMessage(messages.SnipeMessage):
 
     class Decor(messages.SnipeMessage.Decor):
         @classmethod
-        def headline(self, msg, tags):
-            tags = set(tags)
-
+        def headline(self, msg, tags=set()):
             subject = msg.data.get('subject')
             if subject:
                 subject = ' ' + subject
@@ -428,17 +427,16 @@ class ZulipMessage(messages.SnipeMessage):
             timestamp = time.strftime(
                 ' %H:%M:%S\n', time.localtime(msg.data['timestamp']))
 
-            return [(tuple(x), y) for (x, y) in [
+            return chunks.Chunk([
                 (tags | {'bold'}, '·' + msg._chat + '>'),
                 (tags, subject + ' <'),
                 (tags | {'bold'}, msg.data.get('sender_email', '?')),
                 (tags, '>' + name),
                 (tags | {'right'}, timestamp),
-                ]]
+                ])
 
         @classmethod
-        def format(self, msg, tags):
-            tags = set(tags)
+        def format(self, msg, tags=set()):
             if '_html' not in msg.data:
                 body = msg.data.get('content', '')
                 body = body.replace('\r\n', '\n')  # conform to local custom
@@ -446,8 +444,8 @@ class ZulipMessage(messages.SnipeMessage):
             if '_rendered' not in msg.data:
                 msg.data['_rendered'] = text.xhtml_to_chunk(msg.data['_html'])
             # XXX what if there is color in the rendered data
-            return [
-                (tuple(tags | set(x)), y) for (x, y) in msg.data['_rendered']]
+            return chunks.Chunk(
+                (tags | set(x), y) for (x, y) in msg.data['_rendered'])
 
 
 class ZulipAddress(messages.SnipeAddress):

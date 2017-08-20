@@ -43,6 +43,7 @@ import re
 import time
 import traceback
 
+from . import chunks
 from . import filters
 from . import help
 from . import interactive
@@ -167,30 +168,31 @@ class Messager(window.Window, window.PagingMixIn):
 
                 if not chunk:
                     # this is a bug so it will do the wrong thing sometimes
-                    chunk = [((), '\n')]
+                    chunk = chunks.Chunk([((), '\n')])
 
                 if self.search_term is not None:
-                    chunk = util.chunk_mark_re(
-                        chunk, re.escape(self.search_term), util.mark_reverse)
+                    chunk = chunk.mark_re(
+                        re.escape(self.search_term), chunk.tag_reverse)
 
                 # unpack as a structure assertion
                 assert len(chunk) > 0
                 for (tag, text) in chunk:
                     pass
             except:
-                chunk = [
+                chunk = chunks.Chunk([
                     ((), repr(chunk) + '\n'),
                     (('bold',), repr(x) + '\n'),
                     ((), traceback.format_exc()),
                     ((), pprint.pformat(x.data) + '\n'),
-                    ]
+                    ])
 
             if x == self.cursor:
                 tags, text = chunk[0]
-                chunk = [(tags + ('visible',), text)] + chunk[1:]
+                chunk = chunks.Chunk([(tags + ('visible',), text)]) + chunk[1:]
 
             if x == (self.secondary or self.cursor):
-                chunk = [(chunk[0][0] + ('bar',), chunk[0][1])] + chunk[1:]
+                tags, text = chunk[0]
+                chunk = chunks.Chunk([(tags + ('bar',), text)]) + chunk[1:]
 
             yield x, chunk
 
@@ -198,14 +200,14 @@ class Messager(window.Window, window.PagingMixIn):
         for msg in self.walk(self.cursor, forward, search=True):
             if msg is self.cursor:
                 continue
-            m = util.flatten_chunk(msg.display({}))
+            m = str(msg.display({}))
             if string in m:
                 self.cursor = msg
                 return True
         return False
 
     def match(self, string, forward=True):
-        return string in util.flatten_chunk(self.cursor.display({}))
+        return string in str(self.cursor.display({}))
 
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):
@@ -272,7 +274,7 @@ class Messager(window.Window, window.PagingMixIn):
             t += '%02d-%02d ' % (then.month, then.day)
         t += '%02d:%02d' % (then.hour, then.minute)
 
-        left = [(('dim',), t), ((), ' ' + str(self.filter))]
+        left = chunks.Chunk([(('dim',), t), ((), ' ' + str(self.filter))])
 
         return left, right
 

@@ -37,6 +37,7 @@ import logging
 import asyncio
 import math
 
+from . import chunks
 from . import interactive
 from . import keymap
 from . import util
@@ -275,7 +276,7 @@ class Window:
 
         Each chunk may be assumed to end a line.
         """  # noqa: E501
-        yield 0, [(('visible',), '')]
+        yield 0, chunks.Chunk([(('visible',), '')])
 
     def before_command(self):
         """Executed before an interactive command."""
@@ -293,8 +294,10 @@ class Window:
         return self.__class__.__name__
 
     def modeline(self):
-        return [((), self.title())], \
-          [(('right',), '%d' % (self.context.backends.count(),))]
+        count = self.context.backends.count()
+        return (
+            chunks.Chunk([((), self.title())]),
+            chunks.Chunk([(('right',), '%d' % (count,))]))
 
     # Convenience functions for interacting with the user
 
@@ -816,7 +819,7 @@ class StatusLine(Window):
     def cheatsheetify(klass, s):
         def untag(t):
             return () if t else klass.KEYTAGS
-        out = [((), '')]
+        out = chunks.Chunk([((), '')])
         while s != '':
             if s[0] == '*':
                 if len(out) == 1 and out[-1][1] == '':

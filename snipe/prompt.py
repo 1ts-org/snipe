@@ -39,6 +39,7 @@ Editor subclasses for interacting withe user.
 
 import asyncio
 
+from . import chunks
 from . import editor
 from . import keymap
 from . import interactive
@@ -138,20 +139,20 @@ class LongPrompt(editor.Editor):
             if mark.point > self.divider:
                 yield mark, chunk
             else:
-                newchunk = []
+                newchunk = chunks.Chunk()
                 off = mark.point
                 for tags, string in chunk:
                     if off < self.divider:
                         if off + len(string) > self.divider:
                             newchunk.append(
-                                (tags + ('bold',),
+                                (set(tags) | {'bold'},
                                     string[:self.divider - off]))
                             newchunk.append(
                                 (self.maybe_inverse(tags),
                                     string[self.divider - off:]))
                         else:  # string is all before the divider
                             newchunk.append(
-                                ((tags + ('bold',)), string))
+                                (set(tags) | {'bold'}, string))
                     else:
                         newchunk.append((self.maybe_inverse(tags), string))
                     off += len(string)
@@ -295,18 +296,18 @@ class Leaper(LongPrompt):
 
     def match_chunks(self):
         if not self.completer.live:
-            return [((), '')]
+            return chunks.Chunk([((), '')])
         m = [x[1] for x in self.matches()]
         self.log.debug('match_chunks: matches: %s', m)
         if not m:
-            return [((), ' {}\n')]
-        return [
+            return chunks.Chunk([((), ' {}\n')])
+        return chunks.Chunk([
             ((), ' {'),
             (('bold',), m[0]),
             ((), (
                 ('|' if len(m) > 1 else '') +
                 '|'.join(m[1:]) +
-                '}\n'))]
+                '}\n'))])
 
     def complete_end(self):
         return len(self.buf)

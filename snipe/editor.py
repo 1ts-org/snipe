@@ -39,11 +39,12 @@ import logging
 import re
 import unicodedata
 
-from . import window
+from . import chunks
+from . import gap
 from . import interactive
 from . import keymap
 from . import util
-from . import gap
+from . import window
 
 
 @functools.total_ordering
@@ -324,7 +325,7 @@ class Viewer(window.Window, window.PagingMixIn):
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
 
-            chunk = [((), s)]
+            chunk = chunks.Chunk([((), s)])
 
             l = len(s)
             if ((p <= self.cursor.point < p + l)
@@ -370,11 +371,11 @@ class Viewer(window.Window, window.PagingMixIn):
                     else:
                         # we added an extra space up there
                         exploded = exploded[1:]
-                    chunk = [
+                    chunk = chunks.Chunk([
                         ((), s[:explode_start]),
                         (self.SHOW_COMBINING, exploded),
                         ((), s[explode_end:]),
-                        ]
+                        ])
                     self.log.debug(
                         'len(s) = %d, coff = %d, explode_start = %d,'
                         ' explode_end = %d: %s %s %s ',
@@ -383,14 +384,14 @@ class Viewer(window.Window, window.PagingMixIn):
                         util.unirepr(chunk[1][1]),
                         util.unirepr(chunk[2][1]))
                     s = s[:explode_start] + exploded + s[explode_end:]
-                left, right = util.chunk_slice(chunk, coff)
+                left, right = chunk.slice(coff)
                 chunk = left + [(('cursor', 'visible'), '')] + right
 
             for i, ch in reversed(list(enumerate(s))):
                 c = ord(ch)
                 if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
-                    left, rest = util.chunk_slice(chunk, i)
-                    middle, right = util.chunk_slice(rest, 1)
+                    left, rest = chunk.slice(i)
+                    middle, right = rest.slice(1)
                     uncontrol = [
                         (self.SHOW_CONTROL, '^' + chr((c + ord('@')) & 127))]
                     if middle[:1] == [(('cursor', 'visible'), '')]:
@@ -398,8 +399,8 @@ class Viewer(window.Window, window.PagingMixIn):
                     chunk = left + uncontrol + right
 
             if self.search_term is not None:
-                chunk = util.chunk_mark_re(
-                    chunk, re.escape(self.search_term), util.mark_reverse)
+                chunk = chunk.mark_re(
+                    re.escape(self.search_term), chunk.tag_reverse)
 
             yield self.buf.mark(p), chunk
 
@@ -775,8 +776,9 @@ class PopViewer(Viewer):
             pct = '%d%%' % (sill / len(self.buf) * 100)
         except ZeroDivisionError:
             pct = '-'
-        return ([((), '%s %s' % (pct, self.title()))],
-                [(('right',), '%d' % (self.context.backends.count(),))])
+        count = self.context.backends.count()
+        return (chunks.Chunk([((), '%s %s' % (pct, self.title()))]),
+                chunks.Chunk([(('right',), '%d' % (count,))]))
 
     def destroy(self):
         self.buf.unregister()

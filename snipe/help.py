@@ -41,6 +41,7 @@ import logging
 import docutils.core
 import docutils.nodes
 
+from . import chunks
 from . import editor
 from . import interactive
 from . import keymap
@@ -233,9 +234,9 @@ class HelpBrowser(editor.PopViewer):
             if i >= len(self.chunks):
                 mark = self.buf.mark(len(self.buf))
                 if self.cursor.point == len(self.buf):
-                    yield mark, [(('cursor', 'visible'), '')]
+                    yield mark, chunks.Chunk([(('cursor', 'visible'), '')])
                 else:
-                    yield mark, []
+                    yield mark, chunks.Chunk()
                 return
 
             self.log.debug(
@@ -249,6 +250,7 @@ class HelpBrowser(editor.PopViewer):
                 c = int(self.cursor)
                 for (j, (tags, txt)) in enumerate(self.chunks[i][1]):
                     self.log.debug('helpbrowser.view: j=%d', j)
+                    # XXX chunk.split?
                     if off <= c < off + len(txt):
                         yield self.buf.mark(self.chunks[i][0]), (
                             self.chunks[i][1][:j] +

@@ -44,11 +44,12 @@ import itertools
 import asyncio
 import aiohttp
 
+from . import chunks
+from . import filters
+from . import interactive
+from . import keymap
 from . import messages
 from . import util
-from . import keymap
-from . import interactive
-from . import filters
 
 
 _backend = 'Slack'
@@ -599,7 +600,7 @@ class SlackMessage(messages.SnipeMessage):
         return str(self.backend.dests.get(s, s))
 
     def slackmarkup(self, text, tags):
-        chunk = []
+        chunk = chunks.Chunk()
         bodylist = self.SLACKMARKUP.split(text)
         for (n, s) in enumerate(bodylist):
             if n % 2 == 0:
@@ -611,15 +612,15 @@ class SlackMessage(messages.SnipeMessage):
                     ]
             else:
                 if '|' in s:
-                    chunk += [(tags + ('bold',), s.split('|', 1)[-1])]
+                    chunk += [(tags | {'bold'}, s.split('|', 1)[-1])]
                 else:
                     if s[:2] in ('#C', '@U'):
                         nametext = self.displayname(s[1:])
                         if s[1] == 'U':
                             nametext = '@' + nametext
-                        chunk += [(tags + ('bold',), nametext)]
+                        chunk += [(tags | {'bold'}, nametext)]
                     else:
-                        chunk += [(tags + ('bold',), s)]
+                        chunk += [(tags | {'bold'}, s)]
 
         return chunk
 
@@ -706,11 +707,11 @@ class SlackMessage(messages.SnipeMessage):
 
     class Decor(messages.SnipeMessage.OnelineDecor):
         @classmethod
-        def headline(self, msg, tags):
+        def headline(self, msg, tags=set()):
             timestring = time.strftime(' %H:%M:%S', time.localtime(msg.time))
-            chunk = []
+            chunk = chunks.Chunk()
             if msg.channel is not None:
-                chunk += [((tags + ('bold',)), msg.channel + ' ')]
+                chunk += [((tags | {'bold'}), msg.channel + ' ')]
 
             if 'edited' in msg.data:
                 chunk += [(tags, '~')]
@@ -724,7 +725,7 @@ class SlackMessage(messages.SnipeMessage):
             t = msg.data['type']
             t_ = msg.data.get('subtype')
             if t == 'message':
-                chunk += [(tags + ('bold',), msg.sender.short())]
+                chunk += [(tags | {'bold'}, msg.sender.short())]
                 if t_ != 'me_message':
                     chunk += [(tags, ': ')]
                 else:
@@ -756,42 +757,42 @@ class SlackMessage(messages.SnipeMessage):
 
                         left = [
                             (tags, '\n'),
-                            (tags + (('bg:%s' % color),), ' '),
+                            (tags | {'bg:%s' % color}, ' '),
                             (tags, ' '),
                             ]
 
                     for (field, markup) in [
                             # ('fallback', ()),
-                            ('pretext', ('bold',)),
-                            ('author_name', ()),
-                            ('author_link', ()),
-                            ('title', ('bold',)),
-                            ('title_link', ()),
+                            ('pretext', {'bold'}),
+                            ('author_name', set()),
+                            ('author_link', set()),
+                            ('title', {'bold'}),
+                            ('title_link', set()),
                             ]:
                         if field in attachment:
                             chunk += left + [
-                                ((tags + markup), attachment[field])]
+                                ((tags | markup), attachment[field])]
 
                     if 'text' in attachment:
                         chunk += left + msg.slackmarkup(
                             attachment['text'], tags)
 
                     for field in attachment.get('fields', []):
-                        chunk += left + [(tags + ('bold',), field['title'])]
+                        chunk += left + [(tags | {'bold'}, field['title'])]
                         chunk += left + [(tags, field['value'])]
 
                 if 'file' in msg.data and 'url' in msg.data['file']:
                     chunk += [(tags, ('\n' + msg.data['file']['url']))]
 
-                chunk += [(tags + ('right',), timestring)]
+                chunk += [(tags | {'right'}, timestring)]
             elif t == 'presence_change':
                 if msg.data['presence'] == 'active':
                     chunk += [(tags, '+ ')]
                 else:
                     chunk += [(tags, '- ')]
                 chunk += [
-                    (tags + ('bold',), msg.sender.short()),
-                    (tags + ('right',), timestring),
+                    (tags | {'bold'}, msg.sender.short()),
+                    (tags | {'right'}, timestring),
                     ]
             else:
                 decor = {}

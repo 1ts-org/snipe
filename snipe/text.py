@@ -48,6 +48,7 @@ import markdown.extensions
 import markdown.extensions.codehilite
 import markdown.extensions.fenced_code
 
+from . import chunks
 from . import util
 
 
@@ -99,7 +100,8 @@ class RSTRenderer:
                     lastchunk[-1:] = [
                         (tags, text[:-1]),
                         (tuple(tags - self.tags(span=True)), '\n')]
-            self.output.append((self.offset, [(self.tags(), self.indent)]))
+            self.output.append(
+                (self.offset, chunks.Chunk([(self.tags(), self.indent)])))
         line = self.output[-1][1]
 
         rest = ''
@@ -449,7 +451,7 @@ def xhtml_to_chunk(xhtml):
         '<html><body>' + xhtml + '</body></html>')
     renderer = XHTMLRenderer()
     renderer.process(dom.documentElement)
-    out = []
+    out = chunks.Chunk()
     for mark, chunk in renderer.output:
         out.extend(chunk)
     if out and out[-1][-1][-1:] != '\n':

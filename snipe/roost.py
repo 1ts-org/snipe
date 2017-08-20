@@ -49,6 +49,7 @@ import subprocess
 import inspect
 import unicodedata
 
+from . import chunks
 from . import messages
 from . import _rooster
 from . import util
@@ -647,23 +648,23 @@ class RoostMessage(messages.SnipeMessage):
 
     class Decor(messages.SnipeMessage.Decor):
         @classmethod
-        def headline(self, msg, tags):
+        def headline(self, msg, tags=set()):
             instance = msg.data['instance']
             instance = instance or "''"
-            chunk = []
+            chunk = chunks.Chunk()
 
             if msg.personal:
                 if msg.outgoing:
                     chunk += [(
-                        (tags + ('bold',)),
+                        tags | {'bold'},
                         '(personal> <' + msg.field('recipient') + '>')]
                 else:
-                    chunk += [(tags + ('bold',), '<personal)')]
+                    chunk += [(tags | {'bold'}, '<personal)')]
 
             if not msg.personal or msg.data['class'].lower() != 'message':
                 chunk += [
                     (tags, '-c '),
-                    (tags + ('bold',), msg.data['class']),
+                    (tags | {'bold'}, msg.data['class']),
                     ]
             if instance.lower() != 'personal':
                 chunk += [
@@ -671,14 +672,14 @@ class RoostMessage(messages.SnipeMessage):
                     ]
 
             if msg.data['recipient'] and msg.data['recipient'][0] == '@':
-                chunk += [(tags + ('bold',), ' ' + msg.data['recipient'])]
+                chunk += [(tags | {'bold'}, ' ' + msg.data['recipient'])]
 
             if msg.data['opcode']:
                 chunk += [(tags, ' [' + msg.data['opcode'] + ']')]
 
             chunk += [
                 (tags, ' <'),
-                (tags + ('bold',), msg.sender.short()),
+                (tags | {'bold'}, msg.sender.short()),
                 (tags, '>'),
                 ]
 
@@ -696,14 +697,14 @@ class RoostMessage(messages.SnipeMessage):
                         ]
 
             chunk.append(
-                (tags + ('right',),
+                (tags | {'right'},
                  time.strftime(
                     ' %H:%M:%S', time.localtime(msg.data['time'] / 1000))))
 
             return chunk
 
         @classmethod
-        def format(self, msg, tags):
+        def format(self, msg, tags=set()):
             body = msg.body
             if body:
                 if not body.endswith('\n'):
@@ -713,9 +714,9 @@ class RoostMessage(messages.SnipeMessage):
                 else:
                     if msg.backend.format_body == 'strip':
                         body = zcode.strip(body)
-                    chunk = [(tags, body)]
+                    chunk = chunks.Chunk([(tags, body)])
             else:
-                chunk = []
+                chunk = chunks.Chunk()
 
             return chunk
 

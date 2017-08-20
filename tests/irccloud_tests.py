@@ -58,7 +58,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         os.environ['TZ'] = 'GMT'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 (('fill',), ': bar'),
@@ -68,7 +68,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['type'] = 'error'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'bar'),
                 (('right',), ' 00:00:00'),
@@ -79,7 +79,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['reason'] = 'because'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'quux: because'),
                 (('right',), ' 00:00:00'),
@@ -89,7 +89,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['hidden_host'] = 'thing'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'quux: thing bar'),
                 (('right',), ' 00:00:00'),
@@ -102,7 +102,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['rest'] = 'a'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'quux: 0, user modes: user, channel modes: ab'),
                 (('right',), ' 00:00:00'),
@@ -115,7 +115,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['reason'] = 'doubtful'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'jupiter:1999 (ssl) connection failed: doubtful'),
                 (('right',), ' 00:00:00'),
@@ -126,7 +126,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['msg'] = 'umami'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'jupiter:1999 (ssl) She quit: umami'),
                 (('right',), ' 00:00:00'),
@@ -137,7 +137,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['oldnick'] = 'blue'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'you are now red (née blue)'),
                 (('right',), ' 00:00:00'),
@@ -148,7 +148,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['topic'] = 'something boring'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'some luser set topic to '),
                 (('bold',), 'something boring'),
@@ -159,7 +159,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['timestamp'] = 0
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'created Thu Jan  1 00:00:00 1970'),
                 (('right',), ' 00:00:00'),
@@ -172,7 +172,7 @@ class TestIRCCloudDecor(unittest.TestCase):
             }
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'some luser set '),
                 (('bold',), '+mode param -mode param'),
@@ -185,7 +185,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['newmode'] = 'ants'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'droid set '),
                 (('bold',), '9000'),
@@ -198,7 +198,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['type'] = 'channel_mode_is'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'mode '),
                 (('bold',), '9000'),
@@ -209,7 +209,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['url'] = 'file:///'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'url: '),
                 (('bold',), 'file:///'),
@@ -220,7 +220,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['url'] = 'file:///'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'channel mode '),
                 (('bold',), '9000'),
@@ -230,7 +230,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['type'] = 'joined_channel'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), '+ '),
                 (('bold',), 'mock'),
@@ -240,7 +240,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['type'] = 'parted_channel'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), '- '),
                 (('bold',), 'mock'),
@@ -251,7 +251,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['type'] = 'nickchange'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'blue'),
                 ((), ' -> '),
@@ -262,7 +262,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data = {}
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), 'mock [no type] eid - bid - cid -\n{}'),
                 (('right',), ' 00:00:00'),

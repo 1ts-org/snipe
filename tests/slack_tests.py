@@ -64,7 +64,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.slackmarkup = lambda text, tags: [(tags, text)]
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), '~'),
                 ((), '*'),
@@ -81,7 +81,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['subtype'] = ''
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
@@ -92,7 +92,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['file'] = {'url': 'file:///'}
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
@@ -106,7 +106,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['reactions'] = [{'name': 'over', 'count': 9000}]
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
@@ -128,7 +128,7 @@ class TestSlackDecor(unittest.TestCase):
             }]
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
@@ -162,7 +162,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['presence'] = 'active'
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), '+ '),
                 (('bold',), 'mock'),
@@ -172,7 +172,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['presence'] = 'passive'  # ?
 
         self.assertEqual(
-            Decor.headline(msg, ()), [
+            Decor.headline(msg), [
                 (('bold',), '#foo '),
                 ((), '- '),
                 (('bold',), 'mock'),
@@ -183,7 +183,7 @@ class TestSlackDecor(unittest.TestCase):
 
         self.assertEqual(
             [(set(x), y)
-                for (x, y) in Decor.headline(msg, ('fg:white', 'bg:blue'))], [
+                for (x, y) in Decor.headline(msg, {'fg:white', 'bg:blue'})], [
                     ({'fg:white', 'bg:blue', 'bold'}, 'followup'),
                     ({'fg:white', 'bg:blue'}, ' : '),
                     ({'fg:white', 'bg:blue', 'bold'}, 'mock'),

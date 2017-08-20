@@ -42,11 +42,12 @@ import itertools
 import pprint
 import math
 
+from . import chunks
+from . import filters
+from . import interactive
+from . import keymap
 from . import messages
 from . import util
-from . import keymap
-from . import interactive
-from . import filters
 
 
 _backend = 'IRCCloud'
@@ -568,14 +569,14 @@ class IRCCloudMessage(messages.SnipeMessage):
 
     class Decor(messages.SnipeMessage.OnelineDecor):
         @classmethod
-        def headline(self, msg, tags):
+        def headline(self, msg, tags=set()):
             timestring = time.strftime(' %H:%M:%S', time.localtime(msg.time))
-            chunk = []
+            chunk = chunks.Chunk()
             mtype = msg.data.get('type')
             chan = msg.channel
 
             if chan is not None:
-                chunk += [((tags + ('bold',)), chan + ' ')]
+                chunk += [((tags | {'bold'}), chan + ' ')]
 
             msgy = {
                 'buffer_msg': ':',
@@ -587,8 +588,8 @@ class IRCCloudMessage(messages.SnipeMessage):
                 }
             if mtype in msgy:
                 chunk += [
-                    (tags + ('bold',), msg.sender.short()),
-                    (tags + ('fill',), msgy[mtype] + ' ' + msg.body),
+                    (tags | {'bold'}, msg.sender.short()),
+                    (tags | {'fill'}, msgy[mtype] + ' ' + msg.body),
                     ]
             elif mtype in (
                     'motd_response', 'server_luserconns',
@@ -644,7 +645,7 @@ class IRCCloudMessage(messages.SnipeMessage):
             elif mtype == 'channel_topic':
                 chunk += [
                     (tags, msg.data['from_name'] + ' set topic to '),
-                    (tags + ('bold',), msg.data['topic']),
+                    (tags | {'bold'}, msg.data['topic']),
                     ]
             elif mtype == 'channel_timestamp':
                 chunk += [
@@ -657,40 +658,43 @@ class IRCCloudMessage(messages.SnipeMessage):
                         out.append(
                             '%s%s %s' % (
                                 prefix, action['mode'], action['param']))
-                chunk.append((tags + ('bold',), ' '.join(out)))
+                chunk.append((tags | {'bold'}, ' '.join(out)))
             elif mtype == 'user_mode':
                 chunk += [
                     (tags, msg.data['from'] + ' set '),
-                    (tags + ('bold',), msg.data['diff']),
+                    (tags | {'bold'}, msg.data['diff']),
                     (tags, ' ('),
-                    (tags + ('bold',), msg.data['newmode']),
+                    (tags | {'bold'}, msg.data['newmode']),
                     (tags, ') on you'),
                     ]
             elif mtype in ('channel_mode_is', 'channel_mode'):
                 chunk += [
-                    (tags, 'mode ',), (tags + ('bold',), msg.data['diff'])]
+                    (tags, 'mode ',),
+                    (tags | {'bold'}, msg.data['diff'])]
             elif mtype == 'channel_url':
-                chunk += [(tags, 'url: '), (tags + ('bold',), msg.data['url'])]
+                chunk += [
+                    (tags, 'url: '),
+                    (tags | {'bold'}, msg.data['url'])]
             elif mtype == 'channel_mode_list_change':
                 chunk += [
                     (tags, 'channel mode '),
-                    (tags + ('bold',), msg.data['diff'])]
+                    (tags | {'bold'}, msg.data['diff'])]
             elif mtype == 'joined_channel':
                 chunk += [
                     (tags, '+ '),
-                    ((tags + ('bold',)), msg.sender.short()),
+                    ((tags | {'bold'}), msg.sender.short()),
                     ]
             elif mtype == 'parted_channel':
                 chunk += [
                     (tags, '- '),
-                    ((tags + ('bold',)), msg.sender.short()),
+                    ((tags | {'bold'}), msg.sender.short()),
                     (tags, ': ' + msg.body),
                     ]
             elif mtype == 'nickchange':
                 chunk += [
                     (tags, msg.data['oldnick']),
                     (tags, ' -> '),
-                    ((tags + ('bold',)), msg.sender.short()),
+                    ((tags | {'bold'}), msg.sender.short()),
                     ]
             else:
                 import pprint
@@ -707,7 +711,7 @@ class IRCCloudMessage(messages.SnipeMessage):
                     pprint.pformat(d),
                     ))]
 
-            chunk += [((tags + ('right',), timestring))]
+            chunk += [(tags | {'right'}, timestring)]
             return chunk
 
 

@@ -45,7 +45,6 @@ import functools
 import logging
 import math
 import os
-import re
 import sys
 import time
 import unicodedata
@@ -480,56 +479,6 @@ def eval_output(string, environment=None, mode='single'):
 
 def val_oneof(vals):
     return lambda x: x in vals
-
-
-def chunk_slice(chunk, cut):
-    left = []
-    right = []
-    off = 0
-    i = 0
-    for i, (tags, s) in enumerate(chunk):
-        l = len(s)
-        if off + len(s) >= cut:
-            if off != cut:
-                left.append((tags, s[:cut - off]))
-            if l == 0 or cut - off < l:
-                right = [(tags, s[cut - off:])]
-            break
-        else:
-            left.append((tags, s))
-        off += l
-    right.extend(chunk[i + 1:])
-
-    return left, right
-
-
-def chunk_mark_re(chunk, regexp, mark):
-    """call mark() on portions of chunk that match regexp"""
-    spans = [m.span() for m in re.finditer(regexp, flatten_chunk(chunk))]
-    new = []
-    prev = 0
-
-    # make start and end relative
-    for i, (start, end) in enumerate(spans):
-        spans[i] = (start - prev, end - start)
-        prev = end
-
-    for start, end in spans:
-        before, chunk = chunk_slice(chunk, start)
-        new.extend(before)
-        within, chunk = chunk_slice(chunk, end)
-        new.extend([(mark(tags), s) for (tags, s) in within])
-    new.extend(chunk)
-
-    return new
-
-
-def mark_reverse(tags):
-    return tuple(set(tags) ^ {'reverse'})
-
-
-def flatten_chunk(chunk):
-    return ''.join(x[1] for x in chunk)
 
 
 def _fallback_wcwidth(c):

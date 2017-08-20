@@ -32,6 +32,8 @@
 import collections
 import logging
 
+from . import chunks
+
 
 IDCHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'
 LEFT, RIGHT = '({[<', ')}]>'
@@ -130,10 +132,10 @@ def strip(s):
 
 
 def ctags(otags, fg):
-    tags = list(otags)
+    tags = set(otags)
     if fg:
-        tags.append('fg:' + fg)
-    return tuple(tags)
+        tags.add('fg:' + fg)
+    return tags
 
 
 def tag_tree(t, tags, fg=None, otags=None):
@@ -145,7 +147,7 @@ def tag_tree(t, tags, fg=None, otags=None):
             else:
                 otags.add(tag)
 
-    out = []
+    out = chunks.Chunk()
     name = t[0].lower()
     if name in {'@i', '@italic'}:
         otags.add('underline')
@@ -160,7 +162,7 @@ def tag_tree(t, tags, fg=None, otags=None):
                 buf = []
                 for f in e.split('\n'):
                     buf.append((tags, f))
-                    buf.append((tuple(set(tags) - {'underline'}), '\n'))
+                    buf.append((tags - {'underline'}, '\n'))
                 del buf[-1]
                 out.extend(buf)
             else:
