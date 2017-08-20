@@ -408,13 +408,7 @@ def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
         if window_factory is None:
             window_factory = snipe.window.Window
 
-        if statusline_factory is None:
-            fe.windows = [
-                snipe.ttyfe.TTYRenderer(fe, 0, fe.maxy, window_factory(fe)),
-                ]
-            fe.set_active(0)
-        else:
-            fe.initial(window_factory, statusline_factory)
+        fe.initial(window_factory, statusline_factory)
 
         yield fe
 
