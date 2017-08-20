@@ -37,6 +37,8 @@ Chunk type
 
 import re
 
+from . import util
+
 
 class Chunk:
     """Chunk of decorated text going headed for the redisplay.
@@ -51,6 +53,8 @@ class Chunk:
 
     (each item must be a typle with iterable and a string)
     """
+
+    POINT_TAGS = {'cursor', 'visible', 'bar'}
 
     def __init__(self, data=()):
         self.contents = []
@@ -70,7 +74,7 @@ class Chunk:
         """
 
         tags, text = chunklet
-        self.contents.append((tuple(tags), str(text)))
+        self.contents.append((tuple(sorted(tags)), str(text)))
 
     def __getitem__(self, k):
         x = self.contents[k]
@@ -81,7 +85,7 @@ class Chunk:
     def __setitem__(self, k, v):
         if isinstance(v, tuple):
             tags, text = v
-            self.contents[k] = (tuple(tags), text)
+            self.contents[k] = (tuple(sorted(tags)), text)
         else:
             self.contents[k] = list(Chunk(v))
 
@@ -159,8 +163,11 @@ class Chunk:
             if off + len(s) >= cut:
                 if off != cut:
                     left.append((tags, s[:cut - off]))
-                if l == 0 or cut - off < l:
-                    right = [(tags, s[cut - off:])]
+                if l == 0 or off == cut:
+                    right = Chunk([(tags, s[cut - off:])])
+                elif cut - off < l:
+                    right = Chunk([
+                        (set(tags) - self.POINT_TAGS, s[cut - off:])])
                 break
             else:
                 left.append((tags, s))
@@ -168,3 +175,38 @@ class Chunk:
         right.extend(self.contents[i + 1:])
 
         return Chunk(left), Chunk(right)
+
+    def at_add(self, at, add):
+        """Add specified set of tags at the specified point, character-wise.
+
+        Returns the object.
+        """
+
+        offp = 0
+        for i, (tags, text) in enumerate(self.contents):
+            end = offp + len(text)
+            off = offp
+            offp = end
+            if off == at:
+                self.contents[i] = (tuple(sorted(set(tags) | add)), text)
+                break
+            elif off < at < end:
+                self.contents[i:i+1] = [
+                    (tags, text[:at - off]),
+                    (tuple(sorted(set(tags) | add)), text[at-off:])]
+                break
+        else:
+            self.contents.append((tuple(sorted(add)), ''))
+        return self
+
+    @util.listify
+    def tagsets(self):
+        """
+        returns list of (tags, text) with the tags as empty tuples or
+        non-empty sets
+
+        Mostly about convenient syntax for testing.
+        """
+
+        for tags, text in self.contents:
+            yield set(tags) if tags else (), text

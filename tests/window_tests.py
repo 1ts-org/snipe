@@ -182,12 +182,12 @@ class TestStatusLine(unittest.TestCase):
                 (('right',), '1'),
                 ]], [chunk for (mark, chunk) in s.view(0)])
 
-            s.message('X'*80)
+            s.message('X' * 80)
             self.assertEqual([[
-                (('visible',), ''),
-                (('fg:white', 'bg:red'), '…' + ('X' * 77)),
-                (('right',), '1'),
-                ]], [chunk for (mark, chunk) in s.view(0)])
+                ({'visible'}, ''),
+                ({'fg:white', 'bg:red'}, '…' + ('X' * 77)),
+                ({'right'}, '1'),
+                ]], [chunk.tagsets() for (mark, chunk) in s.view(0)])
 
             # defensiveness time
 

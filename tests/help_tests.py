@@ -32,13 +32,14 @@
 Unit tests for help system
 '''
 
-import unittest
 import sys
+import unittest
 
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.help as help  # noqa: E402,F401
+import snipe.help as help       # noqa: E402,F401
+from snipe.chunks import Chunk  # noqa: E402,F401
 
 
 class TestHelp(unittest.TestCase):
@@ -68,6 +69,164 @@ class TestHelp(unittest.TestCase):
         w.cursor = 20
         w.follow_link()
         self.assertEqual(called[-1], 'one')
+
+    def test_view(self):
+        w = help.HelpBrowser(None)
+
+        w.pages['TESTPAGE'] = PAGE
+        w.load('TESTPAGE')
+
+        self.assertEqual([
+            (0, Chunk([
+                (('cursor', 'visible'), ''),
+                (('bold',), 'snipe'),
+                ((), '\n')])),
+            (6, Chunk([((), '\n')])),
+            (7, Chunk([
+                ((), 'snipe is a text-oriented (currently curses-based)'
+                     ' "instant" messaging\n')])),
+            (77, Chunk([
+                ((), 'client intended for services with persistence.\n')])),
+            (124, Chunk([
+                ((), '\n')])),
+            (125, Chunk([
+                ((), 'It is known that there are bugs and missing features'
+                     ' everywhere.  I\n')])),
+            (193, Chunk([
+                ((), 'would mostly characterize this as "demoable" but not'
+                     ' yet "usable".  As\n')])),
+            (264, Chunk([
+                ((), 'always, if it breaks you get to keep both pieces.\n')])),
+            (314, Chunk([((), '\n')])),
+            (315, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'), 'Help browser'),
+                ((), '\n')])),
+            (330, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'),
+                    'Common commands in all windows'),
+                ((), '\n')])),
+            (363, Chunk([((), '\n')])),
+            ],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        w.line_next()
+        self.assertEqual([
+            (0, Chunk([
+                ((), ''),
+                (('bold',), 'snipe'),
+                ((), '\n')])),
+            (6, Chunk([(('cursor', 'visible'), '\n')])),
+            (7, Chunk([
+                ((), 'snipe is a text-oriented (currently curses-based)'
+                     ' "instant" messaging\n')])),
+            (77, Chunk([
+                ((), 'client intended for services with persistence.\n')])),
+            (124, Chunk([
+                ((), '\n')])),
+            (125, Chunk([
+                ((), 'It is known that there are bugs and missing features'
+                     ' everywhere.  I\n')])),
+            (193, Chunk([
+                ((), 'would mostly characterize this as "demoable" but not'
+                     ' yet "usable".  As\n')])),
+            (264, Chunk([
+                ((), 'always, if it breaks you get to keep both pieces.\n')])),
+            (314, Chunk([((), '\n')])),
+            (315, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'), 'Help browser'),
+                ((), '\n')])),
+            (330, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'),
+                    'Common commands in all windows'),
+                ((), '\n')])),
+            (363, Chunk([((), '\n')])),
+            ],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+        w.end_of_buffer()
+        self.assertEqual([
+            (0, Chunk([
+                ((), ''),
+                (('bold',), 'snipe'),
+                ((), '\n')])),
+            (6, Chunk([((), '\n')])),
+            (7, Chunk([
+                ((), 'snipe is a text-oriented (currently curses-based)'
+                     ' "instant" messaging\n')])),
+            (77, Chunk([
+                ((), 'client intended for services with persistence.\n')])),
+            (124, Chunk([
+                ((), '\n')])),
+            (125, Chunk([
+                ((), 'It is known that there are bugs and missing features'
+                     ' everywhere.  I\n')])),
+            (193, Chunk([
+                ((), 'would mostly characterize this as "demoable" but not'
+                     ' yet "usable".  As\n')])),
+            (264, Chunk([
+                ((), 'always, if it breaks you get to keep both pieces.\n')])),
+            (314, Chunk([((), '\n')])),
+            (315, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'), 'Help browser'),
+                ((), '\n')])),
+            (330, Chunk([
+                ((), '* '),
+                (('fg:#6666ff', 'underline'),
+                    'Common commands in all windows'),
+                ((), '\n')])),
+            (363, Chunk([((), '\n'), (('cursor', 'visible'), '')]))],
+            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+
+
+PAGE = ([
+    (0, Chunk([((), ''), (('bold',), 'snipe'), ((), '\n')])),
+    (6, Chunk([((), '\n')])),
+    (7, Chunk([
+        ((), 'snipe is a text-oriented (currently curses-based) "instant"'
+             ' messaging\n')])),
+    (77, Chunk([
+        ((), 'client intended for services with persistence.\n')])),
+    (124, Chunk([((), '\n')])),
+    (125, Chunk([
+        ((), 'It is known that there are bugs and missing features'
+             ' everywhere.  I\n')])),
+    (193, Chunk([
+        ((), 'would mostly characterize this as "demoable" but not yet'
+             ' "usable".  As\n')])),
+    (264, Chunk([
+        ((), 'always, if it breaks you get to keep both pieces.\n')])),
+    (314, Chunk([((), '\n')])),
+    (315, Chunk([
+        ((), '* '),
+        (('fg:#6666ff', 'underline'), 'Help browser'),
+        ((), '\n')])),
+    (330, Chunk([
+        ((), '* '),
+        (('fg:#6666ff', 'underline'), 'Common commands in all windows'),
+        ((), '\n')])),
+    (363, Chunk([((), '\n')])),
+    ],
+    'snipe\n'
+    '\n'
+    'snipe is a text-oriented (currently curses-based) "instant" messaging\n'
+    'client intended for services with persistence.\n'
+    '\n'
+    'It is known that there are bugs and missing features everywhere.  I\n'
+    'would mostly characterize this as "demoable" but not yet "usable".  As\n'
+    'always, if it breaks you get to keep both pieces.\n'
+    '\n'
+    '* Help browser\n'
+    '* Common commands in all windows\n'
+    '\n',
+    {'snipe': 0},
+    [(317, 12, 'snipe.help#Helpbrowser'),
+     (332, 30, 'snipe.window#Commoncommandsinallwindows')],
+    'snipe')
 
 
 if __name__ == '__main__':

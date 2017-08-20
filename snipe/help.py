@@ -228,15 +228,7 @@ class HelpBrowser(editor.PopViewer):
 
         self.log.debug('helpbrowser.view: cursor=%d', int(self.cursor))
         while True:
-            if i < 0:
-                return
-
-            if i >= len(self.chunks):
-                mark = self.buf.mark(len(self.buf))
-                if self.cursor.point == len(self.buf):
-                    yield mark, chunks.Chunk([(('cursor', 'visible'), '')])
-                else:
-                    yield mark, chunks.Chunk()
+            if i < 0 or i >= len(self.chunks):
                 return
 
             self.log.debug(
@@ -245,20 +237,10 @@ class HelpBrowser(editor.PopViewer):
             if self.chunks[i][0] <= int(self.cursor) and (
                     i == l or
                     int(self.cursor) < self.chunks[i + 1][0]):
-
-                off = self.chunks[i][0]
-                c = int(self.cursor)
-                for (j, (tags, txt)) in enumerate(self.chunks[i][1]):
-                    self.log.debug('helpbrowser.view: j=%d', j)
-                    # XXX chunk.split?
-                    if off <= c < off + len(txt):
-                        yield self.buf.mark(self.chunks[i][0]), (
-                            self.chunks[i][1][:j] +
-                            ([(tags, txt[:c - off])] if c > off else []) +
-                            [(tags + ('cursor', 'visible'), txt[c - off:])] +
-                            self.chunks[i][1][j + 1:])
-                        break
-                    off += len(txt)
+                off, chunk = self.chunks[i]
+                chunk = chunks.Chunk(chunk).at_add(
+                    int(self.cursor) - off, {'cursor', 'visible'})
+                yield self.buf.mark(off), chunk
             else:
                 yield self.buf.mark(self.chunks[i][0]), self.chunks[i][1]
 

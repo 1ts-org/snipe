@@ -47,8 +47,9 @@ sys.path.append('..')
 sys.path.append('../lib')
 
 
-import snipe.messager as messager  # noqa: E402,F401
+import snipe.chunks as chunks      # noqa: E402,F401
 import snipe.filters as filters    # noqa: E402,F401
+import snipe.messager as messager  # noqa: E402,F401
 import snipe.util as util          # noqa: E402,F401
 
 
@@ -57,15 +58,15 @@ class TestMessager(unittest.TestCase):
         fe = mocks.FE()
         w = messager.Messager(fe)
         self.assertEqual(
-            [[(('visible', 'bar'), '\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[({'visible', 'bar'}, '\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
         w.renderer = mocks.Renderer()
         f = filters.Yes()
         fe.context.conf['rule'] = [('yes', {'foreground': 'green'})]
         x = messager.Messager(fe, prototype=w, filter_new=f)
         self.assertEqual(
-            [[(('visible', 'bar'), '\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[({'visible', 'bar'}, '\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
         self.assertIs(x.filter, f)
         self.assertEqual(len(x.rules), len(fe.context.conf['rule']))
 
@@ -83,25 +84,26 @@ class TestMessager(unittest.TestCase):
         f.context.backends._messages[0]._display = [()]  # malformed chunk
         w.search_term = 'foo'
         self.assertEqual(
-            (('visible', 'bar'), '[()]\n'),
-            [chunk for (mark, chunk) in w.view(0)][0][0])
+            ({'visible', 'bar'}, '[()]\n'),
+            [chunk.tagsets() for (mark, chunk) in w.view(0)][0][0])
 
     def test_find(self):
         f = mocks.FE()
         w = messager.Messager(f)
         self.assertFalse(w.find('foo', True))
         self.assertEqual(
-            [[(('visible', 'bar'), '\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[({'visible', 'bar'}, '\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
         f.context.backends._messages.append(mocks.Message())
-        f.context.backends._messages[-1]._display = [((), 'foo\n')]
+        f.context.backends._messages[-1]._display = chunks.Chunk(
+            [((), 'foo\n')])
         self.assertEqual(
-            [[(('visible', 'bar'), '\n')], [((), 'foo\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[({'visible', 'bar'}, '\n')], [((), 'foo\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
         self.assertTrue(w.find('foo', True))
         self.assertEqual(
-            [[((), '\n')], [(('visible', 'bar'), 'foo\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[((), '\n')], [({'visible', 'bar'}, 'foo\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
 
     def test_check_redisplay_hint(self):
         f = mocks.FE()
@@ -257,8 +259,8 @@ class TestMessager(unittest.TestCase):
         w.filter_clear_decorate(decor)
         self.assertEqual(f.context.conf['rule'], [('yes', decor)])
         self.assertEqual(
-            [[(('visible', 'bar'), '\n')]],
-            [chunk for (mark, chunk) in w.view(0)])
+            [[({'visible', 'bar'}, '\n')]],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)])
 
     def test_filter_personals(self):
         f = mocks.FE()
@@ -323,7 +325,8 @@ class TestMessager(unittest.TestCase):
         f = mocks.FE()
         w = messager.Messager(f)
         self.assertFalse(w.match('foo'))
-        f.context.backends._messages[0]._display = [((), 'foo\n')]
+        f.context.backends._messages[0]._display = chunks.Chunk(
+            [((), 'foo\n')])
         self.assertTrue(w.match('foo'))
 
     def test_pageup_backfill(self):

@@ -42,8 +42,9 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.ttycolor  # noqa: E402
+import snipe.chunks    # noqa: E402
 import snipe.filters   # noqa: E402
+import snipe.ttycolor  # noqa: E402
 import snipe.ttyfe     # noqa: E402
 import snipe.window    # noqa: E402
 
@@ -106,7 +107,7 @@ class Message:
         self.time = next(self.time_counter)
         self.conf = {}
         self.data = kw.get('data', {})
-        self._display = []
+        self._display = snipe.chunks.Chunk()
         self.omega = False
         self.personal = False
         self.outgoing = False

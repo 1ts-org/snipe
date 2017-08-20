@@ -115,41 +115,41 @@ class TestPrompt(unittest.TestCase):
         w.insert('foo')
         self.assertEqual(
             [(0, [
-                (('bold',), ': '),
+                ({'bold'}, ': '),
                 ((), 'foo'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.inverse_input = True
         self.assertEqual(
             [(0, [
-                (('bold',), ': '),
-                (('reverse',), 'foo'),
-                (('cursor', 'visible', 'reverse'), ''),
+                ({'bold'}, ': '),
+                ({'reverse'}, 'foo'),
+                ({'cursor', 'visible', 'reverse'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.inverse_input = False
         w.insert('\neven more stuff')
         self.assertEqual(
             [(0, [
-                (('bold',), ': '),
+                ({'bold'}, ': '),
                 ((), 'foo\n')]),
              (6, [
                 ((), 'even more stuff'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         x = prompt.LongPrompt(None, prompt='multiline\nprompt: ')
         x.insert('bar')
         self.assertEqual(
-            [(0, [(('bold',), 'multiline\n')]),
-             (10, [(('bold',), 'prompt: '),
+            [(0, [({'bold'}, 'multiline\n')]),
+             (10, [({'bold'}, 'prompt: '),
                    ((), 'bar'),
-                   (('cursor', 'visible'), ''),
+                   ({'cursor', 'visible'}, ''),
                    ])],
-            [(int(mark), chunk) for (mark, chunk) in x.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in x.view(0)])
 
     def test_keyseqprompt(self):
         result = None
@@ -173,11 +173,11 @@ class TestPrompt(unittest.TestCase):
         self.assertEqual(result, (['a'], None))
         self.assertEqual(
             [(0, [
-                (('bold',), ': '),
+                ({'bold'}, ': '),
                 ((), 'a '),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
     def test_replymode(self):
         w = prompt.LongPrompt(None, modes=[
@@ -192,90 +192,89 @@ class TestPrompt(unittest.TestCase):
         w.insert('a')
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'a'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'aaa'),
+                ({'bold'}, 'aaa'),
                 ((), '|aab|abc}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.roll_forward()
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'a'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'aab'),
+                ({'bold'}, 'aab'),
                 ((), '|abc|aaa}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.roll_backward()
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'a'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'aaa'),
+                ({'bold'}, 'aaa'),
                 ((), '|aab|abc}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.insert('bc')
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'abc'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'abc'),
+                ({'bold'}, 'abc'),
                 ((), '}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.roll_forward()
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'abc'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'abc'),
+                ({'bold'}, 'abc'),
                 ((), '}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.roll_backward()
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'abc'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'abc'),
+                ({'bold'}, 'abc'),
                 ((), '}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.delete_backward(2)
 
         w.insert('\n')
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'a'),
                 ((), ' {}\n'),
                 ]),
              (4, [
-                (('cursor', 'visible'), ''),
-                ((), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {}\n')])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.delete_backward()
 
         w.state_normal()
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'a'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         self.assertEqual('a', w.input())
         w.clear_input()
@@ -323,13 +322,13 @@ class TestPrompt(unittest.TestCase):
 
         self.assertEqual(
             [(0, [
-                (('bold',), 'multiline prompt\n')]),
+                ({'bold'}, 'multiline prompt\n')]),
              (17, [
-                (('bold',), ': '),
-                (('cursor', 'visible'), ''),
+                ({'bold'}, ': '),
+                ({'cursor', 'visible'}, ''),
                 ((), ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
     def test_shortprompt(self):
         result = None
@@ -416,35 +415,35 @@ class TestPrompt(unittest.TestCase):
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'mock; foobaz'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.previous_history_full()
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'm; foobar\n')]),
              (12, [((), '\n')]),
              (13, [
                 ((), 'blob'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ]),
              ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.next_history_full()
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'mock; foobaz'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.beginning_of_buffer(interactive=True)
         p0 = w.cursor.point
@@ -467,14 +466,13 @@ class TestPrompt(unittest.TestCase):
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'm; foobar\n'),
                 ]),
              (12, [
-                (('cursor', 'visible'), ''),
-                ((), '')]),
+                ({'cursor', 'visible'}, '')]),
              ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.destroy()
         del w
@@ -487,26 +485,25 @@ class TestPrompt(unittest.TestCase):
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
-                (('cursor', 'visible'), ''),
+                ({'bold'}, '> '),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'mock; foobar'),
+                ({'bold'}, 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
         w.previous_history()
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
+                ({'bold'}, '> '),
                 ((), 'm; foobar'),
-                (('cursor', 'visible'), ''),
-                ((), ''),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {}\n'), ]),
              (12, [
                 ((), '')]),
              ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.destroy()
         del w
@@ -519,37 +516,37 @@ class TestPrompt(unittest.TestCase):
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
-                (('cursor', 'visible'), ''),
+                ({'bold'}, '> '),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'mock; foobar'),
+                ({'bold'}, 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         do(w.roll_or_search_forward())
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
-                (('cursor', 'visible'), ''),
+                ({'bold'}, '> '),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'mock; foobaz'),
+                ({'bold'}, 'mock; foobaz'),
                 ((), '|mock; fooquux|mock; foobar}\n'),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         do(w.roll_or_search_backward('bar'))
 
         self.assertEqual(
             [(0, [
-                (('bold',), '> '),
-                (('cursor', 'visible'), ''),
+                ({'bold'}, '> '),
+                ({'cursor', 'visible'}, ''),
                 ((), ' {'),
-                (('bold',), 'mock; foobar'),
+                ({'bold'}, 'mock; foobar'),
                 ((), '|mock; foobaz|mock; fooquux}\n'),
                 ])],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.insert('foobar')
         w.insert_newline()

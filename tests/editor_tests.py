@@ -165,15 +165,16 @@ class TestEditor(unittest.TestCase):
         with self.assertRaises(ValueError):
             list(e.view(0, 'pants'))
         c = e.cursor.point
-        forward = [(int(m), l) for (m, l) in e.view(0, 'forward')]
+        forward = [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')]
         self.assertEqual(e.cursor.point, c)
-        backward = [(int(m), l) for (m, l) in e.view(len(e.buf), 'backward')]
+        backward = [
+            (int(m), l.tagsets()) for (m, l) in e.view(len(e.buf), 'backward')]
         self.assertEqual(e.cursor.point, c)
         self.assertEqual(len(forward), 257)
         self.assertEqual(forward, list(reversed(backward)))
         self.assertEqual(
             backward[0],
-            (len(e.buf), [(('cursor', 'visible'), ''), ((), '')]))
+            (len(e.buf), [({'cursor', 'visible'}, '')]))
         self.assertEqual(len(forward), 257)
         c = e.cursor.point
         it = iter(e.view(0, 'forward'))
@@ -191,40 +192,39 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.insert('abc')
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
-            [(0, [((), 'abc'), (('cursor', 'visible'), '')])])
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(0, [((), 'abc'), ({'cursor', 'visible'}, '')])])
 
     def test_view_search(self):
         e = snipe.editor.Editor(None)
         e.insert('abcdefghi')
         e.search_term = 'def'
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'abc'),
-                (('reverse',), 'def'),
+                ({'reverse'}, 'def'),
                 ((), 'ghi'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
             ])])
 
     def test_view_control(self):
         e = snipe.editor.Editor(None)
         e.insert('abcdef\007hi')
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'abcdef'),
                 (e.SHOW_CONTROL, '^G'),
                 ((), 'hi'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
             ])])
         e.move(-3, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'abcdef'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_CONTROL, '^G'),
+                (e.SHOW_CONTROL | {'cursor', 'visible'}, '^G'),
                 ((), 'hi'),
             ])])
 
@@ -232,63 +232,59 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.insert('aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a')
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
-                (('cursor', 'visible'), ''),
-                ((), 'a'),
+                ({'cursor', 'visible'}, 'a'),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a \N{COMBINING DIAERESIS}'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_COMBINING, ' \N{COMBINING CEDILLA}'),
+                (e.SHOW_COMBINING | {'cursor', 'visible'},
+                    ' \N{COMBINING CEDILLA}'),
                 ((), 'a'),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_COMBINING,
+                (e.SHOW_COMBINING | {'cursor', 'visible'},
                     ' \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'),
                 ((), 'a'),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'a'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_COMBINING,
+                (e.SHOW_COMBINING | {'cursor', 'visible'},
                     'a \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'),
                 ((), 'a'),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
-                (('cursor', 'visible'), ''),
-                ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'),
+                ({'cursor', 'visible'},
+                    'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'),
             ])])
         e.delete_forward()
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
-                (('cursor', 'visible'), ''),
-                ((), ''),
+                ({'cursor', 'visible'}, ''),
                 (e.SHOW_COMBINING,
                     'a \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'),
                 ((), 'a'),
@@ -297,30 +293,29 @@ class TestEditor(unittest.TestCase):
         e.end_of_line()
         e.delete_backward()
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a \N{COMBINING DIAERESIS}'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_COMBINING, ' \N{COMBINING CEDILLA}'),
+                (e.SHOW_COMBINING | {'cursor', 'visible'},
+                    ' \N{COMBINING CEDILLA}'),
                 ((), ''),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a'),
-                (('cursor', 'visible'), ''),
-                (e.SHOW_COMBINING, ' \N{COMBINING DIAERESIS}'
-                    ' \N{COMBINING CEDILLA}'),
+                (e.SHOW_COMBINING | {'cursor', 'visible'},
+                    ' \N{COMBINING DIAERESIS} \N{COMBINING CEDILLA}'),
                 ((), ''),
             ])])
 
@@ -405,27 +400,22 @@ class TestEditor(unittest.TestCase):
         w.insert('> m; foobar')
         w.insert_newline()
 
-        self.assertEqual(
-            [(0, [
-                ((), '> m; foobar\n'),
-                ]),
-             (12, [
-                (('cursor', 'visible'), ''),
-                ((), '')]),
-             ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+        self.assertEqual([
+            (0, [((), '> m; foobar\n')]),
+            (12, [({'cursor', 'visible'}, '')]),
+            ],
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.move_backward()
         self.assertEqual(
             [(0, [
                 ((), '> m; foobar'),
-                (('cursor', 'visible'), ''),
-                ((), '\n'),
+                ({'cursor', 'visible'}, '\n'),
                 ]),
              (12, [
                 ((), '')]),
              ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
         w.move_forward()
 
@@ -435,10 +425,10 @@ class TestEditor(unittest.TestCase):
                 ((), '> m; foobar\n')]),
              (12, [
                 ((), 'x'),
-                (('cursor', 'visible'), ''),
+                ({'cursor', 'visible'}, ''),
                 ]),
              ],
-            [(int(mark), chunk) for (mark, chunk) in w.view(0)])
+            [(int(mark), chunk.tagsets()) for (mark, chunk) in w.view(0)])
 
     def test_find(self):
         w = snipe.editor.Editor(None)

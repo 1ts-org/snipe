@@ -312,8 +312,8 @@ class Viewer(window.Window, window.PagingMixIn):
             self.buf.cache['extract_current_line'][p] = result
             return result
 
-    SHOW_COMBINING = ('bg:blue', 'bold')
-    SHOW_CONTROL = ('bold',)
+    SHOW_COMBINING = {'bg:blue', 'bold'}
+    SHOW_CONTROL = {'bold'}
 
     def view(self, origin, direction='forward'):
         m = self.buf.mark(origin)
@@ -384,18 +384,16 @@ class Viewer(window.Window, window.PagingMixIn):
                         util.unirepr(chunk[1][1]),
                         util.unirepr(chunk[2][1]))
                     s = s[:explode_start] + exploded + s[explode_end:]
-                left, right = chunk.slice(coff)
-                chunk = left + [(('cursor', 'visible'), '')] + right
+                chunk.at_add(coff, {'cursor', 'visible'})
 
             for i, ch in reversed(list(enumerate(s))):
                 c = ord(ch)
                 if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
                     left, rest = chunk.slice(i)
-                    middle, right = rest.slice(1)
-                    uncontrol = [
-                        (self.SHOW_CONTROL, '^' + chr((c + ord('@')) & 127))]
-                    if middle[:1] == [(('cursor', 'visible'), '')]:
-                        uncontrol = middle[:1] + uncontrol
+                    ((old, _),), right = rest.slice(1)
+                    uncontrol = [(
+                        self.SHOW_CONTROL | (set(old) & {'cursor', 'visible'}),
+                        '^' + chr((c + ord('@')) & 127))]
                     chunk = left + uncontrol + right
 
             if self.search_term is not None:

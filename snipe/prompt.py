@@ -130,7 +130,7 @@ class LongPrompt(editor.Editor):
 
     def maybe_inverse(self, tags):
         if self.inverse_input and 'reverse' not in tags:
-            return tags + ('reverse',)
+            return tags | {'reverse'}
         else:
             return tags
 
@@ -142,17 +142,17 @@ class LongPrompt(editor.Editor):
                 newchunk = chunks.Chunk()
                 off = mark.point
                 for tags, string in chunk:
+                    tags = set(tags)
                     if off < self.divider:
                         if off + len(string) > self.divider:
                             newchunk.append(
-                                (set(tags) | {'bold'},
-                                    string[:self.divider - off]))
+                                (tags | {'bold'}, string[:self.divider - off]))
                             newchunk.append(
                                 (self.maybe_inverse(tags),
                                     string[self.divider - off:]))
                         else:  # string is all before the divider
                             newchunk.append(
-                                (set(tags) | {'bold'}, string))
+                                (tags | {'bold'}, string))
                     else:
                         newchunk.append((self.maybe_inverse(tags), string))
                     off += len(string)

@@ -36,11 +36,12 @@ import unittest
 import sys
 
 sys.path.append('..')
+sys.path.append('../lib')
 
 from snipe.chunks import Chunk  # noqa: E402
 
 
-class TestChunks(unittest.TestCase):
+class TestChunk(unittest.TestCase):
     def test(self):
         self.assertEqual(repr(Chunk()), 'Chunk([])')
         self.assertEqual(list(Chunk([((), 'foo')])), [((), 'foo')])
@@ -68,6 +69,8 @@ class TestChunks(unittest.TestCase):
         self.assertEqual(str(c), 'foobarbaz')
         d = [((), 'zog')] + c
         self.assertEqual(str(d), 'zogfoobarbaz')
+        del d[0]
+        self.assertEqual(str(d), 'foobarbaz')
 
     def test_slice(self):
         l = Chunk([((), 'abc'), ((), 'def'), ((), 'ghi')])
@@ -107,6 +110,22 @@ class TestChunks(unittest.TestCase):
                 Chunk([((), ''), ((), 'abc'), ((), 'def')])))
         self.assertEqual(Chunk().slice(0), (Chunk(), Chunk()))
 
+    def test_slice_point_tags(self):
+        self.assertEqual(
+            Chunk([({'cursor'}, 'foobar')]).slice(3),
+            (Chunk([({'cursor'}, 'foo')]), Chunk([((), 'bar')])))
+        self.assertEqual(
+            Chunk([({'cursor'}, 'foobar')]).slice(0),
+            (Chunk(), Chunk([({'cursor'}, 'foobar')])))
+        self.assertEqual(
+            Chunk([((), 'foo'), ({'cursor'}, 'bar')]).slice(3), (
+                Chunk([((), 'foo')]),
+                Chunk([({'cursor'}, 'bar')])))
+        self.assertEqual(
+            Chunk([((), 'foo'), ({'cursor'}, ''), ((), 'bar')]).slice(3), (
+                Chunk([((), 'foo')]),
+                Chunk([({'cursor'}, ''), ((), 'bar')])))
+
     def test_mark_re(self):
         self.assertEqual(
             list(Chunk([
@@ -131,3 +150,41 @@ class TestChunks(unittest.TestCase):
                 ((), 'xxx'),
                 (('reverse',), 'abc'),
             ])))
+
+    def test_at_add(self):
+        x = Chunk([((), 'abcdef')])
+
+        y = x + Chunk([(('bar',), '')])
+        self.assertEqual(y.at_add(6, {'foo'}), [
+            ((), 'abcdef'),
+            (('bar', 'foo',), ''),
+            ])
+
+        y = Chunk(x)
+        self.assertEqual(
+            y.at_add(3, {'foo'}), [((), 'abc'), (('foo',), 'def')])
+
+        y = Chunk(x)
+        self.assertEqual(y.at_add(0, {'foo'}), [(('foo',), 'abcdef')])
+
+        y = Chunk(x)
+        self.assertEqual(
+            y.at_add(6, {'foo'}), [((), 'abcdef'), (('foo',), '')])
+
+        y = Chunk([(('bar',), '')]) + x
+        self.assertEqual(
+            y.at_add(0, {'foo'}), [(('bar', 'foo',), ''), ((), 'abcdef')])
+
+        x = Chunk([((), 'abcdef'), (('bar',), 'ghijkl')])
+        self.assertEqual(x.at_add(9, {'foo'}), [
+            ((), 'abcdef'),
+            (('bar',), 'ghi'),
+            (('bar', 'foo'), 'jkl'),
+            ])
+
+    def test_tagsets(self):
+        self.assertEqual(Chunk().tagsets(), [])
+        self.assertEqual(Chunk([((), 'foo')]).tagsets(), [((), 'foo')])
+        self.assertEqual(
+            Chunk([((), 'foo'), ({'bar'}, 'baz')]).tagsets(),
+            [((), 'foo'), ({'bar'}, 'baz')])
