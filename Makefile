@@ -10,6 +10,7 @@ nosetests:
 	$(NOSETESTS)
 
 coverage:
+	python3-coverage erase
 	$(NOSETESTS) --with-coverage
 	python3-coverage html
 
