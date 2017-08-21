@@ -93,7 +93,7 @@ class RSTRenderer:
 
         if not self.notatendofline():
             if self.output:
-                lastchunk = self.output[-1][1]
+                lastchunk = self.output[-1].chunk
                 tag, text = lastchunk[-1]
                 tags = set(tag)
                 if tags & self.tags(span=True) and text[-1:] == '\n':
@@ -101,8 +101,9 @@ class RSTRenderer:
                         (tags, text[:-1]),
                         (tuple(tags - self.tags(span=True)), '\n')]
             self.output.append(
-                (self.offset, chunks.Chunk([(self.tags(), self.indent)])))
-        line = self.output[-1][1]
+                chunks.View(
+                    self.offset, chunks.Chunk([(self.tags(), self.indent)])))
+        line = self.output[-1].chunk
 
         rest = ''
 
@@ -151,8 +152,8 @@ class RSTRenderer:
         else:
             self.col += len(words)
 
-        if line and line[-1][0] == self.tags():
-            line[-1] = (line[-1][0], line[-1][1] + words)
+        if line and line[-1].tags == self.tags():
+            line[-1] = (line[-1].tags, line[-1].text + words)
         else:
             line.append((self.tags(), words))
         self.offset += len(words)
@@ -164,12 +165,13 @@ class RSTRenderer:
         if self.output:
             self.log.debug('eol? %s', self.output[-1])
         # the frenzy of indexing checks the end of the last line so far
-        return self.output and self.output[-1][1][-1][1][-1:] != '\n'
+        return self.output and not self.output[-1].chunk.endswith('\n')
 
     def notatbeginingofline(self):
         if not self.output:
             return False
-        return bool(len(self.output[-1][1]) > 1 or self.output[-1][1][0][1])
+        return bool(
+            len(self.output[-1].chunk) > 1 or self.output[-1].chunk[0].text)
 
     def linebreak(self):  # .br
         self.log.debug('.linebreak')
@@ -289,9 +291,7 @@ class RSTRenderer:
         self.log.debug('leaving: %s', repr(node))
 
     def flat(self):
-        return ''.join(
-            ''.join(text for (tags, text) in x[1])
-            for x in self.output)
+        return ''.join(str(x.chunk) for x in self.output)
 
 
 class Interrogator(docutils.parsers.rst.Directive):
@@ -454,7 +454,7 @@ def xhtml_to_chunk(xhtml):
     out = chunks.Chunk()
     for mark, chunk in renderer.output:
         out.extend(chunk)
-    if out and out[-1][-1][-1:] != '\n':
+    if not out.endswith('\n'):
         out.append(((), '\n'))
 
     return out

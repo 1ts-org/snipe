@@ -38,8 +38,8 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.help as help       # noqa: E402,F401
-from snipe.chunks import Chunk  # noqa: E402,F401
+import snipe.help as help             # noqa: E402,F401
+from snipe.chunks import Chunk, View  # noqa: E402,F401
 
 
 class TestHelp(unittest.TestCase):
@@ -184,32 +184,32 @@ class TestHelp(unittest.TestCase):
 
 
 PAGE = ([
-    (0, Chunk([((), ''), (('bold',), 'snipe'), ((), '\n')])),
-    (6, Chunk([((), '\n')])),
-    (7, Chunk([
+    View(0, Chunk([((), ''), (('bold',), 'snipe'), ((), '\n')])),
+    View(6, Chunk([((), '\n')])),
+    View(7, Chunk([
         ((), 'snipe is a text-oriented (currently curses-based) "instant"'
              ' messaging\n')])),
-    (77, Chunk([
+    View(77, Chunk([
         ((), 'client intended for services with persistence.\n')])),
-    (124, Chunk([((), '\n')])),
-    (125, Chunk([
+    View(124, Chunk([((), '\n')])),
+    View(125, Chunk([
         ((), 'It is known that there are bugs and missing features'
              ' everywhere.  I\n')])),
-    (193, Chunk([
+    View(193, Chunk([
         ((), 'would mostly characterize this as "demoable" but not yet'
              ' "usable".  As\n')])),
-    (264, Chunk([
+    View(264, Chunk([
         ((), 'always, if it breaks you get to keep both pieces.\n')])),
-    (314, Chunk([((), '\n')])),
-    (315, Chunk([
+    View(314, Chunk([((), '\n')])),
+    View(315, Chunk([
         ((), '* '),
         (('fg:#6666ff', 'underline'), 'Help browser'),
         ((), '\n')])),
-    (330, Chunk([
+    View(330, Chunk([
         ((), '* '),
         (('fg:#6666ff', 'underline'), 'Common commands in all windows'),
         ((), '\n')])),
-    (363, Chunk([((), '\n')])),
+    View(363, Chunk([((), '\n')])),
     ],
     'snipe\n'
     '\n'

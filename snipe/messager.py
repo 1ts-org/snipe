@@ -194,7 +194,7 @@ class Messager(window.Window, window.PagingMixIn):
                 tags, text = chunk[0]
                 chunk = chunks.Chunk([(tags + ('bar',), text)]) + chunk[1:]
 
-            yield x, chunk
+            yield chunks.View(x, chunk)
 
     def find(self, string, forward):
         for msg in self.walk(self.cursor, forward, search=True):

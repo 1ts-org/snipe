@@ -279,7 +279,7 @@ class Window:
         elif direction == 'backward':
             r = range(origin, -1, -1)
         for i in r:
-            yield i, self.chunks[i]
+            yield snipe.chunks.View(i, self.chunks[i])
 
 
 class CursesWindow:

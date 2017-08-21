@@ -276,7 +276,7 @@ class Window:
 
         Each chunk may be assumed to end a line.
         """  # noqa: E501
-        yield 0, chunks.Chunk([(('visible',), '')])
+        yield chunks.View(0, chunks.Chunk([(('visible',), '')]))
 
     def before_command(self):
         """Executed before an interactive command."""
@@ -764,7 +764,7 @@ class StatusLine(Window):
 
         left = [(('visible',), '')] + left
 
-        yield 0, left + right + self.do_cheatsheet(active)
+        yield chunks.View(0, left + right + self.do_cheatsheet(active))
 
     def do_cheatsheet(self, w):
         if not self.show_cheatsheet:
@@ -822,17 +822,17 @@ class StatusLine(Window):
         out = chunks.Chunk([((), '')])
         while s != '':
             if s[0] == '*':
-                if len(out) == 1 and out[-1][1] == '':
-                    out = [(untag(out[-1][0]), '')]
-                elif out[-1][1] == '':
+                if len(out) == 1 and out[-1].text == '':
+                    out = chunks.Chunk([(untag(out[-1].tags), '')])
+                elif out[-1].text == '':
                     del out[-1]
                 else:
-                    out.append((untag(out[-1][0]), ''))
+                    out.append((untag(out[-1].tags), ''))
             else:
                 if s[0] == '\\':
                     s = s[1:]
-                out[-1] = (out[-1][0], out[-1][1] + s[0])
+                out[-1] = (out[-1].tags, out[-1].text + s[0])
             s = s[1:]
-        if out[-1][1] == '':
+        if out[-1].text == '':
             del out[-1]
         return out

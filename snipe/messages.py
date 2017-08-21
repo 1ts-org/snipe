@@ -238,9 +238,9 @@ class SnipeMessage:
                 if not line:
                     if rest:
                         if new:
-                            t = new[-1][0]
+                            t = new[-1].tags
                         else:
-                            t = set(rest[-1][0]) - UNDERLINE
+                            t = set(rest[-1].tags) - UNDERLINE
                         line = chunks.Chunk([(t, prefix + '\n')])
                 else:
                     ltags, ltext = line[0]

@@ -137,7 +137,7 @@ class LongPrompt(editor.Editor):
     def view(self, *args, **kw):
         for mark, chunk in super().view(*args, **kw):
             if mark.point > self.divider:
-                yield mark, chunk
+                yield chunks.View(mark, chunk)
             else:
                 newchunk = chunks.Chunk()
                 off = mark.point
@@ -156,7 +156,7 @@ class LongPrompt(editor.Editor):
                     else:
                         newchunk.append((self.maybe_inverse(tags), string))
                     off += len(string)
-                yield mark, newchunk
+                yield chunks.View(mark, newchunk)
 
     def input(self):
         return self.buf[self.divider:]
@@ -265,16 +265,16 @@ class Leaper(LongPrompt):
         end = self.complete_end()
         for mark, chunk in super().view(*args, **kw):
             if mark.point > end or self.state == 'normal':
-                yield mark, chunk
+                yield chunks.View(mark, chunk)
             else:
-                self.log.debug('yy: %s', chunk)
+                self.log.debug('yy: %s', repr(chunk))
                 chunklen = sum(len(string) for (tags, string) in chunk)
                 if mark.point + chunklen < end:
                     yield mark, chunk
                 else:
-                    if chunk and chunk[-1][1][-1:] == '\n':
-                        chunk[-1] = (chunk[-1][0], chunk[-1][1][:-1])
-                    yield mark, chunk + self.match_chunks()
+                    if chunk.endswith('\n'):
+                        chunk[-1] = (chunk[-1].tags, chunk[-1].text[:-1])
+                    yield chunks.View(mark, chunk + self.match_chunks())
 
     @keymap.bind('Control-S')
     def roll_forward(self):

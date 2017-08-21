@@ -210,6 +210,7 @@ class HelpBrowser(editor.PopViewer):
         self.log.debug('loading: %s', name)
         self.chunks, flat, self.refs, self.links, self._title = \
             self.pages[name]
+        print(self.chunks)
         self.log.debug('refs: %s', repr(self.refs))
         self.log.debug('links: %s', repr(self.links))
         self.replace(len(self.buf), flat)
@@ -223,7 +224,7 @@ class HelpBrowser(editor.PopViewer):
     def view(self, origin, direction='forward'):
         l = len(self.chunks) - 1
         i = min(
-            bisect.bisect_left([x[0] for x in self.chunks], int(origin)),
+            bisect.bisect_left([x.mark for x in self.chunks], int(origin)),
             l)
 
         self.log.debug('helpbrowser.view: cursor=%d', int(self.cursor))
@@ -232,17 +233,18 @@ class HelpBrowser(editor.PopViewer):
                 return
 
             self.log.debug(
-                'helpbrowser.view: i=%d, off=%d', i, self.chunks[i][0])
+                'helpbrowser.view: i=%d, off=%d', i, self.chunks[i].mark)
 
-            if self.chunks[i][0] <= int(self.cursor) and (
+            if self.chunks[i].mark <= int(self.cursor) and (
                     i == l or
-                    int(self.cursor) < self.chunks[i + 1][0]):
+                    int(self.cursor) < self.chunks[i + 1].mark):
                 off, chunk = self.chunks[i]
                 chunk = chunks.Chunk(chunk).at_add(
                     int(self.cursor) - off, {'cursor', 'visible'})
-                yield self.buf.mark(off), chunk
+                yield chunks.View(self.buf.mark(off), chunk)
             else:
-                yield self.buf.mark(self.chunks[i][0]), self.chunks[i][1]
+                yield chunks.View(
+                    self.buf.mark(self.chunks[i].mark), self.chunks[i].chunk)
 
             if direction == 'forward':
                 i += 1

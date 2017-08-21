@@ -35,9 +35,14 @@ Chunk type
 '''
 
 
+import collections
 import re
 
 from . import util
+
+
+Chunklet = collections.namedtuple('Chunklet', ['tags', 'text'])
+View = collections.namedtuple('View', ['mark', 'chunk'])
 
 
 class Chunk:
@@ -74,7 +79,7 @@ class Chunk:
         """
 
         tags, text = chunklet
-        self.contents.append((tuple(sorted(tags)), str(text)))
+        self.contents.append(Chunklet(tuple(sorted(tags)), str(text)))
 
     def __getitem__(self, k):
         x = self.contents[k]
@@ -85,7 +90,7 @@ class Chunk:
     def __setitem__(self, k, v):
         if isinstance(v, tuple):
             tags, text = v
-            self.contents[k] = (tuple(sorted(tags)), text)
+            self.contents[k] = Chunklet(tuple(sorted(tags)), text)
         else:
             self.contents[k] = list(Chunk(v))
 
@@ -103,7 +108,11 @@ class Chunk:
         return self.__class__.__name__ + '(' + repr(self.contents) + ')'
 
     def __str__(self):
-        return ''.join(x[1] for x in self.contents)
+        try:
+            return ''.join(x.text for x in self.contents)
+        except:
+            print('exception on %s', self.contents)
+            raise
 
     def __add__(self, other):
         x = Chunk(self.contents)
@@ -177,7 +186,8 @@ class Chunk:
         return Chunk(left), Chunk(right)
 
     def at_add(self, at, add):
-        """Add specified set of tags at the specified point, character-wise.
+        """
+        Add specified set of tags at the specified point, character-wise.
 
         Returns the object.
         """
@@ -188,15 +198,16 @@ class Chunk:
             off = offp
             offp = end
             if off == at:
-                self.contents[i] = (tuple(sorted(set(tags) | add)), text)
+                self.contents[i] = Chunklet(
+                    tuple(sorted(set(tags) | add)), text)
                 break
             elif off < at < end:
                 self.contents[i:i+1] = [
-                    (tags, text[:at - off]),
-                    (tuple(sorted(set(tags) | add)), text[at-off:])]
+                    Chunklet(tags, text[:at - off]),
+                    Chunklet(tuple(sorted(set(tags) | add)), text[at-off:])]
                 break
         else:
-            self.contents.append((tuple(sorted(add)), ''))
+            self.contents.append(Chunklet(tuple(sorted(add)), ''))
         return self
 
     @util.listify
@@ -210,3 +221,12 @@ class Chunk:
 
         for tags, text in self.contents:
             yield set(tags) if tags else (), text
+
+    def endswith(self, text):
+        """
+        like ''.endswith()
+        """
+
+        # this is super-inefficient now but may not be in the future
+        # if the future never comes, make it walk back through he list
+        return str(self).endswith(text)

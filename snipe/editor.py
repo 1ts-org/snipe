@@ -380,9 +380,9 @@ class Viewer(window.Window, window.PagingMixIn):
                         'len(s) = %d, coff = %d, explode_start = %d,'
                         ' explode_end = %d: %s %s %s ',
                         len(s), coff, explode_start, explode_end,
-                        util.unirepr(chunk[0][1]),
-                        util.unirepr(chunk[1][1]),
-                        util.unirepr(chunk[2][1]))
+                        util.unirepr(chunk[0].text),
+                        util.unirepr(chunk[1].text),
+                        util.unirepr(chunk[2].text))
                     s = s[:explode_start] + exploded + s[explode_end:]
                 chunk.at_add(coff, {'cursor', 'visible'})
 
@@ -400,7 +400,7 @@ class Viewer(window.Window, window.PagingMixIn):
                 chunk = chunk.mark_re(
                     re.escape(self.search_term), chunk.tag_reverse)
 
-            yield self.buf.mark(p), chunk
+            yield chunks.View(self.buf.mark(p), chunk)
 
             if direction == 'forward':
                 if p == len(self.buf) or s[-1:] != '\n':
