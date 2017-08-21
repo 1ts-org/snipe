@@ -62,9 +62,7 @@ class TestRoostDecor(unittest.TestCase):
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
-                ((), ' -i bar'),
-                ((), ' [baz]'),
-                ((), ' <'),
+                ((), ' -i bar [baz] <'),
                 ({'bold'}, 'mock'),
                 ((), '>'),
                 ({'right'}, ' 00:00:00')])
@@ -77,8 +75,7 @@ class TestRoostDecor(unittest.TestCase):
                 ({'bold'}, 'foo'),
                 ((), ' -i bar'),
                 ({'bold'}, ' @QUUX'),
-                ((), ' [baz]'),
-                ((), ' <'),
+                ((), ' [baz] <'),
                 ({'bold'}, 'mock'),
                 ((), '>'),
                 ({'right'}, ' 00:00:00')])
@@ -91,9 +88,7 @@ class TestRoostDecor(unittest.TestCase):
                 ({'bold'}, '<personal)'),
                 ((), '-c '),
                 ({'bold'}, 'foo'),
-                ((), ' -i bar'),
-                ((), ' [baz]'),
-                ((), ' <'),
+                ((), ' -i bar [baz] <'),
                 ({'bold'}, 'mock'),
                 ((), '>'),
                 ({'right'}, ' 00:00:00')])
@@ -105,9 +100,7 @@ class TestRoostDecor(unittest.TestCase):
                 ({'bold'}, '(personal> <>'),
                 ((), '-c '),
                 ({'bold'}, 'foo'),
-                ((), ' -i bar'),
-                ((), ' [baz]'),
-                ((), ' <'),
+                ((), ' -i bar [baz] <'),
                 ({'bold'}, 'mock'),
                 ((), '>'),
                 ({'right'}, ' 00:00:00')])
@@ -125,12 +118,9 @@ class TestRoostDecor(unittest.TestCase):
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
-                ((), ' -i bar'),
-                ((), ' <'),
+                ((), ' -i bar <'),
                 ({'bold'}, 'mock'),
-                ((), '>'),
-                ((), ' '),
-                ((), 'The Great Quux'),
+                ((), '> The Great Quux'),
                 ({'right'}, ' 00:00:00')])
 
         msg.backend.format_zsig = 'strip'
@@ -139,11 +129,9 @@ class TestRoostDecor(unittest.TestCase):
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
-                ((), ' -i bar'),
-                ((), ' <'),
+                ((), ' -i bar <'),
                 ({'bold'}, 'mock'),
-                ((), '>'),
-                ((), ' The Great Quux'),
+                ((), '> The Great Quux'),
                 ({'right'}, ' 00:00:00')])
 
     def test_format(self):
@@ -157,7 +145,7 @@ class TestRoostDecor(unittest.TestCase):
         msg.backend.format_body = 'format'
         self.assertEquals(
             Decor.format(msg), [
-                (set(), 'foo'), (set(), '\n'),
+                (set(), 'foo\n'),
                 ])
 
         msg.backend.format_body = 'strip'

@@ -210,7 +210,7 @@ class TestXHTML(unittest.TestCase):
                 (('bold',), '</blarf>'),
                 ((), '\n')]))
         self.assertEqual(
-            text.xhtml_to_chunk('foo'), [(set(), 'foo'), (set(), '\n')])
+            text.xhtml_to_chunk('foo'), [(set(), 'foo\n')])
 
 
 class TestMarkdownXHTMLChunk(unittest.TestCase):

@@ -258,8 +258,7 @@ class TestPrompt(unittest.TestCase):
         self.assertEqual(
             [(0, [
                 ({'bold'}, '> '),
-                ((), 'a'),
-                ((), ' {}\n'),
+                ((), 'a {}\n'),
                 ]),
              (4, [
                 ({'cursor', 'visible'}, ''),

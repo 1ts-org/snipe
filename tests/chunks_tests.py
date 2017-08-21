@@ -54,6 +54,8 @@ class TestChunk(unittest.TestCase):
         self.assertEqual(c[:], [(set(), 'a'), ({'bold'}, 'b')])
         self.assertEqual(c[0], (set(), 'a'))
         self.assertRaises(ValueError, lambda: c.__setitem__(0, ()))
+        self.assertRaises(
+            ValueError, lambda: c.__setitem__(slice(0, 10, 5), []))
         c[0] = (), 'c'
         self.assertEqual(c[:], [(set(), 'c'), ({'bold'}, 'b')])
         self.assertEqual(str(c), 'cb')
@@ -71,44 +73,51 @@ class TestChunk(unittest.TestCase):
         d = [((), 'zog')] + c
         self.assertEqual(str(d), 'zogfoobarbaz')
         del d[0]
-        self.assertEqual(str(d), 'foobarbaz')
+        self.assertEqual(str(d), '')
+        e = Chunk([((), 'foo'), ({'bold'}, 'baz'), ((), 'bar')])
+        self.assertEqual(str(e), 'foobazbar')
+        self.assertEqual(len(e), 3)
+        del e[1]
+        self.assertEqual(str(e), 'foobar')
+        self.assertEqual(len(e), 1)
 
     def test_slice(self):
-        l = Chunk([((), 'abc'), ((), 'def'), ((), 'ghi')])
+        X, Y, Z = {'x'}, {'y'}, {'z'}
+        l = Chunk([(X, 'abc'), (Y, 'def'), (Z, 'ghi')])
         self.assertEqual(l.slice(0), (Chunk(), l))
         self.assertEqual(
             l.slice(1), (
-                Chunk([((), 'a')]),
-                Chunk([((), 'bc'), ((), 'def'), ((), 'ghi')])))
+                Chunk([(X, 'a')]),
+                Chunk([(X, 'bc'), (Y, 'def'), (Z, 'ghi')])))
         self.assertEqual(
             l.slice(3), (
-                Chunk([((), 'abc')]),
-                Chunk([((), 'def'), ((), 'ghi')])))
+                Chunk([(X, 'abc')]),
+                Chunk([(Y, 'def'), (Z, 'ghi')])))
         self.assertEqual(
             l.slice(4), (
-                Chunk([((), 'abc'), ((), 'd')]),
-                Chunk([((), 'ef'), ((), 'ghi')])))
+                Chunk([(X, 'abc'), (Y, 'd')]),
+                Chunk([(Y, 'ef'), (Z, 'ghi')])))
         self.assertEqual(
             l.slice(6), (
-                Chunk([((), 'abc'), ((), 'def')]),
-                Chunk([((), 'ghi')])))
+                Chunk([(X, 'abc'), (Y, 'def')]),
+                Chunk([(Z, 'ghi')])))
         self.assertEqual(
             l.slice(7), (
-                Chunk([((), 'abc'), ((), 'def'), ((), 'g')]),
-                Chunk([((), 'hi')])))
+                Chunk([(X, 'abc'), (Y, 'def'), (Z, 'g')]),
+                Chunk([(Z, 'hi')])))
         self.assertEqual(l.slice(9), (l, Chunk()))
         self.assertEqual(
-            Chunk([((), 'abc'), ((), ''), ((), 'def')]).slice(3), (
-                Chunk([((), 'abc')]),
-                Chunk([((), ''), ((), 'def')])))
+            Chunk([(X, 'abc'), (Y, ''), (Z, 'def')]).slice(3), (
+                Chunk([(X, 'abc')]),
+                Chunk([(Y, ''), (Z, 'def')])))
         self.assertEqual(
-            Chunk([((), ''), ((), 'abc'), ((), 'def')]).slice(3), (
-                Chunk([((), ''), ((), 'abc')]),
-                Chunk([((), 'def')])))
+            Chunk([(X, ''), (Y, 'abc'), (Z, 'def')]).slice(3), (
+                Chunk([(X, ''), (Y, 'abc')]),
+                Chunk([(Z, 'def')])))
         self.assertEqual(
-            Chunk([((), ''), ((), 'abc'), ((), 'def')]).slice(0), (
+            Chunk([(X, ''), (Y, 'abc'), (Z, 'def')]).slice(0), (
                 Chunk(),
-                Chunk([((), ''), ((), 'abc'), ((), 'def')])))
+                Chunk([(X, ''), (Y, 'abc'), (Z, 'def')])))
         self.assertEqual(Chunk().slice(0), (Chunk(), Chunk()))
 
     def test_slice_point_tags(self):
@@ -190,3 +199,7 @@ class TestChunk(unittest.TestCase):
         self.assertEqual(
             Chunk([((), 'foo'), ({'bar'}, 'baz')]).tagsets(),
             [((), 'foo'), ({'bar'}, 'baz')])
+
+    def test_endswith(self):
+        self.assertTrue(
+            Chunk([({'bold'}, 'foo'), ({'italic'}, 'bar')]).endswith('foobar'))

@@ -79,7 +79,12 @@ class Chunk:
         """
 
         tags, text = chunklet
-        self.contents.append(Chunklet(set(tags), str(text)))
+        tags = set(tags)
+        text = str(text)
+        if self.contents and self.contents[-1].tags == tags:
+            self.contents[-1] = Chunklet(tags, self.contents[-1].text + text)
+        else:
+            self.contents.append(Chunklet(tags, text))
 
     def __getitem__(self, k):
         x = self.contents[k]
@@ -90,12 +95,29 @@ class Chunk:
     def __setitem__(self, k, v):
         if isinstance(v, tuple):
             tags, text = v
-            self.contents[k] = Chunklet(set(tags), text)
+            self.contents[k] = Chunklet(set(tags), str(text))
+            self._maybe_fixup(k)
+            self._maybe_fixup(k - 1)
         else:
-            self.contents[k] = list(Chunk(v))
+            start, stop, step = k.indices(len(self))
+            if step != 1:
+                raise ValueError('no step')
+            l = Chunk(v)
+            self.contents[k] = l.contents
+            end = start + len(l)
+            self._maybe_fixup(end - 1)
+            self._maybe_fixup(start - 1)
+
+    def _maybe_fixup(self, k):
+        if k > -1 and k + 1 < len(self.contents) and (
+                self.contents[k].tags == self.contents[k + 1].tags):
+            self.contents[k:k + 2] = [Chunklet(
+                self.contents[k].tags,
+                self.contents[k].text + self.contents[k + 1].text)]
 
     def __delitem__(self, k):
         del self.contents[k]
+        self._maybe_fixup(k - 1)
 
     def __len__(self):
         return len(self.contents)
@@ -108,11 +130,7 @@ class Chunk:
         return self.__class__.__name__ + '(' + repr(self.contents) + ')'
 
     def __str__(self):
-        try:
-            return ''.join(x.text for x in self.contents)
-        except:
-            print('exception on %s', self.contents)
-            raise
+        return ''.join(x.text for x in self.contents)
 
     def __add__(self, other):
         x = Chunk(self.contents)
@@ -201,12 +219,14 @@ class Chunk:
                 self.contents[i] = Chunklet(tags | add, text)
                 break
             elif off < at < end:
-                self.contents[i:i+1] = [
-                    Chunklet(tags, text[:at - off]),
-                    Chunklet(tags | add, text[at-off:])]
+                if add - self.contents[i].tags:
+                    self.contents[i:i+1] = [
+                        Chunklet(tags, text[:at - off]),
+                        Chunklet(tags | add, text[at-off:])]
+                    self._maybe_fixup(i + 1)
                 break
         else:
-            self.contents.append(Chunklet(add, ''))
+            self.append(Chunklet(add, ''))
         return self
 
     @util.listify

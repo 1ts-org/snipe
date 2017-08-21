@@ -137,27 +137,23 @@ class TestDecor(unittest.TestCase):
             'foo ', chunks.Chunk([((), 'bar')])), [(set(), 'foo bar\n')])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([((), 'bar\nbaz\n')])),
-            [(set(), 'foo bar\n'), (set(), 'foo baz\n')])
+            [(set(), 'foo bar\nfoo baz\n')])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([((), 'bar\n\nbaz\n')])),
-            [(set(), 'foo bar\n'), (set(), 'foo \n'), (set(), 'foo baz\n')])
+            [(set(), 'foo bar\nfoo \nfoo baz\n')])
 
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([({'bold'}, 'bar\nbaz\n')])),
-            [({'bold'}, 'foo bar\n'), ({'bold'}, 'foo baz\n')])
+            [({'bold'}, 'foo bar\nfoo baz\n')])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([({'bold'}, 'bar\n\nbaz\n')])),
             [
-                ({'bold'}, 'foo bar\n'),
-                ({'bold'}, 'foo \n'),
-                ({'bold'}, 'foo baz\n'),
+                ({'bold'}, 'foo bar\nfoo \nfoo baz\n'),
                 ])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([(('bold',), '\nbar\nbaz\n')])),
             [
-                ({'bold'}, 'foo \n'),
-                ({'bold'}, 'foo bar\n'),
-                ({'bold'}, 'foo baz\n')])
+                ({'bold'}, 'foo \nfoo bar\nfoo baz\n')])
 
         self.assertEqual(
             prefix_chunk(
@@ -165,8 +161,7 @@ class TestDecor(unittest.TestCase):
             [
                 (set(), 'foo '),
                 ({'underline'}, 'bar'),
-                (set(), '\n'),
-                (set(), 'foo '),
+                (set(), '\nfoo '),
                 ({'underline'}, 'baz'),
                 (set(), '\n'),
                 ])
@@ -176,9 +171,7 @@ class TestDecor(unittest.TestCase):
             [
                 (set(), 'foo '),
                 ({'underline'}, 'bar'),
-                (set(), '\n'),
-                (set(), 'foo \n'),
-                (set(), 'foo '),
+                (set(), '\nfoo \nfoo '),
                 ({'underline'}, 'baz'),
                 (set(), '\n'),
                 ])
