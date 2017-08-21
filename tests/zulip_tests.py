@@ -57,24 +57,24 @@ class TestZulipDecor(unittest.TestCase):
         os.environ['TZ'] = 'GMT'
 
         self.assertEqual(
-            Decor.headline(msg), [
-                (('bold',), '·foo>'),
+            Decor.headline(msg).tagsets(), [
+                ({'bold'}, '·foo>'),
                 ((), ' <'),
-                (('bold',), 'baz'),
+                ({'bold'}, 'baz'),
                 ((), '>'),
-                (('right',), ' 00:00:00\n')
+                ({'right'}, ' 00:00:00\n')
                 ])
 
         msg.data['subject'] = 'zog'
         msg.data['sender_full_name'] = 'The Great Quux'
 
         self.assertEqual(
-            Decor.headline(msg), [
-                (('bold',), '·foo>'),
+            Decor.headline(msg).tagsets(), [
+                ({'bold'}, '·foo>'),
                 ((), ' zog <'),
-                (('bold',), 'baz'),
+                ({'bold'}, 'baz'),
                 ((), '> The Great Quux'),
-                (('right',), ' 00:00:00\n')
+                ({'right'}, ' 00:00:00\n')
                 ])
 
     def test_format(self):
@@ -85,7 +85,7 @@ class TestZulipDecor(unittest.TestCase):
 
         self.assertEqual(
             Decor.format(msg), [
-                ((), 'bar\n'),
+                (set(), 'bar\n'),
                 ])
 
 

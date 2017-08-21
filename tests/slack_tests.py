@@ -41,6 +41,7 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
+from snipe.chunks import Chunk     # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 import snipe.slack as slack        # noqa: E402,F401
 
@@ -64,7 +65,7 @@ class TestSlackDecor(unittest.TestCase):
         msg.slackmarkup = lambda text, tags: [(tags, text)]
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), '~'),
                 ((), '*'),
@@ -73,7 +74,7 @@ class TestSlackDecor(unittest.TestCase):
                 ((), ' '),
                 ((), 'baz'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['is_starred'] = False
         msg.data['pinned_to'] = False
@@ -81,39 +82,39 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['subtype'] = ''
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
                 ((), 'baz'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['file'] = {'url': 'file:///'}
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
                 ((), 'baz'),
                 ((), '\nfile:///'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         del msg.data['file']
 
         msg.data['reactions'] = [{'name': 'over', 'count': 9000}]
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
                 ((), 'baz'),
                 ((), '\n:over: 9000'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         del msg.data['reactions']
         msg.data['attachments'] = [
@@ -128,7 +129,7 @@ class TestSlackDecor(unittest.TestCase):
             }]
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 ((), ': '),
@@ -154,7 +155,7 @@ class TestSlackDecor(unittest.TestCase):
                 ((), ' '),
                 ((), 'stuff'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         del msg.data['attachments']
 
@@ -162,28 +163,27 @@ class TestSlackDecor(unittest.TestCase):
         msg.data['presence'] = 'active'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), '+ '),
                 (('bold',), 'mock'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['presence'] = 'passive'  # ?
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), '- '),
                 (('bold',), 'mock'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = None
 
         self.assertEqual(
-            [(set(x), y)
-                for (x, y) in Decor.headline(msg, {'fg:white', 'bg:blue'})], [
+            Decor.headline(msg, {'fg:white', 'bg:blue'}), [
                     ({'fg:white', 'bg:blue', 'bold'}, 'followup'),
                     ({'fg:white', 'bg:blue'}, ' : '),
                     ({'fg:white', 'bg:blue', 'bold'}, 'mock'),

@@ -41,6 +41,7 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
+from snipe.chunks import Chunk     # noqa: E402,F401
 import snipe.irccloud as irccloud  # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 
@@ -58,42 +59,42 @@ class TestIRCCloudDecor(unittest.TestCase):
         os.environ['TZ'] = 'GMT'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
                 (('fill',), ': bar'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'error'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'bar'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'banned'
         msg.data['server'] = 'quux'
         msg.data['reason'] = 'because'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'quux: because'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'hidden_host_set'
         msg.data['hidden_host'] = 'thing'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'quux: thing bar'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'myinfo'
         msg.data['version'] = '0'
@@ -102,11 +103,11 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['rest'] = 'a'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'quux: 0, user modes: user, channel modes: ab'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'connecting_failed'
         msg.data['hostname'] = 'jupiter'
@@ -115,55 +116,55 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['reason'] = 'doubtful'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'jupiter:1999 (ssl) connection failed: doubtful'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'quit_server'
         msg.data['nick'] = 'She'
         msg.data['msg'] = 'umami'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'jupiter:1999 (ssl) She quit: umami'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'you_nickchange'
         msg.data['newnick'] = 'red'
         msg.data['oldnick'] = 'blue'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'you are now red (née blue)'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'channel_topic'
         msg.data['from_name'] = 'some luser'
         msg.data['topic'] = 'something boring'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'some luser set topic to '),
                 (('bold',), 'something boring'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'channel_timestamp'
         msg.data['timestamp'] = 0
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'created Thu Jan  1 00:00:00 1970'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'user_channel_mode'
         msg.data['ops'] = {
@@ -172,12 +173,12 @@ class TestIRCCloudDecor(unittest.TestCase):
             }
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'some luser set '),
                 (('bold',), '+mode param -mode param'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'user_mode'
         msg.data['from'] = 'droid'
@@ -185,7 +186,7 @@ class TestIRCCloudDecor(unittest.TestCase):
         msg.data['newmode'] = 'ants'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'droid set '),
                 (('bold',), '9000'),
@@ -193,80 +194,80 @@ class TestIRCCloudDecor(unittest.TestCase):
                 (('bold',), 'ants'),
                 ((), ') on you'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'channel_mode_is'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'mode '),
                 (('bold',), '9000'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'channel_url'
         msg.data['url'] = 'file:///'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'url: '),
                 (('bold',), 'file:///'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'channel_mode_list_change'
         msg.data['url'] = 'file:///'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'channel mode '),
                 (('bold',), '9000'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'joined_channel'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), '+ '),
                 (('bold',), 'mock'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'parted_channel'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), '- '),
                 (('bold',), 'mock'),
                 ((), ': bar'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data['type'] = 'nickchange'
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'blue'),
                 ((), ' -> '),
                 (('bold',), 'mock'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
         msg.data = {}
 
         self.assertEqual(
-            Decor.headline(msg), [
+            Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 ((), 'mock [no type] eid - bid - cid -\n{}'),
                 (('right',), ' 00:00:00'),
-                ])
+                ]))
 
 
 if __name__ == '__main__':

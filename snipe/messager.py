@@ -188,11 +188,11 @@ class Messager(window.Window, window.PagingMixIn):
 
             if x == self.cursor:
                 tags, text = chunk[0]
-                chunk = chunks.Chunk([(tags + ('visible',), text)]) + chunk[1:]
+                chunk = chunks.Chunk([(tags | {'visible'}, text)]) + chunk[1:]
 
             if x == (self.secondary or self.cursor):
                 tags, text = chunk[0]
-                chunk = chunks.Chunk([(tags + ('bar',), text)]) + chunk[1:]
+                chunk = chunks.Chunk([(tags | {'bar'}, text)]) + chunk[1:]
 
             yield chunks.View(x, chunk)
 
@@ -274,7 +274,7 @@ class Messager(window.Window, window.PagingMixIn):
             t += '%02d-%02d ' % (then.month, then.day)
         t += '%02d:%02d' % (then.hour, then.minute)
 
-        left = chunks.Chunk([(('dim',), t), ((), ' ' + str(self.filter))])
+        left = chunks.Chunk([({'dim'}, t), ((), ' ' + str(self.filter))])
 
         return left, right
 

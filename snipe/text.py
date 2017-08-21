@@ -94,12 +94,11 @@ class RSTRenderer:
         if not self.notatendofline():
             if self.output:
                 lastchunk = self.output[-1].chunk
-                tag, text = lastchunk[-1]
-                tags = set(tag)
+                tags, text = lastchunk[-1]
                 if tags & self.tags(span=True) and text[-1:] == '\n':
                     lastchunk[-1:] = [
                         (tags, text[:-1]),
-                        (tuple(tags - self.tags(span=True)), '\n')]
+                        (tags - self.tags(span=True), '\n')]
             self.output.append(
                 chunks.View(
                     self.offset, chunks.Chunk([(self.tags(), self.indent)])))
@@ -192,13 +191,10 @@ class RSTRenderer:
 
     def tags(self, span=None):
         if not self.tagstack:
-            if span is None:
-                return ()
-            else:
-                return set()
+            return set()
         else:
             if span is None:
-                return tuple(self.tagstack[-1][0] | self.tagstack[-1][1])
+                return self.tagstack[-1][0] | self.tagstack[-1][1]
             elif bool(span):
                 return self.tagstack[-1][1]
             else:

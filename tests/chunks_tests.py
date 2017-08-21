@@ -44,24 +44,25 @@ from snipe.chunks import Chunk  # noqa: E402
 class TestChunk(unittest.TestCase):
     def test(self):
         self.assertEqual(repr(Chunk()), 'Chunk([])')
-        self.assertEqual(list(Chunk([((), 'foo')])), [((), 'foo')])
-        self.assertEqual(Chunk([((), 'foo')]), [((), 'foo')])
-        self.assertEqual(Chunk([((), 'foo')])[:], Chunk([((), 'foo')]))
+        self.assertEqual(list(Chunk([((), 'foo')])), [(set(), 'foo')])
+        self.assertEqual(Chunk([((), 'foo')]), [(set(), 'foo')])
+        self.assertEqual(Chunk([((), 'foo')])[:], Chunk([(set(), 'foo')]))
         self.assertRaises(ValueError, lambda: Chunk().extend([()]))
         c = Chunk()
         self.assertRaises(IndexError, lambda: c[5])
         c.extend([((), 'a'), ({'bold'}, 'b')])
-        self.assertEqual(c[:], [((), 'a'), (('bold',), 'b')])
-        self.assertEqual(c[0], ((), 'a'))
+        self.assertEqual(c[:], [(set(), 'a'), ({'bold'}, 'b')])
+        self.assertEqual(c[0], (set(), 'a'))
         self.assertRaises(ValueError, lambda: c.__setitem__(0, ()))
         c[0] = (), 'c'
-        self.assertEqual(c[:], [((), 'c'), (('bold',), 'b')])
+        self.assertEqual(c[:], [(set(), 'c'), ({'bold'}, 'b')])
         self.assertEqual(str(c), 'cb')
         self.assertEqual(len(c), 2)
         c[:] = [((), 'd')]
-        self.assertEqual(c[:], [((), 'd')])
+        self.assertEqual(c[:], [(set(), 'd')])
         self.assertEqual(len(c), 1)
-        self.assertEqual(str(Chunk([((), 'x')]) + Chunk([((), 'y')])), 'xy')
+        self.assertEqual(
+            str(Chunk([(set(), 'x')]) + Chunk([(set(), 'y')])), 'xy')
         c = Chunk([((), 'foo')])
         c += Chunk([((), 'bar')])
         self.assertEqual(str(c), 'foobar')
@@ -155,31 +156,32 @@ class TestChunk(unittest.TestCase):
         x = Chunk([((), 'abcdef')])
 
         y = x + Chunk([(('bar',), '')])
-        self.assertEqual(y.at_add(6, {'foo'}), [
+        self.assertEqual(y.at_add(6, {'foo'}).tagsets(), [
             ((), 'abcdef'),
-            (('bar', 'foo',), ''),
+            ({'bar', 'foo'}, ''),
             ])
 
         y = Chunk(x)
         self.assertEqual(
-            y.at_add(3, {'foo'}), [((), 'abc'), (('foo',), 'def')])
+            y.at_add(3, {'foo'}).tagsets(), [((), 'abc'), ({'foo'}, 'def')])
 
         y = Chunk(x)
-        self.assertEqual(y.at_add(0, {'foo'}), [(('foo',), 'abcdef')])
+        self.assertEqual(y.at_add(0, {'foo'}).tagsets(), [({'foo'}, 'abcdef')])
 
         y = Chunk(x)
         self.assertEqual(
-            y.at_add(6, {'foo'}), [((), 'abcdef'), (('foo',), '')])
+            y.at_add(6, {'foo'}).tagsets(), [((), 'abcdef'), ({'foo'}, '')])
 
         y = Chunk([(('bar',), '')]) + x
         self.assertEqual(
-            y.at_add(0, {'foo'}), [(('bar', 'foo',), ''), ((), 'abcdef')])
+            y.at_add(0, {'foo'}).tagsets(),
+            [({'bar', 'foo'}, ''), ((), 'abcdef')])
 
         x = Chunk([((), 'abcdef'), (('bar',), 'ghijkl')])
-        self.assertEqual(x.at_add(9, {'foo'}), [
+        self.assertEqual(x.at_add(9, {'foo'}).tagsets(), [
             ((), 'abcdef'),
-            (('bar',), 'ghi'),
-            (('bar', 'foo'), 'jkl'),
+            ({'bar'}, 'ghi'),
+            ({'bar', 'foo'}, 'jkl'),
             ])
 
     def test_tagsets(self):

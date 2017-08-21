@@ -716,7 +716,7 @@ class PagingMixIn:
 
 
 class StatusLine(Window):
-    KEYTAGS = ('bold',)
+    KEYTAGS = {'bold'}
     CHEATSHEET_SPLITCOLS = 160
 
     show_cheatsheet = util.Configurable(
@@ -762,7 +762,7 @@ class StatusLine(Window):
                 break
             offset += textwidth
 
-        left = [(('visible',), '')] + left
+        left = chunks.Chunk([(('visible',), '')]) + left
 
         yield chunks.View(0, left + right + self.do_cheatsheet(active))
 

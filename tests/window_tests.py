@@ -40,8 +40,9 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.keymap as keymap  # noqa: E402
-import snipe.window as window  # noqa: E402
+from snipe.chunks import Chunk  # noqa: E402
+import snipe.keymap as keymap   # noqa: E402
+import snipe.window as window   # noqa: E402
 
 
 class TestWindow(unittest.TestCase):
@@ -108,8 +109,8 @@ class TestWindow(unittest.TestCase):
 
             self.assertEqual(w.title(), 'Window')
             self.assertEqual(w.modeline(), (
-                [((), 'Window')],
-                [(('right',), '1')]))
+                [(set(), 'Window')],
+                [({'right'}, '1')]))
 
     def test_search_interface(self):
         with mocks.mocked_up_actual_fe_window(window.Window) as w:
@@ -135,13 +136,14 @@ class TestWindow(unittest.TestCase):
         cheatsheetify = window.StatusLine.cheatsheetify
         TAGS = window.StatusLine.KEYTAGS
         self.assertEqual(cheatsheetify(''), [])
-        self.assertEqual(cheatsheetify('foo'), [((), 'foo')])
+        self.assertEqual(cheatsheetify('foo'), [(set(), 'foo')])
         self.assertEqual(cheatsheetify('*foo*'), [(TAGS, 'foo')])
         self.assertEqual(
-            cheatsheetify('f*o*o'), [((), 'f'), (TAGS, 'o'), ((), 'o')])
-        self.assertEqual(cheatsheetify('f\*o'), [((), 'f*o')])
-        self.assertEqual(cheatsheetify('f**oo'), [((), 'foo')])
-        self.assertEqual(cheatsheetify('f*\*oo'), [((), 'f'), (TAGS, '*oo')])
+            cheatsheetify('f*o*o'), [(set(), 'f'), (TAGS, 'o'), (set(), 'o')])
+        self.assertEqual(cheatsheetify('f\*o'), [(set(), 'f*o')])
+        self.assertEqual(cheatsheetify('f**oo'), [(set(), 'foo')])
+        self.assertEqual(
+            cheatsheetify('f*\*oo'), [(set(), 'f'), (TAGS, '*oo')])
 
 
 class TestStatusLine(unittest.TestCase):
@@ -149,7 +151,7 @@ class TestStatusLine(unittest.TestCase):
         with mocks.mocked_up_actual_fe_window(
                 window.Window, window.StatusLine) as w:
             s = w.context.status
-            self.assertEqual([[
+            self.assertEqual([Chunk([
                 (('visible',), ''),
                 ((), 'Window'),
                 (('right',), '1'),
@@ -172,22 +174,22 @@ class TestStatusLine(unittest.TestCase):
                 (('bold',), '?'),
                 ((), ' help'),
                 ((), '\n')
-                ]], [chunk for (mark, chunk) in s.view(0)])
+                ])], [chunk for (mark, chunk) in s.view(0)])
 
             w.context.conf['set'] = {'cheatsheet': False}
             w.fe.resize_statuswindow()
-            self.assertEqual([[
+            self.assertEqual([Chunk([
                 (('visible',), ''),
                 ((), 'Window'),
                 (('right',), '1'),
-                ]], [chunk for (mark, chunk) in s.view(0)])
+                ])], [chunk for (mark, chunk) in s.view(0)])
 
             s.message('X' * 80)
-            self.assertEqual([[
+            self.assertEqual([Chunk([
                 ({'visible'}, ''),
                 ({'fg:white', 'bg:red'}, '…' + ('X' * 77)),
                 ({'right'}, '1'),
-                ]], [chunk.tagsets() for (mark, chunk) in s.view(0)])
+                ])], [chunk.tagsets() for (mark, chunk) in s.view(0)])
 
             # defensiveness time
 
@@ -199,15 +201,15 @@ class TestStatusLine(unittest.TestCase):
             w.fe.split_window(W2(w.fe), True)
 
             self.assertEqual([[
-                (('visible',), ''),
+                ({'visible'}, ''),
                 ]], [chunk for (mark, chunk) in s.view(0)])
 
             w.fe.output = 99
-            self.assertEqual([[
+            self.assertEqual([Chunk([
                 (('visible',), ''),
                 ((), 'StatusLine'),
                 (('right',), '1'),
-                ]], [chunk for (mark, chunk) in s.view(0)])
+                ])], [chunk for (mark, chunk) in s.view(0)])
 
 
 if __name__ == '__main__':

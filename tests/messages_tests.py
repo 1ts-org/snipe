@@ -77,9 +77,9 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(str(m), '00:00 synthetic\nfoo')
         self.assertEqual(
             m.display({}), [
-                (('bold',), 'synthetic'),
-                (('right',), ' 00:00:00'),
-                ((), 'foo\n'),
+                ({'bold'}, 'synthetic'),
+                ({'right'}, ' 00:00:00'),
+                (set(), 'foo\n'),
                 ])
         self.assertIsNone(m.canon('foo', None))
         self.assertEqual(m.field('foo'), '')
@@ -134,53 +134,53 @@ class TestDecor(unittest.TestCase):
 
         self.assertEqual(prefix_chunk('foo ', []), [])
         self.assertEqual(prefix_chunk(
-            'foo ', chunks.Chunk([((), 'bar')])), [((), 'foo bar\n')])
+            'foo ', chunks.Chunk([((), 'bar')])), [(set(), 'foo bar\n')])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([((), 'bar\nbaz\n')])),
-            [((), 'foo bar\n'), ((), 'foo baz\n')])
+            [(set(), 'foo bar\n'), (set(), 'foo baz\n')])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([((), 'bar\n\nbaz\n')])),
-            [((), 'foo bar\n'), ((), 'foo \n'), ((), 'foo baz\n')])
+            [(set(), 'foo bar\n'), (set(), 'foo \n'), (set(), 'foo baz\n')])
 
         self.assertEqual(
-            prefix_chunk('foo ', chunks.Chunk([(('bold',), 'bar\nbaz\n')])),
-            [(('bold',), 'foo bar\n'), (('bold',), 'foo baz\n')])
+            prefix_chunk('foo ', chunks.Chunk([({'bold'}, 'bar\nbaz\n')])),
+            [({'bold'}, 'foo bar\n'), ({'bold'}, 'foo baz\n')])
         self.assertEqual(
-            prefix_chunk('foo ', chunks.Chunk([(('bold',), 'bar\n\nbaz\n')])),
+            prefix_chunk('foo ', chunks.Chunk([({'bold'}, 'bar\n\nbaz\n')])),
             [
-                (('bold',), 'foo bar\n'),
-                (('bold',), 'foo \n'),
-                (('bold',), 'foo baz\n'),
+                ({'bold'}, 'foo bar\n'),
+                ({'bold'}, 'foo \n'),
+                ({'bold'}, 'foo baz\n'),
                 ])
         self.assertEqual(
             prefix_chunk('foo ', chunks.Chunk([(('bold',), '\nbar\nbaz\n')])),
             [
-                (('bold',), 'foo \n'),
-                (('bold',), 'foo bar\n'),
-                (('bold',), 'foo baz\n')])
+                ({'bold'}, 'foo \n'),
+                ({'bold'}, 'foo bar\n'),
+                ({'bold'}, 'foo baz\n')])
 
         self.assertEqual(
             prefix_chunk(
                 'foo ', chunks.Chunk([(('underline',), 'bar\nbaz\n')])),
             [
-                ((), 'foo '),
-                (('underline',), 'bar'),
-                ((), '\n'),
-                ((), 'foo '),
-                (('underline',), 'baz'),
-                ((), '\n'),
+                (set(), 'foo '),
+                ({'underline'}, 'bar'),
+                (set(), '\n'),
+                (set(), 'foo '),
+                ({'underline'}, 'baz'),
+                (set(), '\n'),
                 ])
         self.assertEqual(
             prefix_chunk(
                 'foo ', chunks.Chunk([(('underline',), 'bar\n\nbaz\n')])),
             [
-                ((), 'foo '),
-                (('underline',), 'bar'),
-                ((), '\n'),
-                ((), 'foo \n'),
-                ((), 'foo '),
-                (('underline',), 'baz'),
-                ((), '\n'),
+                (set(), 'foo '),
+                ({'underline'}, 'bar'),
+                (set(), '\n'),
+                (set(), 'foo \n'),
+                (set(), 'foo '),
+                ({'underline'}, 'baz'),
+                (set(), '\n'),
                 ])
 
     def test_body(self):
@@ -189,10 +189,10 @@ class TestDecor(unittest.TestCase):
         m = messages.SnipeMessage(s, 'foo', 0.0)
         self.assertEqual(str(m.sender), 'synthetic')
 
-        self.assertEquals(m.OnelineDecor.body(m), [])
-        self.assertEquals(m.Decor.body(m), [((), 'foo\n')])
+        self.assertEqual(m.OnelineDecor.body(m), [])
+        self.assertEqual(m.Decor.body(m), [(set(), 'foo\n')])
         s.indent = 'X '
-        self.assertEquals(m.Decor.body(m), [((), 'X foo\n')])
+        self.assertEqual(m.Decor.body(m), [(set(), 'X foo\n')])
 
 
 class TestSnipeErrorMessage(unittest.TestCase):
@@ -293,7 +293,7 @@ class TestInfoMessage(unittest.TestCase):
     def test(self):
         m = messages.InfoMessage(None, 'foo')
         self.assertEquals(str(m), 'foo')
-        self.assertEquals(m.display({}), [(('bold',), 'foo')])
+        self.assertEquals(m.display({}), [({'bold'}, 'foo')])
 
 
 class TestDateBackend(unittest.TestCase):

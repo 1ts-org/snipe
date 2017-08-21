@@ -136,14 +136,14 @@ class TestMessager(unittest.TestCase):
         w = messager.Messager(f)
         w.renderer = mocks.Renderer()
         self.assertEqual(
-            w.modeline(), ([((), 'filter default')], [(('right',), '1')]))
+            w.modeline(), ([(set(), 'filter default')], [({'right'}, '1')]))
         m = f.context.backends._messages[0]
         w.renderer = mocks.Renderer((m, m))
         os.environ['TZ'] = 'GMT'
         self.assertEqual(
             w.modeline(), (
-                [(('dim',), '1970-01-01 00:00'), ((), ' filter default')],
-                [(('right',), '1')]))
+                [({'dim'}, '1970-01-01 00:00'), (set(), ' filter default')],
+                [({'right'}, '1')]))
         m.time = float('NaN')
 
         class mockdatetime:
@@ -156,8 +156,8 @@ class TestMessager(unittest.TestCase):
         with mock.patch('snipe.messager.datetime.datetime', mockdatetime):
             self.assertEqual(
                 w.modeline(), (
-                    [(('dim',), '00:01'), ((), ' filter default')],
-                    [(('right',), '1')]))
+                    [({'dim'}, '00:01'), (set(), ' filter default')],
+                    [({'right'}, '1')]))
 
     def test_move_cleverness_arg(self):
         f = mocks.FE()

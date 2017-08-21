@@ -543,50 +543,50 @@ class TestZcode(unittest.TestCase):
 
     def test_tag(self):
         self.assertEqual(
-            zcode.tag('', ()),
+            zcode.tag('', set()),
             [],
             )
         self.assertEqual(
-            zcode.tag('foo', ()),
-            [((), 'foo')],
+            zcode.tag('foo', set()),
+            [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(green)foo', ()),
-            [(('fg:green',), 'foo')],
+            zcode.tag('@color(green)foo', set()),
+            [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@i(foo)', ()),
-            [(('underline',), 'foo')],
+            zcode.tag('@i(foo)', set()),
+            [({'underline'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@b(foo)', ()),
-            [(('bold',), 'foo')],
+            zcode.tag('@b(foo)', set()),
+            [({'bold'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@b(@i(@roman(foo)))', ()),
-            [((), 'foo')],
+            zcode.tag('@b(@i(@roman(foo)))', set()),
+            [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@font(fixed)foo', ()),
-            [((), 'foo')],
+            zcode.tag('@font(fixed)foo', set()),
+            [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(red)@{@color(green)foo}', ()),
-            [(('fg:green',), 'foo')],
+            zcode.tag('@color(red)@{@color(green)foo}', set()),
+            [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(green)foo', ('fg:red',)),
-            [(('fg:green',), 'foo')],
+            zcode.tag('@color(green)foo', {'fg:red'}),
+            [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('foo', ('bold',)),
-            [(('bold',), 'foo')],
+            zcode.tag('foo', {'bold'}),
+            [({'bold'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('foo', ('fg:red',)),
-            [(('fg:red',), 'foo')],
+            zcode.tag('foo', {'fg:red'}),
+            [({'fg:red'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@i{foo\nbar}', ()),
-            [(('underline',), 'foo'), ((), '\n'), (('underline',), 'bar')],
+            zcode.tag('@i{foo\nbar}', set()),
+            [({'underline'}, 'foo'), (set(), '\n'), ({'underline'}, 'bar')],
             )

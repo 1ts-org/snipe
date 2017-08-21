@@ -79,7 +79,7 @@ class Chunk:
         """
 
         tags, text = chunklet
-        self.contents.append(Chunklet(tuple(sorted(tags)), str(text)))
+        self.contents.append(Chunklet(set(tags), str(text)))
 
     def __getitem__(self, k):
         x = self.contents[k]
@@ -90,7 +90,7 @@ class Chunk:
     def __setitem__(self, k, v):
         if isinstance(v, tuple):
             tags, text = v
-            self.contents[k] = Chunklet(tuple(sorted(tags)), text)
+            self.contents[k] = Chunklet(set(tags), text)
         else:
             self.contents[k] = list(Chunk(v))
 
@@ -158,7 +158,7 @@ class Chunk:
 
     @staticmethod
     def tag_reverse(tags):
-        return tuple(set(tags) ^ {'reverse'})
+        return set(tags) ^ {'reverse'}
 
     def slice(self, cut):
         """Return two new chunks split character-wise at cut."""
@@ -198,16 +198,15 @@ class Chunk:
             off = offp
             offp = end
             if off == at:
-                self.contents[i] = Chunklet(
-                    tuple(sorted(set(tags) | add)), text)
+                self.contents[i] = Chunklet(tags | add, text)
                 break
             elif off < at < end:
                 self.contents[i:i+1] = [
                     Chunklet(tags, text[:at - off]),
-                    Chunklet(tuple(sorted(set(tags) | add)), text[at-off:])]
+                    Chunklet(tags | add, text[at-off:])]
                 break
         else:
-            self.contents.append(Chunklet(tuple(sorted(add)), ''))
+            self.contents.append(Chunklet(add, ''))
         return self
 
     @util.listify
@@ -220,7 +219,7 @@ class Chunk:
         """
 
         for tags, text in self.contents:
-            yield set(tags) if tags else (), text
+            yield tags if tags else (), text
 
     def endswith(self, text):
         """

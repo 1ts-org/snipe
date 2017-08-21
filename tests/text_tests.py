@@ -41,7 +41,8 @@ import unittest
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.text as text  # noqa: E402
+from snipe.chunks import Chunk  # noqa: E402
+import snipe.text as text       # noqa: E402
 
 
 TEXT = '''
@@ -72,47 +73,55 @@ Lorem ipsum dolor sit amet, consecteturadipiscingelit,seddoeiusmodtemporincididu
 '''  # noqa: E501
 
 TEXT_rendered = [
-    (0, [((), ''), (('bold',), 'a Title'), ((), '\n')]),
-    (8, [((), '\n')]),
-    (9, [((),
-          'Here is some text.  Here is some more text.  Blah blah blah.'
-          '  Foo.\n')]),
-    (76, [((),
-          'Bar.  Flarb. (The previous should get wrapped if everything is '
-           'good.)\n')]),
-    (146, [((), '\n')]),
-    (147, [((), 'One. Two. Three. (The above shold end up on one line.)\n')]),
-    (202, [((), '\n')]),
-    (203, [((), 'myslack.slack.com).  You add '),
-           (('bold',), '.slack name=myname'),
-           ((), ' to the '),
-           (('bold',), 'backends'),
-           ((), '\n')]),
-    (267, [((), 'configuration variable (which is '),
-           (('bold',), ';'),
-           ((), ' separated), and get an api key from '),
-           (('bold',), '\n')]),
-    (339, [(('bold',), 'https://api.slack.com/web'),
-           ((), ' and put it in '),
-           (('bold',), '~/.snipe/netrc'),
-           ((), ' like so:\n')]),
-    (403, [((), '\n')]),
-    (404, [(('bold',),
-            'machine myslack.slack.com login myself@example.com password '
-            'frob-9782504613-8396512704-9784365210-7960cf'),
-           ((), '\n')]),
-    (509, [((), '\n')]),
-    (510, [((), '(You need to have already signed up for the relevant slack '
-                'instance by\n')]),
-    (581, [((), 'other means.)\n')]),
-    (595, [((), '\n')]),
-    (596, [((), 'Lorem ipsum dolor sit amet,\n')]),
-    (624, [((), 'consecteturadipiscingelit,seddoeiusmodtemporincididuntut'
-                'laboreetdoloremagnaaliqua.Utenimadminimveniam,\n')]),
-    (727, [((), 'quis nostrud exercitation ullamco laboris nisi ut aliquip ex'
-                ' ea commodo\n')]),
-    (799, [((), 'consequat.\n')]),
-    (810, [((), '\n')]),
+    (0, Chunk([((), ''), (('bold',), 'a Title'), ((), '\n')])),
+    (8, Chunk([((), '\n')])),
+    (9, Chunk([
+        ((), 'Here is some text.  Here is some more text.  Blah blah blah.'
+             '  Foo.\n')])),
+    (76, Chunk([
+        ((), 'Bar.  Flarb. (The previous should get wrapped if everything'
+             ' is good.)\n')])),
+    (146, Chunk([((), '\n')])),
+    (147, Chunk([
+        ((), 'One. Two. Three. (The above shold end up on one'
+             ' line.)\n')])),
+    (202, Chunk([((), '\n')])),
+    (203, Chunk([
+        ((), 'myslack.slack.com).  You add '),
+        (('bold',), '.slack name=myname'),
+        ((), ' to the '),
+        (('bold',), 'backends'),
+        ((), '\n')])),
+    (267, Chunk([
+        ((), 'configuration variable (which is '),
+        (('bold',), ';'),
+        ((), ' separated), and get an api key from '),
+        (('bold',), '\n')])),
+    (339, Chunk([
+        (('bold',), 'https://api.slack.com/web'),
+        ((), ' and put it in '),
+        (('bold',), '~/.snipe/netrc'),
+        ((), ' like so:\n')])),
+    (403, Chunk([((), '\n')])),
+    (404, Chunk([
+        (('bold',),  'machine myslack.slack.com login myself@example.com'
+            ' password frob-9782504613-8396512704-9784365210-7960cf'),
+        ((), '\n')])),
+    (509, Chunk([((), '\n')])),
+    (510, Chunk([
+        ((), '(You need to have already signed up for the relevant slack '
+             'instance by\n')])),
+    (581, Chunk([((), 'other means.)\n')])),
+    (595, Chunk([((), '\n')])),
+    (596, Chunk([((), 'Lorem ipsum dolor sit amet,\n')])),
+    (624, Chunk([
+        ((), 'consecteturadipiscingelit,seddoeiusmodtemporincididuntut'
+             'laboreetdoloremagnaaliqua.Utenimadminimveniam,\n')])),
+    (727, Chunk([
+        ((), 'quis nostrud exercitation ullamco laboris nisi ut aliquip ex'
+             ' ea commodo\n')])),
+    (799, Chunk([((), 'consequat.\n')])),
+    (810, Chunk([((), '\n')])),
     ]
 
 
@@ -153,54 +162,55 @@ class TestRendering(unittest.TestCase):
 
     def test_markdown_to_chunk(self):
         self.assertEquals(
-            [((), 'some text\n')], text.markdown_to_chunk('some text'))
+            [(set(), 'some text\n')], text.markdown_to_chunk('some text'))
 
     def test_wordboundaries1(self):
         self.assertEqual(
             rest_chunks('A line of text.')[0],
-            (0, [((), 'A line of text.\n')]))
+            (0, [(set(), 'A line of text.\n')]))
 
     def test_wordboundaries2(self):
         self.assertEqual(
             rest_chunks('A *line* of text.')[0],
-            (0, [((), 'A '), (('bold',), 'line'), ((), ' of text.\n')]))
+            (0, [(set(), 'A '), ({'bold'}, 'line'), (set(), ' of text.\n')]))
 
     def test_wordboundaries3(self):
         self.assertEqual(
             rest_chunks('A line of *text.*')[0],
-            (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
+            (0, [(set(), 'A line of '), ({'bold'}, 'text.'), (set(), '\n')]))
 
     def test_wordboundaries4(self):
         self.assertEqual(
             rest_chunks('A line of *text*.')[0],
-            (0, [((), 'A line of '), (('bold',), 'text'), ((), '.\n')]))
+            (0, [(set(), 'A line of '), ({'bold'}, 'text'), (set(), '.\n')]))
 
     def test_wordboundaries5(self):
         self.assertEqual(
             rest_chunks('A line?\nof text.')[0],
-            (0, [((), 'A line? of text.\n')]))
+            (0, [(set(), 'A line? of text.\n')]))
         self.assertEqual(
             rest_chunks('A line? of\n*text.*')[0],
-            (0, [((), 'A line? of '), (('bold',), 'text.'), ((), '\n')]))
+            (0, [(set(), 'A line? of '), ({'bold'}, 'text.'), (set(), '\n')]))
         self.assertEqual(
             rest_chunks('A line? of\n``text.``')[0],
-            (0, [((), 'A line? of '), (('bold',), 'text.'), ((), '\n')]))
+            (0, [(set(), 'A line? of '), ({'bold'}, 'text.'), (set(), '\n')]))
 
     def test_wordboundaries6(self):
         self.assertEqual(
             rest_chunks('A line of ``text.``')[0],
-            (0, [((), 'A line of '), (('bold',), 'text.'), ((), '\n')]))
+            (0, [(set(), 'A line of '), ({'bold'}, 'text.'), (set(), '\n')]))
 
 
 class TestXHTML(unittest.TestCase):
     def test_xhtml_to_chunk(self):
         self.assertEqual(text.xhtml_to_chunk(
-            '<blarf>foo</blarf>'), [
+            '<blarf>foo</blarf>'), Chunk([
                 (('bold',), '<blarf>'),
                 ((), 'foo'),
                 (('bold',), '</blarf>'),
-                ((), '\n')])
-        self.assertEqual(text.xhtml_to_chunk('foo'), [((), 'foo'), ((), '\n')])
+                ((), '\n')]))
+        self.assertEqual(
+            text.xhtml_to_chunk('foo'), [(set(), 'foo'), (set(), '\n')])
 
 
 class TestMarkdownXHTMLChunk(unittest.TestCase):
@@ -209,7 +219,7 @@ class TestMarkdownXHTMLChunk(unittest.TestCase):
         xhtml = text.markdown_to_xhtml(input)
         self.assertEqual(xhtml, '<p>foo</p>')
         chunk = text.xhtml_to_chunk(xhtml)
-        self.assertEqual(chunk, [((), 'foo\n')])
+        self.assertEqual(chunk.tagsets(), [((), 'foo\n')])
 
 
 # So I can cut and paste it into tests:
