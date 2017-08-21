@@ -127,7 +127,7 @@ class TestKeymap(unittest.TestCase):
     def testcheatseat(self):
         k = snipe.keymap.Keymap()
         k.set_cheatsheet('foo')
-        self.assertEquals(k.get_cheatsheet(), 'foo')
+        self.assertEqual(k.get_cheatsheet(), 'foo')
 
     def test_default(self):
         k = snipe.keymap.Keymap()

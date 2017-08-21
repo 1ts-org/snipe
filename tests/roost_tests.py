@@ -58,7 +58,7 @@ class TestRoostDecor(unittest.TestCase):
         msg.sender = messages.SnipeAddress(mocks.Backend())
         os.environ['TZ'] = 'GMT'
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
@@ -69,7 +69,7 @@ class TestRoostDecor(unittest.TestCase):
 
         msg.data['recipient'] = '@QUUX'
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
@@ -83,7 +83,7 @@ class TestRoostDecor(unittest.TestCase):
         msg.data['recipient'] = 'someone'
         msg.personal = True
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ({'bold'}, '<personal)'),
                 ((), '-c '),
@@ -95,7 +95,7 @@ class TestRoostDecor(unittest.TestCase):
 
         msg.outgoing = True
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ({'bold'}, '(personal> <>'),
                 ((), '-c '),
@@ -114,7 +114,7 @@ class TestRoostDecor(unittest.TestCase):
 
         msg.backend.format_zsig = 'format'
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
@@ -125,7 +125,7 @@ class TestRoostDecor(unittest.TestCase):
 
         msg.backend.format_zsig = 'strip'
 
-        self.assertEquals(
+        self.assertEqual(
             Decor.headline(msg).tagsets(), [
                 ((), '-c '),
                 ({'bold'}, 'foo'),
@@ -138,18 +138,18 @@ class TestRoostDecor(unittest.TestCase):
         Decor = roost.RoostMessage.Decor
         msg = mocks.Message()
 
-        self.assertEquals(Decor.format(msg), [])
+        self.assertEqual(Decor.format(msg), [])
 
         msg.body = '@[foo]'
 
         msg.backend.format_body = 'format'
-        self.assertEquals(
+        self.assertEqual(
             Decor.format(msg), [
                 (set(), 'foo\n'),
                 ])
 
         msg.backend.format_body = 'strip'
-        self.assertEquals(
+        self.assertEqual(
             Decor.format(msg), [
                 (set(), 'foo\n'),
                 ])

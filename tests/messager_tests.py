@@ -163,11 +163,11 @@ class TestMessager(unittest.TestCase):
         f = mocks.FE()
         w = messager.Messager(f)
         w.move_cleverly(True, None)
-        self.assertEquals(w.move_cleverly_state, 0)
+        self.assertEqual(w.move_cleverly_state, 0)
         w.move_cleverly(True, 1)
-        self.assertEquals(w.move_cleverly_state, 1)
+        self.assertEqual(w.move_cleverly_state, 1)
         w.move_cleverly(True, 'xx')
-        self.assertEquals(w.move_cleverly_state, 2)
+        self.assertEqual(w.move_cleverly_state, 2)
 
     def test_move(self):
         f = mocks.FE()
@@ -207,9 +207,9 @@ class TestMessager(unittest.TestCase):
         m = mocks.Message()
         m.omega = True
         f.context.backends._messages.append(m)
-        self.assertEquals(w.cursor, f.context.backends._messages[0])
+        self.assertEqual(w.cursor, f.context.backends._messages[0])
         w.cursor_set_walk_mark(None, False)
-        self.assertEquals(w.cursor, f.context.backends._messages[1])
+        self.assertEqual(w.cursor, f.context.backends._messages[1])
 
     def test_end_beginning(self):
         f = mocks.FE()
@@ -217,11 +217,11 @@ class TestMessager(unittest.TestCase):
         m = mocks.Message()
         m.omega = True
         f.context.backends._messages.append(m)
-        self.assertEquals(w.cursor, f.context.backends._messages[0])
+        self.assertEqual(w.cursor, f.context.backends._messages[0])
         w.end()
-        self.assertEquals(w.cursor, f.context.backends._messages[1])
+        self.assertEqual(w.cursor, f.context.backends._messages[1])
         w.beginning()
-        self.assertEquals(w.cursor, f.context.backends._messages[0])
+        self.assertEqual(w.cursor, f.context.backends._messages[0])
 
     def test_filter_slot(self):
         f = mocks.FE()
@@ -359,11 +359,11 @@ class TestMessager(unittest.TestCase):
 
         for _ in w.followup():
             pass
-        self.assertEquals(recipient, 'followup')
+        self.assertEqual(recipient, 'followup')
 
         for _ in w.reply():
             pass
-        self.assertEquals(recipient, 'reply')
+        self.assertEqual(recipient, 'reply')
 
     def test_filter_edit(self):
         f = mocks.FE()
@@ -395,21 +395,21 @@ class TestMessager(unittest.TestCase):
         w.filter = filters.Yes()
         for _ in w.filter_foreground_background():
             pass
-        self.assertEquals(
+        self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green', 'background': 'green'})])
 
         w.filter = filters.Yes()
         for _ in w.filter_foreground():
             pass
-        self.assertEquals(
+        self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green'})])
 
         w.filter = filters.Yes()
         for _ in w.filter_background():
             pass
-        self.assertEquals(
+        self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'background': 'green'})])
 
@@ -417,7 +417,7 @@ class TestMessager(unittest.TestCase):
         w.filter = filters.Yes()
         for _ in w.filter_decor():
             pass
-        self.assertEquals(
+        self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'decor': 'messager_tests.TestMessager'})])
 
@@ -432,11 +432,11 @@ class TestMessager(unittest.TestCase):
         f0 = filters.Yes()
         w.filter_push(f0)
         self.assertIs(w.filter, f0)
-        self.assertEquals(w.filter_stack, [])
+        self.assertEqual(w.filter_stack, [])
         f1 = filters.No()
         w.filter_push(f1)
-        self.assertEquals(w.filter, filters.And(f0, f1))
-        self.assertEquals(w.filter_stack, [f0])
+        self.assertEqual(w.filter, filters.And(f0, f1))
+        self.assertEqual(w.filter_stack, [f0])
 
     def test_filter_class(self):
         f = mocks.FE()
@@ -445,7 +445,7 @@ class TestMessager(unittest.TestCase):
         for _ in w.filter_class():
             pass
 
-        self.assertEquals(
+        self.assertEqual(
             str(w.filter),
             'filter default and backend == "roost" and class = "green"')
 
@@ -456,7 +456,7 @@ class TestMessager(unittest.TestCase):
         for _ in w.filter_sender():
             pass
 
-        self.assertEquals(
+        self.assertEqual(
             str(w.filter),
             'filter default and sender = "green"')
 
@@ -466,29 +466,29 @@ class TestMessager(unittest.TestCase):
 
         w.filter_cleverly()
 
-        self.assertEquals(str(w.filter), 'filter default and yes')
+        self.assertEqual(str(w.filter), 'filter default and yes')
 
         w.filter_pop()
-        self.assertEquals(str(w.filter), 'filter default')
+        self.assertEqual(str(w.filter), 'filter default')
 
         w.filter = filters.Yes()
-        self.assertEquals(str(w.filter), 'yes')
+        self.assertEqual(str(w.filter), 'yes')
 
         w.filter_pop()
-        self.assertEquals(str(w.filter), 'filter default')
+        self.assertEqual(str(w.filter), 'filter default')
 
     def test_filter_save(self):
         f = mocks.FE()
         w = messager.Messager(f)
 
-        self.assertEquals(w.default_filter, 'filter default')
+        self.assertEqual(w.default_filter, 'filter default')
 
         F1 = 'flig == "quoz"'
         w.filter = filters.makefilter(F1)
         for _ in w.filter_save(True):
             pass
 
-        self.assertEquals(w.default_filter, F1)
+        self.assertEqual(w.default_filter, F1)
 
         F2 = 'flig'
         w.filter = filters.makefilter(F2)
@@ -554,7 +554,7 @@ body: ""
         for _ in w.goto():
             pass
 
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
     def test_next_prev_day(self):
         f = mocks.FE()
@@ -578,18 +578,18 @@ body: ""
         os.environ['TZ'] = 'GMT'
         with mock.patch('datetime.date', MockDate):
             w.prev_day()
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
         f.context.backends._messages[0].omega = False
         f.context.backends._messages[0].time = \
             datetime.datetime(1970, 1, 2).timestamp()
         target = None
         w.prev_day()
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
         target = None
         w.next_day(-1)
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
         target = None
         f.context.backends._messages[0].omega = True
@@ -600,11 +600,11 @@ body: ""
         f.context.backends._messages[0].time = \
             datetime.datetime(1969, 12, 31).timestamp()
         w.next_day()
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
         target = None
         w.prev_day(-1)
-        self.assertEquals(target, (0.0,))
+        self.assertEqual(target, (0.0,))
 
     def test_mark(self):
         f = mocks.FE()
@@ -614,18 +614,18 @@ body: ""
         m.append(mocks.Message())
         m.append(mocks.Message())
         w.set_mark()
-        self.assertEquals(w.the_mark, w.cursor)
+        self.assertEqual(w.the_mark, w.cursor)
         w.set_mark(m[-1])
-        self.assertEquals(w.the_mark, m[-1])
-        self.assertEquals(w.mark_ring[-1], m[0])
+        self.assertEqual(w.the_mark, m[-1])
+        self.assertEqual(w.mark_ring[-1], m[0])
 
         where = w.cursor
         there = w.the_mark
         anywhere = w.mark_ring[-1]
         w.set_mark(prefix=[4])
-        self.assertEquals(w.mark_ring[0], where)
-        self.assertEquals(w.the_mark, anywhere)
-        self.assertEquals(w.cursor, there)
+        self.assertEqual(w.mark_ring[0], where)
+        self.assertEqual(w.the_mark, anywhere)
+        self.assertEqual(w.cursor, there)
 
         o = object()
         self.assertIs(o, w.make_mark(o))  # pass through
@@ -643,29 +643,29 @@ body: ""
         m = w.context.backends._messages
         m.append(mocks.Message())
         m.append(mocks.Message())
-        self.assertEquals(w.cursor, m[0])
+        self.assertEqual(w.cursor, m[0])
         w.end()
-        self.assertEquals(w.cursor, m[-1])
+        self.assertEqual(w.cursor, m[-1])
         w.previous_stark()
-        self.assertEquals(w.cursor, m[-1])
+        self.assertEqual(w.cursor, m[-1])
         w.beginning()
-        self.assertEquals(w.cursor, m[0])
+        self.assertEqual(w.cursor, m[0])
         w.context.starks = [m[0].time, m[2].time]
         w.next_stark()
-        self.assertEquals(w.cursor, m[2])
+        self.assertEqual(w.cursor, m[2])
         w.previous_stark()
-        self.assertEquals(w.cursor, m[0])
+        self.assertEqual(w.cursor, m[0])
         w.next_stark()
         m.append(mocks.Message())
         w.next_stark()
-        self.assertEquals(w.cursor, m[3])
+        self.assertEqual(w.cursor, m[3])
 
     def test_rot13(self):
         w = messager.Messager(mocks.FE())
         m0 = w.context.backends._messages[0]
         m0.body = 'abjurer'
         w.rot13()
-        self.assertEquals(m0.body, 'nowhere')
+        self.assertEqual(m0.body, 'nowhere')
 
     def test_list_destinations(self):
         w = messager.Messager(mocks.FE())
@@ -677,7 +677,7 @@ body: ""
 
         w.show = mock_show
         w.list_destinations()
-        self.assertEquals(out, '')
+        self.assertEqual(out, '')
 
     def test_write_region(self):
         w = messager.Messager(mocks.FE())
@@ -695,7 +695,7 @@ body: ""
         for _ in w.write_region():
             pass
         del messager.open
-        self.assertEquals(fp.getvalue(), 'foo')
+        self.assertEqual(fp.getvalue(), 'foo')
 
     def test_set_stark(self):
         w = messager.Messager(mocks.FE())

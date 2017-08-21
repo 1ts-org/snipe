@@ -161,7 +161,7 @@ class TestRendering(unittest.TestCase):
         self.assertEqual(TEXT_rendered, renderer.output)
 
     def test_markdown_to_chunk(self):
-        self.assertEquals(
+        self.assertEqual(
             [(set(), 'some text\n')], text.markdown_to_chunk('some text'))
 
     def test_wordboundaries1(self):

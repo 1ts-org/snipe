@@ -311,7 +311,7 @@ class TestTTYFrontend(unittest.TestCase):
         with mocks.mocked_up_actual_fe() as fe:
             fe.split_window(window.Window(fe))
             fe.windows[0].window.noresize = True
-            self.assertEquals(fe.resize_current_window(1), 0)
+            self.assertEqual(fe.resize_current_window(1), 0)
             self.assertEqual([w.height for w in fe.windows], [12, 12])
             self.assertEqual([w.y for w in fe.windows], [0, 12])
 
