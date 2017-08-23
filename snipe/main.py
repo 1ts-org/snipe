@@ -47,10 +47,6 @@ def main():
     loop = None
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
-        handler.setFormatter(logging.Formatter(
-            '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s:'
-            ' %(message)s',
-            '%b %d %H:%M:%S'))
         logging.getLogger().addHandler(handler)
         signal.signal(signal.SIGUSR1, handler.dump)
         log = logging.getLogger('Snipe')
@@ -59,16 +55,16 @@ def main():
         logging.captureWarnings(True)
         warnings.simplefilter('always')
 
-        # XXX terriblest option parsing
-        options = [x[2:].split('=', 1) for x in sys.argv if x.startswith('-O')]
-        options = [x if len(x) > 1 else x + ['true'] for x in options]
-        options = dict(options)
+        options = parse_options(sys.argv)
+
+        context_ = context.Context()
+        handler.context = context_
+        context_.load(options)
 
         with ttyfe.TTYFrontend() as ui:
-            context_ = context.Context(ui, handler, options)
             loop = asyncio.get_event_loop()
             loop.set_debug(True)
-            loop.run_until_complete(context_.start())
+            loop.run_until_complete(context_.start(ui))
             loop.add_reader(0, ui.readable)
             ui.redisplay()
             log.warning('starting event loop')
@@ -89,5 +85,12 @@ def main():
     print('.', flush=True)
 
 
+def parse_options(argv):
+    # XXX terriblest option parsing
+    options = [x[2:].split('=', 1) for x in argv if x.startswith('-O')]
+    options = [x if len(x) > 1 else x + ['true'] for x in options]
+    return dict(options)
+
+
 if __name__ == '__main__':
-    main()
+    main()  # pragma: nocover

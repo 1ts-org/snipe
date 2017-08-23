@@ -62,7 +62,7 @@ class Context:
 
     stark_file = util.Configurable('starkfile', 'starks')
 
-    def __init__(self, ui, handler, cli_conf={}):
+    def __init__(self, home=None):
         self.conf = {
             'filter': {
                 'personal': 'personal',
@@ -84,59 +84,59 @@ class Context:
                     }],
                 ],
             }
-        self.ui = ui
-        self.ui.context = self
+        self.home_directory = (
+            os.path.expanduser('~') if home is None else home)
+        self.ui = None
         self.status = None
         self.killring = []
         self.log = logging.getLogger('Snipe')
         self.context = self
-        self.directory = os.path.join(os.path.expanduser('~'), '.snipe')
-        self.conf_read()
-        util.Configurable.set_overrides(cli_conf)
-        self.erasechar = ui.get_erasechar()
+        self.directory = os.path.join(self.home_directory, '.snipe')
+        self.messagelog = []
+        self.starks = []
+        self.erasechar = None
 
-        if 'rules' in self.conf:
-            self.conf['rule'] = self.conf['rules']
-            del self.conf['rules']
-            self.conf_write()
-
-        handler.context = self
         self.backends = None
 
-    @asyncio.coroutine
-    def start(self):
+    def load(self, cli_conf={}):
+        path = os.path.join(self.directory, 'config')
+        if os.path.exists(path):
+            with open(path) as fp:
+                self.conf = json.load(fp)
+
+        util.Configurable.set_overrides(cli_conf)
+
         self.backends = messages.AggregatorBackend(
             self,
             backends=[
                 messages.StartupBackend(self),
                 messages.DateBackend(self),
                 messages.SinkBackend(self),
-                ] + self.startbackends(),)
+                ] + self.loadbackends())
 
-        # This is called by conf_read, except we need to do it again because
-        # we may have just newly imported a backend
+        self.read_starks()
+
+    @asyncio.coroutine
+    def start(self, ui):
+        self.ui = ui
+        self.ui.context = self
+        self.erasechar = ui.get_erasechar()
+
         util.Configurable.immanentize(self)
 
         self.ui.initial(messager.Messager, statusline=window.StatusLine)
-        self.messagelog = []
 
-        self.starks = []
-        try:
-            with open(self.stark_path()) as fp:
-                self.starks = [float(f) for f in fp.read().splitlines()]
-                self.log.debug('loaded starks: %s', repr(self.starks))
-        except:
-            self.log.exception('reading starks')
+        self.backends.start()
 
-    def startbackends(self):
-        started = []
+    def loadbackends(self):
+        loaded = []
         backends = self.backend_spec.split(';')
         backends = [backend.strip() for backend in backends]
         for string in backends:
             try:
                 line = string.split()
                 if not line:
-                    continue  # XXX should complain
+                    continue  # pragma: nocover # XXX should complain
                 kwargs = {}
                 if len(line) > 1:
                     for arg in line[1:]:
@@ -145,22 +145,13 @@ class Context:
                             self.log.error('invalid argument %s', kv)
                             continue
                         kwargs[kv[0]] = kv[1]
-                self.log.debug('starting backend %s', string)
+                self.log.debug('loading backend %s', string)
                 module = importlib.import_module(line[0], __package__)
                 backend = getattr(module, module._backend)(self, **kwargs)
-                started.append(backend)
+                loaded.append(backend)
             except:
-                self.log.exception('starting backend %s', string)
-        return started
-
-    def conf_read(self):
-        path = os.path.join(self.directory, 'config')
-        try:
-            if os.path.exists(path):
-                with open(path) as fp:
-                    self.conf = json.load(fp)
-        finally:
-            util.Configurable.immanentize(self)
+                self.log.exception('loading backend %s', string)
+        return loaded
 
     def conf_write(self):
         self.ensure_directory()
@@ -225,6 +216,14 @@ class Context:
     def stark_path(self):
         return os.path.join(self.directory, self.stark_file)
 
+    def read_starks(self):
+        try:
+            with open(self.stark_path()) as fp:
+                self.starks = [float(f) for f in fp.read().splitlines()]
+                self.log.debug('loaded starks: %s', repr(self.starks))
+        except:
+            self.log.exception('reading starks')
+
     def write_starks(self):
         self.ensure_directory()
         with util.safe_write(self.stark_path()) as fp:
@@ -276,6 +275,10 @@ class SnipeLogHandler(logging.Handler):
         self.context = None
         self.buffer = collections.deque(maxlen=self.size)
         self.task = None
+        self.setFormatter(logging.Formatter(
+            '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s:'
+            ' %(message)s',
+            '%b %d %H:%M:%S'))
 
     @contextlib.contextmanager
     def the_lock(self):

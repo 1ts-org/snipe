@@ -42,6 +42,7 @@ sys.path.append('..')
 sys.path.append('../lib')
 
 from snipe.chunks import Chunk     # noqa: E402,F401
+import snipe.context as context    # noqa: E402,F401
 import snipe.irccloud as irccloud  # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 
@@ -268,6 +269,19 @@ class TestIRCCloudDecor(unittest.TestCase):
                 ((), 'mock [no type] eid - bid - cid -\n{}'),
                 (('right',), ' 00:00:00'),
                 ]))
+
+
+class TestIRCCloudMessage(unittest.TestCase):
+    def test(self):
+        m = irccloud.IRCCloudMessage(
+            irccloud.IRCCloud(context.Context()), {
+                'eid': 0.0,
+                })
+        self.assertEqual(str(m), "0.0 {'eid': 0.0}")
+        self.assertEqual(
+            repr(m),
+            '<IRCCloudMessage 0.0 <IRCCloudNonAddress irccloud , system>'
+            ' 12 chars None noise>')
 
 
 if __name__ == '__main__':

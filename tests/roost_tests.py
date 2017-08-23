@@ -41,6 +41,7 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
+import snipe.context as context    # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 import snipe.roost as roost        # noqa: E402,F401
 
@@ -153,6 +154,33 @@ class TestRoostDecor(unittest.TestCase):
             Decor.format(msg), [
                 (set(), 'foo\n'),
                 ])
+
+
+class TestRoostMessage(unittest.TestCase):
+    def test(self):
+        m = roost.RoostMessage(
+            roost.Roost(context.Context()), {
+                'message': 'foo',
+                'receiveTime': 0.0,
+                'sender': 'tim@ATHENA.MIT.EDU',
+                'class': 'MESSAGE',
+                'instance': 'white-magic',
+                'recipient': '',
+                'opcode': 'stark',
+                'signature': 'Tim The Beaver',
+                'time': 0.0,
+                })
+        os.environ['TZ'] = 'GMT'
+
+        self.assertEqual(
+            str(m),
+            'Class: MESSAGE Instance: white-magic Recipient:  [stark]\n'
+            'From: Tim The Beaver <roost; tim> at Thu Jan  1 00:00:00 1970\n'
+            'foo\n\n')
+        self.assertEqual(
+            repr(m),
+            '<RoostMessage 0.0 <RoostPrincipal roost tim@ATHENA.MIT.EDU>'
+            ' 3 chars>')
 
 
 if __name__ == '__main__':

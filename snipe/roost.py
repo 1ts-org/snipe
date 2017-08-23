@@ -107,10 +107,14 @@ class Roost(messages.SnipeBackend):
         self.chunksize = 128
         self.loaded = False
         self.backfilling = False
-        self.new_task = asyncio.Task(self.new_messages())
-        self.tasks.append(self.new_task)
         self.connected = False
         self._destinations = set()
+        self._zephyr_subs = os.path.join(
+            self.context.home_directory, '.zephyr.subs')
+
+    def start(self):
+        self.new_task = asyncio.Task(self.new_messages())
+        self.tasks.append(self.new_task)
 
     @asyncio.coroutine
     def new_messages(self):
@@ -183,7 +187,7 @@ class Roost(messages.SnipeBackend):
         try:
             yield from self.r.auth(create_user=True)
             self.add_message(messages.SnipeMessage(self, 'Registered.'))
-            self.load_subs(os.path.expanduser('~/.zephyr.subs'))
+            self.load_subs(self._zephyr_subs)
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -485,7 +489,7 @@ class Roost(messages.SnipeBackend):
 
     @keymap.bind('R l')
     def subscribe_file(self, window: interactive.window):
-        default = os.path.expanduser('~/.zephyr.subs')
+        default = self._zephyr_subs
         if not os.path.exists(default):
             default = None
         filename = yield from window.read_filename(
@@ -509,8 +513,7 @@ class Roost(messages.SnipeBackend):
     def reconnect(self):
         if self.new_task is not None and not self.new_task.done():
             self.disconnect()
-        self.new_task = asyncio.Task(self.new_messages())
-        self.tasks.append(self.new_task)
+        self.start()
 
     @keymap.bind('R D')
     def disconnect(self):

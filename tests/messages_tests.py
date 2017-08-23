@@ -305,7 +305,7 @@ class TestDateBackend(unittest.TestCase):
         self.assertTrue(list(d.walk(float('Inf'), False)))
         self.assertTrue(list(d.walk(-float('Inf'), True)))
 
-        self.assertTrue(list(d.walk(d.start.timestamp() + .1, True)))
+        self.assertTrue(list(d.walk(d.starting_at.timestamp() + .1, True)))
 
         self.assertEqual(d.count(), 0)
 

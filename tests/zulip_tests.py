@@ -41,6 +41,7 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
+import snipe.context as context    # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 import snipe.zulip as zulip        # noqa: E402,F401
 
@@ -87,6 +88,35 @@ class TestZulipDecor(unittest.TestCase):
             Decor.format(msg), [
                 (set(), 'bar\n'),
                 ])
+
+
+class TestZulipMessage(unittest.TestCase):
+    def test(self):
+        m = zulip.ZulipMessage(
+            zulip.Zulip(context.Context()), {
+                'timestamp': 0.0,
+                'id': 0,
+                'content': 'foo',
+                'sender_email': 'tim@alum.mit.edu',
+                'type': 'stream',
+                'display_recipient': 'black-magic',
+                'subject': 'television',
+                'message': 'foo',
+                'receiveTime': 0.0,
+                'sender': 'tim@ATHENA.MIT.EDU',
+                'class': 'MESSAGE',
+                'instance': 'white-magic',
+                'recipient': '',
+                'opcode': 'stark',
+                'signature': 'Tim The Beaver',
+                'time': 0.0,
+                })
+        os.environ['TZ'] = 'GMT'
+
+        self.assertEqual(str(m), '00:00 zulip; tim@alum.mit.edu\nfoo')
+        self.assertEqual(
+            repr(m),
+            '<ZulipMessage 0.0 <ZulipAddress zulip tim@alum.mit.edu> 3 chars>')
 
 
 if __name__ == '__main__':

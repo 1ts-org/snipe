@@ -32,8 +32,11 @@
 Unit tests for context code
 '''
 
-import unittest
+import os
+import logging
 import sys
+import unittest
+import tempfile
 
 sys.path.append('..')
 sys.path.append('../lib')
@@ -42,5 +45,26 @@ import snipe.context as context  # noqa: E402,F401
 
 
 class TestContext(unittest.TestCase):
-    def test_null(self):
-        pass
+    def test(self):
+        with tempfile.TemporaryDirectory() as tmp_path:
+            c = context.Context(home=tmp_path)
+            self.assertIsNone(c.backends)
+            self.assertEqual(c.home_directory, tmp_path)
+            c.load()
+            self.assertIsNotNone(c.backends)
+
+            c.backend_spec = c.backend_spec + '; .smeerp'
+            c.conf_write()
+
+            self.assertTrue(
+                os.path.exists(os.path.join(tmp_path, '.snipe', 'config')))
+
+            d = context.Context(home=tmp_path)
+            with self.assertLogs('Snipe', logging.ERROR):
+                d.load()
+
+            self.assertEqual(c.backend_spec, d.backend_spec)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -42,6 +42,7 @@ sys.path.append('..')
 sys.path.append('../lib')
 
 from snipe.chunks import Chunk     # noqa: E402,F401
+import snipe.context as context    # noqa: E402,F401
 import snipe.messages as messages  # noqa: E402,F401
 import snipe.slack as slack        # noqa: E402,F401
 
@@ -190,6 +191,22 @@ class TestSlackDecor(unittest.TestCase):
                     ({'fg:white', 'bg:blue', 'right'}, ' 00:00:00'),
                     ({'fg:white', 'bg:blue'}, 'bar\n')
                 ])
+
+
+class TestSlackMessage(unittest.TestCase):
+    def test(self):
+        m = slack.SlackMessage(
+            slack.Slack(context.Context(), slackname='test'), {
+                'type': 'message',
+                'channel': 'foo',
+                'ts': 0.0,
+                })
+        os.environ['TZ'] = 'GMT'
+
+        self.assertEqual(str(m), '00:00 slack.test; foo\n')
+        self.assertEqual(
+            repr(m),
+            '<SlackMessage 0.0 <SlackAddress slack.test ?, foo> 0 chars>')
 
 
 if __name__ == '__main__':

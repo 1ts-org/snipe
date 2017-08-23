@@ -110,8 +110,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.backfilling = False
         self.loaded = False
         self.connected = asyncio.Event()
-        self.tasks.append(asyncio.Task(self.connect()))
-        self.tasks.append(asyncio.Task(self.presence_beacon()))
         hostname = urllib.parse.urlparse(self.url).hostname
 
         creds = self.context.credentials(hostname)
@@ -121,6 +119,10 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.setup_client_session(
             auth=aiohttp.BasicAuth(self.user, self.token))
+
+    def start(self):
+        self.tasks.append(asyncio.Task(self.connect()))
+        self.tasks.append(asyncio.Task(self.presence_beacon()))
 
     @util.coro_cleanup
     def connect(self):

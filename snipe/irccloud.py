@@ -88,7 +88,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.header = {}
         self.since_id = 0
         self.setup_client_session()
-        self.do_connect()
+
+    def start(self):
+        self.new_task = asyncio.Task(self.connect())
+        self.tasks.append(self.new_task)
 
     @property
     def reqid(self):
@@ -465,11 +468,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     def reconnect(self):
         if self.new_task is not None:
             yield from self.disconnect()
-        self.do_connect()
-
-    def do_connect(self):
-        self.new_task = asyncio.Task(self.connect())
-        self.tasks.append(self.new_task)
+        self.start()
 
 
 class IRCCloudMessage(messages.SnipeMessage):

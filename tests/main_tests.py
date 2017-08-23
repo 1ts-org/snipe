@@ -42,5 +42,11 @@ import snipe.main as main   # noqa: E402,F401
 
 
 class TestMain(unittest.TestCase):
-    def test_null(self):
-        pass
+    def test_parse_options(self):
+        self.assertEqual(
+            main.parse_options(['grault', '-Ofoo=bar', '-Obaz']),
+            {'foo': 'bar', 'baz': 'true'})
+
+
+if __name__ == '__main__':
+    unittest.main()

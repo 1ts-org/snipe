@@ -122,6 +122,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         super().__init__(context, **kw)
         if slackname is None and self.name != self.__class__.name:
             slackname = self.name
+        self.slackname = slackname
         if self.name == self.__class__.name:
             self.name = Slack.name + '.' + slackname
         self.backfilling = False
@@ -132,7 +133,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.unacked = {}
         self.used_emoji = []
         self.setup_client_session()
-        self.tasks.append(asyncio.Task(self.connect(slackname)))
+
+    def start(self):
+        self.tasks.append(asyncio.Task(self.connect(self.slackname)))
 
     @asyncio.coroutine
     def connect(self, slackname):

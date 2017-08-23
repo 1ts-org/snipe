@@ -319,6 +319,11 @@ class SnipeBackend:
         self._destinations = set()
         self._senders = set()
 
+    def start(self):
+        """Actually connect to whatever we're connecting to and start
+        retrieving messages."""
+        pass  # pragma: nocover
+
     def drop_cache(self):
         self.startcache = {}
         self.adjcache = {}
@@ -551,12 +556,12 @@ class DateBackend(SnipeBackend):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.messages = None
-        self.start = datetime.datetime.now()
+        self.starting_at = datetime.datetime.now()
 
     def backfill(self, mfilter, backfill_to):
         eldest = self.context.backends.eldest()
         if eldest is not None:
-            self.start = datetime.datetime.fromtimestamp(eldest)
+            self.starting_at = datetime.datetime.fromtimestamp(eldest)
 
     def walk(
             self, start, forward=True, mfilter=None, backfill_to=None,
@@ -568,7 +573,9 @@ class DateBackend(SnipeBackend):
 
         self.backfill(mfilter, backfill_to)
 
-        self.log.debug('self.start = %s', util.timestr(self.start.timestamp()))
+        self.log.debug(
+            'self.starting_at = %s',
+            util.timestr(self.starting_at.timestamp()))
 
         if search:
             return
@@ -577,7 +584,7 @@ class DateBackend(SnipeBackend):
 
         if start is None:
             if forward:
-                start = self.start
+                start = self.starting_at
             else:
                 start = now
         else:
@@ -585,7 +592,7 @@ class DateBackend(SnipeBackend):
 
             if math.isinf(start):
                 if start < 0:  # -inf
-                    start = self.start
+                    start = self.starting_at
                 else:  # +inf
                     start = now
             else:
@@ -609,7 +616,7 @@ class DateBackend(SnipeBackend):
         self.log.debug(
             't = %s, delta = %s', util.timestr(t.timestamp()), repr(delta))
 
-        while now > t >= self.start:
+        while now > t >= self.starting_at:
             self.log.debug('date header at %s', util.timestr(t.timestamp()))
             yield InfoMessage(
                 self,
@@ -660,12 +667,20 @@ class AggregatorBackend(SnipeBackend):
 
     def __init__(self, context, backends=[], conf={}):
         super().__init__(context, conf=conf)
+        self.started = False
         self.backends = [TerminusBackend(self.context)]
         for backend in backends:
             self.add(backend)
 
     def add(self, backend):
         self.backends.append(backend)
+        if self.started:
+            backend.start()
+
+    def start(self):
+        self.started = True
+        for backend in self.backends:
+            backend.start()
 
     def walk(
             self, start, forward=True, filter=None, backfill_to=None,
