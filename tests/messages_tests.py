@@ -212,11 +212,13 @@ class TestBackend(unittest.TestCase):
     def test_Backend(self):
         context = mocks.Context()
         synth = SyntheticBackend(context)
+        synth.start()
         self.assertEqual(str(synth), synth.name)
         self.assertEqual(len(list(synth.walk(None))), 1)
         self.assertEqual(len(list(synth.walk(None, False))), 1)
 
         synth = SyntheticBackend(context, conf={'count': 3})
+        synth.start()
         self.assertEqual(len(list(synth.walk(None))), 3)
         self.assertEqual(len(list(synth.walk(None, False))), 3)
 
@@ -329,6 +331,7 @@ class TestAggregator(unittest.TestCase):
         startup = messages.StartupBackend(context)
         sink = messages.SinkBackend(context)
         a = messages.AggregatorBackend(context, [startup, synth, sink])
+        a.start()
         self.assertEqual(startup.count(), 1)
         self.assertEqual(synth.count(), 1)
         self.assertEqual(a.count(), 3)
@@ -402,17 +405,27 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(a.destinations(), set())
         self.assertEqual(a.senders(), set())
 
+        self.assertEqual(a.count(), 4)
+        synth2 = SyntheticBackend(context)
+        a.add(synth2)
+        self.assertEqual(a.count(), 5)
+
 
 class SyntheticBackend(messages.SnipeBackend):
     name = 'synthetic'
 
     def __init__(self, context, name=None, conf={}):
         super().__init__(context, name, conf)
-        count = conf.get('count', 1)
-        string = conf.get('string', '0123456789')
-        width = conf.get('width', 72)
-        if name is None:
-            self.name = '%s-%d-%s-%d' % (
+        self.conf = conf
+        self.myname = name
+
+    def start(self):
+        super().start()
+        count = self.conf.get('count', 1)
+        string = self.conf.get('string', '0123456789')
+        width = self.conf.get('width', 72)
+        if self.myname is None:
+            self.myname = '%s-%d-%s-%d' % (
                 self.name, count, string, width)
         now = int(time.time())
         self.messages = [
