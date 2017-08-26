@@ -91,7 +91,7 @@ class RSTRenderer:
         self.log.debug('add: %s, fill=%s', repr(words), self.fill)
         self.state_space = False
 
-        if not self.notatendofline():
+        if self.atendofline():
             if self.output:
                 lastchunk = self.output[-1].chunk
                 tags, text = lastchunk[-1]
@@ -160,21 +160,20 @@ class RSTRenderer:
         if rest:
             self.add(rest)
 
-    def notatendofline(self):
+    def atendofline(self):
         if self.output:
             self.log.debug('eol? %s', self.output[-1])
-        # the frenzy of indexing checks the end of the last line so far
-        return self.output and not self.output[-1].chunk.endswith('\n')
+        return not self.output or self.output[-1].chunk.endswith('\n')
 
-    def notatbeginingofline(self):
-        if not self.output:
-            return False
-        return bool(
-            len(self.output[-1].chunk) > 1 or self.output[-1].chunk[0].text)
+    def atbeginingofline(self):
+        return (
+            not self.output
+            or (len(self.output[-1].chunk) <= 1
+                and not self.output[-1].chunk[0].text))
 
     def linebreak(self):  # .br
         self.log.debug('.linebreak')
-        if self.notatendofline() and self.notatbeginingofline():
+        if not (self.atendofline() or self.atbeginingofline()):
             fill, self.fill = self.fill, False
             self.add('\n')
             self.fill = fill
