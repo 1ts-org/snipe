@@ -209,7 +209,8 @@ class RSTRenderer:
         return 1
 
     def tagpop(self, count):
-        del self.tagstack[-count:]
+        if count:
+            del self.tagstack[-count:]
 
     def process(self, node):
         tagset = 0
@@ -307,13 +308,13 @@ class Interrogator(docutils.parsers.rst.Directive):
 
             self.state_machine.insert_input(self.process(obj), '<code>')
             return []
-        except Exception as e:
+        except Exception as e:  # pragma: nocover
             text = str(e)
             text = traceback.format_exc()
             return [docutils.nodes.Text(text + '\n')]
 
     def process(self, _):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: nocover
 
 
 class InterrogateKeymap(Interrogator):
@@ -386,7 +387,7 @@ BLOCK_TAGS = {
     'p', 'li', 'ul', 'pre', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     } | INDENT_TAGS
 ANCHOR_TAGS = {'a'}
-BOLD_TAGS = {'strong', 'h1', 'em'}
+BOLD_TAGS = {'strong', 'h1', 'em', 'b'}
 GREY_TAGS = {'code'}
 LITERAL_TAGS = {'pre'}
 HANDLED_TAGS = (
@@ -397,6 +398,7 @@ HANDLED_TAGS = (
 
 class XHTMLRenderer(RSTRenderer):
     def process(self, node):
+        self.log.debug('entering %s %s', repr(node), self.tagstack)
         tagdepth = 0
         if node.nodeType == node.ELEMENT_NODE:
             tag = node.tagName
@@ -419,10 +421,12 @@ class XHTMLRenderer(RSTRenderer):
                 self.indent += ' '
 
         for child in node.childNodes:
+            self.log.debug('> child %s %s', repr(child), self.tagstack)
             if child.nodeType == node.TEXT_NODE:
                 self.add(child.data)
             else:
                 self.process(child)
+            self.log.debug('< child %s %s', repr(child), self.tagstack)
 
         if node.nodeType == node.ELEMENT_NODE:
             if tag not in HANDLED_TAGS:
@@ -438,7 +442,9 @@ class XHTMLRenderer(RSTRenderer):
             if tag in INDENT_TAGS:
                 self.indent = self.indent[:-1]
 
+        self.log.debug('leaving - tagdepth %d %s', tagdepth, self.tagstack)
         self.tagpop(tagdepth)
+        self.log.debug('leaving %s %s', repr(node), self.tagstack)
 
 
 def xhtml_to_chunk(xhtml):
@@ -471,34 +477,16 @@ def markdown_to_chunk(s):
 class QuoteHack:
     CODE_WRAP = '<pre><code%s>%s</code></pre>'
 
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.langtag = None
-        self.content = None
-
     def __mod__(self, other):
-        self.langtag, self.content = other
-        return self.CODE_WRAP % (self.langtag, self.content)
+        langtag, content = other
+        if langtag.lower() not in (' class="quote"', ' class="quoted"'):
+            return self.CODE_WRAP % (langtag, content)
+        return (
+            '<blockquote>\n' + markdown_to_xhtml(content) + '\n</blockquote>')
 
 
 class SnipeFBP(markdown.extensions.fenced_code.FencedBlockPreprocessor):
     CODE_WRAP = QuoteHack()
-
-    def run(self, lines):
-        self.CODE_WRAP.reset()
-        lines = super().run(lines)
-        logging.debug('%s', repr(self.CODE_WRAP.langtag))
-        if self.CODE_WRAP.langtag == ' class="quote"':
-            lines = []
-            content = self.CODE_WRAP.content
-            for para in content.split('\n\n'):
-                for line in para.split('\n'):
-                    if line:
-                        lines.append('> ' + line)
-                lines.append('\n')
-        return lines
 
 
 class SnipeFencedCodeExtension(markdown.Extension):

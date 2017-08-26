@@ -109,7 +109,7 @@ class HelpBrowser(editor.PopViewer):
     pages = {}
     toc = []
     toclines = []
-    base_mode = None
+    base_module = None
 
     cheatsheet = [
         '*]* next "page"',
