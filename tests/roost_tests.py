@@ -182,6 +182,119 @@ class TestRoostMessage(unittest.TestCase):
             '<RoostMessage 0.0 <RoostPrincipal roost tim@ATHENA.MIT.EDU>'
             ' 3 chars>')
 
+        self.assertEqual(
+            m.canon('sender', 'foo@X' + m.backend.realm),
+            'foo@X' + m.backend.realm)
+        self.assertEqual(
+            m.canon('sender', 'foo@' + m.backend.realm),
+            'foo')
+
+        self.assertEqual(m.canon('class', 'foo'), 'foo')
+        self.assertEqual(m.canon('class', 'ununfoo.d.d'), 'foo')
+        self.assertEqual(m.canon('class', 'ｆｏｏ'), 'foo')
+        self.assertEqual(m.canon('class', 'ｕｎｆｏｏ'), 'foo')
+
+        self.assertEqual(m.canon('instance', 'foo'), 'foo')
+        self.assertEqual(m.canon('instance', 'ｆｏｏ'), 'foo')
+
+        self.assertEqual(m.canon('opcode', 'foo'), 'foo')
+        self.assertEqual(m.canon('opcode', ' foo'), 'foo')
+        self.assertEqual(m.canon('opcode', 'ｆｏｏ'), 'ｆｏｏ')
+
+        self.assertEqual(m.reply(), 'roost; tim')
+
+        m.data['recipient'] = 'foo'
+
+        self.assertEqual(m.reply(), 'roost; -i white-magic tim')
+
+        m.data['class'] = 'white-magic'
+
+        self.assertEqual(m.reply(), 'roost; -c white-magic -i white-magic tim')
+
+        m.outgoing = True
+
+        self.assertEqual(m.reply(), 'roost; -c white-magic -i white-magic foo')
+
+        m.transformed = 'rot13'
+
+        self.assertEqual(
+            m.reply(), 'roost; -R -c white-magic -i white-magic foo')
+
+        self.assertEqual(
+            m.followup(), 'roost; -R -c white-magic -i white-magic foo')
+
+        m.body = 'CC: foo bar baz\nquux'
+
+        self.assertEqual(
+            m.followup(),
+            'roost; -R -c white-magic -i white-magic -C bar baz foo tim')
+
+        m.transformed = 'zcrypt'
+        m.data['recipient'] = ''
+
+        self.assertEqual(
+            m.followup(), 'roost; -x -c white-magic -i white-magic')
+
+        m.data['recipient'] = '@FOO'
+
+        self.assertEqual(
+            m.followup(), 'roost; -x -c white-magic -i white-magic @FOO')
+
+        self.assertEqual(
+            str(m.filter(0)), 'backend == "roost" and class = "white-magic"')
+        self.assertEqual(
+            str(m.filter(1)),
+            'backend == "roost" and class = "white-magic"'
+            ' and instance = "white-magic"')
+        self.assertEqual(
+            str(m.filter(2)),
+            'backend == "roost" and class = "white-magic"'
+            ' and instance = "white-magic" and sender = "roost; tim"')
+
+        m.data['recipient'] = 'foo'
+        m.personal = True
+
+        self.assertEqual(
+            str(m.filter(0)),
+            'backend == "roost" and personal'
+            ' and (sender = "roost; tim" or recipient = "tim")')
+
+        m.backend.r.principal = str(m._sender)
+        self.assertEqual(
+            str(m.filter(0)),
+            'backend == "roost" and personal'
+            ' and (sender = "roost; foo" or recipient = "foo")')
+
+
+class TestRoostAddresses(unittest.TestCase):
+    def test(self):
+        r = roost.Roost(context.Context())
+        p = roost.RoostPrincipal(r, 'foo@X' + r.realm)
+        self.assertEqual(str(p), 'roost; foo@X' + r.realm)
+        p = roost.RoostPrincipal(r, 'foo@' + r.realm)
+        self.assertEqual(str(p), 'roost; foo')
+
+
+class TestRoostRegistrationMessage(unittest.TestCase):
+    def test(self):
+        f = MockFuture()
+        m = roost.RoostRegistrationMessage(
+            roost.Roost(context.Context()), 'foo', f)
+        self.assertFalse(f.set)
+        m.forward_the_future()
+        self.assertTrue(f.set)
+
+
+class MockFuture:
+    def __init__(self):
+        self.set = False
+
+    def done(self):
+        return False
+
+    def set_result(self, result):
+        self.set = True
+
 
 if __name__ == '__main__':
     unittest.main()

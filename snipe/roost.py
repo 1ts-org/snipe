@@ -166,7 +166,7 @@ class Roost(messages.SnipeBackend):
         msg = inspect.cleandoc("""
         You don't seem to be registered with the roost server.  Select
         this message and hit Y to begin the registration process.
-        You'll be asked to confirm again with a message somewhat
+        You'll be asked to confirm again with a message somewhat more
         alarmist than necessary because I couldn't resist the
         reference to the Matrix.
         """)
@@ -573,7 +573,7 @@ class RoostMessage(messages.SnipeMessage):
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'instance':
-            value = value.lower()  # XXX do proper unicode thing
+            value = unicodedata.normalize('NFKC', value).lower()
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'opcode':
@@ -602,6 +602,10 @@ class RoostMessage(messages.SnipeMessage):
             l += ['-R']
         if self.transformed == 'zcrypt':
             l += ['-x']
+        if self.data['class'].upper() != 'MESSAGE':
+            l += ['-c', self.data['class']]
+        if self.data['instance'].upper() != 'PERSONAL':
+            l += ['-i', self.data['instance']]
         if self.data['recipient'] and self.data['recipient'][0] != '@':
             if not self.body.startswith('CC: '):
                 return self.reply()
@@ -610,12 +614,8 @@ class RoostMessage(messages.SnipeMessage):
                 cc.append(self.sender.short())
                 cc = [self.canon('sender', x) for x in cc]  # canonicalize
                 me = self.canon('sender', self.backend.r.principal)
-                cc = list(set(cc) - {me})  # uniquify, filter self
+                cc = list(sorted(set(cc) - {me}))  # uniquify, filter self
                 l += ['-C'] + cc
-        if self.data['class'].upper() != 'MESSAGE':
-            l += ['-c', self.data['class']]
-        if self.data['instance'].upper() != 'PERSONAL':
-            l += ['-i', self.data['instance']]
         if self.data['recipient'] and self.data['recipient'][0] == '@':
             l += [self.data['recipient']]  # presumably a there should be a -r?
         return self.backend.name + '; ' + ' '.join(shlex.quote(s) for s in l)
@@ -623,16 +623,18 @@ class RoostMessage(messages.SnipeMessage):
     def filter(self, specificity=0):
         nfilter = filters.Compare('==', 'backend', self.backend.name)
         if self.personal:
-            if str(self.sender) == self.backend.principal:
-                conversant = self.field('recipient')
+            if str(self._sender) == self.backend.principal:
+                sender = self.backend.name + '; ' + self.field('recipient')
+                recipient = self.field('recipient')
             else:
-                conversant = self.field('sender')
+                sender = self.field('sender')
+                recipient = self.canon('sender', self.data['sender'])
             return filters.And(
                 nfilter,
                 filters.Truth('personal'),
                 filters.Or(
-                    filters.Compare('=', 'sender', conversant),
-                    filters.Compare('=', 'recipient', conversant)))
+                    filters.Compare('=', 'sender', sender),
+                    filters.Compare('=', 'recipient', recipient)))
         elif self.field('class'):
             nfilter = filters.And(
                 nfilter,
@@ -647,7 +649,7 @@ class RoostMessage(messages.SnipeMessage):
                     filters.Compare('=', 'sender', self.field('sender')))
             return nfilter
 
-        return super().filter(specificity)
+        return super().filter(specificity)  # pragma: nocover
 
     class Decor(messages.SnipeMessage.Decor):
         @classmethod
@@ -737,14 +739,6 @@ class RoostPrincipal(messages.SnipeAddress):
         if self.principal[-atrealmlen:] == '@' + self.backend.realm:
             return self.principal[:-atrealmlen]
         return self.principal
-
-
-class RoostTriplet(messages.SnipeAddress):
-    def __init__(self, backend, class_, instance, recipient):
-        self.class_ = class_
-        self.instance = instance
-        self.recipient = recipient
-        super().__init__(backend, [class_, instance, recipient])
 
 
 class RoostRegistrationMessage(messages.SnipeMessage):
