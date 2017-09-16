@@ -87,7 +87,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.new_task = None
         self.header = {}
         self.since_id = 0
-        self.setup_client_session()
+        self.setup_client_session(read_timeout=5.0, conn_timeout=5.0)
 
     def start(self):
         self.new_task = asyncio.Task(self.connect())
@@ -356,12 +356,20 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif math.isfinite(target):
             target = int(target * 1000000)
         live = [b for b in live if b.get('have_eid', 0) > target]
-        self.backfillers = [t for t in self.backfillers if not t.done()]
+        t0 = time.time()
+        nb = []
+        for task, when in self.backfillers:
+            if (t0 - when) > 30.0:
+                task.cancel()
+            if not task.done():
+                nb.append((task, when))
+        self.backfillers = nb
         self.reap_tasks()
+        self.log.debug('%d backfillers active', len(self.backfillers))
         if not self.backfillers:
             for b in live:
                 t = asyncio.Task(self.backfill_buffer(b, target))
-                self.backfillers.append(t)
+                self.backfillers.append((t, t0))
                 self.tasks.append(t)
 
     @asyncio.coroutine
@@ -370,6 +378,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             'top of backfill_buffer([%s %s], %s)',
             buf['bid'], buf.get('have_eid'), target)
         while True:
+            yield from asyncio.sleep(2)
             self.log.debug(
                 'loop backfill_buffer([%s %s], %s)',
                 buf['bid'], buf.get('have_eid'), target)
@@ -377,20 +386,37 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 target = max(
                     target, buf['have_eid'] - self.backfill_length * 1000000)
 
-                oob_data = yield from self._request(
-                    'GET',
-                    urllib.parse.urljoin(
-                        IRCCLOUD_API,
-                        '/chat/backlog'),
-                    params={
-                            'cid': buf['cid'],
-                            'bid': buf['bid'],
-                            'num': 256,
-                            'beforeid': buf['have_eid'] - 1,
-                            },
-                    headers={'Cookie': 'session=%s' % self.session},
-                    compress='gzip',
-                    )
+                count = 1
+                while True:
+                    try:
+                        self.log.error(
+                            'backfilling %s retrieving backlog, try=%d',
+                            buf['name'], count)
+                        oob_data = yield from self._request(
+                            'GET',
+                            urllib.parse.urljoin(
+                                IRCCLOUD_API,
+                                '/chat/backlog'),
+                            params={
+                                    'cid': buf['cid'],
+                                    'bid': buf['bid'],
+                                    'num': 256,
+                                    'beforeid': buf['have_eid'] - 1,
+                                    },
+                            headers={'Cookie': 'session=%s' % self.session},
+                            compress='gzip',
+                            )
+                    except:
+                        self.log.exception(
+                            'backfilling %s, try=%d, sleeping',
+                            buf['name'], count)
+                        count += 1
+                        yield from asyncio.sleep(1)
+                        self.log.error(
+                            'backfilling %s, try=%d, done sleeping',
+                            buf['name'], count)
+                        continue
+                    break
                 included = []
 
                 if isinstance(oob_data, dict):
@@ -454,7 +480,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                         'min_eid' not in buf
                         or buf['have_eid'] > buf['min_eid'])):
                 break
-            yield from asyncio.sleep(.1)
 
     @keymap.bind('I D')
     def disconnect(self):
