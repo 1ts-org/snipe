@@ -603,6 +603,8 @@ class SlackMessage(messages.SnipeMessage):
         return str(self.backend.dests.get(s, s))
 
     def slackmarkup(self, text, tags):
+        if not text:
+            text = ''
         chunk = chunks.Chunk()
         bodylist = self.SLACKMARKUP.split(text)
         for (n, s) in enumerate(bodylist):
