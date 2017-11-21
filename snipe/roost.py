@@ -560,6 +560,10 @@ class RoostMessage(messages.SnipeMessage):
     class_un = re.compile(r'^(un)*')
     class_dotd = re.compile(r'(\.d)*$')
 
+    @staticmethod
+    def _normalize(value):
+        return unicodedata.normalize('NFKC', value).lower()
+
     def canon(self, field, value):
         if field == 'sender' or field == 'recipient':
             value = str(value)
@@ -567,13 +571,13 @@ class RoostMessage(messages.SnipeMessage):
             if value[-atrealmlen:] == '@' + self.backend.realm:
                 return value[:-atrealmlen]
         elif field == 'class':
-            value = unicodedata.normalize('NFKC', value).lower()
+            value = self._normalize(value)
             x1, x2 = self.class_un.search(value).span()
             value = value[x2:]
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'instance':
-            value = unicodedata.normalize('NFKC', value).lower()
+            value = self._normalize(value)
             x1, x2 = self.class_dotd.search(value).span()
             value = value[:x1]
         elif field == 'opcode':
@@ -693,7 +697,7 @@ class RoostMessage(messages.SnipeMessage):
                 sigl = sig.split('\n')
                 sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
                 if msg.backend.format_zsig == 'format':
-                    chunk += [(tags, ' ')] + zcode.tag(sig, tags)
+                    chunk += [(tags, ' ')] + zcode.tag(sig, frozenset(tags))
                 else:
                     if msg.backend.format_zsig == 'strip':
                         sig = zcode.strip(sig)
@@ -715,7 +719,7 @@ class RoostMessage(messages.SnipeMessage):
                 if not body.endswith('\n'):
                     body += '\n'
                 if msg.backend.format_body == 'format':
-                    chunk = zcode.tag(body, tags)
+                    chunk = zcode.tag(body, frozenset(tags))
                 else:
                     if msg.backend.format_body == 'strip':
                         body = zcode.strip(body)
