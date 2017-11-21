@@ -514,7 +514,7 @@ class TestMessager(unittest.TestCase):
 
         self.assertEqual(string, '''<mocks.Message>
 not personal, not outgoing, not noise, not omega, not error
-sender: 'None'
+sender: "None"
 body: ""
 
 {}''')
