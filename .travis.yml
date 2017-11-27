@@ -9,7 +9,7 @@ python:
  - "nightly"
 install:
  - pip install -r requirements.txt
- - pip install flake8<3.5 coveralls
+ - pip install flake8\<3.5 coveralls
 script:
  - flake8
  - nosetests -v --with-coverage -w tests 
