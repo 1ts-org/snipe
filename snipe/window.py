@@ -117,6 +117,11 @@ class Window:
         self.keyseq = ''
         # : string that is currently being search for
         self.search_term = None
+        # : list of ongoing tasks, for cleanup and testing
+        self.tasks = []
+
+    def reap_tasks(self):
+        self.tasks = [t for t in self.tasks if not t.done()]
 
     def set_cheatsheet(self, cheatsheet):
         self.cheatsheet = cheatsheet
@@ -160,6 +165,7 @@ class Window:
 
         :param k: The incoming keystroke."""
 
+        self.reap_tasks()
         self.context.clear()
         try:
             self.log.debug(
@@ -209,7 +215,7 @@ class Window:
                     self.last_key = k
 
                 if asyncio.iscoroutine(ret):
-                    asyncio.Task(self.catch_and_log(ret))
+                    self.tasks.append(asyncio.Task(self.catch_and_log(ret)))
 
         except Exception as e:
             self.context.message(str(e))

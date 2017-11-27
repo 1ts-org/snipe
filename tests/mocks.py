@@ -319,6 +319,15 @@ class CursesWindow:
     def refresh(self):
         pass
 
+    def leaveok(self, *args):
+        pass
+
+    def cursyncup(self):
+        pass
+
+    def clearok(self, *args):
+        pass
+
 
 class Curses:
     A_ALTCHARSET = curses.A_ALTCHARSET

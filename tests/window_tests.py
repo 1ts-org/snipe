@@ -32,6 +32,8 @@
 Unit tests for stuff in window.py
 '''
 
+import asyncio
+import logging
 import sys
 import unittest
 
@@ -43,6 +45,7 @@ sys.path.append('../lib')
 from snipe.chunks import Chunk  # noqa: E402
 import snipe.keymap as keymap   # noqa: E402
 import snipe.window as window   # noqa: E402
+import snipe.util as util       # noqa: E402
 
 
 class TestWindow(unittest.TestCase):
@@ -95,6 +98,24 @@ class TestWindow(unittest.TestCase):
             w.input_char('Z')
             self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y', 'z'])
 
+            w.keymap['0'] = asyncio.coroutine(lambda: save.append('0'))
+            self.assertFalse(w.tasks)
+            w.input_char('0')
+            self.assertTrue(w.tasks)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(w.tasks[0])
+            self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y', 'z', '0'])
+
+            w.keymap['1'] = lambda: {}[None]
+
+            with self.assertLogs(w.log, logging.ERROR):
+                w.input_char('1')
+
+            w.keymap['2'] = asyncio.coroutine(lambda: {}[None])
+            w.input_char('2')
+            with self.assertLogs(w.log, logging.ERROR):
+                loop.run_until_complete(w.tasks[0])
+
     def test_misc(self):
         called = False
 
@@ -144,6 +165,134 @@ class TestWindow(unittest.TestCase):
         self.assertEqual(cheatsheetify('f**oo'), [(set(), 'foo')])
         self.assertEqual(
             cheatsheetify('f*\*oo'), [(set(), 'f'), (TAGS, '*oo')])
+
+    def test_read_string(self):
+        import snipe.prompt as prompt
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            i = fe.windows[0].window.read_string(
+                ': ', validate=lambda x: x == 'foo')
+            i.send(None)
+            self.assertIsInstance(fe.windows[1].window, prompt.ShortPrompt)
+            with self.assertRaises(util.SnipeException):
+                fe.windows[1].window.callback('bar')
+            fe.windows[1].window.callback('foo')
+            try:
+                while True:
+                    i.send(None)
+            except StopIteration as stop:
+                val = stop.value
+
+        self.assertEquals(val, 'foo')
+
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            i = fe.windows[0].window.read_string(': ', height=5)
+            i.send(None)
+            self.assertIsInstance(fe.windows[1].window, prompt.LongPrompt)
+            fe.delete_window(1)
+            with self.assertRaises(Exception):
+                while True:
+                    i.send(None)
+
+    def test_read_filename(self):
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            i = fe.windows[0].window.read_filename(': ')
+            i.send(None)
+            fe.windows[1].window.callback('foo')
+            try:
+                while True:
+                    i.send(None)
+            except StopIteration as stop:
+                val = stop.value
+
+        self.assertEquals(val, 'foo')
+
+    def test_read_keyseq(self):
+        import snipe.prompt as prompt
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            i = fe.windows[0].window.read_keyseq(
+                ': ', keymap=fe.windows[0].window.keymap)
+            i.send(None)
+            self.assertIsInstance(fe.windows[1].window, prompt.KeySeqPrompt)
+            fe.windows[1].window.callback('foo')
+            try:
+                while True:
+                    i.send(None)
+            except StopIteration as stop:
+                val = stop.value
+
+        self.assertEquals(val, 'foo')
+
+    def test_show(self):
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.show('foo')
+            self.assertEquals(len(fe.windows), 2)
+            self.assertEquals(
+                ''.join(
+                    str(chunk)
+                    for (mark, chunk) in fe.windows[1].window.view(0)),
+                'foo')
+
+    def test_quit(self):
+        with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            loop = asyncio.get_event_loop()
+            self.assertFalse(loop._stopping)
+            w.quit()
+            self.assertTrue(loop._stopping)
+            loop.run_forever()
+            self.assertFalse(loop._stopping)
+
+    def test_stop(self):
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            d = {'called': False}
+            fe.sigtstp = lambda *args: d.__setitem__('called', True)
+            self.assertFalse(d['called'])
+            fe.windows[0].window.stop()
+            self.assertTrue(d['called'])
+
+    def test_other(self):
+        import snipe.editor as editor
+        import snipe.messager as messager
+        import snipe.repl as repl
+        with mocks.mocked_up_actual_fe(window.Window) as fe:
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_window()
+            self.assertEquals(len(fe.windows), 2)
+            fe.windows[0].window.delete_window()
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_window()
+            self.assertEquals(len(fe.windows), 2)
+            fe.windows[0].window.delete_other_windows()
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_window()
+            self.assertEquals(len(fe.windows), 2)
+            self.assertEquals(fe.output, 0)
+            fe.windows[0].window.other_window()
+            self.assertEquals(fe.output, 1)
+            fe.windows[0].window.delete_other_windows()
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_to_editor()
+            self.assertEquals(len(fe.windows), 2)
+            self.assertEquals(fe.output, 1)
+            self.assertIsInstance(fe.windows[1].window, editor.Editor)
+            fe.windows[1].window.delete_window()
+            self.assertEquals(len(fe.windows), 1)
+
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_to_messager()
+            self.assertEquals(len(fe.windows), 2)
+            self.assertEquals(fe.output, 1)
+            self.assertIsInstance(fe.windows[1].window, messager.Messager)
+            fe.windows[1].window.delete_window()
+            self.assertEquals(len(fe.windows), 1)
+
+            self.assertEquals(len(fe.windows), 1)
+            fe.windows[0].window.split_to_repl()
+            self.assertEquals(len(fe.windows), 2)
+            self.assertEquals(fe.output, 1)
+            self.assertIsInstance(fe.windows[1].window, repl.REPL)
+            fe.windows[1].window.delete_window()
+            self.assertEquals(len(fe.windows), 1)
 
 
 class TestStatusLine(unittest.TestCase):
