@@ -226,7 +226,7 @@ class Window:
     def catch_and_log(self, coro):
         try:
             yield from self.catch_and_log_int(coro)
-        except Exception as e:
+        except (Exception, KeyboardInterrupt) as e:
             self.context.message(str(e))
             self.log.exception('Executing complex command')
             self.whine('')
