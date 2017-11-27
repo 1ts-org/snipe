@@ -653,12 +653,6 @@ def merge(iterables, key=lambda x: x):
         yield v
 
 
-def logiter(log, x):
-    for n, y in enumerate(x):
-        log.debug('%s[%d]: %s', repr(x), n, repr(y))
-        yield y
-
-
 class AggregatorBackend(SnipeBackend):
     # this won't be used as a /backend/ most of the time, but there's
     # no reason that it shouldn't expose the same API for now
@@ -696,7 +690,7 @@ class AggregatorBackend(SnipeBackend):
         else:
             startbackend = None
             when = start
-        return logiter(self.log, merge(
+        return merge(
             [
                 backend.walk(
                     start if backend is startbackend else when,
@@ -707,7 +701,7 @@ class AggregatorBackend(SnipeBackend):
                     )
                 for backend in self.backends
                 ],
-            key=lambda m: m.time if forward else -m.time))
+            key=lambda m: m.time if forward else -m.time)
 
     @asyncio.coroutine
     def shutdown(self):
