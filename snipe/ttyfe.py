@@ -331,14 +331,10 @@ class TTYRenderer:
         self.w.erase()
 
         visible, self.cursorpos, self.sill, output = self.redisplay_calculate()
-        import pprint
+
         self.log.debug(
-            'redisplay_internal: %s, %s, %s %d\n%s',
-            visible,
-            self.cursorpos,
-            self.sill,
-            len(output),
-            pprint.pformat(output))
+            'redisplay_internal: %s, %s, %s %d',
+            visible, self.cursorpos, self.sill, len(output))
         for y, line in enumerate(output):
             self.move(y, 0)
             x = 0
