@@ -30,6 +30,7 @@
 # SUCH DAMAGE.
 
 import collections
+import functools
 import logging
 
 from . import chunks
@@ -127,6 +128,7 @@ def strip_simple(s):
     return tree_to_string(tree(s), ignore=())
 
 
+@functools.lru_cache(1024)
 def strip(s):
     return tree_to_string(tree(s))
 
@@ -179,5 +181,6 @@ def tag_tree(t, tags, fg=None, otags=None):
     return out
 
 
+@functools.lru_cache(1024)
 def tag(s, tags):
     return tag_tree(tree(s), tags)

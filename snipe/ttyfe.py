@@ -42,6 +42,7 @@ import collections
 import contextlib
 import curses
 import fcntl
+import functools
 import itertools
 import locale
 import logging
@@ -130,6 +131,7 @@ class TTYRenderer:
         self.w.noutrefresh()
 
     @staticmethod
+    @functools.lru_cache(1024)  # if you have more than 1K lines, you thrash
     @util.listify
     def doline(s, width, remaining, tags=()):
         '''string, window width, remaining width, tags ->
@@ -245,7 +247,8 @@ class TTYRenderer:
                 if 'right' in tags:
                     text = text.rstrip('\n')  # XXX chunksize
 
-                textbits = self.doline(text, self.width, remaining, tags)
+                textbits = self.doline(
+                    text, self.width, remaining, frozenset(tags))
                 if not textbits:
                     if remaining is None or remaining <= 0:
                         remaining = self.width
@@ -492,7 +495,7 @@ class TTYRenderer:
 
         for tags, text in chunk:
             for line, remaining in self.doline(
-                    text, self.width, remaining, tags):
+                    text, self.width, remaining, frozenset(tags)):
                 if 'right' in tags:
                     remaining = 0
                 if remaining < 1:

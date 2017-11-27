@@ -543,50 +543,50 @@ class TestZcode(unittest.TestCase):
 
     def test_tag(self):
         self.assertEqual(
-            zcode.tag('', set()),
+            zcode.tag('', frozenset()),
             [],
             )
         self.assertEqual(
-            zcode.tag('foo', set()),
+            zcode.tag('foo', frozenset()),
             [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(green)foo', set()),
+            zcode.tag('@color(green)foo', frozenset()),
             [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@i(foo)', set()),
+            zcode.tag('@i(foo)', frozenset()),
             [({'underline'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@b(foo)', set()),
+            zcode.tag('@b(foo)', frozenset()),
             [({'bold'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@b(@i(@roman(foo)))', set()),
+            zcode.tag('@b(@i(@roman(foo)))', frozenset()),
             [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@font(fixed)foo', set()),
+            zcode.tag('@font(fixed)foo', frozenset()),
             [(set(), 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(red)@{@color(green)foo}', set()),
+            zcode.tag('@color(red)@{@color(green)foo}', frozenset()),
             [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@color(green)foo', {'fg:red'}),
+            zcode.tag('@color(green)foo', frozenset({'fg:red'})),
             [({'fg:green'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('foo', {'bold'}),
+            zcode.tag('foo', frozenset({'bold'})),
             [({'bold'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('foo', {'fg:red'}),
+            zcode.tag('foo', frozenset({'fg:red'})),
             [({'fg:red'}, 'foo')],
             )
         self.assertEqual(
-            zcode.tag('@i{foo\nbar}', set()),
+            zcode.tag('@i{foo\nbar}', frozenset()),
             [({'underline'}, 'foo'), (set(), '\n'), ({'underline'}, 'bar')],
             )

@@ -514,6 +514,7 @@ def _setup_wcwidth():
 _wcwidth = _setup_wcwidth()
 
 
+@functools.lru_cache(None)
 def glyphwidth(s):
     return sum(_wcwidth(c) for c in s)
 

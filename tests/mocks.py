@@ -126,7 +126,7 @@ class Message:
         return self._display
 
     def __eq__(self, other):
-        return self.time == other.time
+        return other and self.time == other.time
 
     def __lt__(self, other):
         return self.time < other.time
@@ -154,6 +154,9 @@ class Message:
     def transform(self, encoding, body):
         self.transfored = encoding
         self.body = body
+
+    def __hash__(self):
+        return id(self)
 
 
 class Context:
