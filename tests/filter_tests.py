@@ -224,16 +224,16 @@ class TestFilters(unittest.TestCase):
 
     def test_Filter(self):
         f = snipe.filters.Filter()
-        self.assertRaises(NotImplementedError, lambda: f(None))
+        self.assertRaises(NotImplementedError, lambda: f._check(None))
         self.assertIs(f, f.simplify({}))
         self.assertEqual(repr(f), 'Filter()')
 
     def test_Certitude(self):
         yes = Yes()
         no = No()
-        self.assertTrue(yes(None))
+        self.assertTrue(yes._check(None))
         self.assertTrue(yes.simplify({}))
-        self.assertFalse(no(None))
+        self.assertFalse(no._check(None))
         self.assertFalse(no.simplify({}))
         self.assertEqual(hash(Yes()), hash(yes))
         self.assertEqual(hash(No()), hash(no))
@@ -263,8 +263,8 @@ class TestFilters(unittest.TestCase):
 
     def test_And(self):
         self.assertEqual(repr(And(None, Yes(), No())), 'And(Yes(), No())')
-        self.assertTrue(And(Yes(), Yes())(None))
-        self.assertFalse(And(Yes(), No())(None))
+        self.assertTrue(And(Yes(), Yes())._check(None))
+        self.assertFalse(And(Yes(), No())._check(None))
         self.assertTrue(And(Yes(), Yes()).simplify({}))
         self.assertFalse(And(Yes(), No()).simplify({}))
         self.assertFalse(And(Truth('foo'), No()).simplify({}))
@@ -277,9 +277,9 @@ class TestFilters(unittest.TestCase):
 
     def test_Or(self):
         self.assertEqual(repr(Or(None, Yes(), No())), 'Or(Yes(), No())')
-        self.assertTrue(Or(Yes(), Yes())(None))
-        self.assertTrue(Or(Yes(), No())(None))
-        self.assertFalse(Or(No(), No())(None))
+        self.assertTrue(Or(Yes(), Yes())._check(None))
+        self.assertTrue(Or(Yes(), No())._check(None))
+        self.assertFalse(Or(No(), No())._check(None))
         self.assertTrue(Or(Yes(), Yes()).simplify({}))
         self.assertTrue(Or(Yes(), No()).simplify({}))
         self.assertTrue(Or(Yes(), Truth('foo')).simplify({}))
@@ -291,15 +291,15 @@ class TestFilters(unittest.TestCase):
 
     def test_Xor(self):
         self.assertTrue(
-            snipe.filters.Xor(No(), No(), Yes())(None))
+            snipe.filters.Xor(No(), No(), Yes())._check(None))
         self.assertFalse(
-            snipe.filters.Xor(No(), No(), No())(None))
+            snipe.filters.Xor(No(), No(), No())._check(None))
         self.assertFalse(
-            snipe.filters.Xor(No(), Yes(), Yes())(None))
+            snipe.filters.Xor(No(), Yes(), Yes())._check(None))
 
     def test_Python(self):
-        self.assertTrue(snipe.filters.Python('True')(None))
-        self.assertFalse(snipe.filters.Python('something wrong')(None))
+        self.assertTrue(snipe.filters.Python('True')._check(None))
+        self.assertFalse(snipe.filters.Python('something wrong')._check(None))
         self.assertEqual(
             snipe.filters.Python('True'), snipe.filters.Python('True'))
         self.assertNotEqual(

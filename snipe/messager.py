@@ -127,15 +127,7 @@ class Messager(window.Window, window.PagingMixIn):
         for backend in self.context.backends:
             self.keymap.interrogate(backend)
             self.keymap.interrogate(backend.__class__.__module__)
-        self.rules = []
-        for (filt, decor) in self.context.conf.get('rule', []):
-            try:
-                self.rules.append((filters.makefilter(filt), decor))
-            except:  # pragma: nocover
-                # XXX If we actually stuck this somewhere for the user to see,
-                # it would actually be testable
-                self.log.exception(
-                    'error in filter %s for decor %s', filt, decor)
+        self.rules_reset()
         self.real_keymap = self.keymap
         self.install_per_message_keymap()
 
@@ -537,12 +529,24 @@ class Messager(window.Window, window.PagingMixIn):
             f = filters.makefilter(s)
             conf.setdefault('filter', {})[name] = str(f)
         self.context.conf_write()
+        filters.makefilter.cache_clear()
 
     @keymap.bind('/ -', 'Meta-/ -')
     def filter_everything(self):
         """Filter everything."""
 
         self.filter_push_and_replace(filters.No())
+
+    def rules_reset(self):
+        self.rules = []
+        for (filt, decor) in self.context.conf.get('rule', []):
+            try:
+                self.rules.append((filters.makefilter(filt), decor))
+            except:  # pragma: nocover
+                # XXX If we actually stuck this somewhere for the user to see,
+                # it would actually be testable
+                self.log.exception(
+                    'error in filter %s for decor %s', filt, decor)
 
     def filter_clear_decorate(self, decoration):
         self.rules = [
@@ -557,6 +561,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.context.conf['rule'].append((str(self.filter), decoration))
         self.context.conf_write()
         self.filter_reset()
+        self.rules_reset()
 
     @keymap.bind('/ g', 'Meta-/ g')
     def filter_foreground_background(self):

@@ -37,6 +37,7 @@ import logging
 import operator
 import re
 import functools
+import weakref
 
 import ply.lex
 import ply.yacc
@@ -151,10 +152,18 @@ class Filter(object):
     name = None
 
     def __init__(self):
+        self._cache = weakref.WeakKeyDictionary()
         self.log = logging.getLogger(
             'filter.%s.%x' % (self.__class__.__name__, id(self),))
 
-    def __call__(self, m, state=None):
+    def __call__(self, m):
+        r = self._cache.get(m)
+        if r is None:
+            r = self._check(m)
+            self._cache[m] = r
+        return r
+
+    def _check(self, m, state=None):
         raise NotImplementedError
 
     def simplify(self, d):
@@ -185,7 +194,7 @@ class Certitude(Filter):
 
 
 class Yes(Certitude):
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         return True
 
     def simplify(self, d):
@@ -193,7 +202,7 @@ class Yes(Certitude):
 
 
 class No(Certitude):
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         return False
 
     def simplify(self, d):
@@ -204,10 +213,11 @@ class Not(Filter):
     name = 'not'
 
     def __init__(self, p):
+        super().__init__()
         self.p = p
 
-    def __call__(self, m, state=None):
-        return not self.p(m, state)
+    def _check(self, m, state=None):
+        return not self.p._check(m, state)
 
     def __str__(self):
         return self.gname() + ' ' + self.parenthesize(self.p)
@@ -230,9 +240,10 @@ class Not(Filter):
 
 class Truth(Filter):
     def __init__(self, field):
+        super().__init__()
         self.field = field
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         return bool(m.field(self.field))
 
     def __str__(self):
@@ -284,9 +295,9 @@ class Conjunction(Filter):
 class And(Conjunction):
     name = 'and'
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         for p in self.operands:
-            if not p(m, state):
+            if not p._check(m, state):
                 return False
         return True
 
@@ -311,9 +322,9 @@ class And(Conjunction):
 class Or(Conjunction):
     name = 'or'
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         for p in self.operands:
-            if p(m, state):
+            if p._check(m, state):
                 return True
         return False
 
@@ -338,13 +349,13 @@ class Or(Conjunction):
 class Xor(Conjunction):
     name = 'xor'
 
-    def __call__(self, m, state=None):
-        return len([True for p in self.operands if p(m, state)]) == 1
+    def _check(self, m, state=None):
+        return len([True for p in self.operands if p._check(m, state)]) == 1
 
 
 class Python(Filter):
     def __init__(self, string):
-        super(Python, self).__init__()
+        super().__init__()
         self.string = string
 
     def __str__(self):
@@ -356,7 +367,7 @@ class Python(Filter):
             repr(self.string),
             )
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         try:
             return bool(eval(self.string, {}, {'m': m, 'state': state}))
         except:
@@ -376,7 +387,7 @@ class Python(Filter):
 
 class FilterLookup(Filter):
     def __init__(self, name):
-        super(FilterLookup, self).__init__()
+        super().__init__()
         self.filtername = name
 
     def __repr__(self):
@@ -385,7 +396,7 @@ class FilterLookup(Filter):
             repr(self.filtername),
             )
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         if state is not None:
             if self.filtername in state.setdefault('filterlookup', set()):
                 return False
@@ -403,7 +414,7 @@ class FilterLookup(Filter):
 
         try:
             self.log.debug('%s: %s', self.filtername, text)
-            return makefilter(text)(m, state)
+            return makefilter(text)._check(m, state)
         except:
             self.log.exception('in filter %s', self.filtername)
             return False
@@ -442,7 +453,7 @@ class FilterLookup(Filter):
 
 class Comparison(Filter):
     def __init__(self, op, field, value):
-        super(Comparison, self).__init__()
+        super().__init__()
         self.op, self.field, self.value = (
             op, field, value)
         self.canon = True if self.op != '==' else False
@@ -455,7 +466,7 @@ class Comparison(Filter):
             repr(self.value),
             )
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         v = self.value
         if isinstance(v, Identifier):  # XXX grumpiness re abstraction leakage
             v = m.field(str(v), self.canon)
@@ -521,7 +532,7 @@ class Compare(Comparison):
 
 class RECompare(Comparison):
     def __init__(self, *args, flags=''):
-        super(RECompare, self).__init__(*args)
+        super().__init__(*args)
         try:
             self.re = re.compile(self.value, self.deflag(flags))
             self.flags = flags
@@ -568,7 +579,7 @@ class RECompare(Comparison):
         result = RECompare.do(op, regexp, value)
         return Yes() if result else No()
 
-    def __call__(self, m, state=None):
+    def _check(self, m, state=None):
         return self.do(self.op, self.re, str(m.field(self.field, self.canon)))
 
     def __str__(self):
