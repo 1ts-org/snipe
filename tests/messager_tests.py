@@ -146,14 +146,12 @@ class TestMessager(unittest.TestCase):
                 [({'right'}, '1')]))
         m.time = float('NaN')
 
-        class mockdatetime:
-            fromtimestamp = datetime.datetime.fromtimestamp
-
+        class mockdatetime(datetime.datetime):
             @staticmethod
             def now():
                 return datetime.datetime.fromtimestamp(60)
 
-        with mock.patch('snipe.messager.datetime.datetime', mockdatetime):
+        with mock.patch('datetime.datetime', mockdatetime):
             self.assertEqual(
                 w.modeline(), (
                     [({'dim'}, '00:01'), (set(), ' filter default')],
