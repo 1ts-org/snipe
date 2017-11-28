@@ -1,5 +1,5 @@
 NOSE=nosetests3
-NOSETESTS=$(NOSE) -v -w tests
+NOSETESTS=TZ=GMT $(NOSE) -v -w tests
 
 all check: flake8 nosetests
 

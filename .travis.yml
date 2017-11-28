@@ -12,6 +12,6 @@ install:
  - pip install flake8\<3.5 coveralls
 script:
  - flake8
- - nosetests -v --with-coverage -w tests 
+ - TZ=GMT nosetests -v --with-coverage -w tests
 after_success:
  - coveralls
