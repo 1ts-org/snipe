@@ -210,7 +210,6 @@ class HelpBrowser(editor.PopViewer):
         self.log.debug('loading: %s', name)
         self.chunks, flat, self.refs, self.links, self._title = \
             self.pages[name]
-        print(self.chunks)
         self.log.debug('refs: %s', repr(self.refs))
         self.log.debug('links: %s', repr(self.links))
         self.replace(len(self.buf), flat)
