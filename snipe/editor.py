@@ -111,6 +111,9 @@ class Buffer:
         self.buf = gap.UndoableGapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
 
+        # place for windows to stash buffer-specific state
+        self.state = {}
+
     def register(self, name):
         if name not in self.registry:
             self.registry[name] = self

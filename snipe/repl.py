@@ -55,69 +55,76 @@ class REPL(editor.Editor):
     def __init__(self, *args, **kw):
         kw.setdefault('name', 'REPL')
         super().__init__(*args, **kw)
-        self.high_water_mark = self.buf.mark(0)
-        self.stakes = []
-        self.in_ = []
-        self.out_ = []
 
-        self.ps1 = '>>> '
-
-        self.output(util.SPLASH)
         # YYY
         import _sitebuiltins
         _sitebuiltins._Printer.MAXLINES = 99999999999999999
-        cprt = (
-            'Type "help", "copyright", "credits" or "license" for more'
-            ' information.')
-        self.output("Python (snipe) %s on %s\n%s\n" % (
-            sys.version, sys.platform, cprt))
-        self.output(self.ps1)
-        self.environment = {
-            'context': self.context,
-            'window': self,
-            'In': self.in_,
-            'Out': self.out_,
-            }
+
+        if 'REPL' not in self.buf.state:
+            self.state = {}
+            self.buf.state['REPL'] = self.state
+            self.state['high_water_mark'] = self.buf.mark(0)
+            self.state['stakes'] = []
+            self.state['in'] = []
+            self.state['out'] = []
+            self.state['ps1'] = '>>> '
+            self.output(util.SPLASH)
+            cprt = (
+                'Type "help", "copyright", "credits" or "license" for more'
+                ' information.')
+            self.output("Python (snipe) %s on %s\n%s\n" % (
+                sys.version, sys.platform, cprt))
+            self.output(self.state['ps1'])
+            self.state['environment'] = {
+                'context': self.context,
+                'window': self,
+                'In': self.state['in'],
+                'Out': self.state['out'],
+                }
+        else:
+            self.state = self.buf.state['REPL']
 
     def title(self):
-        return super().title() + ' [%d]' % len(self.in_)
+        return super().title() + ' [%d]' % len(self.state['in'])
 
     def output(self, s):
-        if (self.stakes and self.stakes[-1][0].point == len(self.buf)
-                and self.stakes[-1][1] == OUTPUT_END):
-            del self.stakes[-1]
+        if (self.state['stakes']
+                and self.state['stakes'][-1][0].point == len(self.buf)
+                and self.state['stakes'][-1][1] == OUTPUT_END):
+            del self.state['stakes'][-1]
         else:
-            self.stakes.append((self.buf.mark(len(self.buf)), OUTPUT_START))
-        self.high_water_mark.point = len(self.buf)
-        self.high_water_mark.insert(s)
-        self.cursor.point = self.high_water_mark
-        self.stakes.append((self.buf.mark(len(self.buf)), OUTPUT_END))
+            self.state['stakes'].append(
+                (self.buf.mark(len(self.buf)), OUTPUT_START))
+        self.state['high_water_mark'].point = len(self.buf)
+        self.state['high_water_mark'].insert(s)
+        self.cursor.point = self.state['high_water_mark']
+        self.state['stakes'].append((self.buf.mark(len(self.buf)), OUTPUT_END))
 
     def brackets(self, mark):
-        x = bisect.bisect(self.stakes, (mark, 'ZZZ'))
-        if x >= len(self.stakes):
-            return self.stakes[-1], (None, None)
+        x = bisect.bisect(self.state['stakes'], (mark, 'ZZZ'))
+        if x >= len(self.state['stakes']):
+            return self.state['stakes'][-1], (None, None)
         else:
             # there shouldn't ever be less than two stakes because we run
             # output in __init__
-            assert len(self.stakes) > 1
+            assert len(self.state['stakes']) > 1
             assert x > 0
-            return tuple(self.stakes[x - 1:x + 1])
+            return tuple(self.state['stakes'][x - 1:x + 1])
 
     def writable(self):
         # XXX should find the size of the operation before okaying it
         return self.brackets(self.cursor)[0][1] == OUTPUT_END
 
     def go_eval(self):
-        input = self.buf[self.high_water_mark:]
+        input = self.buf[self.state['high_water_mark']:]
         ((left_mark, left_sigil), (right_mark, right_sigil)) = \
             self.brackets(self.cursor)
         save = ''
-        if (self.cursor.point < self.high_water_mark
+        if (self.cursor.point < self.state['high_water_mark']
                 and left_sigil == OUTPUT_END):
             save = input
             input = self.buf[left_mark:right_mark.point - 1]
-            self.cursor.point = self.high_water_mark
+            self.cursor.point = self.state['high_water_mark']
             self.cursor.point += self.replace(len(save), input)
         with self.save_excursion():
             self.end_of_buffer()
@@ -134,16 +141,19 @@ class REPL(editor.Editor):
             result_val = val
             return their_displayhook(val)
 
+        # YYY whoever is running the last eval gets the credit
+        self.state['environment']['window'] = self
+
         with mock.patch('sys.displayhook', my_displayhook):
-            result = util.eval_output(input, self.environment)
+            result = util.eval_output(input, self.state['environment'])
 
         if result is not None:
-            self.in_.append(input)
-            self.out_.append(result_val)
+            self.state['in'].append(input)
+            self.state['out'].append(result_val)
             self.cursor.point = len(self.buf)
             self.cursor.insert('\n')
             self.output(result)
-            self.output(self.ps1)
+            self.output(self.state['ps1'])
         # possiby incomplete from uphistory
         self.cursor.replace(0, save)
         return result is not None

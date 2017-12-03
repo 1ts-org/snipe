@@ -46,21 +46,22 @@ import snipe.repl as repl  # noqa: E402
 class TestREPL(unittest.TestCase):
     def test_output0(self):
         w = repl.REPL(None)
-        self.assertEqual(len(w.stakes), 2)
-        self.assertEqual(w.stakes[0][1], repl.OUTPUT_START)
-        self.assertEqual(w.stakes[1][1], repl.OUTPUT_END)
+        self.assertEqual(len(w.state['stakes']), 2)
+        self.assertEqual(w.state['stakes'][0][1], repl.OUTPUT_START)
+        self.assertEqual(w.state['stakes'][1][1], repl.OUTPUT_END)
         w.cursor.insert('foo\n')
         w.output('bar ')
         w.output('baz: ')
-        self.assertEqual(len(w.stakes), 4)
-        self.assertEqual(w.stakes[2][1], repl.OUTPUT_START)
-        self.assertEqual(w.stakes[3][1], repl.OUTPUT_END)
+        self.assertEqual(len(w.state['stakes']), 4)
+        self.assertEqual(w.state['stakes'][2][1], repl.OUTPUT_START)
+        self.assertEqual(w.state['stakes'][3][1], repl.OUTPUT_END)
 
     def test_bracket(self):
         w = repl.REPL(None)
-        self.assertEqual(w.brackets(5), tuple(w.stakes[0:2]))
-        self.assertEqual(w.brackets(len(w.buf)), (w.stakes[-1], (None, None)))
-        self.assertEqual(w.brackets(0), tuple(w.stakes[0:2]))
+        self.assertEqual(w.brackets(5), tuple(w.state['stakes'][0:2]))
+        self.assertEqual(
+            w.brackets(len(w.buf)), (w.state['stakes'][-1], (None, None)))
+        self.assertEqual(w.brackets(0), tuple(w.state['stakes'][0:2]))
         l = len(w.buf)
         w.cursor.insert('data')
         m = len(w.buf)
@@ -87,10 +88,10 @@ class TestREPL(unittest.TestCase):
         w.cursor.insert('2 + 2')
         earlier = w.cursor.point
         w.go()
-        result = '\n' + str(4) + '\n' + w.ps1
+        result = '\n' + str(4) + '\n' + w.state['ps1']
         self.assertEqual(w.buf[-len(result):], result)
-        self.assertEqual(w.in_[0], '2 + 2')
-        self.assertEqual(w.out_[0], 4)
+        self.assertEqual(w.state['in'][0], '2 + 2')
+        self.assertEqual(w.state['out'][0], 4)
 
         t = 'def flurb():'
         w.cursor.insert(t)
@@ -103,21 +104,21 @@ class TestREPL(unittest.TestCase):
         w.go()
         result = result + t + '\n'
         self.assertEqual(w.buf[-len(result):], result)
-        self.assertEqual(w.in_[1], '2 + 2')
-        self.assertEqual(w.out_[1], 4)
+        self.assertEqual(w.state['in'][1], '2 + 2')
+        self.assertEqual(w.state['out'][1], 4)
 
     def test_bol(self):
         w = repl.REPL(None)
         w.insert('foo')
         w.beginning_of_line()
         bol = w.cursor.point
-        self.assertEqual(w.buf[bol:], w.ps1 + 'foo')
+        self.assertEqual(w.buf[bol:], w.state['ps1'] + 'foo')
         w.end_of_line()
         w.electric_beginning_of_line()
         self.assertEqual(w.cursor.point, bol)
         w.end_of_line()
         w.electric_beginning_of_line(interactive=True)
-        self.assertEqual(w.cursor.point, bol + len(w.ps1))
+        self.assertEqual(w.cursor.point, bol + len(w.state['ps1']))
         w.electric_beginning_of_line(interactive=True)
         self.assertEqual(w.cursor.point, bol)
         w.electric_beginning_of_line(interactive=True)
@@ -131,7 +132,7 @@ class TestREPL(unittest.TestCase):
         w = repl.REPL(mocks.FE())
         w.insert('import sys')
         w.go()
-        self.assertEqual(w.out_[0], None)
+        self.assertEqual(w.state['out'][0], None)
 
     def test_func(self):
         w = repl.REPL(mocks.FE())
@@ -139,7 +140,7 @@ class TestREPL(unittest.TestCase):
         w.go()
         w.insert('func()')
         w.go()
-        self.assertEqual(w.out_[1], 4)
+        self.assertEqual(w.state['out'][1], 4)
         w.insert('''def fib(n):
             if n < 2:
                 return n
@@ -148,7 +149,7 @@ class TestREPL(unittest.TestCase):
         w.go()
         w.insert('fib(6)')
         w.go()
-        self.assertEqual(w.out_[3], 8)
+        self.assertEqual(w.state['out'][3], 8)
 
 
 if __name__ == '__main__':
