@@ -598,6 +598,7 @@ class SlackMessage(messages.SnipeMessage):
         if ((t == 'message' and 'text' not in self.data)
                 or t not in ('message', 'presence_change',)):
             self.unhandled = True
+            self.noise = True
 
     def displayname(self, s):
         return str(self.backend.dests.get(s, s))
