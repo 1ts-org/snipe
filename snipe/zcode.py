@@ -41,30 +41,32 @@ LEFT, RIGHT = '({[<', ')}]>'
 MATCH = dict(zip(LEFT, RIGHT))
 
 
-def __merge(*args):
-    r = {}
+def __state(*args, default=None):
+    state = {}
     for d in args:
-        r.update(d)
-    return r
+        state.update(d)
+    return collections.defaultdict(
+        lambda: default,
+        state)
 
 
 machine = {
-    'start': collections.defaultdict(
-        lambda: ('emit', 'clear'), __merge({
+    'start': __state(
+        {
             '@': ('save', '>@',),
             '': ('emit', 'tidy',)
-            },
-            {c: ('pop?', 'emit') for c in RIGHT},
-            )),
-    '@': collections.defaultdict(
-        lambda: ('emit', 'clear', '>start'), __merge({
+        },
+        {c: ('pop?', 'emit') for c in RIGHT},
+        default=('emit', 'clear')),
+    '@': __state(
+        {
             '@': ('clear', 'emit', '>start'),
             '': ('emit', 'tidy',),
-            },
-            {c: ('save',) for c in IDCHARS},
-            {c: ('pop?', 'emit', 'clear', '>start') for c in RIGHT},
-            {c: ('tidy', 'push', 'clear', '>start') for c in LEFT},
-            )),
+        },
+        {c: ('save',) for c in IDCHARS},
+        {c: ('pop?', 'emit', 'clear', '>start') for c in RIGHT},
+        {c: ('tidy', 'push', 'clear', '>start') for c in LEFT},
+        default=('emit', 'clear', '>start')),
     }
 
 
