@@ -46,6 +46,7 @@ sys.path.append('..')
 sys.path.append('../lib')
 
 import snipe.editor  # noqa: E402
+import snipe.chunks  # noqa: E402
 
 
 class TestEditor(unittest.TestCase):
@@ -215,7 +216,7 @@ class TestEditor(unittest.TestCase):
             [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'abcdef'),
-                (e.SHOW_CONTROL, '^G'),
+                (snipe.chunks.Chunk.SHOW_CONTROL, '^G'),
                 ((), 'hi'),
                 ({'cursor', 'visible'}, ''),
             ])])
@@ -224,7 +225,8 @@ class TestEditor(unittest.TestCase):
             [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
             [(0, [
                 ((), 'abcdef'),
-                (e.SHOW_CONTROL | {'cursor', 'visible'}, '^G'),
+                (snipe.chunks.Chunk.SHOW_CONTROL | {'cursor', 'visible'},
+                    '^G'),
                 ((), 'hi'),
             ])])
 

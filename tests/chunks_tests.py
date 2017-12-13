@@ -203,3 +203,20 @@ class TestChunk(unittest.TestCase):
     def test_endswith(self):
         self.assertTrue(
             Chunk([({'bold'}, 'foo'), ({'italic'}, 'bar')]).endswith('foobar'))
+
+    def test_show_control(self):
+        self.assertEqual(
+            Chunk([((), 'foo bar')]).show_control().tagsets(),
+            [((), 'foo bar')])
+        self.assertEqual(
+            Chunk([((), 'foo\007bar')]).show_control().tagsets(),
+            [((), 'foo'), (Chunk.SHOW_CONTROL, '^G'), ((), 'bar')])
+        self.assertEqual(
+            Chunk([((), '\007bar')]).show_control().tagsets(),
+            [(Chunk.SHOW_CONTROL, '^G'), ((), 'bar')])
+        self.assertEqual(
+            Chunk([((), 'foo\007')]).show_control().tagsets(),
+            [((), 'foo'), (Chunk.SHOW_CONTROL, '^G')])
+        self.assertEqual(
+            Chunk([((), 'foo\177bar')]).show_control().tagsets(),
+            [((), 'foo'), (Chunk.SHOW_CONTROL, '^?'), ((), 'bar')])

@@ -316,7 +316,6 @@ class Viewer(window.Window, window.PagingMixIn):
             return result
 
     SHOW_COMBINING = {'bg:blue', 'bold'}
-    SHOW_CONTROL = {'bold'}
 
     def view(self, origin, direction='forward'):
         m = self.buf.mark(origin)
@@ -389,15 +388,7 @@ class Viewer(window.Window, window.PagingMixIn):
                     s = s[:explode_start] + exploded + s[explode_end:]
                 chunk.at_add(coff, {'cursor', 'visible'})
 
-            for i, ch in reversed(list(enumerate(s))):
-                c = ord(ch)
-                if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
-                    left, rest = chunk.slice(i)
-                    ((old, _),), right = rest.slice(1)
-                    uncontrol = [(
-                        self.SHOW_CONTROL | (set(old) & {'cursor', 'visible'}),
-                        '^' + chr((c + ord('@')) & 127))]
-                    chunk = left + uncontrol + right
+            chunk = chunk.show_control()
 
             if self.search_term is not None:
                 chunk = chunk.mark_re(

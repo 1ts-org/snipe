@@ -727,7 +727,7 @@ class RoostMessage(messages.SnipeMessage):
             else:
                 chunk = chunks.Chunk()
 
-            return chunk
+            return chunk.show_control()
 
 
 class RoostPrincipal(messages.SnipeAddress):

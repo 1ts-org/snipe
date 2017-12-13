@@ -60,6 +60,7 @@ class Chunk:
     """
 
     POINT_TAGS = {'cursor', 'visible', 'bar'}
+    SHOW_CONTROL = {'bold'}
 
     def __init__(self, data=()):
         self.contents = []
@@ -249,3 +250,22 @@ class Chunk:
         # this is super-inefficient now but may not be in the future
         # if the future never comes, make it walk back through he list
         return str(self).endswith(text)
+
+    def show_control(self):
+        """
+        returns a possibly new Chunk with control characters hilit
+        """
+
+        chunk = self
+
+        for i, ch in reversed(list(enumerate(str(self)))):
+            c = ord(ch)
+            if (ch != '\n' and ch != '\t' and c < ord(' ')) or c == 0o177:
+                left, rest = chunk.slice(i)
+                ((old, _),), right = rest.slice(1)
+                uncontrol = [(
+                    self.SHOW_CONTROL | set(old),
+                    '^' + chr((c + ord('@')) & 127))]
+                chunk = left + uncontrol + right
+
+        return chunk
