@@ -199,7 +199,7 @@ class SnipeMessage:
             return self.headline(msg, tags) + self.body(msg, tags)
 
         @classmethod
-        def headline(self, msg, tags=set()):
+        def headline(self, msg, tags=frozenset()):
             followup = msg.followup()
             chunk = chunks.Chunk([(tags | {'bold'}, followup)])
             sender = str(msg.sender)
@@ -212,12 +212,12 @@ class SnipeMessage:
             return chunk
 
         @classmethod
-        def format(self, msg, tags=set()):
+        def format(self, msg, tags=frozenset()):
             return chunks.Chunk(
                 [(tags, msg.body + ('\n' if msg.body[-1:] != '\n' else ''))])
 
         @classmethod
-        def body(self, msg, tags=set()):
+        def body(self, msg, tags=frozenset()):
             body = self.format(msg, tags)
             if not msg.backend.indent:
                 return body

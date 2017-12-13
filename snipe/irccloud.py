@@ -36,11 +36,12 @@ Backend for talking to `IRCCloud <https://irccloud.com>`.
 
 import asyncio
 import aiohttp
+import functools
+import itertools
+import math
+import pprint
 import time
 import urllib.parse
-import itertools
-import pprint
-import math
 
 from . import chunks
 from . import filters
@@ -593,7 +594,7 @@ class IRCCloudMessage(messages.SnipeMessage):
 
     class Decor(messages.SnipeMessage.OnelineDecor):
         @classmethod
-        def headline(self, msg, tags=set()):
+        def headline(self, msg, tags=frozenset()):
             timestring = time.strftime(' %H:%M:%S', time.localtime(msg.time))
             chunk = chunks.Chunk()
             mtype = msg.data.get('type')
@@ -613,8 +614,8 @@ class IRCCloudMessage(messages.SnipeMessage):
             if mtype in msgy:
                 chunk += [
                     (tags | {'bold'}, msg.sender.short()),
-                    (tags | {'fill'}, msgy[mtype] + ' ' + msg.body),
-                    ]
+                    (tags | {'fill'}, msgy[mtype] + ' '),
+                    ] + irc_format(msg.body, frozenset(tags | {'fill'}))
             elif mtype in (
                     'motd_response', 'server_luserconns',
                     'server_n_global', 'server_n_local', 'server_luserme',
@@ -626,8 +627,10 @@ class IRCCloudMessage(messages.SnipeMessage):
                     ):
                 chunk.append((
                     tags,
-                    (msg.data['server'] + ': ' if 'server' in msg.data else '')
-                    + msg.body))
+                    (msg.data['server'] +
+                        ': ' if 'server' in msg.data else '')))
+                chunk.extend(irc_format(msg.body, frozenset(tags)))
+
             elif mtype == 'banned':
                 chunk.append(
                     (tags, msg.data['server'] + ': ' + msg.data['reason']))
@@ -761,3 +764,132 @@ class IRCCloudNonAddress(messages.SnipeAddress):
 
     def __str__(self):
         return '%s; IRCCloud %s' % (self.backend.name, self.word)
+
+
+@functools.lru_cache(1024)
+def irc_format(text, tags=frozenset()):
+    """
+    translates text containing irc formatting code into a chunk
+    color: 0x03fg[,bg]
+        color codes:
+           0 white
+           1 black
+           2 blue
+           3 green
+           4 red
+           5 brown
+           6 purple
+           7 orange
+           8 yellow
+           9 light green
+           10 teal
+           11 cyan
+           12 light blue
+           13 pink
+           14 grey
+           15 light grey
+           99 default
+    bold: 0x02
+    italic 0x1d
+    underline 0x1f
+    reverse fg, bg 0x16
+    reset 0x0f
+    """
+
+    cur_tags = frozenset(tags)
+    x_tags = tags
+    chunk = chunks.Chunk()
+    sl = []
+    number = None
+    state = 'start'
+    defs = {
+        x[0] + ':': x[1] for x in (y.split(':', 1) for y in tags if ':' in y)}
+
+    def emit():
+        nonlocal sl, cur_tags
+        if sl:
+            chunk.extend([(cur_tags, ''.join(sl))])
+            sl = []
+
+    def get_color():
+        nonlocal number
+        return {
+            0: 'white',
+            1: 'black',
+            2: 'blue',
+            3: 'green',
+            4: 'red',
+            5: 'brown',
+            6: 'purple',
+            7: 'orange',
+            8: 'yellow',
+            9: 'light green',
+            10: 'cyan4',
+            11: 'cyan',
+            12: 'light blue',
+            13: 'pink',
+            14: 'grey',
+            15: 'light grey',
+            99: 'default',
+            }.get(number)
+
+    for c in text:
+        # kludge so we can go back the start state without consuming a
+        # character:
+        hold = True
+        while hold:
+            hold = False
+            if state == 'start':
+                if c == '\x03':
+                    x_tags = cur_tags
+                    number = None
+                    state = 'fg:'
+                elif c == '\x0f':
+                    if cur_tags != tags:
+                        emit()
+                    cur_tags = frozenset(tags)
+                elif c == '\x02':
+                    emit()
+                    cur_tags ^= {'bold'}
+                elif c == '\x1d':
+                    emit()
+                    cur_tags ^= {'dim'}  # italic, but curses
+                elif c == '\x1f':
+                    emit()
+                    cur_tags ^= {'underline'}
+                elif c == '\x16':
+                    emit()
+                    cur_tags ^= {'reverse'}
+                elif c != '\n' and c != '\t' and c < ' ' or c == '\x7f':
+                    emit()
+                    chunk.extend([(
+                        {'bold'} | cur_tags,
+                        '^' + chr((ord(c) + ord('@')) & 127))])
+                else:  # plain text character
+                    sl.append(c)
+            elif state in {'fg:', 'bg:'}:
+                if c in '0123456789':
+                    if number is None:
+                        number = 0
+                    number = 10 * number + int(c)
+                else:
+                    color = get_color()
+                    if number is not None and color is not None:
+                        cur_tags = frozenset(
+                            x for x in cur_tags if not x.startswith(state))
+                        if color == 'default':
+                            color = defs.get(state)
+                        if color is not None:
+                            cur_tags |= {state + color}
+                        if cur_tags != x_tags:
+                            cur_tags, x_tags = x_tags, cur_tags
+                            emit()
+                            cur_tags = x_tags
+                    if state == 'fg:' and c == ',':
+                        state = 'bg:'
+                    else:
+                        state = 'start'
+                        hold = True
+    emit()
+
+    return chunk

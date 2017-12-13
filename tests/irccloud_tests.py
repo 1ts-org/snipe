@@ -284,5 +284,39 @@ class TestIRCCloudMessage(unittest.TestCase):
             ' 12 chars None noise>')
 
 
+class TestIrcFormat(unittest.TestCase):
+    def test(self):
+        self.assertEqual(
+            irccloud.irc_format('text').tagsets(),
+            [((), 'text')])
+        self.assertEqual(
+            irccloud.irc_format('foo\007bar').tagsets(),
+            [((), 'foo'), ({'bold'}, '^G'), ((), 'bar')])
+        self.assertEqual(
+            irccloud.irc_format('\x02foo\x0fbar').tagsets(),
+            [({'bold'}, 'foo'), ((), 'bar')])
+        self.assertEqual(
+            irccloud.irc_format('foo\x02bar\x02baz').tagsets(),
+            [((), 'foo'), ({'bold'}, 'bar'), ((), 'baz')])
+        self.assertEqual(
+            irccloud.irc_format('\02\x1d\x1f\x16foo\x0fbar').tagsets(),
+            [({'bold', 'dim', 'underline', 'reverse'}, 'foo'), ((), 'bar')])
+        self.assertEqual(
+            irccloud.irc_format('\x030,2foo\x0fbar').tagsets(),
+            [({'fg:white', 'bg:blue'}, 'foo'), ((), 'bar')])
+        self.assertEqual(
+            irccloud.irc_format('foo\x032\x02\x02,bar\x0fbaz').tagsets(),
+            [((), 'foo'), ({'fg:blue'}, ',bar'), ((), 'baz')])
+
+        self.assertEqual(
+            irccloud.irc_format('foo\x0399\x02\x02,bar\x0fbaz').tagsets(),
+            [((), 'foo,barbaz')])
+
+        self.assertEqual(
+            irccloud.irc_format(
+                'foo\x032bar', frozenset({'fg:blue'})).tagsets(),
+            [({'fg:blue'}, 'foobar')])
+
+
 if __name__ == '__main__':
     unittest.main()

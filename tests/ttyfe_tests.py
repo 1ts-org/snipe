@@ -341,7 +341,7 @@ class TestTTYRenderer(unittest.TestCase):
             [('abc', 0), ('def', 0)])
         self.assertEqual(
             ttyfe.TTYRenderer.doline('ab def', 3, 3, ('fill',)),
-            [('ab', -1), ('def', 0)])
+            [('ab ', 0), ('def', 0)])
         self.assertEqual(
             ttyfe.TTYRenderer.doline('abc def', 3, 0, ('fill',)),
             [('abc', 0), ('def', 0)])

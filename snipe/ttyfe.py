@@ -138,16 +138,23 @@ class TTYRenderer:
         [(displayline, remaining), ...]'''
         # turns tabs into spaces at n*8 cell intervals
 
+        def wrap(text, width):
+            return textwrap.wrap(
+                text, width,
+                drop_whitespace=False, break_long_words=False,
+                break_on_hyphens=False)
+
         right = 'right' in tags
 
         if 'fill' in tags and s:
             nl = s.endswith('\n')
             if remaining:
-                ll = textwrap.wrap(s, remaining)
+                ll = [s for s in wrap(s, remaining) if s.strip()]
                 s = '\n'.join(
-                    ll[:1] + textwrap.wrap(' '.join(ll[1:]), width))
+                    ll[:1] + wrap(' '.join(ll[1:]), width))
             else:
-                s = '\n'.join(textwrap.wrap(s, width))
+                ll = [s for s in wrap(s, width) if s.strip()]
+                s = '\n'.join(ll)
             if nl:
                 s += '\n'
 
