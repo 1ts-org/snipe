@@ -51,6 +51,7 @@ import select
 import signal
 import termios
 import textwrap
+import unicodedata
 import unittest.mock as mock
 
 
@@ -175,7 +176,7 @@ class TTYRenderer:
                 if c == '\t':
                     c = ' ' * (8 - col % 8)
                 l = util.glyphwidth(c)
-                if not l:
+                if not l and unicodedata.category(c) not in ('Mn', 'Me'):
                     # non printing characters... don't
                     continue
                 if col + l > width:

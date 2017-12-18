@@ -331,6 +331,9 @@ class TestTTYRenderer(unittest.TestCase):
             ttyfe.TTYRenderer.doline('a\01bc', 80, 80),
             [('abc', 77)])
         self.assertEqual(
+            ttyfe.TTYRenderer.doline('äbc\n', 80, 80),
+            [('äbc', -1)])
+        self.assertEqual(
             ttyfe.TTYRenderer.doline('abcdef', 3, 3),
             [('abc', 0), ('def', 0)])
         self.assertEqual(
