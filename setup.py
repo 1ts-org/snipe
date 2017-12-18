@@ -19,7 +19,7 @@ snipe is a text-oriented (currently curses-based) "instant" messaging
 client intended for services with persistence, such as Zulip
 (https://zulip.org/), also IRCCloud (https://www.irccloud.com) and
 roost (https://github.com/roost-im).""",
-    version='0.dev3',
+    version='0.dev4',
     packages=find_packages(exclude=['tests']),
     python_requires='>=3.3',
     entry_points={'console_scripts': [
@@ -27,7 +27,12 @@ roost (https://github.com/roost-im).""",
         ]},
     test_suite='nose.collector',
     tests_require=['nose'],
+    # keep this in sync with requirements.txt
     install_requires=[
-        str(ir.req)
-        for ir in parse_requirements('requirements.txt', session='hack')]
+        'aiohttp>=2.0',
+        'docutils',
+        'Markdown==2.6.7',
+        'parsedatetime',
+        'ply',
+        ]
 )
