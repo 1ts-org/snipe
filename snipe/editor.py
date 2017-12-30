@@ -47,6 +47,9 @@ from . import util
 from . import window
 
 
+DEFPROP = {}
+
+
 @functools.total_ordering
 class Mark:
     def __init__(self, buf, point, right):
@@ -69,11 +72,11 @@ class Mark:
             repr(self.mark),
             )
 
-    def replace(self, count, string, collapsible=False):
-        return self.buf.replace(self.mark, count, string, collapsible)
+    def replace(self, count, string, collapsible=False, prop=DEFPROP):
+        return self.buf.replace(self, count, string, collapsible, prop)
 
-    def insert(self, s, collapsible=False):
-        self.point += self.replace(0, s, collapsible)
+    def insert(self, s, collapsible=False, prop=DEFPROP):
+        self.point += self.replace(0, s, collapsible, prop)
 
     def delete(self, count):
         self.replace(count, '')
@@ -84,6 +87,12 @@ class Mark:
     def __iadd__(self, delta):
         self.point += delta
         return self
+
+    def __add__(self, delta):
+        return self.point + delta
+
+    def __sub__(self, delta):
+        return self + -delta
 
     def __index__(self):
         return self.point
@@ -110,6 +119,7 @@ class Buffer:
 
         self.buf = gap.UndoableGapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
+        self.props = []
 
         # place for windows to stash buffer-specific state
         self.state = {}
@@ -153,9 +163,66 @@ class Buffer:
         self.cache = {}
         return self.buf.undo(which)
 
-    def replace(self, where, count, string, collapsible):
+    # why bisect.bisect_* doesn't have a key argument...
+    def _bisect_props_left(self, where):
+        left, right = 0, len(self.props)
+        while left < right:
+            center = (left + right) // 2
+            mark, prop = self.props[center]
+            if mark < where:
+                left = center + 1
+            else:
+                right = center
+        return left
+
+    def _bisect_props(self, where):
+        left, right = 0, len(self.props)
+        while left < right:
+            center = (left + right) // 2
+            mark, prop = self.props[center]
+            if where < mark:
+                right = center
+            else:
+                left = center + 1
+        return left
+
+    def _find_prop(self, where):
+        index = self._bisect_props(where)
+        if index == 0:
+            return -1, -1, DEFPROP
+        return (index - 1,) + self.props[index - 1]
+
+    def replace(self, where, count, string, collapsible=False, prop=DEFPROP):
+        if prop is None:
+            prop = DEFPROP
         self.cache = {}
-        return self.buf.replace(where, count, string, collapsible)
+        start_index, start_mark, start_prop = self._find_prop(
+            max(where - 1, 0))
+        end = where + count
+        end_index, end_mark, end_prop = self._find_prop(end)
+        r_start = self._bisect_props_left(where)
+        r_end = self._bisect_props(end)
+        size = self.buf.replace(where, count, string, collapsible)
+        newprops = []
+        if size != 0 and start_prop != prop:
+            newprops = [(self.mark(where), prop)]
+        if size == 0 and end_prop != start_prop:
+            newprops.append((self.mark(where + size), end_prop))
+        if end_mark != where + size and where + size != len(self):
+            if size != 0 and end_prop != prop:
+                newprops.append((self.mark(where + size), end_prop))
+        self.props[r_start:r_end] = newprops
+        return size
+
+    def propter(self):
+        for (start, props), (end, _) in zip(
+                itertools.chain([(0, DEFPROP)], self.props),
+                itertools.chain(self.props, [(-1, DEFPROP)])):
+            if start == end == 0:
+                continue
+            if end == -1:
+                end = len(self)
+            yield props, self[start:end]
 
 
 class Viewer(window.Window, window.PagingMixIn):
@@ -221,15 +288,15 @@ class Viewer(window.Window, window.PagingMixIn):
         hint['buffer'] = self.buf
         return hint
 
-    def insert(self, s, collapsible=False):
-        self.cursor += self.replace(0, s, collapsible)
+    def insert(self, s, collapsible=False, prop=DEFPROP):
+        self.cursor += self.replace(0, s, collapsible, prop)
 
     def delete(self, count):
         self.log.debug('delete %d', count)
         self.replace(count, '')
 
-    def replace(self, count, string, collapsible=False):
-        return self.cursor.replace(count, string, collapsible)
+    def replace(self, count, string, collapsible=False, prop=DEFPROP):
+        return self.cursor.replace(count, string, collapsible, prop)
 
     @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=1):
@@ -815,11 +882,11 @@ class Editor(Viewer):
     def writable(self):
         return self._writable
 
-    def replace(self, count, string, collapsible=False):
+    def replace(self, count, string, collapsible=False, prop=DEFPROP):
         if not self.writable():
             self.whine('window is readonly')
             return 0
-        return super().replace(count, string, collapsible)
+        return super().replace(count, string, collapsible, prop)
 
     @keymap.bind(
         '[tab]', '[linefeed]',

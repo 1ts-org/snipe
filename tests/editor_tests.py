@@ -517,6 +517,113 @@ class TestBuffer(unittest.TestCase):
         b.undo(None)
         self.assertEqual(b[:], '')
 
+    def test__find_prop(self):
+        b = snipe.editor.Buffer()
+
+        b.props = [(0, 0)]
+
+        self.assertEqual(b._find_prop(0), (0, 0, 0))
+        self.assertEqual(b._find_prop(1), (0, 0, 0))
+
+        b.props = [(1, 1), (3, 3)]
+
+        self.assertEqual(b._find_prop(0), (-1, -1, {}))
+        self.assertEqual(b._find_prop(1), (0, 1, 1))
+        self.assertEqual(b._find_prop(2), (0, 1, 1))
+        self.assertEqual(b._find_prop(3), (1, 3, 3))
+        self.assertEqual(b._find_prop(4), (1, 3, 3))
+
+    def test_replace_prop(self):
+        b = snipe.editor.Buffer()
+        TEXT = 'one two three'
+        b.replace(0, 0, TEXT)
+        self.assertEqual([({}, TEXT)], list(b.propter()))
+
+        b.replace(4, 4, TEXT[4:8].upper(), prop={'name': 'value'})
+
+        self.assertEqual(
+            [
+                ({}, TEXT[:4]),
+                ({'name': 'value'}, TEXT[4:8].upper()),
+                ({}, TEXT[8:]),
+            ],
+            list(b.propter()))
+
+        b.replace(0, 1, TEXT[:1].upper(), prop={'name': 'value'})
+
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:1].upper()),
+                ({}, TEXT[1:4]),
+                ({'name': 'value'}, TEXT[4:8].upper()),
+                ({}, TEXT[8:]),
+            ],
+            list(b.propter()))
+
+        b.replace(1, 3, TEXT[1:4].upper(), prop={'name': 'value'})
+
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:8].upper()),
+                ({}, TEXT[8:]),
+            ],
+            list(b.propter()))
+
+        b.replace(8, 5, TEXT[8:].upper(), prop={'name': 'value'})
+
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT.upper()),
+            ],
+            list(b.propter()))
+
+        b.replace(b.mark(4), 1, TEXT[4], prop={})
+
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:4].upper()),
+                ({}, TEXT[4:5]),
+                ({'name': 'value'}, TEXT[5:].upper()),
+            ],
+            list(b.propter()))
+
+        b.replace(4, 1, TEXT[4].upper(), prop={'name': 'value'})
+        self.assertEqual(
+            [({'name': 'value'}, TEXT.upper())],
+            list(b.propter()))
+
+        b.replace(4, 0, '1.5 ', prop={})
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:4].upper()),
+                ({}, '1.5 '),
+                ({'name': 'value'}, TEXT[4:].upper()),
+            ],
+            list(b.propter()))
+
+        b.replace(4, 4, '')
+        self.assertEqual(
+            [({'name': 'value'}, TEXT.upper())],
+            list(b.propter()))
+
+        b.replace(4, 0, '1.5 ', prop={})
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:4].upper()),
+                ({}, '1.5 '),
+                ({'name': 'value'}, TEXT[4:].upper()),
+            ],
+            list(b.propter()))
+
+        b.replace(4, 2, '', prop={})
+        self.assertEqual(
+            [
+                ({'name': 'value'}, TEXT[:4].upper()),
+                ({}, '5 '),
+                ({'name': 'value'}, TEXT[4:].upper()),
+            ],
+            list(b.propter()))
+
 
 class TestView(unittest.TestCase):
     def test_constructor_misc(self):

@@ -600,7 +600,7 @@ class Search(LongPrompt):
                 False
                 )
 
-    def replace(self, count, string, collapsible=False):
+    def replace(self, count, string, collapsible=False, prop=editor.DEFPROP):
         self.log.debug(
             'replace %d/[%d], cursor=%d',
             count, len(string), self.cursor.point)
