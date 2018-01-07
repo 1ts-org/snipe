@@ -1233,6 +1233,7 @@ COMPOSE_SEQUENCES += [
     ('/ p', '\N{latin small letter thorn}'),
     ('/ /', '\N{division sign}'),
     ('/ =', '\N{not equal to}'),
+    ('/ s', '\N{macron}\\_(\N{katakana letter tu})_/\N{macron}'),
     ('^ 0', '\N{superscript zero}'),
     ('^ 1', '\N{superscript one}'),
     ('^ 2', '\N{superscript two}'),
