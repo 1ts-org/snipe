@@ -9,9 +9,9 @@ python:
  - "nightly"
 install:
  - pip install -r requirements.txt
- - pip install flake8\<3.5 coveralls
+ - pip install flake8 coveralls
 script:
- - flake8
+ - flake8 rooster.py setup.py snipe.py swearing.py snipe tests
  - TZ=GMT nosetests -v --with-coverage -w tests
 after_success:
  - coveralls

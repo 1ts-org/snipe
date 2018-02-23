@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 from setuptools import setup, find_packages
-from pip.req import parse_requirements
+
 setup(
     name='snipe-im',
     description='curses client for persistent IM systems',

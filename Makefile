@@ -4,7 +4,7 @@ NOSETESTS=TZ=GMT $(NOSE) -v -w tests
 all check: flake8 nosetests
 
 flake8:
-	flake8 snipe tests
+	flake8 rooster.py setup.py snipe.py swearing.py snipe tests
 
 nosetests:
 	$(NOSETESTS)

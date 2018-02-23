@@ -1,0 +1,12 @@
+[flake8]
+ignore =
+    # default ignore list in 3.5.0
+    E121, E123, E126, E226, E24, E704, W503, W504,
+    # "do not use variables named ‘l’, ‘O’, or ‘I’"
+    # .. or just use a reasonable font.
+    E741,
+    # "do note use bare except"
+    # Not unreasonable, just new and involves some thought
+    E722
+
+
