@@ -1,7 +1,24 @@
 [flake8]
 ignore =
-    # default ignore list in 3.5.0
-    E121, E123, E126, E226, E24, E704, W503, W504,
+    # default ignore list in 3.5.0:
+    # continuation line under-indented for hanging indent
+    E121,
+    # closing bracket does not match indentation of opening bracket’s line
+    E123,
+    # continuation line over-indented for hanging indent
+    E126,
+    # missing whitespace around arithmetic operator
+    E226,
+    # multiple spaces or tab after ,
+    E24,
+    # multiple statements on one line (def)
+    # E704,
+    # line break before binary operator
+    W503,
+    # line break after binary operator
+    # W504,
+    #
+    # my own opinions:
     # "do not use variables named ‘l’, ‘O’, or ‘I’"
     # .. or just use a reasonable font.
     E741,
