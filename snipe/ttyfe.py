@@ -740,9 +740,7 @@ class TTYFrontend:
             try:
                 k = self.stdscr.get_wch()
             except curses.error as e:
-                if e.args == ('no input',):
-                    break
-                raise
+                break  # XXX presuming no input
             if k == curses.KEY_RESIZE:
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))
             elif self.input is not None:

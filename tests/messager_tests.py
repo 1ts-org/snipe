@@ -574,8 +574,14 @@ body: ""
 
         f.context.backends._messages[0].omega = True
         os.environ['TZ'] = 'GMT'
-        with mock.patch('datetime.date', MockDate):
-            w.prev_day()
+        try:
+            # pypy
+            with mock.patch('datetime.date.today', MockDate.today):
+                w.prev_day()
+        except TypeError:
+            # cpython
+            with mock.patch('datetime.date', MockDate):
+                w.prev_day()
         self.assertEqual(target, (0.0,))
 
         f.context.backends._messages[0].omega = False
