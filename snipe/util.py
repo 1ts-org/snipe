@@ -326,12 +326,27 @@ class HTTP_JSONmixin:
         if headers is None:
             headers = {}
         headers['User-Agent'] = USER_AGENT
+        self._JSONmixin_headers = headers
+        self._JSONmixin_kw = kw
+        self._clientsession = None
+
+    @asyncio.coroutine
+    def _ensure_client_session(self):
+        if self._clientsession is None:
+            self._clientsession = aiohttp.ClientSession(
+                headers=self._JSONmixin_headers, **self._JSONmixin_kw)
+
+    @asyncio.coroutine
+    def reset_client_session_headers(self, headers):
         if getattr(self, '_clientsession', None) is not None:
-            self._clientsession.close()
-        self._clientsession = aiohttp.ClientSession(headers=headers, **kw)
+            yield from asyncio.coroutine(self._clientsession.close)()
+            self._clientsession = None
+        self._JSONmixin_headers = headers
+        yield from self._ensure_client_session()
 
     @asyncio.coroutine
     def _result(self, response):
+        yield from self._ensure_client_session()
         try:
             result = yield from response.json()
         except (UnicodeError, ValueError) as e:
@@ -346,6 +361,7 @@ class HTTP_JSONmixin:
 
     @asyncio.coroutine
     def _post(self, path, **kw):
+        yield from self._ensure_client_session()
         self.log.debug(
             '_post(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
         response = yield from self._clientsession.post(
@@ -354,6 +370,7 @@ class HTTP_JSONmixin:
 
     @asyncio.coroutine
     def _post_json(self, path, **kw):
+        yield from self._ensure_client_session()
         self.log.debug(
             '_post_json(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
         response = yield from self._clientsession.post(
@@ -365,6 +382,7 @@ class HTTP_JSONmixin:
 
     @asyncio.coroutine
     def _patch(self, path, **kw):
+        yield from self._ensure_client_session()
         self.log.debug(
             '_patch(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
         response = yield from self._clientsession.patch(
@@ -373,6 +391,7 @@ class HTTP_JSONmixin:
 
     @asyncio.coroutine
     def _get(self, path, **kw):
+        yield from self._ensure_client_session()
         self.log.debug(
             '_get(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
         response = yield from self._clientsession.get(
@@ -381,6 +400,7 @@ class HTTP_JSONmixin:
 
     @asyncio.coroutine
     def _request(self, method, url, **kw):
+        yield from self._ensure_client_session()
         self.log.debug(
             '_request(%s, %s, **%s)', repr(method), repr(url), repr(kw))
         response = yield from self._clientsession.request(method, url, **kw)
@@ -389,7 +409,8 @@ class HTTP_JSONmixin:
     @asyncio.coroutine
     def shutdown(self):
         yield from super().shutdown()
-        self._clientsession.close()
+        if self._clientsession is not None:
+            yield from asyncio.coroutine(self._clientsession.close)()
 
 
 class JSONWebSocket:
@@ -398,18 +419,12 @@ class JSONWebSocket:
         self.log = log
         self.session = aiohttp.ClientSession()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    @asyncio.coroutine
+    def close(self):
         if self.resp is not None:
-            self.resp.close()
-            if not self.resp._response._closed:
-                self.log.error('closing internal response object')
-                self.resp._response.close()
+            yield from asyncio.coroutine(self.resp.close)()
             self.resp = None
-        self.session.close()
-        return False
+        yield from asyncio.coroutine(self.session.close)()
 
     @asyncio.coroutine
     def connect(self, url, headers=None):
@@ -421,8 +436,9 @@ class JSONWebSocket:
 
         return self.resp
 
+    @asyncio.coroutine
     def write(self, data):
-        return self.resp.send_json(data)
+        return (yield from asyncio.coroutine(self.resp.send_json)(data))
 
     @asyncio.coroutine
     def read(self):

@@ -101,7 +101,7 @@ class Rooster(util.HTTP_JSONmixin):
             )
 
         self.token = result['authToken']
-        self.setup_client_session(headers={
+        yield from self.reset_client_session_headers({
             'Authorization': 'Bearer ' + self.token,
             })
 
@@ -216,13 +216,14 @@ class Rooster(util.HTTP_JSONmixin):
 
         self.log.debug('startid=%s', startid)
 
-        with util.JSONWebSocket(self.log) as ws:
+        ws = util.JSONWebSocket(self.log)
+        try:
             try:
                 yield from ws.connect(self.url + '/v1/socket/websocket')
             except aiohttp.ClientOSError as e:
                 self.log.debug('error connecting')
                 raise RoosterReconnectException(str(e), wait=5) from e
-            ws.write({
+            yield from ws.write({
                 'type': 'auth',
                 'token': self.token,
                 })
@@ -239,7 +240,7 @@ class Rooster(util.HTTP_JSONmixin):
                 except asyncio.TimeoutError as e:
                     if state == 'pong':
                         self.log.debug('ping')
-                        ws.write({
+                        yield from ws.write({
                             'type': 'ping',
                             })
                         state = 'ping'
@@ -254,13 +255,13 @@ class Rooster(util.HTTP_JSONmixin):
                 if state == 'start':
                     assert m['type'] == 'ready'
                     self.log.debug('authed, starting tail %d', tailid)
-                    ws.write({
+                    yield from ws.write({
                         'type': 'new-tail',
                         'id': tailid,
                         'start': startid,
                         'inclusive': False,
                         })
-                    ws.write({
+                    yield from ws.write({
                         'type': 'extend-tail',
                         'id': tailid,
                         'count': msgcount,
@@ -272,7 +273,7 @@ class Rooster(util.HTTP_JSONmixin):
                         state = 'pong'
                     elif m['type'] == 'messages':
                         msgcount += 1
-                        ws.write({
+                        yield from ws.write({
                             'type': 'extend-tail',
                             'id': tailid,
                             'count': msgcount,
@@ -281,6 +282,8 @@ class Rooster(util.HTTP_JSONmixin):
                             yield from coro(msg)
                     else:
                         self.log.debug('unknown message type: %s', repr(m))
+        finally:
+            yield from ws.close()
 
 
 class ExileException(RoosterException):

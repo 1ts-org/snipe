@@ -187,7 +187,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.log.debug('websocket url is %s', url)
 
-            with util.JSONWebSocket(self.log) as self.websocket:
+            self.websocket = util.JSONWebSocket(self.log)
+            try:
                 yield from self.websocket.connect(url)
 
                 self.connected = True
@@ -200,6 +201,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     except:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))
+            finally:
+                yield from asyncio.coroutine(self.websocket.close)()
+                self.websocket = None
+
         except asyncio.CancelledError:
             raise
         except:

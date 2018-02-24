@@ -35,7 +35,6 @@ Backend for talking to `IRCCloud <https://irccloud.com>`.
 
 
 import asyncio
-import aiohttp
 import functools
 import itertools
 import math
@@ -100,7 +99,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @asyncio.coroutine
     def say(self, cid, to, msg):
-        self.websocket.write(dict(
+        yield from self.websocket.write(dict(
             _method='say',
             _reqid=self.reqid,
             cid=cid,
@@ -115,7 +114,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 yield from self.connect_once()
             except asyncio.CancelledError:
                 return
-            except (aiohttp.errors.DisconnectedError, asyncio.TimeoutError):
+            except asyncio.TimeoutError:
                 pass
             yield from asyncio.sleep(2)
 
@@ -169,7 +168,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 ('since_id', str(self.last_eid)),
                 ])
             self.since_id = self.last_eid
-        with util.JSONWebSocket(self.log) as self.websocket:
+
+        self.websocket = util.JSONWebSocket(self.log)
+        try:
             yield from self.websocket.connect(
                 IRCCLOUD_API,
                 {
@@ -189,10 +190,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.debug('message: %s', repr(m))
                 try:
                     yield from self.incoming(m)
-                except:
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
                     self.log.exception(
                         'Processing incoming message: %s', repr(m))
                     raise
+        finally:
+            yield from asyncio.coroutine(self.websocket.close)()
+            self.websocket = None
 
     @asyncio.coroutine
     def process_message(self, msglist, m):
