@@ -54,6 +54,7 @@ def main():
 
         logging.captureWarnings(True)
         warnings.simplefilter('always')
+        warnings.simplefilter('ignore', category=DeprecationWarning)
 
         options = parse_options(sys.argv)
 
