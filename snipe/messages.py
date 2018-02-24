@@ -705,9 +705,9 @@ class AggregatorBackend(SnipeBackend):
 
     @asyncio.coroutine
     def shutdown(self):
-        for backend in self.backends:
-            self.log.debug('shutting down %s', backend.name)
-            yield from backend.shutdown()
+        yield from asyncio.gather(
+            *[backend.shutdown() for backend in self.backends],
+            return_exceptions=True)
         yield from super().shutdown()
 
     def __iter__(self):
