@@ -111,7 +111,7 @@ class REPL(editor.Editor):
             assert x > 0
             return tuple(self.state['stakes'][x - 1:x + 1])
 
-    def writable(self):
+    def writable(self, count, where=None):
         # XXX should find the size of the operation before okaying it
         return self.brackets(self.cursor)[0][1] == OUTPUT_END
 

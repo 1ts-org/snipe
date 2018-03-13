@@ -441,6 +441,16 @@ class TestEditor(unittest.TestCase):
         w.find('abc', False)
         self.assertEqual(w.cursor.point, 0)
 
+    def test_writable(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abc')
+        e.insert('def', prop={'mutable': False})
+        e.insert('ghi')
+        self.assertTrue(e.writable(0, 0))
+        self.assertTrue(e.writable(3, 0))
+        self.assertFalse(e.writable(0, 3))
+        self.assertFalse(e.writable(4, 3))
+        self.assertTrue(e.writable(0, 6))
 
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
@@ -533,6 +543,15 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(b._find_prop(3), (1, 3, 3))
         self.assertEqual(b._find_prop(4), (1, 3, 3))
 
+        b.props = [(2, 1), (4, 3)]
+
+        self.assertEqual(b._find_prop(0), (-1, -1, {}))
+        self.assertEqual(b._find_prop(1), (-1, -1, {}))
+        self.assertEqual(b._find_prop(2), (0, 2, 1))
+        self.assertEqual(b._find_prop(3), (0, 2, 1))
+        self.assertEqual(b._find_prop(4), (1, 4, 3))
+        self.assertEqual(b._find_prop(5), (1, 4, 3))
+
     def test_replace_prop(self):
         b = snipe.editor.Buffer()
         TEXT = 'one two three'
@@ -623,6 +642,30 @@ class TestBuffer(unittest.TestCase):
                 ({'name': 'value'}, TEXT[4:].upper()),
             ],
             list(b.propter()))
+
+    def test_propter_offset(self):
+        b = snipe.editor.Buffer()
+        TEXT = 'one two three'
+        b.replace(0, 0, TEXT)
+        self.assertEqual([({}, TEXT)], list(b.propter()))
+
+        b.replace(4, 4, TEXT[4:8].upper(), prop={'name': 'value'})
+
+        self.assertEqual(
+            [
+                ({}, TEXT[:4]),
+                ({'name': 'value'}, TEXT[4:8].upper()),
+                ({}, TEXT[8:]),
+            ],
+            list(b.propter()))
+
+        self.assertEqual(
+            [
+                ({}, TEXT[1:4]),
+                ({'name': 'value'}, TEXT[4:8].upper()),
+                ({}, TEXT[8:]),
+            ],
+            list(b.propter(1)))
 
 
 class TestView(unittest.TestCase):

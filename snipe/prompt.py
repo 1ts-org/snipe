@@ -73,7 +73,7 @@ class LongPrompt(editor.Editor):
             self.divider = proto.divider
         else:
             self.cursor.point = 0
-            self.insert(prompt)
+            self.insert(prompt, prop={'mutable': False, 'navigable': False})
             self.divider = int(self.cursor)
         self.end_of_buffer()
         self.histptr = 0
@@ -119,14 +119,6 @@ class LongPrompt(editor.Editor):
         self.insert(new)
         self.histptr = new_ptr
         self.inverse_input = False
-
-    def writable(self):
-        return super().writable() and self.cursor >= self.divider
-
-    def movable(self, point, interactive):
-        if interactive and point < self.divider:
-            return self.divider
-        return super().movable(point, interactive)
 
     def maybe_inverse(self, tags):
         if self.inverse_input and 'reverse' not in tags:

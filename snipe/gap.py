@@ -195,6 +195,15 @@ class UndoableGapBuffer(GapBuffer):
                 ))
         return super().replace(where, size, string)
 
+    def undo_entry(self, which):
+        if not self.undolog:
+            return None
+        if which is not None:
+            off = which
+        else:
+            off = len(self.undolog) - 1
+        return self.undolog[off]
+
     def undo(self, which):
         if not self.undolog:
             return None
@@ -202,7 +211,7 @@ class UndoableGapBuffer(GapBuffer):
             off = which
         else:
             off = len(self.undolog) - 1
-        where, size, string = self.undolog[off]
+        where, size, string = self.undo_entry(off)
         self.replace(where, size, string)
         return (off - 1) % len(self.undolog), where + len(string)
 

@@ -159,6 +159,7 @@ class TestGapBuffer(unittest.TestCase):
 
     def test_undo1(self):
         g = snipe.gap.UndoableGapBuffer()
+        self.assertEqual(g.undo_entry(0), None)
         self.assertEqual(g.undo(0), None)
         g.replace(0, 0, 'foo')
         self.assertEqual(g.text, 'foo')

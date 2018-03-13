@@ -81,6 +81,9 @@ class Mark:
     def delete(self, count):
         self.replace(count, '')
 
+    def prop(self, key):
+        return self.buf.get_prop(self, key)
+
     def __int__(self):
         return self.point
 
@@ -92,7 +95,7 @@ class Mark:
         return self.point + delta
 
     def __sub__(self, delta):
-        return self + -delta
+        return self + -int(delta)
 
     def __index__(self):
         return self.point
@@ -120,6 +123,7 @@ class Buffer:
         self.buf = gap.UndoableGapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
         self.props = []
+        self.base_property = {'mutable': True, 'navigable': True}
 
         # place for windows to stash buffer-specific state
         self.state = {}
@@ -163,6 +167,10 @@ class Buffer:
         self.cache = {}
         return self.buf.undo(which)
 
+    def undo_peek(self, which):
+        where, size, _ = self.buf.undo_entry(which)
+        return where, size
+
     # why bisect.bisect_* doesn't have a key argument...
     def _bisect_props_left(self, where):
         left, right = 0, len(self.props)
@@ -192,7 +200,20 @@ class Buffer:
             return -1, -1, DEFPROP
         return (index - 1,) + self.props[index - 1]
 
-    def replace(self, where, count, string, collapsible=False, prop=DEFPROP):
+    def get_prop(self, where, key):
+        _, _, prop = self.find_prop(where)
+        return self.resolve_prop(prop, key)
+
+    def find_prop(self, where):
+        size = len(self)
+        if where == size:
+            return len(self.props), size, self.base_property
+        return self._find_prop(where)
+
+    def resolve_prop(self, prop, key):
+        return prop.get(key, self.base_property.get(key))
+
+    def replace(self, where, count, string, collapsible=False, prop=None):
         if prop is None:
             prop = DEFPROP
         self.cache = {}
@@ -214,10 +235,17 @@ class Buffer:
         self.props[r_start:r_end] = newprops
         return size
 
-    def propter(self):
+    def propter(self, where=0):
+        if where == 0:
+            start = [(0, DEFPROP)]
+            offset = 0
+        else:
+            offset, mark, prop = self._find_prop(where)
+            start = [(where, prop)]
+            offset = max(0, offset)
         for (start, props), (end, _) in zip(
-                itertools.chain([(0, DEFPROP)], self.props),
-                itertools.chain(self.props, [(-1, DEFPROP)])):
+                itertools.chain(start, self.props[offset:]),
+                itertools.chain(self.props[offset:], [(-1, DEFPROP)])):
             if start == end == 0:
                 continue
             if end == -1:
@@ -273,8 +301,15 @@ class Viewer(window.Window, window.PagingMixIn):
     def title(self):
         return self.buf.name
 
-    def movable(self, point, interactive):
-        return point
+    def movable(self, where, interactive):
+        where = self.buf.mark(where)
+        while (interactive and
+                not where.prop('navigable') and
+                int(where) != int(self.cursor)):
+            # inch towards the cursor
+            delta = self.cursor - where
+            where += delta // abs(delta)  # 1 or -1
+        return where
 
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):
@@ -879,11 +914,18 @@ class Editor(Viewer):
             inserter.__name__ = 'insert %s' % (util.unirepr(s),)
         return inserter
 
-    def writable(self):
-        return self._writable
+    def writable(self, count, where=None):
+        if where is None:
+            where = self.cursor
+        if not self._writable:
+            return False
+        for delta in range(max(count, 1)):
+            if not self.buf.get_prop(where + delta, 'mutable'):
+                return False
+        return True
 
     def replace(self, count, string, collapsible=False, prop=DEFPROP):
-        if not self.writable():
+        if not self.writable(count):
             self.whine('window is readonly')
             return 0
         return super().replace(count, string, collapsible, prop)
@@ -930,7 +972,7 @@ class Editor(Viewer):
             self.beginning_of_line()
             bol = self.cursor.point
 
-            if not self.writable():
+            if not self.writable(0):
                 return  # don't wrap prompt lines :-p
 
             import textwrap
@@ -1081,12 +1123,13 @@ class Editor(Viewer):
         """Undo previous changes.   Repeat to undo more.  An integer argument
         is a repeat count."""
 
-        if not self.writable():
-            self.whine('window is read-only')
-            return
         if self.last_command != 'undo':
             self.undo_state = None
         for _ in range(count):
+            where, size = self.buf.undo_peek(self.undo_state)
+            if not self.writable(size, where):
+                self.whine('window is read-only')
+                return
             self.undo_state, where = self.buf.undo(self.undo_state)
             self.cursor.point = where
             if self.undo_state is None:

@@ -77,11 +77,11 @@ class TestREPL(unittest.TestCase):
         self.assertEqual([x[1] for x in w.brackets(m + 1)], OUTPUT)
         self.assertEqual([x[1] for x in w.brackets(len(w.buf))], TAIL)
         w.cursor.point = len(w.buf)
-        self.assertTrue(w.writable())
+        self.assertTrue(w.writable(0))
         w.cursor.point = l
-        self.assertTrue(w.writable())
+        self.assertTrue(w.writable(0))
         w.cursor.point = 0
-        self.assertFalse(w.writable())
+        self.assertFalse(w.writable(0))
 
     def test_go(self):
         w = repl.REPL(mocks.FE())
