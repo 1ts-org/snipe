@@ -74,7 +74,7 @@ class REPL(editor.Editor):
                 ' information.')
             self.output("Python (snipe) %s on %s\n%s\n" % (
                 sys.version, sys.platform, cprt))
-            self.output(self.state['ps1'])
+            self.output(self.state['ps1'], prop={'mutable': False})
             self.state['environment'] = {
                 'context': self.context,
                 'window': self,
@@ -87,7 +87,7 @@ class REPL(editor.Editor):
     def title(self):
         return super().title() + ' [%d]' % len(self.state['in'])
 
-    def output(self, s):
+    def output(self, s, prop=None):
         if (self.state['stakes']
                 and self.state['stakes'][-1][0].point == len(self.buf)
                 and self.state['stakes'][-1][1] == OUTPUT_END):
@@ -96,7 +96,10 @@ class REPL(editor.Editor):
             self.state['stakes'].append(
                 (self.buf.mark(len(self.buf)), OUTPUT_START))
         self.state['high_water_mark'].point = len(self.buf)
-        self.state['high_water_mark'].insert(s)
+        if prop is None:
+            self.state['high_water_mark'].insert(s)
+        else:
+            self.state['high_water_mark'].insert(s, prop)
         self.cursor.point = self.state['high_water_mark']
         self.state['stakes'].append((self.buf.mark(len(self.buf)), OUTPUT_END))
 
@@ -112,6 +115,8 @@ class REPL(editor.Editor):
             return tuple(self.state['stakes'][x - 1:x + 1])
 
     def writable(self, count, where=None):
+        if not super().writable(count, where):
+            return False
         # XXX should find the size of the operation before okaying it
         return self.brackets(self.cursor)[0][1] == OUTPUT_END
 
@@ -153,7 +158,7 @@ class REPL(editor.Editor):
             self.cursor.point = len(self.buf)
             self.cursor.insert('\n')
             self.output(result)
-            self.output(self.state['ps1'])
+            self.output(self.state['ps1'], prop={'mutable': False})
         # possiby incomplete from uphistory
         self.cursor.replace(0, save)
         return result is not None
