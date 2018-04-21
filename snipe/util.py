@@ -58,6 +58,17 @@ class SnipeException(Exception):
     pass
 
 
+def as_coroutine(f):
+    @asyncio.coroutine
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if asyncio.iscoroutine(f):
+            yield from f(*args, **kwargs)
+        else:
+            f(*args, **kwargs)
+    return wrapped
+
+
 class Configurable:
     registry = {}
 
@@ -252,7 +263,7 @@ def coro_cleanup(f):
     @functools.wraps(f)
     def catch_and_log(*args, **kw):
         try:
-            return (yield from asyncio.coroutine(f)(*args, **kw))
+            return (yield from as_coroutine(f)(*args, **kw))
         except asyncio.CancelledError:
             pass  # yay
         except Exception:
@@ -339,7 +350,7 @@ class HTTP_JSONmixin:
     @asyncio.coroutine
     def reset_client_session_headers(self, headers):
         if getattr(self, '_clientsession', None) is not None:
-            yield from asyncio.coroutine(self._clientsession.close)()
+            yield from as_coroutine(self._clientsession.close)()
             self._clientsession = None
         self._JSONmixin_headers = headers
         yield from self._ensure_client_session()
@@ -410,7 +421,7 @@ class HTTP_JSONmixin:
     def shutdown(self):
         yield from super().shutdown()
         if self._clientsession is not None:
-            yield from asyncio.coroutine(self._clientsession.close)()
+            yield from as_coroutine(self._clientsession.close)()
 
 
 class JSONWebSocket:
@@ -422,9 +433,9 @@ class JSONWebSocket:
     @asyncio.coroutine
     def close(self):
         if self.resp is not None:
-            yield from asyncio.coroutine(self.resp.close)()
+            yield from as_coroutine(self.resp.close)()
             self.resp = None
-        yield from asyncio.coroutine(self.session.close)()
+        yield from as_coroutine(self.session.close)()
 
     @asyncio.coroutine
     def connect(self, url, headers=None):
@@ -438,7 +449,7 @@ class JSONWebSocket:
 
     @asyncio.coroutine
     def write(self, data):
-        return (yield from asyncio.coroutine(self.resp.send_json)(data))
+        return (yield from as_coroutine(self.resp.send_json)(data))
 
     @asyncio.coroutine
     def read(self):
