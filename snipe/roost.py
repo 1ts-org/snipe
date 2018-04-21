@@ -523,10 +523,13 @@ class Roost(messages.SnipeBackend):
         self.new_task.cancel()
         try:
             yield from self.new_task
-        except:
+        except BaseException:
             self.log.exception('cancelling new_task')
-        with contextlib.suppress(ValueError):
+        with contextlib.suppress(BaseException):
             self.tasks.remove(self.new_task)
+            self.new_task.cancel()
+            yield from self.new_task
+            self.new_task.exception()
         self.new_task = None
 
 

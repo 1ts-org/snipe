@@ -448,6 +448,7 @@ class SnipeBackend:
                 t.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     yield from t
+                    t.exception()
             except:
                 self.log.exception('while shutting down')
         self.tasks = []
