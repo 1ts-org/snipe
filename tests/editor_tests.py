@@ -452,6 +452,7 @@ class TestEditor(unittest.TestCase):
         self.assertFalse(e.writable(4, 3))
         self.assertTrue(e.writable(0, 6))
 
+
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
         b = snipe.editor.Buffer(name='foo')
