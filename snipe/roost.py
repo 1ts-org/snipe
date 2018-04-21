@@ -417,13 +417,16 @@ class Roost(messages.SnipeBackend):
                 '%d messages, total %d, earliest %s',
                 count,
                 len(self.messages),
-                util.timestr(self.messages[0].time))
+                util.timestr(self.messages[0].time) if self.messages else '-')
 
             # and (maybe) circle around
             yield from asyncio.sleep(.1)
             self.backfill(mfilter, target, count=count, origin=origin)
 
-            self.redisplay(ms[0], ms[-1])
+            if ms:
+                self.redisplay(ms[0], ms[-1])
+            else:
+                self.redisplay(None, None)
             self.log.debug('done backfilling')
 
     @keymap.bind('R S')
