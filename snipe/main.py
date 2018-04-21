@@ -70,13 +70,14 @@ def main():
             ui.redisplay()
             log.warning('starting event loop')
             loop.run_forever()
-        log.warning('left main loop')
+            log.warning('left main loop')
+            loop.run_until_complete(context_.shutdown())
+    except CancelledError:
+        pass
+    finally:
+        log.warning('snipe ends')
         print()
         print('shutting down...', end='', flush=True)
-        loop.run_until_complete(context_.shutdown())
-        log.warning('snipe ends')
-        print('.', end='', flush=True)
-    finally:
         if loop is not None and not loop.is_closed():
             loop.close()
         if handler.writing:
