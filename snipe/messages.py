@@ -124,7 +124,7 @@ class SnipeMessage:
         if decor is not None:
             try:
                 return util.getobj(decor)
-            except:
+            except BaseException:
                 self.backend.log.exception('loading decor %s', decor)
         return self.Decor
 
@@ -449,7 +449,7 @@ class SnipeBackend:
                 with contextlib.suppress(asyncio.CancelledError):
                     yield from t
                     t.exception()
-            except:
+            except BaseException:
                 self.log.exception('while shutting down')
         self.tasks = []
 
@@ -465,7 +465,7 @@ class SnipeBackend:
     def redisplay(self, m1, m2):
         try:
             self.context.ui.redisplay({'messages': (m1, m2)})
-        except:
+        except Exception:
             self.log.exception('triggering redisplay')
             # do not let this propagate into the backend
 

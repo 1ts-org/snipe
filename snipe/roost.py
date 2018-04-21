@@ -317,7 +317,7 @@ class Roost(messages.SnipeBackend):
                     if stdout.endswith(sigil):
                         stdout = stdout[:-len(sigil)]
                     msg.transform('zcrypt', stdout)
-        except:
+        except Exception:
             self.log.exception('zcrypt, decrypting')
 
         self._destinations.add(msg.followup())

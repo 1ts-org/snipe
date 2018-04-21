@@ -370,7 +370,7 @@ class Python(Filter):
     def _check(self, m, state=None):
         try:
             return bool(eval(self.string, {}, {'m': m, 'state': state}))
-        except:
+        except BaseException:
             self.log.exception(
                 'executing python filter %s on %s',
                 repr(self.string),
@@ -415,7 +415,7 @@ class FilterLookup(Filter):
         try:
             self.log.debug('%s: %s', self.filtername, text)
             return makefilter(text)._check(m, state)
-        except:
+        except Exception:
             self.log.exception('in filter %s', self.filtername)
             return False
 
@@ -435,7 +435,7 @@ class FilterLookup(Filter):
         try:
             self.log.debug('%s: %s', self.filtername, text)
             return makefilter(text).simplify(d)
-        except:
+        except Exception:
             self.log.exception('in filter %s', self.filtername)
             return False
 
@@ -519,7 +519,7 @@ class Compare(Comparison):
             }[op]
         try:
             return f(left, right)
-        except:
+        except Exception:
             # XXX log a snarky comment where the user will see?
             logging.getLogger('filter').exception('in filter')
             return False
@@ -536,7 +536,7 @@ class RECompare(Comparison):
         try:
             self.re = re.compile(self.value, self.deflag(flags))
             self.flags = flags
-        except:
+        except Exception:
             self.log.exception('compiling regexp: %s', self.value)
             self.re = None
 
@@ -571,7 +571,7 @@ class RECompare(Comparison):
     def static(op, regexp, value, flags=''):
         try:
             regexp = re.compile(regexp, RECompare.deflag(flags))
-        except:
+        except Exception:
             logging.getLogger('filter').exception(
                 'compiling regexp: %s', value)
             return No()

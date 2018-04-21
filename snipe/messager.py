@@ -170,7 +170,7 @@ class Messager(window.Window, window.PagingMixIn):
                 assert len(chunk) > 0
                 for (tag, text) in chunk:
                     pass
-            except:
+            except Exception:
                 chunk = chunks.Chunk([
                     ((), repr(chunk) + '\n'),
                     (('bold',), repr(x) + '\n'),
@@ -542,7 +542,7 @@ class Messager(window.Window, window.PagingMixIn):
         for (filt, decor) in self.context.conf.get('rule', []):
             try:
                 self.rules.append((filters.makefilter(filt), decor))
-            except:  # pragma: nocover
+            except Exception:  # pragma: nocover
                 # XXX If we actually stuck this somewhere for the user to see,
                 # it would actually be testable
                 self.log.exception(
@@ -599,7 +599,7 @@ class Messager(window.Window, window.PagingMixIn):
             'Decor object: ', name='decor object')).strip()
         try:
             util.getobj(decor)
-        except:
+        except Exception:
             self.log.exception('getting specified decor object %s', decor)
             raise util.SnipeException("can't find %s" % (decor,))
         self.filter_clear_decorate({'decor': decor})

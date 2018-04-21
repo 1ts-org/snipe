@@ -149,7 +149,7 @@ class Context:
                 module = importlib.import_module(line[0], __package__)
                 backend = getattr(module, module._backend)(self, **kwargs)
                 loaded.append(backend)
-            except:
+            except BaseException:
                 self.log.exception('loading backend %s', string)
         return loaded
 
@@ -221,7 +221,7 @@ class Context:
             with open(self.stark_path()) as fp:
                 self.starks = [float(f) for f in fp.read().splitlines()]
                 self.log.debug('loaded starks: %s', repr(self.starks))
-        except:
+        except Exception:
             self.log.exception('reading starks')
 
     def write_starks(self):

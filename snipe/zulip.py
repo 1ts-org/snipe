@@ -165,7 +165,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                         msg, last_event_id = (
                             yield from self.process_event(
                                 event, last_event_id))
-                    except:
+                    except Exception:
                         self.log.exception(
                             'processing event: %s', pprint.pformat(event))
                     if msg is not None:
@@ -219,8 +219,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     'users/me/presence',
                     status='active',
                     new_user_input='true')
-            except:
-                pass
+            except Exception:
+                pass  # just ignore it
             yield from asyncio.sleep(60)
 
     @staticmethod
@@ -267,7 +267,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.drop_cache()
         except asyncio.CancelledError:
             pass
-        except:
+        except Exception:
             self.log.exception('backfilling')
         finally:
             self.backfilling = False

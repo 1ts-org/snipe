@@ -123,7 +123,7 @@ class CleverColorAssigner(SimpleColorAssigner):
                         items = line.split(maxsplit=3)
                         r, g, b = [int(x) for x in items[:3]]
                         self.rgb[items[3].strip()] = (r, g, b)
-                    except:  # pragma: nocover
+                    except Exception:  # pragma: nocover
                         self.log.exception('reading rgb.txt line')
         except FileNotFoundError:  # pragma: nocover
             pass  # cue hyperdrive failure noise

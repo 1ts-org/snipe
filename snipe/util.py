@@ -301,7 +301,7 @@ def timestr(t):
 
     try:
         t = float(t)
-    except:
+    except Exception:  # because really, no matter what happened
         return '[?' + repr(t) + ']'
 
     try:
@@ -500,7 +500,7 @@ def eval_output(string, environment=None, mode='single'):
                     mock.patch('sys.stdin', in_):
                 eval(c, environment)
             out = out.getvalue()
-    except:
+    except BaseException:
         out = traceback.format_exc()
 
     return out

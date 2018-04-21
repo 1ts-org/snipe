@@ -413,7 +413,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                             headers={'Cookie': 'session=%s' % self.session},
                             compress='gzip',
                             )
-                    except:
+                    except Exception:
                         self.log.exception(
                             'backfilling %s, try=%d, sleeping',
                             buf['name'], count)
@@ -472,7 +472,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             except asyncio.CancelledError:
                 return
-            except:
+            except Exception:
                 self.log.exception('backfilling %s', buf)
                 return
 

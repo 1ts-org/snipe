@@ -198,7 +198,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('message: %s', repr(m))
                     try:
                         yield from self.incoming(m)
-                    except:
+                    except Exception:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))
             finally:
@@ -207,7 +207,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         except asyncio.CancelledError:
             raise
-        except:
+        except Exception:
             self.log.exception('connecting to slack')
 
     def destinations(self):
@@ -422,7 +422,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 msg = yield from self.process_message(messagelist, m)
                 if d.oldest is None or d.oldest > msg.time:
                     d.oldest = msg.time
-            except:
+            except Exception:
                 self.log.exception('processing message: %s', pprint.pformat(m))
                 raise
         self.log.debug('%s: got %d messages', dest, len(messagelist))
