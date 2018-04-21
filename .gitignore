@@ -13,3 +13,6 @@ htmlcov/
 lib/
 
 venv/
+
+snipe_im.egg-info/
+
