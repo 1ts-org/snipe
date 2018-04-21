@@ -72,7 +72,7 @@ def main():
             loop.run_forever()
             log.warning('left main loop')
             loop.run_until_complete(context_.shutdown())
-    except CancelledError:
+    except asyncio.CancelledError:
         pass
     finally:
         log.warning('snipe ends')
