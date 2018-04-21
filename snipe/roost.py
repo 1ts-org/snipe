@@ -152,7 +152,7 @@ class Roost(messages.SnipeBackend):
 
             if errmsg is None:
                 pass
-            elif errmsg == 'User does not exist':
+            elif 'User does not exist' in errmsg:
                 yield from self.new_registration()
             else:
                 body = '%s: %s' % (activity, errmsg)

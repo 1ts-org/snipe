@@ -360,8 +360,10 @@ class HTTP_JSONmixin:
         yield from self._ensure_client_session()
         try:
             result = yield from response.json()
-        except (UnicodeError, ValueError) as e:
+        except (UnicodeError, ValueError, aiohttp.ContentTypeError) as e:
             data = yield from response.read()
+            if isinstance(data, bytes):
+                data = data.decode(errors='replace')
             self.log.error(
                 'json %s from %s on %s',
                 e.__class__.__name__, response.url, repr(data))
