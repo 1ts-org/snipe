@@ -1,4 +1,5 @@
-aiohttp >= 2.0
+aiohttp >= 2.0, < 3.0 ; python_version <= '3.4'
+aiohttp >= 2.0 ; python_version > '3.4'
 docutils
 Markdown == 2.6.7
 parsedatetime
