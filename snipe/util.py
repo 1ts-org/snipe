@@ -62,7 +62,7 @@ def as_coroutine(f):
     @asyncio.coroutine
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        if asyncio.iscoroutine(f):
+        if asyncio.iscoroutinefunction(f):
             yield from f(*args, **kwargs)
         else:
             f(*args, **kwargs)
