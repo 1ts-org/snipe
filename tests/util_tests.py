@@ -34,7 +34,6 @@ Unit tests for stuff in utils.py
 
 
 import asyncio
-import inspect
 import logging
 import os
 import random
@@ -167,11 +166,6 @@ class TestAsCoroutine(unittest.TestCase):
             nonlocal val
             val = 'normal'
 
-        def generator():
-            nonlocal val
-            yield from asyncio.sleep(0)
-            val = 'generator'
-
         @asyncio.coroutine
         def coroutine():
             nonlocal val
@@ -185,11 +179,8 @@ class TestAsCoroutine(unittest.TestCase):
         self.assertTrue(
             asyncio.iscoroutinefunction(snipe.util.as_coroutine(normal)))
         self.assertTrue(
-            asyncio.iscoroutinefunction(snipe.util.as_coroutine(generator)))
-        self.assertTrue(
             asyncio.iscoroutinefunction(snipe.util.as_coroutine(coroutine)))
 
-        self.assertTrue(inspect.isgeneratorfunction(generator))
         self.assertTrue(asyncio.iscoroutinefunction(coroutine))
 
         loop = asyncio.get_event_loop()
@@ -199,14 +190,8 @@ class TestAsCoroutine(unittest.TestCase):
         loop.run_until_complete(yielder(snipe.util.as_coroutine(normal)))
         self.assertEqual(val, 'normal')
 
-        loop.run_until_complete(yielder(generator))
-        self.assertEqual(val, 'generator')
-
         loop.run_until_complete(yielder(snipe.util.as_coroutine(coroutine)))
         self.assertEqual(val, 'coroutine')
-
-        loop.run_until_complete(yielder(snipe.util.as_coroutine(generator)))
-        self.assertEqual(val, 'generator')
 
 
 class TConfigurable(snipe.util.Configurable):

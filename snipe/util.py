@@ -40,7 +40,6 @@ import contextlib
 import ctypes
 import datetime
 import importlib
-import inspect
 import json
 import functools
 import logging
@@ -63,16 +62,11 @@ def as_coroutine(f):
     if asyncio.iscoroutinefunction(f):
         return f
 
-    if inspect.isgeneratorfunction(f):
-        @asyncio.coroutine
-        @functools.wraps(f)
-        def wrapped(*args, **kwargs):
-            yield from f(*args, **kwargs)
-    else:
-        @asyncio.coroutine
-        @functools.wraps(f)
-        def wrapped(*args, **kwargs):
-            f(*args, **kwargs)
+    @asyncio.coroutine
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        f(*args, **kwargs)
+
     return wrapped
 
 
