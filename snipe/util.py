@@ -109,7 +109,7 @@ class Configurable:
     def __set__(self, instance, v):
         value = self.coerce(v)
         if not self.validate(value):
-            raise TypeError('%s invalid for %s' % (repr(v), self.key))
+            raise ValueError('%s invalid for %s' % (repr(v), self.key))
         instance.context.conf.setdefault('set', {})[self.key] = value
         self.override = None
         self.action(instance.context, value)
@@ -117,7 +117,7 @@ class Configurable:
     def set_override(self, v):
         value = self.coerce(v)
         if not self.validate(value):
-            raise TypeError('%s invalid for %s' % (repr(v), self.key))
+            raise ValueError('%s invalid for %s' % (repr(v), self.key))
         self.override = value
 
     def action(self, instance, value):
