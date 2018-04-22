@@ -545,8 +545,8 @@ def _setup_wcwidth():
 
         def wcwidth(c):
             return max(os_wcwidth(ord(c)), 0)
-    except (OSError, AttributeError):
-        pass  # pragma: nocover
+    except (OSError, AttributeError):  # pragma: nocover
+        pass
     return wcwidth
 
 
