@@ -340,6 +340,9 @@ class JSONDecodeError(SnipeException):
 
 class HTTP_JSONmixin:
     # object must have a .log attribute
+
+    _get_clientsession = aiohttp.ClientSession
+
     def setup_client_session(self, headers=None, **kw):
         if headers is None:
             headers = {}
@@ -351,7 +354,7 @@ class HTTP_JSONmixin:
     @asyncio.coroutine
     def _ensure_client_session(self):
         if self._clientsession is None:
-            self._clientsession = aiohttp.ClientSession(
+            self._clientsession = self._get_clientsession(
                 headers=self._JSONmixin_headers, **self._JSONmixin_kw)
 
     @asyncio.coroutine
@@ -437,10 +440,10 @@ class HTTP_JSONmixin:
 
 
 class JSONWebSocket:
-    def __init__(self, log):
+    def __init__(self, log, clientSession=aiohttp.ClientSession):
         self.resp = None
         self.log = log
-        self.session = aiohttp.ClientSession()
+        self.session = clientSession()
 
     @asyncio.coroutine
     def close(self):

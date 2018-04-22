@@ -33,11 +33,16 @@ Unit tests for stuff in utils.py
 '''
 
 
+import asyncio
+import inspect
+import logging
 import os
 import random
 import sys
 import tempfile
 import unittest
+
+import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
@@ -51,13 +56,14 @@ class TestSafeWrite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             pathname = os.path.join(directory, 'file')
 
-            string = hex(random.randrange(2**64)) + '\n'
+            for rounds in range(2):
+                string = hex(random.randrange(2**64)) + '\n'
 
-            with snipe.util.safe_write(pathname) as fp:
-                fp.write(string)
+                with snipe.util.safe_write(pathname) as fp:
+                    fp.write(string)
 
-            with open(pathname) as fp:
-                self.assertEqual(fp.read(), string)
+                with open(pathname) as fp:
+                    self.assertEqual(fp.read(), string)
 
 
 class TestGlyphwidth(unittest.TestCase):
@@ -151,6 +157,353 @@ class TestEvalOutput(unittest.TestCase):
 class TestGetobj(unittest.TestCase):
     def test(self):
         self.assertIs(snipe.util.getobj('util_tests.TestGetobj'), TestGetobj)
+
+
+class TestAsCoroutine(unittest.TestCase):
+    def test(self):
+        val = ''
+
+        def normal():
+            nonlocal val
+            val = 'normal'
+
+        def generator():
+            nonlocal val
+            yield from asyncio.sleep(0)
+            val = 'generator'
+
+        @asyncio.coroutine
+        def coroutine():
+            nonlocal val
+            yield from asyncio.sleep(0)
+            val = 'coroutine'
+
+        @asyncio.coroutine
+        def yielder(f):
+            yield from f()
+
+        self.assertTrue(
+            asyncio.iscoroutinefunction(snipe.util.as_coroutine(normal)))
+        self.assertTrue(
+            asyncio.iscoroutinefunction(snipe.util.as_coroutine(generator)))
+        self.assertTrue(
+            asyncio.iscoroutinefunction(snipe.util.as_coroutine(coroutine)))
+
+        self.assertTrue(inspect.isgeneratorfunction(generator))
+        self.assertTrue(asyncio.iscoroutinefunction(coroutine))
+
+        loop = asyncio.get_event_loop()
+
+        self.assertEqual(val, '')
+
+        loop.run_until_complete(yielder(snipe.util.as_coroutine(normal)))
+        self.assertEqual(val, 'normal')
+
+        loop.run_until_complete(yielder(generator))
+        self.assertEqual(val, 'generator')
+
+        loop.run_until_complete(yielder(snipe.util.as_coroutine(coroutine)))
+        self.assertEqual(val, 'coroutine')
+
+        loop.run_until_complete(yielder(snipe.util.as_coroutine(generator)))
+        self.assertEqual(val, 'generator')
+
+
+class TConfigurable(snipe.util.Configurable):
+    # Override the registry so this doesn't mess with anything else's behavior
+    registry = {}
+
+
+class HasContext:
+        def __init__(self):
+            self.context = None
+
+
+class TestConfigurable(unittest.TestCase):
+    def test_set_get0(self):
+        val = ''
+
+        def setter(c, v):
+            nonlocal val
+            val = v
+
+        c = TConfigurable(
+            'foo', default='foo', oneof={'foo', 'bar'}, action=setter)
+
+        o = HasContext()
+
+        self.assertIs(c.__get__(None, None), c)
+
+        self.assertEqual(c.__get__(o, None), 'foo')
+
+        o.context = mocks.Context()
+
+        c.__set__(o, 'bar')
+
+        self.assertEqual(c.__get__(o, None), 'bar')
+
+        self.assertEqual(val, 'bar')
+
+        self.assertRaises(ValueError, lambda: c.__set__(o, 'baz'))
+
+        o.context.conf['set'] = {'foo': 'foo'}
+        self.assertEqual(c.__get__(o, None), 'foo')
+        TConfigurable.immanentize(o.context)
+        self.assertEqual(val, 'foo')
+
+    def test_set_get1(self):
+        c = TConfigurable('foo', default=0, coerce=int)
+        o = HasContext()
+        o.context = mocks.Context()
+
+        c.__set__(o, '5')
+
+        self.assertEqual(c.__get__(o, None), 5)
+
+    def test_set_get2(self):
+        c = TConfigurable('foo')  # noqa: F841
+
+        o = HasContext()
+        o.context = mocks.Context()
+
+        TConfigurable.set(o, 'foo', 'bar')
+        self.assertEqual(TConfigurable.get(o, 'foo'), 'bar')
+
+    def test_string(self):
+        c = TConfigurable('foo')
+
+        self.assertEqual(c.string(5), '5')
+
+        c = TConfigurable('foo', string=lambda x: '%02d' % x)
+
+        self.assertEqual(c.string(5), '05')
+
+    def test_overrides(self):
+        c = TConfigurable('foo', validate=lambda x: isinstance(x, str))
+
+        TConfigurable.set_overrides({'foo': 'bar'})
+
+        self.assertEqual(c.__get__(HasContext(), None), 'bar')
+
+        with self.assertRaises(ValueError):
+            TConfigurable.set_overrides({'foo': 5})
+
+
+class TestCoerceBool(unittest.TestCase):
+    def test(self):
+        self.assertEqual(snipe.util.coerce_bool(1), True)
+        self.assertEqual(snipe.util.coerce_bool(0), False)
+        self.assertEqual(snipe.util.coerce_bool('zog'), False)
+        self.assertEqual(snipe.util.coerce_bool('TRUE'), True)
+        self.assertEqual(snipe.util.coerce_bool('oN'), True)
+        self.assertEqual(snipe.util.coerce_bool('yes'), True)
+
+
+class TLevel(snipe.util.Level):
+    registry = {}
+
+
+class TestLevel(unittest.TestCase):
+    def test(self):
+        c = TLevel('foo', logger='foo', default=logging.ERROR)  # noqa: F841
+        o = HasContext()
+        o.context = mocks.Context()
+
+        TLevel.immanentize(o.context)
+
+        self.assertEqual(logging.getLogger('foo').level, logging.ERROR)
+
+        TLevel.set(o, 'foo', '10')
+        self.assertEqual(logging.getLogger('foo').level, 10)
+
+        TLevel.set(o, 'foo', 'warning')
+        self.assertEqual(logging.getLogger('foo').level, logging.WARNING)
+
+        self.assertRaises(ValueError, lambda: TLevel.set(o, 'foo', object()))
+        self.assertRaises(ValueError, lambda: TLevel.set(o, 'foo', 'zog'))
+
+
+class TestCoroCleanup(unittest.TestCase):
+    def test(self):
+        @asyncio.coroutine
+        def self_cancel():
+            raise asyncio.CancelledError
+
+        wrapped = snipe.util.coro_cleanup(self_cancel)
+
+        self.assertTrue(asyncio.iscoroutinefunction(wrapped))
+
+        loop = asyncio.get_event_loop()
+        with self.assertRaises(asyncio.CancelledError):
+            loop.run_until_complete(wrapped())
+
+        @asyncio.coroutine
+        def key_error(*args):
+            return {}[0]
+
+        with self.assertLogs('coro_cleanup'):
+            loop.run_until_complete(snipe.util.coro_cleanup(key_error)())
+
+        class X:
+            log = logging.getLogger('test_coro_cleanup')
+
+        with self.assertLogs('test_coro_cleanup'):
+            loop.run_until_complete(snipe.util.coro_cleanup(key_error)(X))
+
+
+class TestStopwatch(unittest.TestCase):
+    def test(self):
+        with self.assertLogs('stopwatch', logging.DEBUG):
+            with snipe.util.stopwatch('test'):
+                pass
+
+
+class MockClientSession:
+    def __init__(self, *args, **kw):
+        self.args = args
+        self.kw = kw
+        self.result = None
+        self.method = None
+        self.closed = False
+
+    @asyncio.coroutine
+    def post(self, *args, **kw):
+        return (yield from self.request('post', *args, **kw))
+
+    @asyncio.coroutine
+    def patch(self, *args, **kw):
+        return (yield from self.request('patch', *args, **kw))
+
+    @asyncio.coroutine
+    def get(self, *args, **kw):
+        return (yield from self.request('get', *args, **kw))
+
+    @asyncio.coroutine
+    def ws_connect(self, *args, **kw):
+        return (yield from self.request('ws_connect', *args, **kw))
+
+    @asyncio.coroutine
+    def request(self, method, *args, **kw):
+        self.method = method
+        return self.result
+
+    def close(self):
+        self.closed = True
+
+
+class MockResult:
+    def __init__(self, data, exception):
+        self.data = data
+        self.exception = exception
+        self.url = ''
+        self.closed = False
+        self.wrote = None
+
+    @asyncio.coroutine
+    def json(self):
+        if self.exception is not None:
+            raise self.exception
+
+        return self.data
+
+    @asyncio.coroutine
+    def read(self):
+        return self.data
+
+    receive_json = read
+
+    @asyncio.coroutine
+    def send_json(self, data):
+        self.wrote = data
+
+    def release(self):
+        pass
+
+    @asyncio.coroutine
+    def close(self):
+        self.closed = True
+
+
+class JSONMixinTesterSuper:
+    @asyncio.coroutine
+    def shutdown(self):
+        pass
+
+
+class JSONMixinTester(snipe.util.HTTP_JSONmixin, JSONMixinTesterSuper):
+    pass
+
+
+class TestHTTP_JSONmixin(unittest.TestCase):
+    def test(self):
+        hjm = JSONMixinTester()
+        hjm._get_clientsession = MockClientSession
+        hjm.log = logging.getLogger('test_http_json_mixin')
+        hjm.url = 'http://example.com'
+
+        hjm.setup_client_session()
+        self.assertEqual(
+            hjm._JSONmixin_headers['User-Agent'], snipe.util.USER_AGENT)
+        self.assertIsNone(hjm._clientsession)
+
+        run = asyncio.get_event_loop().run_until_complete
+        run(hjm._ensure_client_session())
+
+        self.assertTrue(isinstance(hjm._clientsession, MockClientSession))
+
+        hjm._clientsession.result = MockResult('foo', None)
+
+        self.assertEqual('foo', run(hjm._post('/foo')))
+
+        run(hjm.reset_client_session_headers({'foo': 'bar'}))
+        self.assertIsNone(hjm._clientsession.result)
+        self.assertEqual(hjm._JSONmixin_headers['foo'], 'bar')
+
+        hjm._clientsession.result = MockResult(b'foo', UnicodeError)
+
+        with self.assertRaises(snipe.util.JSONDecodeError) as ar:
+            run(hjm._post_json('/bar', baz='quux'))
+
+        self.assertIn('foo', str(ar.exception))
+
+        self.assertEqual(hjm._clientsession.method, 'post')
+
+        hjm._clientsession.result = MockResult('foo', None)
+
+        self.assertEqual('foo', run(hjm._get('/foo')))
+        self.assertEqual(hjm._clientsession.method, 'get')
+
+        self.assertEqual('foo', run(hjm._patch('/foo')))
+        self.assertEqual(hjm._clientsession.method, 'patch')
+
+        self.assertEqual('foo', run(hjm._request('zog', '/foo')))
+        self.assertEqual(hjm._clientsession.method, 'zog')
+
+        self.assertFalse(hjm._clientsession.closed)
+        run(hjm.shutdown())
+        self.assertTrue(hjm._clientsession.closed)
+
+
+class TestJSONWebSocket(unittest.TestCase):
+    def test(self):
+        jws = snipe.util.JSONWebSocket(
+            logging.getLogger('test'), MockClientSession)
+        jws.session.result = MockResult('foo', None)
+        print(jws.session)
+
+        run = asyncio.get_event_loop().run_until_complete
+        r = run(jws.connect('/bar'))
+        self.assertEqual(jws.session.method, 'ws_connect')
+        self.assertIs(r, jws.session.result)
+
+        self.assertEqual(run(jws.read()), 'foo')
+
+        run(jws.write('bar'))
+        self.assertEqual(r.wrote, 'bar')
+
+        run(jws.close())
+        self.assertTrue(r.closed)
+        self.assertTrue(jws.session.closed)
 
 
 if __name__ == '__main__':
