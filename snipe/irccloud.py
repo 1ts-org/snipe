@@ -112,8 +112,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         while True:
             try:
                 yield from self.connect_once()
-            except asyncio.CancelledError:
-                return
             except asyncio.TimeoutError:
                 pass
             yield from asyncio.sleep(2)
@@ -471,7 +469,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.redisplay(included[0], included[-1])
 
             except asyncio.CancelledError:
-                return
+                raise
             except Exception:
                 self.log.exception('backfilling %s', buf)
                 return

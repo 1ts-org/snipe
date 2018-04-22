@@ -141,7 +141,7 @@ class Roost(messages.SnipeBackend):
                     yield from asyncio.sleep(e.wait)
                 continue
             except asyncio.CancelledError:
-                return
+                raise
             except Exception as exc:
                 errmsg = str(exc)
                 snipe_exception = isinstance(exc, util.SnipeException)
@@ -201,7 +201,7 @@ class Roost(messages.SnipeBackend):
         try:
             return (yield from func(*args))
         except asyncio.CancelledError:
-            pass
+            raise
         except Exception as e:
             self.log.exception(activity)
             body = '%s: %s' % (activity, str(e))

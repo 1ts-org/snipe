@@ -198,6 +198,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('message: %s', repr(m))
                     try:
                         yield from self.incoming(m)
+                    except asyncio.CancelledError:
+                        raise
                     except Exception:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))

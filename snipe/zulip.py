@@ -180,7 +180,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.readjust(self.messages[-len(msgs) - 1:])
                     self.redisplay(msgs[0], msgs[-1])
         except asyncio.CancelledError:
-            pass
+            raise
         finally:
             self.connected.clear()
 
@@ -266,7 +266,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.readjust(self.messages)
             self.drop_cache()
         except asyncio.CancelledError:
-            pass
+            raise
         except Exception:
             self.log.exception('backfilling')
         finally:
