@@ -30,7 +30,9 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 """
-This is a cheap knockoff of curio that runs under python 3.4 becasue reasons.
+This is a cheap knockoff of David Beazly's curio that runs under python 3.4
+becasue reasons.  Seriously, curio <https://github.com/dabeaz/curio> is a
+carefully thought out carefully polished gem of a codebase; this is a hack.
 """
 
 __version__ = '0'

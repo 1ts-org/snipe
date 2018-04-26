@@ -29,7 +29,7 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 """
-This is a cheap knockoff of curio that runs under python 3.4 becasue reasons.
+This is the core of the imbroglio coroutine supervisor.
 """
 
 __all__ = ['Supervisor', 'run', 'coroutine']
