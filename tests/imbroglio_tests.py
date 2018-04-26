@@ -33,6 +33,7 @@ Unit tests for the imbroglio core
 '''
 
 import unittest
+import socket
 import sys
 import time
 
@@ -119,6 +120,70 @@ class TestImbroglio(unittest.TestCase):
 
         self.assertEqual(85, imbroglio.run(spawner()))
         self.assertEqual(3, counter)
+
+    def test_wait(self):
+        # spawn a counter, a reader, and a writer.
+
+        counter = 0
+
+        a, b = socket.socketpair()
+
+        try:
+            @imbroglio.coroutine
+            def driver():
+                yield from imbroglio.spawn(reader())
+                yield from imbroglio.spawn(ticker())
+                yield from imbroglio.spawn(writer())
+
+            @imbroglio.coroutine
+            def reader():
+                timedout, duration = yield from imbroglio.readwait(a.fileno())
+                self.assertFalse(timedout)
+                self.assertEqual(b'X', a.recv(1))
+
+            @imbroglio.coroutine
+            def ticker():
+                nonlocal counter
+
+                for i in range(5):
+                    yield from imbroglio.sleep(.1)
+                    counter += 1
+
+            @imbroglio.coroutine
+            def writer():
+                yield from imbroglio.sleep(.5)
+
+                # make sure the ticker's been running while the reader's
+                # been waiting
+                self.assertGreater(counter, 3)
+
+                # should come back immediately
+                timedout, duration = \
+                    yield from imbroglio.writewait(b.fileno(), 10)
+                self.assertFalse(timedout)
+                b.send(b'X')
+
+            imbroglio.run(driver())
+        finally:
+            a.close()
+            b.close()
+
+    def test_wait_timeout(self):
+        # spawn a reader and let it timeout
+
+        a, b = socket.socketpair()
+
+        try:
+            @imbroglio.coroutine
+            def reader():
+                timedout, duration = \
+                    yield from imbroglio.readwait(a.fileno(), .1)
+                self.assertTrue(timedout)
+
+            imbroglio.run(reader())
+        finally:
+            a.close()
+            b.close()
 
 
 if __name__ == '__main__':

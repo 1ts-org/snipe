@@ -37,6 +37,8 @@ __all__ = ['Supervisor', 'run', 'coroutine']
 import bisect
 import functools
 import inspect
+import math
+import selectors
 import sys
 import time
 
@@ -44,7 +46,7 @@ import time
 class Supervisor:
     def __init__(self):
         self.runq = []
-        self.sleepq = []
+        self.waitq = []
 
     def _call_spawn(self, coro, *coros):
         """Spawns new coroutines in the event loop"""
@@ -53,12 +55,44 @@ class Supervisor:
         self.runq.append((coro, True))  # should be the task objects eventually
 
     def _call_sleep(self, coro, duration=None):
-        """sleep for duration seconds"""
+        """sleep for duration seconds and return how long we actually slept.
+
+        If duration is None (the default), just yield until the next tick.
+        """
         now = time.monotonic()
         if duration is None:
-            bisect.insort_left(self.sleepq, (now, now, coro))
+            bisect.insort_left(self.waitq, (now, now, 0, -1, coro))
         else:
-            bisect.insort_left(self.sleepq, (now + duration, now, coro))
+            bisect.insort_left(self.waitq, (now + duration, now, 0, -1, coro))
+
+    def _call_readwait(self, coro, fd, duration=None):
+        """wait for an fd to be readable
+
+        Returns a tuple (bool, float) of whether the timeout expired and
+        how long we waited.  If duration is None (the default), potentially
+        wait forever.
+        """
+
+        self._wait_internal(coro, fd, selectors.EVENT_READ, duration)
+
+    def _call_writewait(self, coro, fd, duration=None):
+        """wait for an fd to be writable
+
+        Returns a tuple (bool, float) of whether the timeout expired and
+        how long we waited.  If duration is None (the default), potentially
+        wait forever.
+        """
+        self._wait_internal(coro, fd, selectors.EVENT_WRITE, duration)
+
+    def _wait_internal(self, coro, fd, events, duration):
+        """internals of _call_readwiat and _call_writewait"""
+        now = time.monotonic()
+        if duration is None:
+            bisect.insort_left(
+                self.waitq, (float('Inf'), now, events, fd, coro))
+        else:
+            bisect.insort_left(
+                self.waitq, (now + duration, now, events, fd, coro))
 
     def _call_magic(self, coro):
         """return a magic number"""
@@ -86,22 +120,45 @@ class Supervisor:
             tick = time.monotonic()
             runq, self.runq = self.runq, []
 
-            division = bisect.bisect_right(self.sleepq, (tick, tick, None))
-            sleepq, self.sleepq = \
-                self.sleepq[:division], self.sleepq[division:]
+            # get the expired waits
+            division = bisect.bisect_right(
+                self.waitq, (tick, tick, None))
+            wake, self.waitq = self.waitq[:division], self.waitq[division:]
+
+            for target, start, events, fd, coro in wake:
+                duration = time.monotonic() - start
+                if not events:
+                    self.runq.append((coro, duration))
+                else:
+                    self.runq.append((coro, (True, duration)))
 
             for coro, retval in runq:
                 _step(coro, retval)
 
-            for target, start, coro in sleepq:
-                _step(coro, time.monotonic() - start)
+            if self.waitq:
+                target = self.waitq[0][0]
+                if not math.isinf(target):
+                    duration = max(0.0, target - time.monotonic())
+                else:
+                    duration = None
+                if self.runq:  # we have runnable tasks, don't wait
+                    duration = 0
+                with selectors.DefaultSelector() as selector:
+                    for i, entry in enumerate(self.waitq):
+                        target, start, events, fd, coro = entry
+                        if events:
+                            selector.register(fd, events, (i, entry))
+                    cleanup = []
+                    now = time.monotonic()
+                    for key, events in selector.select(duration):
+                        i, entry = key.data
+                        target, start, events, fd, coro = entry
+                        cleanup.append(i)
+                        self.runq.append((coro, (False,  now - start)))
+                    for i in sorted(cleanup, reverse=True):
+                        del self.waitq[i]
 
-            if self.sleepq:
-                duration = self.sleepq[0][0] - time.monotonic()
-                if duration >= 0.0:
-                    time.sleep(duration)
-
-            if not self.runq and not self.sleepq:
+            if not self.runq and not self.waitq:
                 break
 
         return result
