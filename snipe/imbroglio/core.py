@@ -32,15 +32,80 @@
 This is the core of the imbroglio coroutine supervisor.
 """
 
-__all__ = ['Supervisor', 'run', 'coroutine']
+__all__ = [
+    'CancelledError',
+    'ImbroglioException',
+    'Supervisor',
+    'Task',
+    'UnfinishedError',
+    'run',
+    'coroutine',
+    ]
+
 
 import bisect
 import functools
 import inspect
+import logging
 import math
 import selectors
 import sys
 import time
+
+
+class ImbroglioException(Exception):
+    """Catch-all exceptions for imbroglio"""
+
+
+class CancelledError(ImbroglioException):
+    """Your task has been cancelled"""
+
+
+class UnfinishedError(ImbroglioException):
+    """Your task isn't done so it doesn't have a result"""
+
+
+class Task:
+    def __init__(self, coro, supervisor):
+        if not inspect.isgenerator(coro):
+            raise TypeError(
+                'Cannot make a task from a non-generator %s' % (repr(coro,)))
+
+        self.coro = coro
+        self.supervisor = supervisor
+        self.pending_exception = None
+        self.state = 'FOO'
+        self.exception = None
+        self._result = None
+
+    def throw(self, exception):
+        self.pending_exception = exception
+        self.supervisor._rouse(self)
+
+    def cancel(self):
+        self.throw(CancelledError('Task cancelled'))
+
+    def set_result(self, result):
+        self.state = 'DONE'
+        self._result = result
+
+    def set_result_exception(self, exception):
+        self.state = 'EXCEPTION'
+        self.exception = exception
+
+    def set_cancelled(self, exception=CancelledError):
+        self.exception = exception
+        self.state = 'CANCELLED'
+
+    def result(self):
+        if self.state not in {'DONE', 'EXCEPTION', 'CANCELLED'}:
+            raise UnfinishedError('task is unfinished')
+        if self.exception is not None:
+            raise self.exception
+        return self._result
+
+    def is_done(self):
+        return self.state in {'DONE', 'EXCEPTION', 'CANCELLED'}
 
 
 class Supervisor:
@@ -48,24 +113,25 @@ class Supervisor:
         self.runq = []
         self.waitq = []
 
-    def _call_spawn(self, coro, *coros):
+    def _call_spawn(self, task, coro):
         """Spawns new coroutines in the event loop"""
 
-        self.runq.extend(zip(coros, [None] * len(coros)))
-        self.runq.append((coro, True))  # should be the task objects eventually
+        newtask = Task(coro, self)
+        self.runq.append((newtask, None))
+        self.runq.append((task, newtask))
 
-    def _call_sleep(self, coro, duration=None):
+    def _call_sleep(self, task, duration=None):
         """sleep for duration seconds and return how long we actually slept.
 
         If duration is None (the default), just yield until the next tick.
         """
         now = time.monotonic()
         if duration is None:
-            bisect.insort_left(self.waitq, (now, now, 0, -1, coro))
+            bisect.insort_left(self.waitq, (now, now, 0, -1, task))
         else:
-            bisect.insort_left(self.waitq, (now + duration, now, 0, -1, coro))
+            bisect.insort_left(self.waitq, (now + duration, now, 0, -1, task))
 
-    def _call_readwait(self, coro, fd, duration=None):
+    def _call_readwait(self, task, fd, duration=None):
         """wait for an fd to be readable
 
         Returns a tuple (bool, float) of whether the timeout expired and
@@ -73,48 +139,64 @@ class Supervisor:
         wait forever.
         """
 
-        self._wait_internal(coro, fd, selectors.EVENT_READ, duration)
+        self._wait_internal(task, fd, selectors.EVENT_READ, duration)
 
-    def _call_writewait(self, coro, fd, duration=None):
+    def _call_writewait(self, task, fd, duration=None):
         """wait for an fd to be writable
 
         Returns a tuple (bool, float) of whether the timeout expired and
         how long we waited.  If duration is None (the default), potentially
         wait forever.
         """
-        self._wait_internal(coro, fd, selectors.EVENT_WRITE, duration)
+        self._wait_internal(task, fd, selectors.EVENT_WRITE, duration)
 
-    def _wait_internal(self, coro, fd, events, duration):
+    def _wait_internal(self, task, fd, events, duration):
         """internals of _call_readwiat and _call_writewait"""
         now = time.monotonic()
         if duration is None:
             bisect.insort_left(
-                self.waitq, (float('Inf'), now, events, fd, coro))
+                self.waitq, (float('Inf'), now, events, fd, task))
         else:
             bisect.insort_left(
-                self.waitq, (now + duration, now, events, fd, coro))
+                self.waitq, (now + duration, now, events, fd, task))
 
-    def _call_magic(self, coro):
+    def _call_magic(self, task):
         """return a magic number"""
-        self.runq.append((coro, 42))
+        self.runq.append((task, 42))
 
-    def _run(self, coroutine):
-        result = None
+    def _rouse(self, task):
+        for i, qe in enumerate(self.waitq):
+            if qe[-1] == task:
+                del self.waitq[i]
+                self.runq.append((task, time.monotonic() - qe[1]))
+                break
 
-        def _step(coro, retval):
-            nonlocal result
-
+    def _run(self, runtask):
+        def _step(task, retval):
             try:
-                val = coro.send(retval)
+                if task.pending_exception is None:
+                    val = task.coro.send(retval)
+                else:
+                    exc, task.pending_exception = task.pending_exception, None
+                    if isinstance(exc, BaseException):
+                        val = task.coro.throw(type(exc), exc)
+                    else:
+                        val = task.coro.throw(exc)
             except StopIteration as e:
-                if coro is coroutine:
-                    result = e.value
+                task.set_result(e.value)
+                return
+            except CancelledError:
+                task.set_cancelled()
+                return
+            except Exception as e:
+                logging.exception('%s dropped through exception', task)
+                task.set_result_exception(e)  # XXX leakage
                 return
 
             call = getattr(self, '_call_' + val[0])
-            call(coro, *val[1:])
+            call(task, *val[1:])
 
-        self.runq.append((coroutine, None))
+        self.runq.append((runtask, None))
 
         while True:
             tick = time.monotonic()
@@ -125,15 +207,15 @@ class Supervisor:
                 self.waitq, (tick, tick, None))
             wake, self.waitq = self.waitq[:division], self.waitq[division:]
 
-            for target, start, events, fd, coro in wake:
+            for target, start, events, fd, task in wake:
                 duration = time.monotonic() - start
                 if not events:
-                    self.runq.append((coro, duration))
+                    self.runq.append((task, duration))
                 else:
-                    self.runq.append((coro, (True, duration)))
+                    self.runq.append((task, (True, duration)))
 
-            for coro, retval in runq:
-                _step(coro, retval)
+            for task, retval in runq:
+                _step(task, retval)
 
             if self.waitq:
                 target = self.waitq[0][0]
@@ -145,23 +227,23 @@ class Supervisor:
                     duration = 0
                 with selectors.DefaultSelector() as selector:
                     for i, entry in enumerate(self.waitq):
-                        target, start, events, fd, coro = entry
+                        target, start, events, fd, task = entry
                         if events:
                             selector.register(fd, events, (i, entry))
                     cleanup = []
                     now = time.monotonic()
                     for key, events in selector.select(duration):
                         i, entry = key.data
-                        target, start, events, fd, coro = entry
+                        target, start, events, fd, task = entry
                         cleanup.append(i)
-                        self.runq.append((coro, (False,  now - start)))
+                        self.runq.append((task, (False,  now - start)))
                     for i in sorted(cleanup, reverse=True):
                         del self.waitq[i]
 
             if not self.runq and not self.waitq:
                 break
 
-        return result
+        return
 
 
 def _reify_calls():
@@ -196,8 +278,10 @@ del _reify_calls
 
 
 def run(coro):
-    result = Supervisor()._run(coro)
-    return result
+    supervisor = Supervisor()
+    task = Task(coro, supervisor)
+    supervisor._run(task)
+    return task.result()
 
 
 def coroutine(coro):

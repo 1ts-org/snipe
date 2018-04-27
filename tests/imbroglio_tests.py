@@ -32,10 +32,11 @@
 Unit tests for the imbroglio core
 '''
 
-import unittest
 import socket
+import signal
 import sys
 import time
+import unittest
 
 sys.path.append('..')
 
@@ -114,7 +115,8 @@ class TestImbroglio(unittest.TestCase):
 
         @imbroglio.coroutine
         def spawner():
-            yield from imbroglio.spawn(spawned(), spawned(), spawned())
+            for i in range(3):
+                yield from imbroglio.spawn(spawned())
 
             return 85
 
@@ -184,6 +186,93 @@ class TestImbroglio(unittest.TestCase):
         finally:
             a.close()
             b.close()
+
+    def test_exception(self):
+        @imbroglio.coroutine
+        def keyerror():
+            {}[None]
+
+        with self.assertRaises(KeyError):
+            imbroglio.run(keyerror())
+
+    def test_cancellation(self):
+        counter = 0
+
+        @imbroglio.coroutine
+        def ticker():
+            nonlocal counter
+
+            while True:
+                yield from imbroglio.sleep(.1)
+                counter += 1
+
+        @imbroglio.coroutine
+        def driver():
+            task = yield from imbroglio.spawn(ticker())
+            yield from imbroglio.sleep(1)
+            try:
+                task.cancel()
+            except BaseException:
+                raise
+
+        imbroglio.run(driver())
+
+        self.assertGreater(counter, 3)
+
+    def test_task_misc(self):
+        with self.assertRaises(TypeError):
+            imbroglio.Task(lambda: None, None)
+
+        t = imbroglio.Task(imbroglio.coroutine(lambda: None)(), None)
+        with self.assertRaises(imbroglio.UnfinishedError):
+            t.result()
+
+    def test_sleepy_cancel(self):
+        alarmed = False
+
+        def alarm(*args, **kw):
+            nonlocal alarmed
+            alarmed = True
+
+        handler = signal.signal(signal.SIGALRM, alarm)
+        try:
+            signal.alarm(2)
+
+            @imbroglio.coroutine
+            def sleepy():
+                yield from imbroglio.sleep(1)
+
+            @imbroglio.coroutine
+            def driver():
+                task = yield from imbroglio.spawn(sleepy())
+                yield from imbroglio.sleep()
+                task.cancel()
+
+            imbroglio.run(driver())
+            signal.alarm(0)
+
+            self.assertFalse(alarmed)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, handler)
+
+    def test_throw_exception_type(self):
+        # throw a bare type as an inspection.  To spice it up, make sure that
+        # it sucessfully cancells a task in a long sleep.
+
+        @imbroglio.coroutine
+        def sleepy():
+            yield from imbroglio.sleep(float('Inf'))
+
+        @imbroglio.coroutine
+        def driver():
+            task = yield from imbroglio.spawn(sleepy())
+            yield from imbroglio.sleep(0)
+            task.throw(NotADirectoryError)
+            yield from imbroglio.sleep(0)
+            self.assertTrue(task.is_done())
+
+        imbroglio.run(driver())
 
 
 if __name__ == '__main__':
