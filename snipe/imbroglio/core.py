@@ -44,6 +44,7 @@ __all__ = [
 
 
 import bisect
+import collections
 import functools
 import inspect
 import logging
@@ -108,6 +109,10 @@ class Task:
         return self.state in {'DONE', 'EXCEPTION', 'CANCELLED'}
 
 
+Runnable = collections.namedtuple('Runnable', 'task retval')
+Waiting = collections.namedtuple('Waiting', 'target start events fd task')
+
+
 class Supervisor:
     def __init__(self):
         self.runq = []
@@ -117,8 +122,8 @@ class Supervisor:
         """Spawns new coroutines in the event loop"""
 
         newtask = Task(coro, self)
-        self.runq.append((newtask, None))
-        self.runq.append((task, newtask))
+        self.runq.append(Runnable(newtask, None))
+        self.runq.append(Runnable(task, newtask))
 
     def _call_sleep(self, task, duration=0):
         """sleep for duration seconds
@@ -154,20 +159,21 @@ class Supervisor:
         now = time.monotonic()
         if duration is None:
             bisect.insort_left(
-                self.waitq, (float('Inf'), now, events, fd, task))
+                self.waitq, Waiting(float('Inf'), now, events, fd, task))
         else:
             bisect.insort_left(
-                self.waitq, (now + duration, now, events, fd, task))
+                self.waitq, Waiting(now + duration, now, events, fd, task))
 
     def _call_magic(self, task):
         """return a magic number"""
-        self.runq.append((task, 42))
+        self.runq.append(Runnable(task, 42))
 
     def _rouse(self, task):
         for i, qe in enumerate(self.waitq):
-            if qe[-1] == task:
+            if qe.task == task:
                 del self.waitq[i]
-                self.runq.append((task, (False, time.monotonic() - qe[1])))
+                self.runq.append(
+                    Runnable(task, (False, time.monotonic() - qe[1])))
                 break
 
     def _run(self, runtask):
@@ -195,7 +201,7 @@ class Supervisor:
             call = getattr(self, '_call_' + val[0])
             call(task, *val[1:])
 
-        self.runq.append((runtask, None))
+        self.runq.append(Runnable(runtask, None))
 
         while True:
             tick = time.monotonic()
@@ -206,15 +212,15 @@ class Supervisor:
                 self.waitq, (tick, tick, None))
             wake, self.waitq = self.waitq[:division], self.waitq[division:]
 
-            for target, start, events, fd, task in wake:
-                duration = time.monotonic() - start
-                self.runq.append((task, (True, duration)))
+            for wakey in wake:
+                duration = time.monotonic() - wakey.start
+                self.runq.append(Runnable(wakey.task, (True, duration)))
 
-            for task, retval in runq:
-                _step(task, retval)
+            for run in runq:
+                _step(run.task, run.retval)
 
             if self.waitq:
-                target = self.waitq[0][0]
+                target = self.waitq[0].target
                 if not math.isinf(target):
                     duration = max(0.0, target - time.monotonic())
                 else:
@@ -222,17 +228,16 @@ class Supervisor:
                 if self.runq:  # we have runnable tasks, don't wait
                     duration = 0
                 with selectors.DefaultSelector() as selector:
-                    for i, entry in enumerate(self.waitq):
-                        target, start, events, fd, task = entry
-                        if events:
-                            selector.register(fd, events, (i, entry))
+                    for i, e in enumerate(self.waitq):
+                        if e.events:
+                            selector.register(e.fd, e.events, (i, e))
                     cleanup = []
                     now = time.monotonic()
                     for key, events in selector.select(duration):
-                        i, entry = key.data
-                        target, start, events, fd, task = entry
+                        i, e = key.data
                         cleanup.append(i)
-                        self.runq.append((task, (False,  now - start)))
+                        self.runq.append(
+                            Runnable(e.task, (False, now - e.start)))
                     for i in sorted(cleanup, reverse=True):
                         del self.waitq[i]
 
