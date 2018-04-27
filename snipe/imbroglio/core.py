@@ -38,8 +38,8 @@ __all__ = [
     'Supervisor',
     'Task',
     'UnfinishedError',
-    'run',
     'coroutine',
+    'run',
     ]
 
 
