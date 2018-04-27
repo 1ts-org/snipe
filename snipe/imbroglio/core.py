@@ -120,16 +120,15 @@ class Supervisor:
         self.runq.append((newtask, None))
         self.runq.append((task, newtask))
 
-    def _call_sleep(self, task, duration=None):
-        """sleep for duration seconds and return how long we actually slept.
+    def _call_sleep(self, task, duration=0):
+        """sleep for duration seconds
 
-        If duration is None (the default), just yield until the next tick.
+        If duration is 0 (the default), just yield until the next tick.
+
+        Returns a tuple (bool, float) of whether the timeout expired and
+        how long we waited.  If duration is None, potentially wait forever.
         """
-        now = time.monotonic()
-        if duration is None:
-            bisect.insort_left(self.waitq, (now, now, 0, -1, task))
-        else:
-            bisect.insort_left(self.waitq, (now + duration, now, 0, -1, task))
+        self._wait_internal(task, -1, 0, duration)
 
     def _call_readwait(self, task, fd, duration=None):
         """wait for an fd to be readable
@@ -168,7 +167,7 @@ class Supervisor:
         for i, qe in enumerate(self.waitq):
             if qe[-1] == task:
                 del self.waitq[i]
-                self.runq.append((task, time.monotonic() - qe[1]))
+                self.runq.append((task, (False, time.monotonic() - qe[1])))
                 break
 
     def _run(self, runtask):
@@ -209,10 +208,7 @@ class Supervisor:
 
             for target, start, events, fd, task in wake:
                 duration = time.monotonic() - start
-                if not events:
-                    self.runq.append((task, duration))
-                else:
-                    self.runq.append((task, (True, duration)))
+                self.runq.append((task, (True, duration)))
 
             for task, retval in runq:
                 _step(task, retval)
