@@ -87,10 +87,13 @@ class Roost(messages.SnipeBackend):
         'Name-ish field on messages')
     subunify = util.Configurable(
         'roost.subunify', False, 'un-ify subscriptions')
-    FORMAT_TYPES = {'strip', 'raw', 'format'}
+    FORMAT_TYPES = {'strip', 'raw', 'format', 'clear'}
     FORMAT_DOC = (
-        '\n\nstrip - Remove markup\n'
-        'raw - leave markup unmolested\nformat - obey the markup')
+        '\n\n'
+        'strip - Remove markup\n'
+        'raw - leave markup unmolested\n'
+        'format - obey the markup\n'
+        'clear - set to empty (probably not what you want for message bodies')
     format_zsig = util.Configurable(
         'roost.format.signature', 'strip',
         'How to display the signature' + FORMAT_DOC,
@@ -699,7 +702,7 @@ class RoostMessage(messages.SnipeMessage):
                 ]
 
             sig = msg.data.get('signature', '').strip()
-            if sig:
+            if sig and msg.backend.format_zsig != 'clear':
                 sigl = sig.split('\n')
                 sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
                 if msg.backend.format_zsig == 'format':
@@ -721,7 +724,7 @@ class RoostMessage(messages.SnipeMessage):
         @classmethod
         def format(self, msg, tags=set()):
             body = msg.body
-            if body:
+            if body and msg.backend.format_body != 'clear':
                 if not body.endswith('\n'):
                     body += '\n'
                 if msg.backend.format_body == 'format':
