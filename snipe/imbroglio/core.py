@@ -38,7 +38,6 @@ __all__ = [
     'Supervisor',
     'Task',
     'UnfinishedError',
-    'coroutine',
     'run',
     ]
 
@@ -51,6 +50,7 @@ import logging
 import math
 import selectors
 import sys
+import types
 import time
 
 
@@ -68,9 +68,9 @@ class UnfinishedError(ImbroglioException):
 
 class Task:
     def __init__(self, coro, supervisor):
-        if not inspect.isgenerator(coro):
+        if not inspect.isawaitable(coro):
             raise TypeError(
-                'Cannot make a task from a non-generator %s' % (repr(coro,)))
+                'Cannot make a task from non-coroutine %s' % (repr(coro,)))
 
         self.coro = coro
         self.supervisor = supervisor
@@ -254,6 +254,7 @@ def _reify_calls():
     def _reify_call(method):
         name = method.__name__[len(CALL_PREFIX):]
 
+        @types.coroutine
         @functools.wraps(
             method,
             assigned=list(set(
@@ -283,17 +284,3 @@ def run(coro):
     task = Task(coro, supervisor)
     supervisor._run(task)
     return task.result()
-
-
-def coroutine(coro):
-    if inspect.isgeneratorfunction(coro):
-        return coro
-
-    @functools.wraps(coro)
-    def wrapper(*args, **kw):
-        result = coro(*args, **kw)
-        if inspect.isgenerator(result):
-            result = yield from result
-        return result
-
-    return wrapper

@@ -48,10 +48,9 @@ class TestImbroglio(unittest.TestCase):
         # single coroutine with a single call
         val = None
 
-        @imbroglio.coroutine
-        def coro():
+        async def coro():
             nonlocal val
-            val = yield from imbroglio.magic()
+            val = await imbroglio.magic()
 
         imbroglio.run(coro())
 
@@ -62,30 +61,9 @@ class TestImbroglio(unittest.TestCase):
 
         val = None
 
-        @imbroglio.coroutine
-        def coro():
+        async def coro():
             nonlocal val
             val = 17
-
-        imbroglio.run(coro())
-
-        self.assertEqual(17, val)
-
-    def test_noncoro2(self):
-        # coroutine that isn't exactly
-
-        val = None
-
-        @imbroglio.coroutine
-        def coro():
-            nonlocal val
-            val = 17
-
-            @imbroglio.coroutine
-            def actual():
-                yield from imbroglio.sleep()
-
-            return actual()
 
         imbroglio.run(coro())
 
@@ -93,9 +71,8 @@ class TestImbroglio(unittest.TestCase):
 
     def test_sleep(self):
         # single coroutine that sleeps for a second
-        @imbroglio.coroutine
-        def coro():
-            yield from imbroglio.sleep(1.0)
+        async def coro():
+            await imbroglio.sleep(1.0)
 
         t0 = time.time()
 
@@ -107,16 +84,14 @@ class TestImbroglio(unittest.TestCase):
         # spawn three coroutines that increment a thing and then sleep
         counter = 0
 
-        @imbroglio.coroutine
-        def spawned():
+        async def spawned():
             nonlocal counter
             counter += 1
-            yield from imbroglio.sleep(1)
+            await imbroglio.sleep(1)
 
-        @imbroglio.coroutine
-        def spawner():
+        async def spawner():
             for i in range(3):
-                yield from imbroglio.spawn(spawned())
+                await imbroglio.spawn(spawned())
 
             return 85
 
@@ -131,29 +106,25 @@ class TestImbroglio(unittest.TestCase):
         a, b = socket.socketpair()
 
         try:
-            @imbroglio.coroutine
-            def driver():
-                yield from imbroglio.spawn(reader())
-                yield from imbroglio.spawn(ticker())
-                yield from imbroglio.spawn(writer())
+            async def driver():
+                await imbroglio.spawn(reader())
+                await imbroglio.spawn(ticker())
+                await imbroglio.spawn(writer())
 
-            @imbroglio.coroutine
-            def reader():
-                timedout, duration = yield from imbroglio.readwait(a.fileno())
+            async def reader():
+                timedout, duration = await imbroglio.readwait(a.fileno())
                 self.assertFalse(timedout)
                 self.assertEqual(b'X', a.recv(1))
 
-            @imbroglio.coroutine
-            def ticker():
+            async def ticker():
                 nonlocal counter
 
                 for i in range(5):
-                    yield from imbroglio.sleep(.1)
+                    await imbroglio.sleep(.1)
                     counter += 1
 
-            @imbroglio.coroutine
-            def writer():
-                yield from imbroglio.sleep(.5)
+            async def writer():
+                await imbroglio.sleep(.5)
 
                 # make sure the ticker's been running while the reader's
                 # been waiting
@@ -161,7 +132,7 @@ class TestImbroglio(unittest.TestCase):
 
                 # should come back immediately
                 timedout, duration = \
-                    yield from imbroglio.writewait(b.fileno(), 10)
+                    await imbroglio.writewait(b.fileno(), 10)
                 self.assertFalse(timedout)
                 b.send(b'X')
 
@@ -176,10 +147,9 @@ class TestImbroglio(unittest.TestCase):
         a, b = socket.socketpair()
 
         try:
-            @imbroglio.coroutine
-            def reader():
+            async def reader():
                 timedout, duration = \
-                    yield from imbroglio.readwait(a.fileno(), .1)
+                    await imbroglio.readwait(a.fileno(), .1)
                 self.assertTrue(timedout)
 
             imbroglio.run(reader())
@@ -188,8 +158,7 @@ class TestImbroglio(unittest.TestCase):
             b.close()
 
     def test_exception(self):
-        @imbroglio.coroutine
-        def keyerror():
+        async def keyerror():
             {}[None]
 
         with self.assertRaises(KeyError):
@@ -198,18 +167,16 @@ class TestImbroglio(unittest.TestCase):
     def test_cancellation(self):
         counter = 0
 
-        @imbroglio.coroutine
-        def ticker():
+        async def ticker():
             nonlocal counter
 
             while True:
-                yield from imbroglio.sleep(.1)
+                await imbroglio.sleep(.1)
                 counter += 1
 
-        @imbroglio.coroutine
-        def driver():
-            task = yield from imbroglio.spawn(ticker())
-            yield from imbroglio.sleep(1)
+        async def driver():
+            task = await imbroglio.spawn(ticker())
+            await imbroglio.sleep(1)
             try:
                 task.cancel()
             except BaseException:
@@ -223,8 +190,12 @@ class TestImbroglio(unittest.TestCase):
         with self.assertRaises(TypeError):
             imbroglio.Task(lambda: None, None)
 
-        t = imbroglio.Task(imbroglio.coroutine(lambda: None)(), None)
-        with self.assertRaises(imbroglio.UnfinishedError):
+        async def nothing():
+            pass
+
+        t = imbroglio.Task(nothing(), None)
+        with self.assertRaises(imbroglio.UnfinishedError), \
+                self.assertWarns(RuntimeWarning):
             t.result()
 
     def test_sleepy_cancel(self):
@@ -238,14 +209,12 @@ class TestImbroglio(unittest.TestCase):
         try:
             signal.alarm(2)
 
-            @imbroglio.coroutine
-            def sleepy():
-                yield from imbroglio.sleep(1)
+            async def sleepy():
+                await imbroglio.sleep(1)
 
-            @imbroglio.coroutine
-            def driver():
-                task = yield from imbroglio.spawn(sleepy())
-                yield from imbroglio.sleep()
+            async def driver():
+                task = await imbroglio.spawn(sleepy())
+                await imbroglio.sleep()
                 task.cancel()
 
             imbroglio.run(driver())
@@ -260,16 +229,14 @@ class TestImbroglio(unittest.TestCase):
         # throw a bare type as an inspection.  To spice it up, make sure that
         # it sucessfully cancells a task in a long sleep.
 
-        @imbroglio.coroutine
-        def sleepy():
-            yield from imbroglio.sleep(float('Inf'))
+        async def sleepy():
+            await imbroglio.sleep(float('Inf'))
 
-        @imbroglio.coroutine
-        def driver():
-            task = yield from imbroglio.spawn(sleepy())
-            yield from imbroglio.sleep(0)
+        async def driver():
+            task = await imbroglio.spawn(sleepy())
+            await imbroglio.sleep(0)
             task.throw(NotADirectoryError)
-            yield from imbroglio.sleep(0)
+            await imbroglio.sleep(0)
             self.assertTrue(task.is_done())
 
         imbroglio.run(driver())
