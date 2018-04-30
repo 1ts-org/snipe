@@ -233,14 +233,14 @@ class TestMessager(unittest.TestCase):
         self.assertEqual(str(w.filter), 'filter default and yes')
         _called = None
 
-        def mock_filter_edit_name(*args, **kw):
+        async def mock_filter_edit_name(*args, **kw):
             nonlocal _called
             _called = (args, kw)
-            yield
 
         w.filter_edit_name = mock_filter_edit_name
-        for _ in w.filter_slot(key='0', keyseq='0', arg=[4]):
-            pass
+
+        mocks.simple_run(w.filter_slot(key='0', keyseq='0', arg=[4]))
+
         self.assertEqual(_called, (('_0',), {}))
 
     def test_filter_everything(self):
@@ -288,15 +288,13 @@ class TestMessager(unittest.TestCase):
         _read_kw = None
         _read_result = 'foo\nbar'
 
-        def read_string(*args, **kw):
+        async def read_string(*args, **kw):
             nonlocal _read_args, _read_kw
             _read_args, _read_kw = args, kw
-            yield
             return _read_result
 
         w.read_string = read_string
-        for _ in w.send():
-            pass
+        mocks.simple_run(w.send())
 
         self.assertEqual(f.context.backends._sent[-1], ('foo', 'bar'))
         self.assertNotIn('modes', _read_kw)
@@ -305,8 +303,7 @@ class TestMessager(unittest.TestCase):
         w.cursor = c
         _read_result = 'foo'
 
-        for _ in w.send(msg=c):
-            pass
+        mocks.simple_run(w.send(msg=c))
 
         self.assertIn('modes', _read_kw)
         self.assertEqual(f.context.backends._sent[-1], ('foo', ''))
@@ -348,19 +345,18 @@ class TestMessager(unittest.TestCase):
 
         recipient = None
 
-        def mock_send(to, *args, **kw):
+        async def mock_send(to, *args, **kw):
             nonlocal recipient
             recipient = to
-            yield
 
         w.send = mock_send
 
-        for _ in w.followup():
-            pass
+        mocks.simple_run(w.followup())
+
         self.assertEqual(recipient, 'followup')
 
-        for _ in w.reply():
-            pass
+        mocks.simple_run(w.reply())
+
         self.assertEqual(recipient, 'reply')
 
     def test_filter_edit(self):
@@ -369,20 +365,19 @@ class TestMessager(unittest.TestCase):
 
         filter = 'no and no and no and yes'
         w.read_string = returning(filter)
-        for _ in w.filter_edit():
-            pass
+
+        mocks.simple_run(w.filter_edit())
+
         self.assertEqual(str(w.filter), filter)
 
         w.read_oneof = returning('name')
-        for _ in w.filter_edit([4]):
-            pass
+        mocks.simple_run(w.filter_edit([4]))
 
         self.assertEqual(f.context.conf['filter']['name'], filter)
 
         w.read_string = returning('')
 
-        for _ in w.filter_edit([4]):
-            pass
+        mocks.simple_run(w.filter_edit([4]))
 
         self.assertTrue('name' not in f.context.conf['filter'])
 
@@ -391,37 +386,36 @@ class TestMessager(unittest.TestCase):
         w = messager.Messager(f)
         w.read_string = returning('green')
         w.filter = filters.Yes()
-        for _ in w.filter_foreground_background():
-            pass
+
+        mocks.simple_run(w.filter_foreground_background())
+
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green', 'background': 'green'})])
 
         w.filter = filters.Yes()
-        for _ in w.filter_foreground():
-            pass
+        mocks.simple_run(w.filter_foreground())
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green'})])
 
         w.filter = filters.Yes()
-        for _ in w.filter_background():
-            pass
+        mocks.simple_run(w.filter_background())
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'background': 'green'})])
 
         w.read_string = returning('messager_tests.TestMessager')
         w.filter = filters.Yes()
-        for _ in w.filter_decor():
-            pass
+        mocks.simple_run(w.filter_decor())
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'decor': 'messager_tests.TestMessager'})])
 
         w.read_string = returning('nonexistent.object')
         w.filter = filters.Yes()
-        self.assertRaises(util.SnipeException, lambda: list(w.filter_decor()))
+        with self.assertRaises(util.SnipeException):
+            mocks.simple_run(w.filter_decor())
 
     def test_filter_push(self):
         f = mocks.FE()
@@ -440,8 +434,8 @@ class TestMessager(unittest.TestCase):
         f = mocks.FE()
         w = messager.Messager(f)
         w.read_string = returning('green')
-        for _ in w.filter_class():
-            pass
+
+        mocks.simple_run(w.filter_class())
 
         self.assertEqual(
             str(w.filter),
@@ -451,8 +445,8 @@ class TestMessager(unittest.TestCase):
         f = mocks.FE()
         w = messager.Messager(f)
         w.read_string = returning('green')
-        for _ in w.filter_sender():
-            pass
+
+        mocks.simple_run(w.filter_sender())
 
         self.assertEqual(
             str(w.filter),
@@ -483,16 +477,15 @@ class TestMessager(unittest.TestCase):
 
         F1 = 'flig == "quoz"'
         w.filter = filters.makefilter(F1)
-        for _ in w.filter_save(True):
-            pass
+
+        mocks.simple_run(w.filter_save(True))
 
         self.assertEqual(w.default_filter, F1)
 
         F2 = 'flig'
         w.filter = filters.makefilter(F2)
         w.read_oneof = returning('quoz')
-        for _ in w.filter_save():
-            pass
+        mocks.simple_run(w.filter_save())
 
         self.assertEqual(f.context.conf['filter']['quoz'], F2)
 
@@ -549,8 +542,7 @@ body: ""
 
         w.read_string = returning('1970-01-01 00:00:00')
 
-        for _ in w.goto():
-            pass
+        mocks.simple_run(w.goto())
 
         self.assertEqual(target, (0.0,))
 
@@ -696,8 +688,7 @@ body: ""
             yield fp
 
         messager.open = mock_open
-        for _ in w.write_region():
-            pass
+        mocks.simple_run(w.write_region())
         del messager.open
         self.assertEqual(fp.getvalue(), 'foo')
 
@@ -715,8 +706,7 @@ body: ""
 
 
 def returning(s):
-    def mocked(*args, **kw):
-        yield
+    async def mocked(*args, **kw):
         return s
     return mocked
 

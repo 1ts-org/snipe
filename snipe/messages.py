@@ -440,14 +440,13 @@ class SnipeBackend:
     def backfill(self, mfilter, target=None):
         pass
 
-    @asyncio.coroutine
-    def shutdown(self):
+    async def shutdown(self):
         tasks = list(reversed(self.tasks))
         for t in tasks:
             try:
                 t.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
-                    yield from t
+                    await t
                     t.exception()
             except BaseException:
                 self.log.exception('while shutting down')
@@ -479,8 +478,7 @@ class SnipeBackend:
         else:
             return 0
 
-    @asyncio.coroutine
-    def send(self, recipient, body):
+    async def send(self, recipient, body):
         """Send a message"""
         raise NotImplementedError('No such recipient')
 
@@ -504,8 +502,7 @@ class SinkBackend(SnipeBackend):
         super().__init__(*args, **kw)
         self.messages = []
 
-    @asyncio.coroutine
-    def send(self, recipient, body):
+    async def send(self, recipient, body):
         self.messages.append(SnipeMessage(self, body))
         self.drop_cache()
 
@@ -704,25 +701,23 @@ class AggregatorBackend(SnipeBackend):
                 ],
             key=lambda m: m.time if forward else -m.time)
 
-    @asyncio.coroutine
-    def shutdown(self):
-        yield from asyncio.gather(
+    async def shutdown(self):
+        await asyncio.gather(
             *[backend.shutdown() for backend in self.backends],
             return_exceptions=True)
-        yield from super().shutdown()
+        await super().shutdown()
 
     def __iter__(self):
         return iter(self.backends)
 
-    @asyncio.coroutine
-    def send(self, paramstr, msg):
+    async def send(self, paramstr, msg):
         params = [s.strip() for s in paramstr.split(';', 1)]
         backends = [b for b in self if b.name.startswith(params[0])]
         if len(backends) != 1:
             raise util.SnipeException(
                 'backend query string %s results in %s' % (
                     params[0], backends))
-        yield from backends[0].send(''.join(params[1:]), msg)
+        await backends[0].send(''.join(params[1:]), msg)
 
     def backfill(self, filter, target=None):
         for backend in self:

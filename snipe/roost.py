@@ -119,8 +119,7 @@ class Roost(messages.SnipeBackend):
         self.new_task = asyncio.Task(self.new_messages())
         self.tasks.append(self.new_task)
 
-    @asyncio.coroutine
-    def new_messages(self):
+    async def new_messages(self):
         while True:
             for m in reversed(self.messages):
                 start = m.data.get('id')
@@ -134,14 +133,14 @@ class Roost(messages.SnipeBackend):
             try:
                 self.connected = True  # XXX kinda racy?
                 self.log.debug(activity)
-                yield from self.r.newmessages(self.new_message, start)
+                await self.r.newmessages(self.new_message, start)
             except _rooster.RoosterReconnectException as e:
                 msg = '%s: %s' % (self.name, str(e))
                 self.log.exception(msg)
                 self.context.message(msg)
                 if e.wait:
                     self.log.debug('waiting: %d', e.wait)
-                    yield from asyncio.sleep(e.wait)
+                    await asyncio.sleep(e.wait)
                 continue
             except asyncio.CancelledError:
                 raise
@@ -156,7 +155,7 @@ class Roost(messages.SnipeBackend):
             if errmsg is None:
                 pass
             elif 'User does not exist' in errmsg:
-                yield from self.new_registration()
+                await self.new_registration()
             else:
                 body = '%s: %s' % (activity, errmsg)
                 if not snipe_exception:
@@ -164,8 +163,7 @@ class Roost(messages.SnipeBackend):
                 self.add_message(messages.SnipeErrorMessage(self, body, tb))
                 return
 
-    @asyncio.coroutine
-    def new_registration(self):
+    async def new_registration(self):
         msg = inspect.cleandoc("""
         You don't seem to be registered with the roost server.  Select
         this message and hit Y to begin the registration process.
@@ -175,7 +173,7 @@ class Roost(messages.SnipeBackend):
         """)
         f = asyncio.Future()
         self.add_message(RoostRegistrationMessage(self, msg, f))
-        yield from f
+        await f
 
         f = asyncio.Future()
         msg = inspect.cleandoc("""
@@ -186,9 +184,9 @@ class Roost(messages.SnipeBackend):
         messages.
         """)
         self.add_message(RoostRegistrationMessage(self, msg, f))
-        yield from f
+        await f
         try:
-            yield from self.r.auth(create_user=True)
+            await self.r.auth(create_user=True)
             self.add_message(messages.SnipeMessage(self, 'Registered.'))
             self.load_subs(self._zephyr_subs)
         except asyncio.CancelledError:
@@ -198,11 +196,10 @@ class Roost(messages.SnipeBackend):
             self.add_message(messages.SnipeErrorMessage(
                 self, str(e), traceback.format_exc()))
 
-    @asyncio.coroutine
-    def error_message(self, activity, func, *args):
+    async def error_message(self, activity, func, *args):
         """run a coroutine, creating a message with a traceback if it raises"""
         try:
-            return (yield from func(*args))
+            return (await func(*args))
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -217,8 +214,7 @@ class Roost(messages.SnipeBackend):
     def principal(self):
         return self.r.principal
 
-    @asyncio.coroutine
-    def send(self, paramstr, body):
+    async def send(self, paramstr, body):
         self.log.debug('send paramstr=%s', paramstr)
 
         flags, recipients = getopt.getopt(shlex.split(paramstr), 'xRCc:i:O:')
@@ -239,7 +235,7 @@ class Roost(messages.SnipeBackend):
             if '-x' in flags:
                 flags['-O'] = 'crypt'
                 cmd = ['zcrypt', '-E', '-c', flags.get('-c', 'MESSAGE')]
-                proc = yield from asyncio.create_subprocess_exec(
+                proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     **dict(
                         stdin=subprocess.PIPE,
@@ -247,7 +243,7 @@ class Roost(messages.SnipeBackend):
                         stderr=subprocess.PIPE,
                         )
                     )
-                stdout, stderr = yield from proc.communicate(body.encode())
+                stdout, stderr = await proc.communicate(body.encode())
                 stdout = stdout.decode(errors='replace')
                 stderr = stderr.decode(errors='replace')
                 if proc.returncode:
@@ -274,12 +270,11 @@ class Roost(messages.SnipeBackend):
 
             self.log.debug('sending %s', repr(message))
 
-            result = yield from self.r.send(message)
+            result = await self.r.send(message)
             self.log.info('sent to %s: %s', recipient, repr(result))
 
-    @asyncio.coroutine
-    def new_message(self, m):
-        msg = yield from self.construct_and_maybe_decrypt(m)
+    async def new_message(self, m):
+        msg = await self.construct_and_maybe_decrypt(m)
         self.add_message(msg)
 
     def add_message(self, msg):
@@ -289,13 +284,12 @@ class Roost(messages.SnipeBackend):
         self.drop_cache()
         self.redisplay(msg, msg)
 
-    @asyncio.coroutine
-    def construct_and_maybe_decrypt(self, m):
+    async def construct_and_maybe_decrypt(self, m):
         msg = RoostMessage(self, m)
         try:
             if msg.data.get('opcode') == 'crypt':
                 cmd = ['zcrypt', '-D', '-c', msg.data['class']]
-                proc = yield from asyncio.create_subprocess_exec(
+                proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     **dict(
                         stdin=subprocess.PIPE,
@@ -303,7 +297,7 @@ class Roost(messages.SnipeBackend):
                         stderr=subprocess.PIPE,
                         )
                     )
-                stdout, stderr = yield from proc.communicate(msg.body.encode())
+                stdout, stderr = await proc.communicate(msg.body.encode())
                 stdout = stdout.decode(errors='replace')
                 stderr = stderr.decode(errors='replace')
                 if proc.returncode:
@@ -360,9 +354,8 @@ class Roost(messages.SnipeBackend):
                 'backfilling',
                 self.do_backfill, msgid, mfilter, target, count, origin)))
 
-    @asyncio.coroutine
-    def do_backfill(self, start, mfilter, target, count, origin):
-        # yield from asyncio.sleep(.0001)
+    async def do_backfill(self, start, mfilter, target, count, origin):
+        # await asyncio.sleep(.0001)
         self.log.debug(
             'do_backfill(start=%s, [filter], %s, %s, origin=%s)',
             repr(start),
@@ -394,14 +387,14 @@ class Roost(messages.SnipeBackend):
                 self.log.debug('no more messages to backfill')
                 return
             self.log.debug('backfilling')
-            chunk = yield from self.r.messages(start, self.chunksize)
+            chunk = await self.r.messages(start, self.chunksize)
 
             if chunk['isDone']:
                 self.log.info('IT IS DONE.')
                 self.loaded = True
             ms = []
             for m in chunk['messages']:
-                cm = yield from self.construct_and_maybe_decrypt(m)
+                cm = await self.construct_and_maybe_decrypt(m)
                 ms.append(cm)
             count += len([m for m in ms if mfilter(m)])
             # Make sure ordering is stable
@@ -423,7 +416,7 @@ class Roost(messages.SnipeBackend):
                 util.timestr(self.messages[0].time) if self.messages else '-')
 
             # and (maybe) circle around
-            yield from asyncio.sleep(.1)
+            await asyncio.sleep(.1)
             self.backfill(mfilter, target, count=count, origin=origin)
 
             if ms:
@@ -433,8 +426,8 @@ class Roost(messages.SnipeBackend):
             self.log.debug('done backfilling')
 
     @keymap.bind('R S')
-    def dump_subscriptions(self, window: interactive.window):
-        subs = yield from self.r.subscriptions()
+    async def dump_subscriptions(self, window: interactive.window):
+        subs = await self.r.subscriptions()
         subs = [
             (x['class'], x['instance'], x['recipient'] or '*') for x in subs]
         subs.sort()
@@ -459,8 +452,7 @@ class Roost(messages.SnipeBackend):
         else:
             return [(class_, instance, realm) for class_ in rest]
 
-    @asyncio.coroutine
-    def load_subs(self, filename):
+    async def load_subs(self, filename):
         if not os.path.exists(filename):
             return
         with open(filename) as fp:
@@ -471,7 +463,7 @@ class Roost(messages.SnipeBackend):
             if triplet[2].endswith('@' + self.realm) and triplet[2][0] in '@*':
                 triplet[2] = '*'
 
-        yield from self.r.subscribe(triplets)
+        await self.r.subscribe(triplets)
 
     @staticmethod
     @util.listify
@@ -481,8 +473,8 @@ class Roost(messages.SnipeBackend):
                 yield ('un' * i + class_ + '.d' * j, instance, recipient)
 
     @keymap.bind('R s')
-    def subscribe(self, window: interactive.window):
-        spec = yield from window.read_string(
+    async def subscribe(self, window: interactive.window):
+        spec = await window.read_string(
             'subscribe to: ',
             name='zephyr class',
             )
@@ -491,20 +483,20 @@ class Roost(messages.SnipeBackend):
             if self.subunify:
                 subs = self.do_subunify(subs)
             self.log.debug('subbing to %s', repr(subs))
-            yield from self.r.subscribe(subs)
+            await self.r.subscribe(subs)
 
     @keymap.bind('R l')
-    def subscribe_file(self, window: interactive.window):
+    async def subscribe_file(self, window: interactive.window):
         default = self._zephyr_subs
         if not os.path.exists(default):
             default = None
-        filename = yield from window.read_filename(
+        filename = await window.read_filename(
             'Load subscriptions from file: ', content=default)
-        yield from self.load_subs(filename)
+        await self.load_subs(filename)
 
     @keymap.bind('R u')
-    def unsubscribe(self, window: interactive.window):
-        spec = yield from window.read_string(
+    async def unsubscribe(self, window: interactive.window):
+        spec = await window.read_string(
             'unsubscribe from: ',
             name='zephyr class',
             )
@@ -513,7 +505,7 @@ class Roost(messages.SnipeBackend):
             if self.subunify:
                 subs = self.do_subunify(subs)
             self.log.debug('unsubbing from %s', repr(subs))
-            yield from self.r.unsubscribe(subs)
+            await self.r.unsubscribe(subs)
 
     @keymap.bind('R R')
     def reconnect(self):
@@ -522,16 +514,16 @@ class Roost(messages.SnipeBackend):
         self.start()
 
     @keymap.bind('R D')
-    def disconnect(self):
+    async def disconnect(self):
         self.new_task.cancel()
         try:
-            yield from self.new_task
+            await self.new_task
         except BaseException:
             self.log.exception('cancelling new_task')
         with contextlib.suppress(BaseException):
             self.tasks.remove(self.new_task)
             self.new_task.cancel()
-            yield from self.new_task
+            await self.new_task
             self.new_task.exception()
         self.new_task = None
 

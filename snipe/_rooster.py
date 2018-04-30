@@ -85,15 +85,13 @@ class Rooster(util.HTTP_JSONmixin):
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
         self.setup_client_session()
 
-    @asyncio.coroutine
-    def credentials(self):
+    async def credentials(self):
         return get_zephyr_creds()
 
-    @asyncio.coroutine
-    def auth(self, create_user=False):
+    async def auth(self, create_user=False):
         self.principal, token = get_auth_token(self.service)
 
-        result = yield from self._post_json(
+        result = await self._post_json(
             '/v1/auth',
             principal=self.principal,
             token=token,
@@ -101,37 +99,33 @@ class Rooster(util.HTTP_JSONmixin):
             )
 
         self.token = result['authToken']
-        yield from self.reset_client_session_headers({
+        await self.reset_client_session_headers({
             'Authorization': 'Bearer ' + self.token,
             })
 
-    def ensure_auth(self):
+    async def ensure_auth(self):
         if self.token is None:
-            yield from self.auth()
+            await self.auth()
 
-    @asyncio.coroutine
-    def get_info(self):
-        yield from self.ensure_auth()
-        return (yield from self._get('/v1/info'))
+    async def get_info(self):
+        await self.ensure_auth()
+        return (await self._get('/v1/info'))
 
-    @asyncio.coroutine
-    def send(self, message):
-        yield from self.ensure_auth()
-        return (yield from self._post_json(
+    async def send(self, message):
+        await self.ensure_auth()
+        return (await self._post_json(
             '/v1/zwrite',
             message=message,
-            credentials=(yield from self.credentials()),
+            credentials=(await self.credentials()),
             ))
 
-    @asyncio.coroutine
-    def ping(self):
-        yield from self.ensure_auth()
-        return (yield from self._get('/v1/ping'))
+    async def ping(self):
+        await self.ensure_auth()
+        return (await self._get('/v1/ping'))
 
-    @asyncio.coroutine
-    def subscriptions(self):
-        yield from self.ensure_auth()
-        return (yield from self._get('/v1/subscriptions'))
+    async def subscriptions(self):
+        await self.ensure_auth()
+        return (await self._get('/v1/subscriptions'))
 
     @staticmethod
     def triplet_to_dict(triplet):
@@ -142,19 +136,17 @@ class Rooster(util.HTTP_JSONmixin):
             'recipient': recipient if recipient != '*' else '',
             }
 
-    @asyncio.coroutine
-    def subscribe(self, subs):
-        yield from self.ensure_auth()
+    async def subscribe(self, subs):
+        await self.ensure_auth()
 
-        return (yield from self._post_json(
+        return (await self._post_json(
             '/v1/subscribe',
             subscriptions=[self.triplet_to_dict(triplet) for triplet in subs],
-            credentials=(yield from self.credentials()),
+            credentials=(await self.credentials()),
             ))
 
-    @asyncio.coroutine
-    def unsubscribe(self, subs):
-        yield from self.ensure_auth()
+    async def unsubscribe(self, subs):
+        await self.ensure_auth()
         result = None
         self.log.error('unsubscribe(%s)', subs)
 
@@ -165,38 +157,34 @@ class Rooster(util.HTTP_JSONmixin):
         # the client library.
         for triplet in subs:
             triplet_dict = self.triplet_to_dict(triplet)
-            result = (yield from self._post_json(
+            result = (await self._post_json(
                 '/v1/unsubscribe',
                 subscription=triplet_dict,
-                credentials=(yield from self.credentials()),
+                credentials=(await self.credentials()),
                 ))
             self.log.error('unsubscribe: %s -> %s', triplet_dict, result)
         return result
 
-    @asyncio.coroutine
-    def check_zephyrcreds(self):
-        yield from self.ensure_auth()
-        return (yield from self._get('/v1/zephyrcreds'))
+    async def check_zephyrcreds(self):
+        await self.ensure_auth()
+        return (await self._get('/v1/zephyrcreds'))
 
-    @asyncio.coroutine
-    def renew_zephyrcreds(self):
-        yield from self.ensure_auth()
-        return (yield from self._post_json(
+    async def renew_zephyrcreds(self):
+        await self.ensure_auth()
+        return (await self._post_json(
             '/v1/zephyrcreds', credentials=self.zephyr_creds()))
 
-    @asyncio.coroutine
-    def bytime(self, t):
-        yield from self.ensure_auth()
-        return (yield from self._post_json('/v1/bytime', t=t))
+    async def bytime(self, t):
+        await self.ensure_auth()
+        return (await self._post_json('/v1/bytime', t=t))
 
-    @asyncio.coroutine
-    def messages(self, offset, limit, reverse=True, inclusive=False):
-        yield from self.ensure_auth()
+    async def messages(self, offset, limit, reverse=True, inclusive=False):
+        await self.ensure_auth()
 
         if not offset:
             offset = ''
 
-        return (yield from self._get(
+        return (await self._get(
             '/v1/messages',
             reverse=1 if reverse else 0,
             inclusive=1 if inclusive else 0,
@@ -204,11 +192,10 @@ class Rooster(util.HTTP_JSONmixin):
             count=limit,
             ))
 
-    @asyncio.coroutine
-    def newmessages(self, coro, startid=None, pingfrequency=5):
+    async def newmessages(self, coro, startid=None, pingfrequency=5):
         # will coincidentally ensure_auth
         if startid is None:
-            ms = yield from self.messages(None, 1, reverse=1, inclusive=0)
+            ms = await self.messages(None, 1, reverse=1, inclusive=0)
             if ms['messages']:
                 startid = ms['messages'][0]['id']
             else:
@@ -219,11 +206,11 @@ class Rooster(util.HTTP_JSONmixin):
         ws = util.JSONWebSocket(self.log)
         try:
             try:
-                yield from ws.connect(self.url + '/v1/socket/websocket')
+                await ws.connect(self.url + '/v1/socket/websocket')
             except aiohttp.ClientOSError as e:
                 self.log.debug('error connecting')
                 raise RoosterReconnectException(str(e), wait=5) from e
-            yield from ws.write({
+            await ws.write({
                 'type': 'auth',
                 'token': self.token,
                 })
@@ -236,11 +223,11 @@ class Rooster(util.HTTP_JSONmixin):
             self.log.debug('starting new message loop')
             while True:
                 try:
-                    m = yield from asyncio.wait_for(ws.read(), pingfrequency)
+                    m = await asyncio.wait_for(ws.read(), pingfrequency)
                 except asyncio.TimeoutError as e:
                     if state == 'pong':
                         self.log.debug('ping')
-                        yield from ws.write({
+                        await ws.write({
                             'type': 'ping',
                             })
                         state = 'ping'
@@ -255,13 +242,13 @@ class Rooster(util.HTTP_JSONmixin):
                 if state == 'start':
                     assert m['type'] == 'ready'
                     self.log.debug('authed, starting tail %d', tailid)
-                    yield from ws.write({
+                    await ws.write({
                         'type': 'new-tail',
                         'id': tailid,
                         'start': startid,
                         'inclusive': False,
                         })
-                    yield from ws.write({
+                    await ws.write({
                         'type': 'extend-tail',
                         'id': tailid,
                         'count': msgcount,
@@ -273,17 +260,17 @@ class Rooster(util.HTTP_JSONmixin):
                         state = 'pong'
                     elif m['type'] == 'messages':
                         msgcount += 1
-                        yield from ws.write({
+                        await ws.write({
                             'type': 'extend-tail',
                             'id': tailid,
                             'count': msgcount,
                             })
                         for msg in m['messages']:
-                            yield from coro(msg)
+                            await coro(msg)
                     else:
                         self.log.debug('unknown message type: %s', repr(m))
         finally:
-            yield from ws.close()
+            await ws.close()
 
 
 class ExileException(RoosterException):

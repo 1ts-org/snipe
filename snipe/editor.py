@@ -990,14 +990,14 @@ class Editor(Viewer):
             self.column = None
 
     @keymap.bind('Control-X f')
-    def set_fill_column(self, column: interactive.argument=None):
+    async def set_fill_column(self, column: interactive.argument=None):
         """Set the current fill column.  With a non-numeric prefix
         argument, set it to the current column.  With a numeric prefix
         argument, set it to the given number.  Otherwise, ask.
         """
 
         if column is None:
-            s = yield from self.read_string(
+            s = await self.read_string(
                 'new fill column (current is %d): ' % self.fill_column,
                 name='fill column')
             try:
@@ -1181,10 +1181,10 @@ class Editor(Viewer):
         self.kill_region(mark, append=self.last_command.startswith('kill_'))
 
     @keymap.bind('Control-X i')
-    def insert_file(self):
+    async def insert_file(self):
         """Read a file name and then insert the contents in to the buffer."""
 
-        filename = yield from self.read_filename('Insert File: ')
+        filename = await self.read_filename('Insert File: ')
         with open(filename) as fp:
             self.insert(fp.read())
 
@@ -1203,9 +1203,9 @@ class Editor(Viewer):
         self.active_keymap = kmap
 
     @keymap.bind('Control-X 8 [Return]')
-    def insert_unicode(self):
+    async def insert_unicode(self):
         """Reads a code point name or number and inserts it"""
-        s = yield from self.read_string('Insert code point (name or hex): ')
+        s = await self.read_string('Insert code point (name or hex): ')
         s = s.strip()
         if re.match(r'^[a-fA-F0-9]+$', s):
             return self.self_insert(key=chr(int(s, base=16)))

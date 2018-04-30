@@ -166,15 +166,13 @@ class TestAsCoroutine(unittest.TestCase):
             nonlocal val
             val = 'normal'
 
-        @asyncio.coroutine
-        def coroutine():
+        async def coroutine():
             nonlocal val
-            yield from asyncio.sleep(0)
+            await asyncio.sleep(0)
             val = 'coroutine'
 
-        @asyncio.coroutine
-        def yielder(f):
-            yield from f()
+        async def yielder(f):
+            await f()
 
         self.assertTrue(
             asyncio.iscoroutinefunction(snipe.util.as_coroutine(normal)))
@@ -310,8 +308,7 @@ class TestLevel(unittest.TestCase):
 
 class TestCoroCleanup(unittest.TestCase):
     def test(self):
-        @asyncio.coroutine
-        def self_cancel():
+        async def self_cancel():
             raise asyncio.CancelledError
 
         wrapped = snipe.util.coro_cleanup(self_cancel)
@@ -322,8 +319,7 @@ class TestCoroCleanup(unittest.TestCase):
         with self.assertRaises(asyncio.CancelledError):
             loop.run_until_complete(wrapped())
 
-        @asyncio.coroutine
-        def key_error(*args):
+        async def key_error(*args):
             return {}[0]
 
         with self.assertLogs('coro_cleanup'):
@@ -351,24 +347,19 @@ class MockClientSession:
         self.method = None
         self.closed = False
 
-    @asyncio.coroutine
-    def post(self, *args, **kw):
-        return (yield from self.request('post', *args, **kw))
+    async def post(self, *args, **kw):
+        return (await self.request('post', *args, **kw))
 
-    @asyncio.coroutine
-    def patch(self, *args, **kw):
-        return (yield from self.request('patch', *args, **kw))
+    async def patch(self, *args, **kw):
+        return (await self.request('patch', *args, **kw))
 
-    @asyncio.coroutine
-    def get(self, *args, **kw):
-        return (yield from self.request('get', *args, **kw))
+    async def get(self, *args, **kw):
+        return (await self.request('get', *args, **kw))
 
-    @asyncio.coroutine
-    def ws_connect(self, *args, **kw):
-        return (yield from self.request('ws_connect', *args, **kw))
+    async def ws_connect(self, *args, **kw):
+        return (await self.request('ws_connect', *args, **kw))
 
-    @asyncio.coroutine
-    def request(self, method, *args, **kw):
+    async def request(self, method, *args, **kw):
         self.method = method
         return self.result
 
@@ -384,34 +375,29 @@ class MockResult:
         self.closed = False
         self.wrote = None
 
-    @asyncio.coroutine
-    def json(self):
+    async def json(self):
         if self.exception is not None:
             raise self.exception
 
         return self.data
 
-    @asyncio.coroutine
-    def read(self):
+    async def read(self):
         return self.data
 
     receive_json = read
 
-    @asyncio.coroutine
-    def send_json(self, data):
+    async def send_json(self, data):
         self.wrote = data
 
     def release(self):
         pass
 
-    @asyncio.coroutine
-    def close(self):
+    async def close(self):
         self.closed = True
 
 
 class JSONMixinTesterSuper:
-    @asyncio.coroutine
-    def shutdown(self):
+    async def shutdown(self):
         pass
 
 

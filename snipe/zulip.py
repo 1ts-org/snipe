@@ -125,13 +125,13 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.tasks.append(asyncio.Task(self.presence_beacon()))
 
     @util.coro_cleanup
-    def connect(self):
+    async def connect(self):
         try:
             self.params = None
             while True:
                 if self.params is None:
                     self.log.debug('registering')
-                    params = yield from self._post('register')
+                    params = await self._post('register')
 
                     # TODO check for an error, backoff, etc.
                     self.params = params
@@ -153,7 +153,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     'getting events, queue_id=%s, last_event_id=%s',
                     queue_id, last_event_id)
 
-                result = yield from self._get(
+                result = await self._get(
                     'events', queue_id=queue_id, last_event_id=last_event_id)
 
                 # TODO check for error and maybe invalidate params?
@@ -163,7 +163,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 for event in result['events']:
                     try:
                         msg, last_event_id = (
-                            yield from self.process_event(
+                            await self.process_event(
                                 event, last_event_id))
                     except Exception:
                         self.log.exception(
@@ -186,8 +186,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.log.debug('connect ends')
 
-    @asyncio.coroutine
-    def process_event(self, event, last_event_id):
+    async def process_event(self, event, last_event_id):
         type_ = event.get('type')
         msg = None
         if type_ == 'message':
@@ -210,18 +209,17 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         return msg, last_event_id
 
-    @asyncio.coroutine
-    def presence_beacon(self):
+    async def presence_beacon(self):
         while True:
-            yield from self.connected.wait()
+            await self.connected.wait()
             try:
-                yield from self._post(
+                await self._post(
                     'users/me/presence',
                     status='active',
                     new_user_input='true')
             except Exception:
                 pass  # just ignore it
-            yield from asyncio.sleep(60)
+            await asyncio.sleep(60)
 
     @staticmethod
     def readjust(msgs):
@@ -237,8 +235,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         if not self.backfilling and not self.loaded:
             self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
 
-    @asyncio.coroutine
-    def do_backfill(self, mfilter, target):
+    async def do_backfill(self, mfilter, target):
         if self.backfilling:
             return
         self.backfilling = True
@@ -247,7 +244,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 anchor = self.messages[0].data['id']
             else:
                 anchor = 1000000000  # XXX
-            result = yield from self._get(
+            result = await self._get(
                 'messages', num_before=1024, num_after=0, anchor=anchor,
                 apply_markdown='false')
             if result.get('result') != 'success':
@@ -272,14 +269,13 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         finally:
             self.backfilling = False
 
-    @asyncio.coroutine
-    def send(self, dest, body):
+    async def send(self, dest, body):
         comps = dest.split(';', 1)
         to = comps[0].strip()
         subject = comps[1].strip() if len(comps) > 1 else ''
         type_ = 'private' if '@' in to else 'stream'
         body = re.sub('(?<!\n)\n(?!\n)', ' ', body)
-        result = yield from self._post(
+        result = await self._post(
             'messages', type=type_, content=body, subject=subject, to=to)
         self.log.debug('send: %s', pprint.pformat(result))
         if result['result'] != 'success':
@@ -375,7 +371,7 @@ class ZulipMessage(messages.SnipeMessage):
             return nfilter
 
     @keymap.bind('e')
-    def edit_message(self, window: interactive.window):
+    async def edit_message(self, window: interactive.window):
         """Edit a message."""
 
         prompt = (
@@ -389,7 +385,7 @@ class ZulipMessage(messages.SnipeMessage):
             prompt += ' '
             text = self.subject + '\n' + self.body
 
-        text = yield from window.read_string(
+        text = await window.read_string(
             prompt,
             height=10,
             content=text,
@@ -406,7 +402,7 @@ class ZulipMessage(messages.SnipeMessage):
             kw['subject'] = fields[0].strip()
             kw['content'] = fields[1] if len(fields) > 1 else ''
 
-        result = yield from self.backend._patch(
+        result = await self.backend._patch(
             'messages/' + str(self.data['id']), **kw)
         if result['result'] != 'success':
             raise util.SnipeException(result['msg'])

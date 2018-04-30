@@ -74,10 +74,10 @@ def describe_bindings(window: interactive.window, keymap: interactive.keymap):
 
 
 @keymap.bind('k')
-def describe_key(window: interactive.window, keymap: interactive.keymap):
+async def describe_key(window: interactive.window, keymap: interactive.keymap):
     """Read a keysequence and display its documentation."""
 
-    keystrokes, func = yield from window.read_keyseq(
+    keystrokes, func = await window.read_keyseq(
         'Describe key? ', keymap)
     keyseq = ' '.join(keymap.unkey(k) for k in keystrokes)
     if func is None:
@@ -275,8 +275,8 @@ class HelpBrowser(editor.PopViewer):
         self.load(self.toc[-1])
 
     @keymap.bind('m')
-    def load_page(self):
-        page = yield from self.read_oneof('Page: ', self.toc)
+    async def load_page(self):
+        page = await self.read_oneof('Page: ', self.toc)
         if page in self.toc:
             self.load(page)
 

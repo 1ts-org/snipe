@@ -62,9 +62,8 @@ def as_coroutine(f):
     if asyncio.iscoroutinefunction(f):
         return f
 
-    @asyncio.coroutine
     @functools.wraps(f)
-    def wrapped(*args, **kwargs):
+    async def wrapped(*args, **kwargs):
         f(*args, **kwargs)
 
     return wrapped
@@ -260,11 +259,10 @@ USER_AGENT = 'snipe 0 (development) (python %s) (aiohttp %s)' % (
 
 
 def coro_cleanup(f):
-    @asyncio.coroutine
     @functools.wraps(f)
-    def catch_and_log(*args, **kw):
+    async def catch_and_log(*args, **kw):
         try:
-            return (yield from as_coroutine(f)(*args, **kw))
+            return (await as_coroutine(f)(*args, **kw))
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -345,30 +343,27 @@ class HTTP_JSONmixin:
         self._JSONmixin_kw = kw
         self._clientsession = None
 
-    @asyncio.coroutine
-    def _ensure_client_session(self):
+    async def _ensure_client_session(self):
         if self._clientsession is None:
             self._clientsession = self._get_clientsession(
                 headers=self._JSONmixin_headers, **self._JSONmixin_kw)
 
-    @asyncio.coroutine
-    def reset_client_session_headers(self, headers):
+    async def reset_client_session_headers(self, headers):
         if getattr(self, '_clientsession', None) is not None:
-            yield from as_coroutine(self._clientsession.close)()
+            await as_coroutine(self._clientsession.close)()
             self._clientsession = None
         self._JSONmixin_headers = headers
-        yield from self._ensure_client_session()
+        await self._ensure_client_session()
 
-    @asyncio.coroutine
-    def _result(self, response):
-        yield from self._ensure_client_session()
+    async def _result(self, response):
+        await self._ensure_client_session()
         try:
-            result = yield from response.json()
+            result = await response.json()
         except (
                 UnicodeError,
                 ValueError,
                 getattr(aiohttp, 'ContentTypeError', None)) as e:
-            data = yield from response.read()
+            data = await response.read()
             if isinstance(data, bytes):
                 data = data.decode(errors='replace')
             self.log.error(
@@ -379,58 +374,52 @@ class HTTP_JSONmixin:
             response.release()
         return result
 
-    @asyncio.coroutine
-    def _post(self, path, **kw):
-        yield from self._ensure_client_session()
+    async def _post(self, path, **kw):
+        await self._ensure_client_session()
         self.log.debug(
             '_post(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = yield from self._clientsession.post(
+        response = await self._clientsession.post(
             urllib.parse.urljoin(self.url, path), data=kw)
-        return (yield from self._result(response))
+        return (await self._result(response))
 
-    @asyncio.coroutine
-    def _post_json(self, path, **kw):
-        yield from self._ensure_client_session()
+    async def _post_json(self, path, **kw):
+        await self._ensure_client_session()
         self.log.debug(
             '_post_json(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = yield from self._clientsession.post(
+        response = await self._clientsession.post(
             urllib.parse.urljoin(self.url, path),
             data=json.dumps(kw),
             headers={'Content-Type': 'application/json'},
             )
-        return (yield from self._result(response))
+        return (await self._result(response))
 
-    @asyncio.coroutine
-    def _patch(self, path, **kw):
-        yield from self._ensure_client_session()
+    async def _patch(self, path, **kw):
+        await self._ensure_client_session()
         self.log.debug(
             '_patch(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = yield from self._clientsession.patch(
+        response = await self._clientsession.patch(
             urllib.parse.urljoin(self.url, path), data=kw)
-        return (yield from self._result(response))
+        return (await self._result(response))
 
-    @asyncio.coroutine
-    def _get(self, path, **kw):
-        yield from self._ensure_client_session()
+    async def _get(self, path, **kw):
+        await self._ensure_client_session()
         self.log.debug(
             '_get(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = yield from self._clientsession.get(
+        response = await self._clientsession.get(
             urllib.parse.urljoin(self.url, path), params=kw)
-        return (yield from self._result(response))
+        return (await self._result(response))
 
-    @asyncio.coroutine
-    def _request(self, method, url, **kw):
-        yield from self._ensure_client_session()
+    async def _request(self, method, url, **kw):
+        await self._ensure_client_session()
         self.log.debug(
             '_request(%s, %s, **%s)', repr(method), repr(url), repr(kw))
-        response = yield from self._clientsession.request(method, url, **kw)
-        return (yield from self._result(response))
+        response = await self._clientsession.request(method, url, **kw)
+        return (await self._result(response))
 
-    @asyncio.coroutine
-    def shutdown(self):
-        yield from super().shutdown()
+    async def shutdown(self):
+        await super().shutdown()
         if self._clientsession is not None:
-            yield from as_coroutine(self._clientsession.close)()
+            await as_coroutine(self._clientsession.close)()
 
 
 class JSONWebSocket:
@@ -439,30 +428,26 @@ class JSONWebSocket:
         self.log = log
         self.session = clientSession()
 
-    @asyncio.coroutine
-    def close(self):
+    async def close(self):
         if self.resp is not None:
-            yield from as_coroutine(self.resp.close)()
+            await as_coroutine(self.resp.close)()
             self.resp = None
-        yield from as_coroutine(self.session.close)()
+        await as_coroutine(self.session.close)()
 
-    @asyncio.coroutine
-    def connect(self, url, headers=None):
+    async def connect(self, url, headers=None):
         if headers is None:
             headers = {}
         headers['User-Agent'] = USER_AGENT
         self.log.debug('connecting to %s', url)
-        self.resp = yield from self.session.ws_connect(url, headers=headers)
+        self.resp = await self.session.ws_connect(url, headers=headers)
 
         return self.resp
 
-    @asyncio.coroutine
-    def write(self, data):
-        return (yield from as_coroutine(self.resp.send_json)(data))
+    async def write(self, data):
+        return (await as_coroutine(self.resp.send_json)(data))
 
-    @asyncio.coroutine
-    def read(self):
-        return (yield from self.resp.receive_json())
+    async def read(self):
+        return (await self.resp.receive_json())
 
 
 @contextlib.contextmanager

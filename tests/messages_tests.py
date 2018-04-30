@@ -245,9 +245,8 @@ class TestBackend(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
 
-        @asyncio.coroutine
-        def f():
-            yield from asyncio.sleep(0)
+        async def f():
+            await asyncio.sleep(0)
         t = asyncio.Task(f())
         s.tasks.append(t)
         loop.run_until_complete(t)
@@ -262,8 +261,7 @@ class TestBackend(unittest.TestCase):
         self.assertFalse(s.tasks)
         self.assertTrue(t.done())
 
-        @asyncio.coroutine
-        def g():
+        async def g():
             raise Exception('exception')
 
         t = asyncio.Task(g())
@@ -336,7 +334,7 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(synth.count(), 1)
         self.assertEqual(a.count(), 3)
         self.assertEqual(len(list(a.walk(None, False))), 3)
-        list(a.send('sink', 'a message'))
+        mocks.simple_run(a.send('sink', 'a message'))
         self.assertEqual(a.count(), 4)
         self.assertEqual(len(list(a.walk(None, False))), 4)
         self.assertEqual(len(list(a.walk(None))), 4)
@@ -376,8 +374,7 @@ class TestAggregator(unittest.TestCase):
 
         count = 0
 
-        @asyncio.coroutine
-        def mock_shutdown():
+        async def mock_shutdown():
             nonlocal count
             count += 1
 

@@ -116,8 +116,7 @@ class Context:
 
         self.read_starks()
 
-    @asyncio.coroutine
-    def start(self, ui):
+    async def start(self, ui):
         self.ui = ui
         self.ui.context = self
         self.erasechar = ui.get_erasechar()
@@ -196,9 +195,8 @@ class Context:
         else:
             return ''
 
-    @asyncio.coroutine
-    def shutdown(self):
-        yield from self.backends.shutdown()
+    async def shutdown(self):
+        await self.backends.shutdown()
 
     def message(self, s):
         self.messagelog.append(s)
@@ -306,9 +304,8 @@ class SnipeLogHandler(logging.Handler):
             fp.writelines(s + '\n' for s in self.buffer)
             self.buffer.clear()
 
-    @asyncio.coroutine
-    def writer(self):
-        yield from asyncio.sleep(self.interval)
+    async def writer(self):
+        await asyncio.sleep(self.interval)
         self.dump()
         self.task = None
 

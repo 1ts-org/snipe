@@ -228,19 +228,17 @@ class Window:
             if self.keyseq:
                 self.keyecho(self.keyseq)
 
-    @asyncio.coroutine
-    def catch_and_log(self, coro):
+    async def catch_and_log(self, coro):
         try:
-            yield from self.catch_and_log_int(coro)
+            await self.catch_and_log_int(coro)
         except (Exception, KeyboardInterrupt) as e:
             self.context.message(str(e))
             self.log.exception('Executing complex command')
             self.whine('')
         self.redisplay()
 
-    @asyncio.coroutine
-    def catch_and_log_int(self, coro):
-        yield from coro
+    async def catch_and_log_int(self, coro):
+        await coro
 
     def check_redisplay_hint(self, hint):
         """See if a redisplay hint dict applies to this window.  Called by the
@@ -311,7 +309,7 @@ class Window:
         """Tell the frontend to flash the screen."""
         self.fe.notify()
 
-    def read_string(
+    async def read_string(
             self,
             prompt,
             content=None,
@@ -367,18 +365,18 @@ class Window:
         w.renderer.reframe(-1)
         self.fe.redisplay()
 
-        yield from f
+        await f
 
         return f.result()
 
-    def read_filename(self, prompt, content=None, name='filename'):
+    async def read_filename(self, prompt, content=None, name='filename'):
         """Use self.read_string to read a filename from the user.
 
         :param str prompt: The prompt string
         :param str content: The initial contents of the input
         """
 
-        result = yield from self.read_string(
+        result = await self.read_string(
             prompt,
             content=content,
             completer=interactive.FileCompleter(),
@@ -387,14 +385,14 @@ class Window:
 
         return result
 
-    def read_keyseq(self, prompt, keymap, name='key sequence'):
+    async def read_keyseq(self, prompt, keymap, name='key sequence'):
         """Read a keymap key sequence from the user.
 
         :param str prompt: The prompt string
         :param str keymap: The keymap read the sequence for
         """
         from .prompt import KeySeqPrompt
-        return (yield from self.read_string(
+        return (await self.read_string(
             prompt, window=KeySeqPrompt, keymap=keymap, name=name))
 
     def show(self, string, what='what'):
@@ -487,7 +485,7 @@ class Window:
         self.fe.split_window(REPL(self.fe), True)
 
     @keymap.bind('Control-X 4 /')
-    def split_to_messager_filter(self):
+    async def split_to_messager_filter(self):
         """Split to a new messager window with a specified filter."""
 
         from . import filters
@@ -497,7 +495,7 @@ class Window:
         else:
             s = ''
 
-        s = yield from self.read_string(
+        s = await self.read_string(
             'Filter expression (^C^C when finished):\n',
             content=s,
             height=5,
@@ -516,7 +514,7 @@ class Window:
             self._playground['context'] = self.context
 
     @keymap.bind('Meta-[ESCAPE]', 'Meta-:')
-    def replhack(self):
+    async def replhack(self):
         """Evaluate python expressions.   Mostly useful for debugging."""
 
         from .prompt import ShortPrompt
@@ -527,7 +525,7 @@ class Window:
 
         out = ''
         while True:
-            expr = yield from self.read_string(
+            expr = await self.read_string(
                 out + '>>> ',
                 height=len(out.splitlines()) + 2,
                 window=ShortPrompt,
@@ -542,26 +540,26 @@ class Window:
             self.log.debug('result: %s', out)
 
     @keymap.bind('Meta-=')
-    def set_config(self, arg: interactive.argument):
+    async def set_config(self, arg: interactive.argument):
         """Set a config key.  With a prefix-argument, dump the current
         configuration dict to a window."""
 
         if not arg:
-            key = yield from self.read_oneof(
+            key = await self.read_oneof(
                 'Key: ',
                 util.Configurable.registry.keys(),
                 height=2,
                 name='configuration key',
                 )
             if util.Configurable.registry[key].oneof:
-                value = yield from self.read_oneof(
+                value = await self.read_oneof(
                     'Value: ',
                     util.Configurable.registry[key].oneof,
                     content=str(util.Configurable.get(self, key)),
                     name='configuration value',
                     )
             else:
-                value = yield from self.read_string(
+                value = await self.read_string(
                     'Value: ',
                     content=str(util.Configurable.get(self, key)),
                     name='configuration value',
@@ -572,12 +570,11 @@ class Window:
             import pprint
             self.show(pprint.pformat(self.context.conf))
 
-    @asyncio.coroutine
-    def read_oneof(
+    async def read_oneof(
             self, prompt, candidates, content=None, height=1, name='Prompt'):
         from .prompt import ShortPrompt
 
-        return (yield from self.read_string(
+        return (await self.read_string(
             prompt,
             window=ShortPrompt,
             height=height,
@@ -659,23 +656,22 @@ class Window:
         self.fe.force_repaint()
 
     @keymap.bind('Control-S')
-    def search_forward(self, string=None):
+    async def search_forward(self, string=None):
         """Search forwards."""
         self.log.error('search_forward')
-        yield from self.search(string, forward=True)
+        await self.search(string, forward=True)
 
     @keymap.bind('Control-R')
-    def search_backward(self, string=None):
+    async def search_backward(self, string=None):
         """Search backwards."""
-        yield from self.search(string, forward=False)
+        await self.search(string, forward=False)
 
-    @asyncio.coroutine
-    def search(self, string=None, forward=True):
+    async def search(self, string=None, forward=True):
         self.match('')  # probe to make sure this is supported here
         if string is None:
             from .prompt import Search
             self.log.error('search: string is none')
-            string = yield from self.read_string(
+            string = await self.read_string(
                 'search ',
                 name='search',
                 history='search',

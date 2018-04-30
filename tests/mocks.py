@@ -84,9 +84,8 @@ class Aggregator:
     def count(self):
         return len(self._messages)
 
-    def send(self, params, body):
+    async def send(self, params, body):
         self._sent.append((params, body))
-        return ()
 
     def destinations(self):
         return ()
@@ -430,3 +429,11 @@ def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
 def mocked_up_actual_fe_window(window_factory=None, statusline_factory=None):
     with mocked_up_actual_fe(window_factory, statusline_factory) as fe:
         yield fe.windows[fe.output].window
+
+
+def simple_run(coro):
+    try:
+        while True:
+            coro.send(None)
+    except StopIteration:
+        pass

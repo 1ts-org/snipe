@@ -37,8 +37,6 @@ Editor subclasses for interacting withe user.
 '''
 
 
-import asyncio
-
 from . import chunks
 from . import editor
 from . import keymap
@@ -502,18 +500,18 @@ class Composer(Leaper):
         super().destroy()
 
     @keymap.bind('Control-S')
-    def roll_or_search_forward(self, word=None):
+    async def roll_or_search_forward(self, word=None):
         if self.cursor.point <= self.complete_end():
             super().roll_forward()
         else:
-            yield from self.search_forward(word)
+            await self.search_forward(word)
 
     @keymap.bind('Control-R')
-    def roll_or_search_backward(self, word=None):
+    async def roll_or_search_backward(self, word=None):
         if self.cursor.point <= self.complete_end():
             super().roll_backward()
         else:
-            yield from self.search_backward(word)
+            await self.search_backward(word)
 
 
 class Search(LongPrompt):
@@ -610,8 +608,7 @@ class Search(LongPrompt):
             self.redisplay()
         return result
 
-    @asyncio.coroutine
-    def search(self, string=None, forward=True):
+    async def search(self, string=None, forward=True):
         assert string is None
         if self.forward != forward:
             self.forward = forward

@@ -21,7 +21,7 @@ client intended for services with persistence, such as Zulip
 roost (https://github.com/roost-im).""",
     version='0.dev4',
     packages=find_packages(exclude=['tests']),
-    python_requires='>=3.3',
+    python_requires='>=3.6',
     entry_points={'console_scripts': [
         'snipe = snipe.main:main',
         ]},

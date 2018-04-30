@@ -137,8 +137,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def start(self):
         self.tasks.append(asyncio.Task(self.connect(self.slackname)))
 
-    @asyncio.coroutine
-    def connect(self, slackname):
+    async def connect(self, slackname):
         try:
             hostname = slackname + '.' + SLACKDOMAIN
 
@@ -153,9 +152,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.log.debug('about to rtm.start')
 
-            yield from self.emoji_update()
+            await self.emoji_update()
 
-            self.data = yield from self.method('rtm.start')
+            self.data = await self.method('rtm.start')
             if not self.check_ok(self.data, 'connecting to %s', slackname):
                 return
 
@@ -189,22 +188,22 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.websocket = util.JSONWebSocket(self.log)
             try:
-                yield from self.websocket.connect(url)
+                await self.websocket.connect(url)
 
                 self.connected = True
 
                 while True:
-                    m = yield from self.websocket.read()
+                    m = await self.websocket.read()
                     self.log.debug('message: %s', repr(m))
                     try:
-                        yield from self.incoming(m)
+                        await self.incoming(m)
                     except asyncio.CancelledError:
                         raise
                     except Exception:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))
             finally:
-                yield from asyncio.coroutine(self.websocket.close)()
+                await asyncio.coroutine(self.websocket.close)()
                 self.websocket = None
 
         except asyncio.CancelledError:
@@ -224,9 +223,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             for x in self.dests.values()
             if x.type in ('user', 'bot'))
 
-    @asyncio.coroutine
-    def incoming(self, m):
-        msg = yield from self.process_message(self.messages, m)
+    async def incoming(self, m):
+        msg = await self.process_message(self.messages, m)
         if msg is not None:
             self.drop_cache()
             self.redisplay(msg, msg)
@@ -244,8 +242,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             return None
         return msg
 
-    @asyncio.coroutine
-    def process_message(self, messagelist, m):
+    async def process_message(self, messagelist, m):
         if 'reply_to' in m:
             self.log.debug('reply_to_message: %s', pprint.pformat(m))
 
@@ -266,7 +263,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if t in self.IGNORED_TYPES:
             return
         elif t == 'emoji_changed':
-            yield from self.emoji_update()
+            await self.emoji_update()
             return
         elif t == 'message' and m.get('subtype') == 'message_changed':
             msg = self.find_message(float(m['message']['ts']), m)
@@ -333,10 +330,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         messagelist.append(msg)
         return msg
 
-    @asyncio.coroutine
-    def emoji_update(self):
+    async def emoji_update(self):
         self.log.debug('attempting to retrieve emoji')
-        self.emoji = yield from self.method('emoji.list')
+        self.emoji = await self.method('emoji.list')
 
     @keymap.bind('S U')
     def dump_users(self, window: interactive.window):
@@ -366,8 +362,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             return
         self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
 
-    @asyncio.coroutine
-    def do_backfill(self, mfilter, target):
+    async def do_backfill(self, mfilter, target):
         self.log.debug('backfill([filter], %s)', repr(target))
         with self.backfill_guard() as already:
             if already:
@@ -383,10 +378,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                         and self.dests[dest].data['is_member']))
                 and not self.dests[dest].loaded]
             self.tasks += backfillers
-            yield from asyncio.gather(*backfillers, return_exceptions=True)
+            await asyncio.gather(*backfillers, return_exceptions=True)
 
-    @asyncio.coroutine
-    def do_backfill_dest(self, dest, mfilter, target):
+    async def do_backfill_dest(self, dest, mfilter, target):
         d = self.dests[dest]
 
         self.log.debug(
@@ -405,7 +399,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         d.loaded = True
 
-        data = yield from self.method(
+        data = await self.method(
             {
                 'channel': 'channels.history',
                 'im': 'im.history',
@@ -421,7 +415,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         for m in reversed(data['messages']):
             m['channel'] = dest
             try:
-                msg = yield from self.process_message(messagelist, m)
+                msg = await self.process_message(messagelist, m)
                 if d.oldest is None or d.oldest > msg.time:
                     d.oldest = msg.time
             except Exception:
@@ -433,8 +427,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if messagelist:
             self.redisplay(messagelist[0], messagelist[-1])
 
-    @asyncio.coroutine
-    def send(self, inrecipient, body):
+    async def send(self, inrecipient, body):
         inrecipient = inrecipient.strip()
         recipient = inrecipient.lstrip('+#@')
 
@@ -459,7 +452,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 raise util.SnipeException('cannot find recipient')
             # we need to open a dm session
             self.log.debug('opening dm session with %s', repr(d))
-            response = yield from self.method('im.open', user=user.data['id'])
+            response = await self.method('im.open', user=user.data['id'])
 
             if not self.check_ok(response, 'opening DM session'):
                 return
@@ -470,7 +463,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         body = body.replace('<', '&lt;')
         body = body.replace('>', '&gt;')
 
-        response = yield from self.method(
+        response = await self.method(
             'chat.postMessage',
             as_user=True,
             channel=recipient,
@@ -479,18 +472,20 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.check_ok(response, 'sending message to %s', inrecipient)
 
-    @asyncio.coroutine
-    def method(self, method, **kwargs):
+    async def method(self, method, **kwargs):
         msg = dict(kwargs)
         msg['token'] = self.token
-        return (yield from self._post(method, **msg))
+        return (await self._post(method, **msg))
 
     def check_ok(self, response, context, *args):
         # maybe should be doing this with exceptions
         try:
             self.check(response, context, *args)
         except util.SnipeException as error:
-            self.messages.append(messages.SnipeErrorMessage(self, str(error)))
+            self.messages.append(messages.SnipeErrorMessage(
+                self,
+                str(error) + '\n' + repr(response),
+                ))
             self.drop_cache()
             return False
         return True
@@ -656,22 +651,22 @@ class SlackMessage(messages.SnipeMessage):
             return terms[0]
 
     @keymap.bind('+')
-    def add_reaction(self, window: interactive.window):
+    async def add_reaction(self, window: interactive.window):
         """Add a reaction to a message."""
-        yield from self.react(window, 'reactions.add')
+        await self.react(window, 'reactions.add')
 
     @keymap.bind('-')
-    def remove_reaction(self, window: interactive.window):
+    async def remove_reaction(self, window: interactive.window):
         """Remove a reaction to a message."""
-        yield from self.react(window, 'reactions.remove')
+        await self.react(window, 'reactions.remove')
 
     @keymap.bind('e')
-    def edit_message(self, window: interactive.window):
+    async def edit_message(self, window: interactive.window):
         """Edit a message."""
         self.backend.log.debug('self is %s, body is %s', repr(self), self.body)
         self.backend.log.debug('window->cursor is %s', repr(window.cursor))
 
-        text = yield from window.read_string(
+        text = await window.read_string(
             'edit (destination ignored, ^C^C when finished, ^G aborts) -> ',
             height=10,
             content=self.followup() + '\n' + self.body,
@@ -685,7 +680,7 @@ class SlackMessage(messages.SnipeMessage):
         except ValueError:
             raise Exception('no body in message')
 
-        response = yield from self.backend.method(
+        response = await self.backend.method(
             'chat.update',
             channel=self.data['channel'],
             ts=self.data['ts'],
@@ -694,8 +689,7 @@ class SlackMessage(messages.SnipeMessage):
 
         self.backend.check(response, 'editing message to %s', self.followup())
 
-    @asyncio.coroutine
-    def react(self, window, method):
+    async def react(self, window, method):
         for reaction in self.data.get('reactions', []):
             with contextlib.suppress(ValueError):
                 self.backend.used_emoji.remove(reaction['name'])
@@ -706,11 +700,11 @@ class SlackMessage(messages.SnipeMessage):
             + list(sorted(custom_emoji - set(self.backend.used_emoji) - EMOJI))
             + list(sorted(
                 EMOJI - custom_emoji - set(self.backend.used_emoji))))
-        reaction = yield from window.read_oneof(
+        reaction = await window.read_oneof(
             'Reaction: ', emoji_list)
         if reaction not in emoji_list:
             return
-        response = yield from self.backend.method(
+        response = await self.backend.method(
             method,
             name=reaction,
             channel=self.data['channel'],

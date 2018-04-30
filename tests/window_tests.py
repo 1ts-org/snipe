@@ -98,7 +98,9 @@ class TestWindow(unittest.TestCase):
             w.input_char('Z')
             self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y', 'z'])
 
-            w.keymap['0'] = asyncio.coroutine(lambda: save.append('0'))
+            async def key_action():
+                save.append('0')
+            w.keymap['0'] = key_action
             self.assertFalse(w.tasks)
             w.input_char('0')
             self.assertTrue(w.tasks)
@@ -111,7 +113,9 @@ class TestWindow(unittest.TestCase):
             with self.assertLogs(w.log, logging.ERROR):
                 w.input_char('1')
 
-            w.keymap['2'] = asyncio.coroutine(lambda: {}[None])
+            async def key_raises():
+                {}[None]
+            w.keymap['2'] = key_raises
             w.input_char('2')
             with self.assertLogs(w.log, logging.ERROR):
                 loop.run_until_complete(w.tasks[0])

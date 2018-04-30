@@ -372,7 +372,7 @@ class Messager(window.Window, window.PagingMixIn):
             next(self.walk(self.cursor, False, float('-inf')))
 
     @keymap.bind('s', 'z')
-    def send(self, recipient='', msg=None, name='send message'):
+    async def send(self, recipient='', msg=None, name='send message'):
         """Start composing a message."""
 
         sill = self.renderer.display_range()[1]
@@ -386,7 +386,7 @@ class Messager(window.Window, window.PagingMixIn):
 
         from .prompt import Composer
 
-        message = yield from self.read_string(
+        message = await self.read_string(
             'compose (^C^C to send, ^G to abort) --> ',
             height=10,
             content=recipient + '\n' if recipient else '',
@@ -402,7 +402,7 @@ class Messager(window.Window, window.PagingMixIn):
         if '\n' not in message:
             message += '\n'
         params, body = message.split('\n', 1)
-        yield from self.fe.context.backends.send(params, body)
+        await self.fe.context.backends.send(params, body)
 
     def replymsg(self):
         replymsg = self.cursor
@@ -421,19 +421,19 @@ class Messager(window.Window, window.PagingMixIn):
         return replymsg
 
     @keymap.bind('f')
-    def followup(self):
+    async def followup(self):
         """Followup (wide-reply) to a message."""
 
         msg = self.replymsg()
-        yield from self.send(
+        await self.send(
             msg.followup(), msg, 'followup to ' + msg.followup())
 
     @keymap.bind('r')
-    def reply(self):
+    async def reply(self):
         """Replay (narrow-reply) to a message."""
 
         msg = self.replymsg()
-        yield from self.send(msg.reply(), msg, 'reply to ' + msg.reply())
+        await self.send(msg.reply(), msg, 'reply to ' + msg.reply())
 
     @keymap.bind('[END]', 'Shift-[END]', '[SEND]', 'Meta->', '>')
     def end(self):
@@ -467,7 +467,7 @@ class Messager(window.Window, window.PagingMixIn):
             else None)
 
     @keymap.bind(*['/ %d' % i for i in range(1, 10)])
-    def filter_slot(
+    async def filter_slot(
             self,
             key: interactive.keystroke,
             keyseq: interactive.keyseq,
@@ -475,7 +475,7 @@ class Messager(window.Window, window.PagingMixIn):
             ):
         name = '_' + key
         if arg:
-            yield from self.filter_edit_name(name)
+            await self.filter_edit_name(name)
         else:
             filtertext = self.context.conf.get('filter', {}).get(name)
             if not filtertext:
@@ -485,7 +485,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter_push(filters.makefilter(filtertext))
 
     @keymap.bind('/ =', 'Meta-/ =')
-    def filter_edit(self, arg: interactive.argument=[]):
+    async def filter_edit(self, arg: interactive.argument=[]):
         """Edit the text representation of the current filter.
 
         With a prefix, ask for a named filter to edit."""
@@ -493,7 +493,7 @@ class Messager(window.Window, window.PagingMixIn):
         if not arg:
             s = '' if self.filter is None else str(self.filter)
 
-            s = yield from self.read_string(
+            s = await self.read_string(
                 'Filter expression (^C^C when finished):\n',
                 content=s,
                 height=5,
@@ -504,18 +504,18 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter_replace(filters.makefilter(s))
         else:
             conf = self.context.conf
-            name = yield from self.read_oneof(
+            name = await self.read_oneof(
                 'filter name: ',
                 conf.get('filter', {}).keys(),
                 name='filter name',
                 )
             name = name.strip()
-            yield from self.filter_edit_name(name)
+            await self.filter_edit_name(name)
 
-    def filter_edit_name(self, name):
+    async def filter_edit_name(self, name):
         conf = self.context.conf
         s = conf.get('filter', {}).get(name, str(self.filter))
-        s = yield from self.read_string(
+        s = await self.read_string(
             'Filter expression for %s (^C^C when finished):\n' % (name,),
             content=s,
             height=5,
@@ -564,38 +564,38 @@ class Messager(window.Window, window.PagingMixIn):
         self.rules_reset()
 
     @keymap.bind('/ g', 'Meta-/ g')
-    def filter_foreground_background(self):
+    async def filter_foreground_background(self):
         """Take the current filter and set a foreground and background color for
         messages that match it."""
-        fg = yield from self.read_string(
+        fg = await self.read_string(
             'Foreground: ', name='foreground color')
-        bg = yield from self.read_string(
+        bg = await self.read_string(
             'Background: ', name='background color')
         self.filter_clear_decorate({'foreground': fg, 'background': bg})
 
     @keymap.bind('/ f', 'Meta-/ f')
-    def filter_foreground(self):
+    async def filter_foreground(self):
         """Take the current filter and set a foreground color for messages that
         match it."""
 
-        fg = yield from self.read_string(
+        fg = await self.read_string(
             'Foreground: ', name='foreground color')
         self.filter_clear_decorate({'foreground': fg})
 
     @keymap.bind('/ b', 'Meta-/ b')
-    def filter_background(self):
+    async def filter_background(self):
         """Take the current filter and set a background color for messages that
         match it."""
 
-        bg = yield from self.read_string(
+        bg = await self.read_string(
             'Background: ', name='background color')
         self.filter_clear_decorate({'background': bg})
 
     @keymap.bind('/ D', 'Meta-/ D')
-    def filter_decor(self):
+    async def filter_decor(self):
         "Take the current filter and set a decor for messages that match it."""
 
-        decor = (yield from self.read_string(
+        decor = (await self.read_string(
             'Decor object: ', name='decor object')).strip()
         try:
             util.getobj(decor)
@@ -616,13 +616,13 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter_push_and_replace(filters.And(self.filter, new_filter))
 
     @keymap.bind('/ c', 'Meta-/ c')
-    def filter_class(self, arg: interactive.argument=[]):
+    async def filter_class(self, arg: interactive.argument=[]):
         """Push a filter for a canonicalized zephyr class.  With an argument,
         don't canonicalize."""
 
         op = '=' if not arg else '=='
 
-        class_ = yield from self.read_string(
+        class_ = await self.read_string(
             'Class: ',
             content=self.replymsg().field('class', False),
             name='zephyr class',
@@ -638,10 +638,10 @@ class Messager(window.Window, window.PagingMixIn):
         self.filter_push(filters.Truth('personal'))
 
     @keymap.bind('/ s', 'Meta-/ s')
-    def filter_sender(self):
+    async def filter_sender(self):
         """Push a filter to a sender."""
 
-        sender = yield from self.read_string(
+        sender = await self.read_string(
             'Sender: ',
             height=2,
             content=self.replymsg().field('sender'),
@@ -678,7 +678,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.filter = self.filter_stack.pop()
 
     @keymap.bind('/ S', 'Meta-/ S')
-    def filter_save(self, arg: interactive.argument=[]):
+    async def filter_save(self, arg: interactive.argument=[]):
         """Save current the filter to a named filter.  With a prefix,
         save to the default filter."""
 
@@ -688,7 +688,7 @@ class Messager(window.Window, window.PagingMixIn):
                 self.default_filter = str(self.filter)
             else:
                 conf = self.context.conf
-                name = yield from self.read_oneof(
+                name = await self.read_oneof(
                     'target filter name: ',
                     conf.get('filter', {}).keys(),
                     name='target filter',
@@ -724,14 +724,14 @@ class Messager(window.Window, window.PagingMixIn):
         self.cursor_set_walk_mark(when, True, when)
 
     @keymap.bind('Meta-g')
-    def goto(self):
+    async def goto(self):
         """Go to a specified time, backfilling as appropriate.  Date-time
         parsing is unfortunately adhoc and idiosyncractic."""
 
         import parsedatetime
         p = parsedatetime.Calendar()
 
-        s = yield from self.read_string('When: ', name='goto time')
+        s = await self.read_string('When: ', name='goto time')
         x, y = p.parse(s)
         self.log.debug('parsed date result %d: %s', y, repr(x))
         if y:
@@ -873,8 +873,8 @@ class Messager(window.Window, window.PagingMixIn):
             '\n'.join(self.context.backends.destinations()))
 
     @keymap.bind('Control-X w')
-    def write_region(self):
-        filename = yield from self.read_filename('destination file: ')
+    async def write_region(self):
+        filename = await self.read_filename('destination file: ')
         start = min(self.the_mark or self.cursor, self.cursor)
         end = max(self.the_mark or self.cursor, self.cursor)
         with open(filename, 'w') as output:

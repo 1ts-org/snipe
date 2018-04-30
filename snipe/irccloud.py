@@ -97,9 +97,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     def reqid(self):
         return next(self.reqid_counter)
 
-    @asyncio.coroutine
-    def say(self, cid, to, msg):
-        yield from self.websocket.write(dict(
+    async def say(self, cid, to, msg):
+        await self.websocket.write(dict(
             _method='say',
             _reqid=self.reqid,
             cid=cid,
@@ -107,17 +106,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             msg=msg,
         ))
 
-    @asyncio.coroutine
-    def connect(self):
+    async def connect(self):
         while True:
             try:
-                yield from self.connect_once()
+                await self.connect_once()
             except asyncio.TimeoutError:
                 pass
-            yield from asyncio.sleep(2)
+            await asyncio.sleep(2)
 
-    @asyncio.coroutine
-    def connect_once(self):
+    async def connect_once(self):
         creds = self.context.credentials(
             urllib.parse.urlparse(IRCCLOUD).netloc)
         if creds is None:
@@ -125,7 +122,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         username, password = creds
 
         self.log.debug('retrieving formtoken')
-        result = yield from self._request(
+        result = await self._request(
             'POST', urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'),
             data='')
         if not result.get('success'):
@@ -136,7 +133,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('retrieving logging in')
         for backoff in ((1/16) * 2**min(i, 9) for i in itertools.count()):
             try:
-                result = yield from self._request(
+                result = await self._request(
                     'POST',
                     urllib.parse.urljoin(IRCCLOUD, '/chat/login'),
                     data={
@@ -151,7 +148,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 break
             except ValueError:
                 self.log.exception('logging in, sleeping then trying again')
-                yield from asyncio.sleep(backoff)
+                await asyncio.sleep(backoff)
 
         if not result.get('success'):
             self.log.warn('login failed: %s', repr(result))
@@ -169,7 +166,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         self.websocket = util.JSONWebSocket(self.log)
         try:
-            yield from self.websocket.connect(
+            await self.websocket.connect(
                 IRCCLOUD_API,
                 {
                     'Origin': IRCCLOUD_API,
@@ -179,7 +176,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             while True:
                 try:
-                    m = yield from asyncio.wait_for(
+                    m = await asyncio.wait_for(
                         self.websocket.read(),
                         self.header.get('idle_interval', 30000)/1000)
                 except asyncio.TimeoutError:
@@ -187,7 +184,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                     return
                 self.log.debug('message: %s', repr(m))
                 try:
-                    yield from self.incoming(m)
+                    await self.incoming(m)
                 except asyncio.CancelledError:
                     raise
                 except Exception:
@@ -195,11 +192,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                         'Processing incoming message: %s', repr(m))
                     raise
         finally:
-            yield from asyncio.coroutine(self.websocket.close)()
+            await asyncio.coroutine(self.websocket.close)()
             self.websocket = None
 
-    @asyncio.coroutine
-    def process_message(self, msglist, m):
+    async def process_message(self, msglist, m):
         if m is None:
             return
 
@@ -232,7 +228,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             # presumptively useless-to-us metadata
             pass
         elif mtype == 'oob_include':
-            yield from self.include(m['url'])
+            await self.include(m['url'])
         elif mtype == 'makeserver':
             self.connections.setdefault(m['cid'], m).update(m)
         elif mtype == 'server_details_changed':
@@ -263,17 +259,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self._senders.add(msg.reply())
             return msg
 
-    @asyncio.coroutine
-    def incoming(self, m):
-        msg = yield from self.process_message(self.messages, m)
+    async def incoming(self, m):
+        msg = await self.process_message(self.messages, m)
         if msg is not None:
             self.drop_cache()
             self.redisplay(msg, msg)
 
-    @asyncio.coroutine
-    def include(self, url):
+    async def include(self, url):
         self.log.debug('including %s', url)
-        oob_data = yield from self._request(
+        oob_data = await self._request(
             'GET',
             urllib.parse.urljoin(IRCCLOUD_API, url),
             headers={'Cookie': 'session=%s' % self.session},
@@ -281,7 +275,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             )
         included = []
         for m in oob_data:
-            yield from self.process_message(included, m)
+            await self.process_message(included, m)
         included.sort()
 
         if included:
@@ -289,8 +283,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.drop_cache()
             self.redisplay(included[0], included[-1])
 
-    @asyncio.coroutine
-    def send(self, paramstr, body):
+    async def send(self, paramstr, body):
         params = paramstr.split()
 
         if not params:
@@ -322,12 +315,12 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         lines = body.splitlines()
         if len(lines) == 1:
-            yield from self.say(cid, dest, prefix + lines[0])
+            await self.say(cid, dest, prefix + lines[0])
         else:
             for line in lines:
                 if line:
-                    yield from self.say(cid, dest, prefix + line)
-                yield from asyncio.sleep(self.floodpause)
+                    await self.say(cid, dest, prefix + line)
+                await asyncio.sleep(self.floodpause)
 
     @keymap.bind('I C')
     def dump_connections(self, window: interactive.window):
@@ -377,13 +370,12 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.backfillers.append((t, t0))
                 self.tasks.append(t)
 
-    @asyncio.coroutine
-    def backfill_buffer(self, buf, target):
+    async def backfill_buffer(self, buf, target):
         self.log.debug(
             'top of backfill_buffer([%s %s], %s)',
             buf['bid'], buf.get('have_eid'), target)
         while True:
-            yield from asyncio.sleep(2)
+            await asyncio.sleep(2)
             self.log.debug(
                 'loop backfill_buffer([%s %s], %s)',
                 buf['bid'], buf.get('have_eid'), target)
@@ -397,7 +389,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                         self.log.error(
                             'backfilling %s retrieving backlog, try=%d',
                             buf['name'], count)
-                        oob_data = yield from self._request(
+                        oob_data = await self._request(
                             'GET',
                             urllib.parse.urljoin(
                                 IRCCLOUD_API,
@@ -416,7 +408,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                             'backfilling %s, try=%d, sleeping',
                             buf['name'], count)
                         count += 1
-                        yield from asyncio.sleep(1)
+                        await asyncio.sleep(1)
                         self.log.error(
                             'backfilling %s, try=%d, done sleeping',
                             buf['name'], count)
@@ -434,7 +426,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                     if m['bid'] == -1:
                         self.log.error('? %s', repr(m))
                         continue
-                    yield from self.process_message(included, m)
+                    await self.process_message(included, m)
 
                 if len(included) == 0:
                     self.log.debug(
@@ -487,17 +479,17 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 break
 
     @keymap.bind('I D')
-    def disconnect(self):
+    async def disconnect(self):
         self.reap_tasks()
         if self.new_task is None:
             return
-        yield from self.shutdown()
+        await self.shutdown()
         self.new_task = None
 
     @keymap.bind('I R')
-    def reconnect(self):
+    async def reconnect(self):
         if self.new_task is not None:
-            yield from self.disconnect()
+            await self.disconnect()
         self.start()
 
 
