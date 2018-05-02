@@ -111,7 +111,9 @@ class Task:
         self.state = 'CANCELLED'
 
     def result(self):
-        if self.state not in {'DONE', 'EXCEPTION', 'CANCELLED'}:
+        if self.state == 'CANCELLED':
+            return self.exception
+        if self.state not in {'DONE', 'EXCEPTION'}:
             raise UnfinishedError('task is unfinished')
         if self.exception is not None:
             raise self.exception
