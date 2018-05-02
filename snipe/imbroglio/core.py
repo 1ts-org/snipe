@@ -80,8 +80,20 @@ class Task:
         self._result = None
 
     def throw(self, exception):
+        if self.is_done():
+            return False
+
+        if isinstance(exception, type):
+            exception = exception()
+
+        # import traceback
+        # logging.error(
+        #     'Throwing exception %s in task %s:\n%s',
+        #     exception, self, ''.join(traceback.format_stack()))
+
         self.pending_exception = exception
         self.supervisor._rouse(self)
+        return True
 
     def cancel(self):
         self.throw(CancelledError('Task cancelled'))
