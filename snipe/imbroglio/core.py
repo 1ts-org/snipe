@@ -178,9 +178,8 @@ class Supervisor:
             bisect.insort_left(
                 self.waitq, Waiting(now + duration, now, events, fd, task))
 
-    def _call_magic(self, task):
-        """return a magic number"""
-        self.runq.append(Runnable(task, 42))
+    def _call_this_task(self, task):
+        self.runq.append(Runnable(task, task))
 
     def _rouse(self, task):
         for i, qe in enumerate(self.waitq):
@@ -197,10 +196,7 @@ class Supervisor:
                     val = task.coro.send(retval)
                 else:
                     exc, task.pending_exception = task.pending_exception, None
-                    if isinstance(exc, BaseException):
-                        val = task.coro.throw(type(exc), exc)
-                    else:
-                        val = task.coro.throw(exc)
+                    val = task.coro.throw(type(exc), exc)
             except StopIteration as e:
                 task.set_result(e.value)
                 return

@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# flake8: noqa: F403,F405
 # -*- encoding: utf-8 -*-
 # Copyright © 2018 the Snipe contributors
 # All rights reserved.
@@ -30,20 +29,44 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 """
-This is a cheap knockoff of David Beazly's curio that started out running under
-python 3.4 becasue reasons, but that was abandoned when I realized that many of
-the libraries I wanted to use had moved on.  Seriously, curio
-<https://github.com/dabeaz/curio> is a carefully thought out carefully polished
-gem of a codebase; this is a hack.  I'm mostly not using curio because the
-documentation says not to.
+Some useful things built on top of the imbroglio primitives
 """
 
-__version__ = '0'
+__all__ = [
+    'Timeout',
+    'TimeoutError',
+    ]
 
-from .core import *
-from .tools import *
 
-__all__ = (
-    *core.__all__,
-    *tools.__all__,
-    )
+from . import core
+
+
+class TimeoutError(core.CancelledError):
+    pass
+
+
+class Timeout:
+    """
+    Async context manager for timeouts.
+    Only works for operations that block in imbroglio.
+    """
+
+    def __init__(self, duration):
+        self.duration = duration
+
+    async def _timer(self):
+        await core.sleep(self.duration)
+        self.watched_task.throw(
+            TimeoutError(f'timed out after {self.duration}'))
+
+    async def __aenter__(self):
+        self.watched_task = await core.this_task()
+        self.timer_task = await core.spawn(self._timer())
+        return self.timer_task
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.timer_task.cancel()
+        except TimeoutError:  # pragma: nocover
+            pass  # this is here to reduce raciness
+        return exc_type != TimeoutError

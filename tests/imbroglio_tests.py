@@ -43,18 +43,18 @@ sys.path.append('..')
 from snipe import imbroglio   # noqa: E402
 
 
-class TestImbroglio(unittest.TestCase):
+class TestImbroglioCore(unittest.TestCase):
     def test_simple(self):
         # single coroutine with a single call
         val = None
 
         async def coro():
             nonlocal val
-            val = await imbroglio.magic()
+            val = await imbroglio.this_task()
 
         imbroglio.run(coro())
 
-        self.assertEqual(42, val)
+        self.assertIsInstance(val, imbroglio.Task)
 
     def test_noncoro(self):
         # coroutine that isn't
@@ -191,12 +191,15 @@ class TestImbroglio(unittest.TestCase):
             imbroglio.Task(lambda: None, None)
 
         async def nothing():
-            pass
+            await imbroglio.sleep(.1)
 
-        t = imbroglio.Task(nothing(), None)
-        with self.assertRaises(imbroglio.UnfinishedError), \
-                self.assertWarns(RuntimeWarning):
+        coro = nothing()
+
+        t = imbroglio.Task(coro, None)
+        with self.assertRaises(imbroglio.UnfinishedError):
             t.result()
+
+        imbroglio.run(coro)
 
     def test_sleepy_cancel(self):
         alarmed = False
@@ -238,6 +241,29 @@ class TestImbroglio(unittest.TestCase):
             task.throw(NotADirectoryError)
             await imbroglio.sleep(0)
             self.assertTrue(task.is_done())
+
+        imbroglio.run(driver())
+
+
+class TestImbroglioTools(unittest.TestCase):
+    def test_timeout(self):
+        import logging
+        flag = False
+
+        async def driver():
+            nonlocal flag
+            logging.error('A')
+            async with imbroglio.Timeout(.1):
+                await imbroglio.sleep(1)
+                flag = True
+            self.assertFalse(flag)
+            logging.error('B')
+            async with imbroglio.Timeout(1) as t:
+                await imbroglio.sleep(.1)
+                flag = True
+            self.assertTrue(flag)
+            self.assertTrue(t.is_done())
+            logging.error('C')
 
         imbroglio.run(driver())
 
