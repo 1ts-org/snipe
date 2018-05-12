@@ -86,14 +86,12 @@ class Task:
         if isinstance(exception, type):
             exception = exception()
 
-        # import traceback
-        # logging.error(
-        #     'Throwing exception %s in task %s:\n%s',
-        #     exception, self, ''.join(traceback.format_stack()))
-
         self.pending_exception = exception
-        self.supervisor._rouse(self)
+        self.rouse()
         return True
+
+    def rouse(self):
+        self.supervisor._rouse(self)
 
     def cancel(self):
         self.throw(CancelledError('Task cancelled'))
@@ -110,13 +108,13 @@ class Task:
         self.exception = exception
         self.state = 'CANCELLED'
 
-    def result(self):
-        if self.state == 'CANCELLED':
-            return self.exception
-        if self.state not in {'DONE', 'EXCEPTION'}:
+    def result(self, exception=True):
+        if not self.is_done():
             raise UnfinishedError('task is unfinished')
         if self.exception is not None:
-            raise self.exception
+            if exception:
+                raise self.exception
+            return self.exception
         return self._result
 
     def is_done(self):
@@ -138,6 +136,7 @@ class Supervisor:
         newtask = Task(coro, self)
         self.runq.append(Runnable(newtask, None))
         self.runq.append(Runnable(task, newtask))
+        return newtask
 
     def _call_sleep(self, task, duration=0):
         """sleep for duration seconds
@@ -204,7 +203,11 @@ class Supervisor:
                 task.set_cancelled()
                 return
             except Exception as e:
-                logging.exception('%s dropped through exception', task)
+                logging.debug(
+                    '%s dropped through exception',
+                    task,
+                    exc_info=True,
+                    )
                 task.set_result_exception(e)  # XXX leakage
                 return
 
@@ -289,8 +292,8 @@ _reify_calls()
 del _reify_calls
 
 
-def run(coro):
+def run(coro, exception=True):
     supervisor = Supervisor()
     task = Task(coro, supervisor)
     supervisor._run(task)
-    return task.result()
+    return task.result(exception=exception)

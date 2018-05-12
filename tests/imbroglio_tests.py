@@ -162,7 +162,7 @@ class TestImbroglioCore(unittest.TestCase):
             {}[None]
 
         with self.assertRaises(KeyError):
-            imbroglio.run(keyerror())
+            imbroglio.run(keyerror(), exception=True)
 
     def test_cancellation(self):
         counter = 0
@@ -247,25 +247,43 @@ class TestImbroglioCore(unittest.TestCase):
 
 class TestImbroglioTools(unittest.TestCase):
     def test_timeout(self):
-        import logging
         flag = False
 
         async def driver():
             nonlocal flag
-            logging.error('A')
             async with imbroglio.Timeout(.1):
                 await imbroglio.sleep(1)
                 flag = True
             self.assertFalse(flag)
-            logging.error('B')
             async with imbroglio.Timeout(1) as t:
                 await imbroglio.sleep(.1)
                 flag = True
             self.assertTrue(flag)
             self.assertTrue(t.is_done())
-            logging.error('C')
 
         imbroglio.run(driver())
+        self.assertTrue(flag)
+
+    def test_gather(self):
+        a = False
+        b = False
+
+        async def f():
+            nonlocal a
+            await imbroglio.sleep(0)
+            await imbroglio.sleep(.1)
+            a = True
+
+        async def g():
+            nonlocal b
+            await imbroglio.sleep(0)
+            await imbroglio.sleep(.2)
+            b = True
+
+        t0 = time.time()
+        imbroglio.run(imbroglio.gather(f(), g()))
+        self.assertTrue(a and b)
+        self.assertGreater(time.time() - t0, .2)
 
 
 if __name__ == '__main__':

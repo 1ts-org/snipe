@@ -35,13 +35,14 @@ Some useful things built on top of the imbroglio primitives
 __all__ = [
     'Timeout',
     'TimeoutError',
+    'gather',
     ]
 
 
 from . import core
 
 
-class TimeoutError(core.CancelledError):
+class TimeoutError(core.ImbroglioException):
     pass
 
 
@@ -69,4 +70,18 @@ class Timeout:
             self.timer_task.cancel()
         except TimeoutError:  # pragma: nocover
             pass  # this is here to reduce raciness
-        return exc_type != TimeoutError
+        await core.sleep()  # so the cancel above gets processed
+        return exc_type == TimeoutError
+
+
+async def gather(*coros):
+    async def signaler(coro):
+        result = await coro
+        monitor_task.rouse()
+        return result
+
+    monitor_task = await core.this_task()
+    tasks = [(await core.spawn(signaler(coro))) for coro in coros]
+
+    while not any(not t.is_done() for t in tasks):
+        await core.sleep(None)
