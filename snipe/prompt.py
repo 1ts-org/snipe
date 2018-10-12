@@ -33,7 +33,7 @@
 snipe.prompt
 ------------
 
-Editor subclasses for interacting withe user.
+Editor subclasses for interacting with the user.
 '''
 
 
