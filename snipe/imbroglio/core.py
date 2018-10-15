@@ -131,29 +131,30 @@ class Supervisor:
         self.waitq = []
 
     def _call_spawn(self, task, coro):
-        """Spawns new coroutines in the event loop"""
+        """spawns a new coroutine in the event loop"""
 
         newtask = Task(coro, self)
         self.runq.append(Runnable(newtask, None))
         self.runq.append(Runnable(task, newtask))
-        return newtask
 
     def _call_sleep(self, task, duration=0):
         """sleep for duration seconds
 
         If duration is 0 (the default), just yield until the next tick.
 
-        Returns a tuple (bool, float) of whether the timeout expired and
-        how long we waited.  If duration is None, potentially wait forever.
+        Returns a tuple (True, float) of whether the timeout expired
+        and how long we waited.  If duration is None, potentially wait
+        forever.  (The task can be roused which is how the timeout
+        might not have expired.)
         """
         self._wait_internal(task, -1, 0, duration)
 
     def _call_readwait(self, task, fd, duration=None):
         """wait for an fd to be readable
 
-        Returns a tuple (bool, float) of whether the timeout expired and
-        how long we waited.  If duration is None (the default), potentially
-        wait forever.
+        Returns a tuple (bool, float) of whether the timeout expired
+        and how long we waited.  If duration is None (the default),
+        potentially wait forever.
         """
 
         self._wait_internal(task, fd, selectors.EVENT_READ, duration)
@@ -161,14 +162,14 @@ class Supervisor:
     def _call_writewait(self, task, fd, duration=None):
         """wait for an fd to be writable
 
-        Returns a tuple (bool, float) of whether the timeout expired and
-        how long we waited.  If duration is None (the default), potentially
-        wait forever.
+        Returns a tuple (bool, float) of whether the timeout expired
+        and how long we waited.  If duration is None (the default),
+        potentially wait forever.
         """
         self._wait_internal(task, fd, selectors.EVENT_WRITE, duration)
 
     def _wait_internal(self, task, fd, events, duration):
-        """internals of _call_readwiat and _call_writewait"""
+        """internals of _call_readwait and _call_writewait"""
         now = time.monotonic()
         if duration is None:
             bisect.insort_left(
@@ -178,6 +179,7 @@ class Supervisor:
                 self.waitq, Waiting(now + duration, now, events, fd, task))
 
     def _call_this_task(self, task):
+        """return the current task"""
         self.runq.append(Runnable(task, task))
 
     def _rouse(self, task):
