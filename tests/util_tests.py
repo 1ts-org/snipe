@@ -408,19 +408,14 @@ class JSONMixinTester(snipe.util.HTTP_JSONmixin, JSONMixinTesterSuper):
 class TestHTTP_JSONmixin(unittest.TestCase):
     def test(self):
         hjm = JSONMixinTester()
-        hjm._get_clientsession = MockClientSession
         hjm.log = logging.getLogger('test_http_json_mixin')
         hjm.url = 'http://example.com'
 
         hjm.setup_client_session()
-        self.assertEqual(
-            hjm._JSONmixin_headers['User-Agent'], snipe.util.USER_AGENT)
-        self.assertIsNone(hjm._clientsession)
+        self.assertIn('User-Agent', dict(hjm._JSONmixin_headers))
 
         run = asyncio.get_event_loop().run_until_complete
-        run(hjm._ensure_client_session())
-
-        self.assertTrue(isinstance(hjm._clientsession, MockClientSession))
+        run(hjm.reset_client_session_headers())
 
         hjm._clientsession.result = MockResult('foo', None)
 
@@ -458,7 +453,7 @@ class TestHTTP_JSONmixin(unittest.TestCase):
 class TestJSONWebSocket(unittest.TestCase):
     def test(self):
         jws = snipe.util.JSONWebSocket(
-            logging.getLogger('test'), MockClientSession)
+            logging.getLogger('test'))
         jws.session.result = MockResult('foo', None)
         print(jws.session)
 

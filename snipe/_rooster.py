@@ -77,7 +77,7 @@ class Rooster(util.HTTP_JSONmixin):
         hostname = urllib.parse.urlparse(url).hostname
         if hostname.lower() == 'localhost':
             hostname = socket.getfqdn()
-        self.service = service + '@' + hostname
+        self.service = service + ('@' + hostname if '@' not in service else '')
         self.principal = None
         self.ctx = None
         self.ccache = None
@@ -204,10 +204,11 @@ class Rooster(util.HTTP_JSONmixin):
         self.log.debug('startid=%s', startid)
 
         ws = util.JSONWebSocket(self.log)
+
         try:
             try:
                 await ws.connect(self.url + '/v1/socket/websocket')
-            except aiohttp.ClientOSError as e:
+            except OSError as e:
                 self.log.debug('error connecting')
                 raise RoosterReconnectException(str(e), wait=5) from e
             await ws.write({
@@ -225,6 +226,7 @@ class Rooster(util.HTTP_JSONmixin):
                 try:
                     m = await asyncio.wait_for(ws.read(), pingfrequency)
                 except asyncio.TimeoutError as e:
+                    self.log.debug('read timeout state %s', state)
                     if state == 'pong':
                         self.log.debug('ping')
                         await ws.write({
@@ -234,10 +236,13 @@ class Rooster(util.HTTP_JSONmixin):
                         continue
                     else:
                         raise RoosterReconnectException('ping timeout') from e
-                except aiohttp.ServerDisconnectedError as e:
-                    raise RoosterReconnectException('disconnected') from e
+                except OSError as e:
+                    raise RoosterReconnectException(
+                        f'{e}: disconnected') from e
                 except Exception:
                     raise
+
+                self.log.debug('midloop state = %s, m = %s', state, m)
 
                 if state == 'start':
                     assert m['type'] == 'ready'

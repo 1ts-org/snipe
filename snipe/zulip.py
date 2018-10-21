@@ -36,6 +36,7 @@ Backend for talking to `Zulip <https://zulip.org>`.
 
 import aiohttp
 import asyncio
+import base64
 import pprint
 import re
 import time
@@ -117,8 +118,10 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             return
         self.user, self.token = creds
 
+        credstring = f'{self.user}:{self.token}'.encode('UTF-8')
+        credb64 = base64.b64encode(credstring).decode('UTF-8')
         self.setup_client_session(
-            auth=aiohttp.BasicAuth(self.user, self.token))
+            headers={'Authorization': f'Basic {credb64}'})
 
     def start(self):
         self.tasks.append(asyncio.Task(self.connect()))

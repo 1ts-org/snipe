@@ -1,5 +1,6 @@
-aiohttp >= 2.0
 docutils
+h11
 Markdown == 2.6.7
 parsedatetime
 ply
+wsproto

@@ -168,22 +168,6 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 for t in ['user', 'bot', 'im', 'group', 'channel']
                 ), []))
 
-            # Slack's websocket servers want a literal '=' in the request and
-            # not a %3D.  I don't know why, and don't really care, but this is
-            # how I trick yarl & http into obliging.
-            yarl = None
-            try:
-                import yarl
-            except ImportError:
-                pass
-            aiohttp_vers = float('.'.join(aiohttp.__version__.split('.')[:2]))
-            if yarl is not None and aiohttp_vers >= 1.1:
-                url = yarl.URL(url)
-                url._val = urllib.parse.SplitResult(
-                    url._val.scheme, url._val.netloc,
-                    url._val.path.replace('%3D', '='), url._val.query,
-                    url._val.fragment)
-
             self.log.debug('websocket url is %s', url)
 
             self.websocket = util.JSONWebSocket(self.log)

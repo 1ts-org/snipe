@@ -10,7 +10,8 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
     loop = asyncio.get_event_loop()
     r = snipe._rooster.Rooster(
-        'https://ordinator.1ts.org', 'daemon@ordinator.1ts.org')
+        # 'http://localhost:1080/', 'HTTP@http0.1ts.org')
+        'https://roost-api.1ts.org/', 'HTTP')
     loop.run_until_complete(
         r.newmessages(
             asyncio.coroutine(lambda m: pprint.pprint(m))))

@@ -45,13 +45,16 @@ import functools
 import logging
 import math
 import os
+import ssl
 import sys
 import time
 import unicodedata
 import unittest.mock as mock
 import urllib.parse
 
-import aiohttp
+import h11
+import wsproto.connection
+import wsproto.events
 
 
 class SnipeException(Exception):
@@ -254,8 +257,8 @@ Welcome to snipe.
   snipe is free/open source software.  Type ? L for relevant lawyerese.
 '''
 
-USER_AGENT = 'snipe 0 (development) (python %s) (aiohttp %s)' % (
-    sys.version.split('\n')[0].strip(), aiohttp.__version__)
+USER_AGENT = 'snipe 0 (development) (python %s)' % (
+    sys.version.split('\n')[0].strip(),)
 
 
 def coro_cleanup(f):
@@ -333,121 +336,134 @@ class JSONDecodeError(SnipeException):
 class HTTP_JSONmixin:
     # object must have a .log attribute
 
-    _get_clientsession = aiohttp.ClientSession
-
     def setup_client_session(self, headers=None, **kw):
         if headers is None:
             headers = {}
-        headers['User-Agent'] = USER_AGENT
-        self._JSONmixin_headers = headers
-        self._JSONmixin_kw = kw
-        self._clientsession = None
+        self._JSONmixin_headers = [
+            ('User-Agent', (USER_AGENT + f' (h11 {h11.__version__})'))]
+        self._JSONmixin_headers.extend(headers.items())
 
-    async def _ensure_client_session(self):
-        if self._clientsession is None:
-            self._clientsession = self._get_clientsession(
-                headers=self._JSONmixin_headers, **self._JSONmixin_kw)
-
-    async def reset_client_session_headers(self, headers):
-        if getattr(self, '_clientsession', None) is not None:
-            await as_coroutine(self._clientsession.close)()
-            self._clientsession = None
-        self._JSONmixin_headers = headers
-        await self._ensure_client_session()
+    async def reset_client_session_headers(self, headers=None):
+        self.setup_client_session(headers)
 
     async def _result(self, response):
-        await self._ensure_client_session()
         try:
-            result = await response.json()
-        except (
-                UnicodeError,
-                ValueError,
-                getattr(aiohttp, 'ContentTypeError', None)) as e:
-            data = await response.read()
-            if isinstance(data, bytes):
-                data = data.decode(errors='replace')
-            self.log.error(
-                'json %s from %s on %s',
-                e.__class__.__name__, response.url, repr(data))
-            raise JSONDecodeError(repr(data)) from e
+            datas = []
+            while True:
+                b = await response.readsome()
+                if b == b'':
+                    break
+                datas.append(b)
+            bs = b''.join(datas)
+            try:
+                u = bs.decode('UTF-8')
+                result = json.loads(u)
+            except (UnicodeError, ValueError) as e:
+                data = bs.decode(errors='replace')
+                self.log.error(
+                    'json %s from %s on %s',
+                    e.__class__.__name__, response.url, repr(data))
+                raise JSONDecodeError(repr(data)) from e
         finally:
-            response.release()
+            await response.close()
+        self.log.debug('result: %s', result)
         return result
 
     async def _post(self, path, **kw):
-        await self._ensure_client_session()
         self.log.debug(
-            '_post(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = await self._clientsession.post(
-            urllib.parse.urljoin(self.url, path), data=kw)
+            '_post(%s%s, %s, **%s)', repr(self.url), repr(path),
+            self._JSONmixin_headers, repr(kw))
+        response = await HTTP.request(
+            urllib.parse.urljoin(self.url, path),
+            method='POST',
+            data=kw,
+            headers=self._JSONmixin_headers,
+            )
         return (await self._result(response))
 
     async def _post_json(self, path, **kw):
-        await self._ensure_client_session()
         self.log.debug(
-            '_post_json(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = await self._clientsession.post(
+            '_post_json(%s%s, %s, **%s)', repr(self.url), repr(path),
+            self._JSONmixin_headers, repr(kw))
+        response = await HTTP.request(
             urllib.parse.urljoin(self.url, path),
-            data=json.dumps(kw),
-            headers={'Content-Type': 'application/json'},
+            'POST',
+            json=kw,
+            headers=self._JSONmixin_headers,
             )
         return (await self._result(response))
 
     async def _patch(self, path, **kw):
-        await self._ensure_client_session()
         self.log.debug(
-            '_patch(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = await self._clientsession.patch(
-            urllib.parse.urljoin(self.url, path), data=kw)
+            '_patch(%s%s, %s, **%s)', repr(self.url), repr(path),
+            self._JSONmixin_headers, repr(kw))
+        response = await HTTP.request(
+            urllib.parse.urljoin(self.url, path),
+            'PATCH',
+            data=kw,
+            headers=self._JSONmixin_headers,
+            )
+
         return (await self._result(response))
 
     async def _get(self, path, **kw):
-        await self._ensure_client_session()
         self.log.debug(
-            '_get(%s%s, **%s)', repr(self.url), repr(path), repr(kw))
-        response = await self._clientsession.get(
-            urllib.parse.urljoin(self.url, path), params=kw)
+            '_get(%s%s, %s **%s)', repr(self.url), repr(path),
+            self._JSONmixin_headers, repr(kw))
+        us = urllib.parse.urlsplit(urllib.parse.urljoin(self.url, path))
+        response = await HTTP.request(
+            urllib.parse.urlunsplit(
+                us[:3] + (urllib.parse.urlencode(kw), '')),
+            headers=self._JSONmixin_headers,
+            )
+
         return (await self._result(response))
 
     async def _request(self, method, url, **kw):
-        await self._ensure_client_session()
         self.log.debug(
-            '_request(%s, %s, **%s)', repr(method), repr(url), repr(kw))
-        response = await self._clientsession.request(method, url, **kw)
+            '_request(%s, %s, %s, **%s)', repr(method), repr(url),
+            self._JSONmixin_headers, repr(kw))
+        if 'headers' in kw:
+            kw['headers'] = list(kw['headers'].items())  # XXX FIXME
+            # really fix everything that calls this
+            # why do we even have this method
+            # irccloud, evidently
+        if 'compress' in kw:
+            del kw['compress']  # XXX FIXME
+        response = await HTTP.request(url, method, **kw)
         return (await self._result(response))
 
     async def shutdown(self):
         await super().shutdown()
-        if self._clientsession is not None:
-            await as_coroutine(self._clientsession.close)()
 
 
 class JSONWebSocket:
-    def __init__(self, log, clientSession=aiohttp.ClientSession):
-        self.resp = None
+    def __init__(self, log):
+        self.conn = None
         self.log = log
-        self.session = clientSession()
 
     async def close(self):
-        if self.resp is not None:
-            await as_coroutine(self.resp.close)()
-            self.resp = None
-        await as_coroutine(self.session.close)()
+        if self.conn is not None:
+            await self.conn.close()
+            self.conn = None
 
-    async def connect(self, url, headers=None):
-        if headers is None:
-            headers = {}
-        headers['User-Agent'] = USER_AGENT
-        self.log.debug('connecting to %s', url)
-        self.resp = await self.session.ws_connect(url, headers=headers)
-
-        return self.resp
+    async def connect(self, url, headers={}):
+        # ignore headers for now
+        self.log.debug('connecting to %s %s', url, headers)
+        self.conn = await HTTP_WS.request(url, headers=headers, log=self.log)
 
     async def write(self, data):
-        return (await as_coroutine(self.resp.send_json)(data))
+        data = json.dumps(data)
+        self.log.debug('write: sending %s', repr(data))
+        return await self.conn.write(data)
 
     async def read(self):
-        return (await self.resp.receive_json())
+        data = await self.conn.readsome()
+        self.log.debug('read: got %s', data)
+        try:
+            return json.loads(data)
+        except json.decoder.JSONDecodeError as e:
+            raise JSONDecodeError(data) from e  # raise our own exception
 
 
 @contextlib.contextmanager
@@ -568,3 +584,346 @@ def getobj(qualname):
     modname, name = qualname.rsplit('.', 1)
     module = importlib.import_module(modname, __package__)
     return getattr(module, name)
+
+
+class XStream:
+    def __init__(self, reader, writer, hostname='', port=0, log=None):
+        if log is None:
+            self.log = logging.getLogger('XStream.%s.%d' % (hostname, port))
+        else:
+            self.log = log
+
+        self.reader = reader
+        self.writer = writer
+
+    @classmethod
+    async def connect(klass, hostname, port, log=None):
+        reader, writer = await asyncio.open_connection(hostname, port)
+        writer._transport.set_write_buffer_limits(0)
+        return klass(reader, writer, hostname, port, log)
+
+    async def readsome(self):
+        self.log.debug('readsome:')
+        buf = await self.reader.read(16384)
+        self.log.debug('read %s bytes %s', len(buf), repr(buf))
+        return buf
+
+    async def write(self, data):
+        self.log.debug('sending %s bytes %s', len(data), repr(data))
+        self.writer.write(data)
+        await self.writer.drain()
+
+    async def close(self):
+        self.log.debug('closing')
+        self.writer.close()
+
+
+class SSLStream:
+    def __init__(self, xs, hostname, log=None):
+        if log is None:
+            self.log = logging.getLogger('SSLStream.%s' % (hostname,))
+        else:
+            self.log = log
+        self.xs = xs
+        self.incoming = ssl.MemoryBIO()
+        self.outgoing = ssl.MemoryBIO()
+        self.ctx = ssl.create_default_context()
+        self.obj = self.ctx.wrap_bio(
+            self.incoming, self.outgoing, server_side=False,
+            server_hostname=hostname)
+        self.handshake_done = False
+
+    async def do_handshake(self):
+        if self.handshake_done:
+            return
+
+        self.log.debug('doing handshake')
+
+        while True:
+            try:
+                self.obj.do_handshake()
+            except ssl.SSLWantReadError:
+                if self.outgoing.pending:
+                    await self.xs.write(self.outgoing.read())
+                self.incoming.write(await self.xs.readsome())
+            except ssl.SSLWantWriterError:
+                await self.xs.write(self.outgoing.read())
+            break
+        if self.outgoing.pending:
+            await self.xs.write(self.outgoing.read())
+        self.handshake_done = True
+
+    async def write(self, data):
+        await self.do_handshake()
+
+        self.log.debug('writing %d bytes', len(data))
+
+        while True:
+            try:
+                self.obj.write(data)
+            except ssl.SSLWantReadError:
+                self.log.debug(
+                    'nead read, %d output pending', self.outgoing.pending)
+                # if self.outgoing.pending:
+                #     await self.xs.write(self.outgoing.read())
+                await self.maybewrite()
+                self.incoming.write(await self.xs.readsome())
+                continue
+            break
+
+        return await self.xs.write(self.outgoing.read())
+
+    async def maybewrite(self):
+        self.log.debug(f'maybewrite {self.outgoing.pending}')
+        if self.outgoing.pending:
+            await self.xs.write(self.outgoing.read())
+
+    async def readsome(self):
+        await self.do_handshake()
+
+        data = await self.xs.readsome()
+
+        self.log.debug('read %d bytes from stream', len(data))
+
+        if data:
+            self.incoming.write(data)
+        while True:
+            try:
+                data2 = self.obj.read()
+            except ssl.SSLWantReadError:
+                data = await self.xs.readsome()
+                if data:
+                    self.log.debug('read %d more bytes from stream', len(data))
+                    self.incoming.write(data)
+                else:
+                    self.log.debug('read zero bytes from stream')
+                    # return ''  # ?
+                continue
+            break
+
+        self.log.debug('got %d bytes from SSL', len(data2))
+        return data2
+
+    async def close(self):
+        await self.xs.close()
+
+
+class HTTP:
+    def __init__(self, url, method='GET'):
+        self.url = url
+        self.method = method
+        parsed = urllib.parse.urlsplit(url)
+        self.scheme = parsed.scheme or 'http'
+        assert self.scheme in ('http', 'https')
+        self.hostname = parsed.hostname
+        self.port = int(parsed.port or {'http': 80, 'https': 443}[self.scheme])
+        self.qs = (parsed.path or '/') + (
+            ('?' + parsed.query) if parsed.query else '')
+        self.conn = h11.Connection(our_role=h11.CLIENT)
+        self.connected = False
+        self.response = None
+
+    @classmethod
+    async def request(
+            klass, url, method='GET', data=None, json=None, headers=[]):
+        obj = klass(url, method)
+        await obj.connect(data=data, _json=json, headers=headers)
+        return obj
+
+    async def connect(self, data=None, _json=None, headers=[]):
+        self.stream = await XStream.connect(self.hostname, self.port)
+        if self.scheme == 'https':
+            self.stream = SSLStream(self.stream, self.hostname)
+
+        outheaders = [
+                ('Host', self.hostname),
+                ('Connection', 'close')]
+        if _json is not None:
+            # overrides data
+            data = json.dumps(_json)
+            outheaders.append(('Content-Type', 'application/json'))
+        if data is not None:
+            if hasattr(data, 'items'):
+                data = urllib.parse.urlencode(data)
+                outheaders.append(
+                    ('Content-Type', 'application/x-www-form-urlencoded'))
+            if hasattr(data, 'encode'):
+                data = data.encode('UTF-8')
+            outheaders.append(('Content-Length', str(len(data))))
+        outheaders.extend(headers)
+        await self.send(h11.Request(
+            method=self.method,
+            target=self.qs,
+            headers=outheaders))
+        if data is not None:
+            await self.send(h11.Data(data=data))
+        await self.send(h11.EndOfMessage())
+        self.connected = True
+
+    async def send(self, event):
+        data = self.conn.send(event)
+        if not data:
+            return
+
+        await self.stream.write(data)
+
+    async def next_event(self):
+        while True:
+            event = self.conn.next_event()
+            if event is h11.NEED_DATA:
+                self.conn.receive_data(await self.stream.readsome())
+                continue
+            return event
+
+    async def readsome(self):
+        if not self.connected:
+            await self.connect()
+
+        while True:
+            event = await self.next_event()
+            if type(event) is h11.Response:
+                self.response = event
+            elif type(event) is h11.Data:
+                return bytes(event.data)
+            elif type(event) is h11.EndOfMessage:
+                return b''
+
+    async def close(self):
+        await self.stream.close()
+
+
+class HTTP_WS:
+    def __init__(self, url, headers=[], log=None):
+        if log is None:
+            self.log = logging.getLogger('HTTP_WS')
+        else:
+            self.log = log
+
+        self.url = url
+        parsed = urllib.parse.urlsplit(url)
+        self.scheme = parsed.scheme or 'ws'
+        if self.scheme.startswith('http'):
+            self.scheme = 'ws' + self.scheme[4:]
+        assert self.scheme in ('ws', 'wss')
+        self.hostname = parsed.hostname
+        self.port = int(parsed.port or {'ws': 80, 'wss': 443}[self.scheme])
+        self.resource = (parsed.path or '/') + (
+            ('?' + parsed.query) if parsed.query else '')
+
+        self.ws = wsproto.connection.WSConnection(
+            wsproto.connection.ConnectionType.CLIENT,
+            self.hostname,
+            self.resource,
+            headers=headers)
+        self.connected = False
+        self.response = None
+        self.inbuf = []
+        self.reading = False
+
+    @classmethod
+    async def request(
+            klass, url, headers=[], log=None):
+        obj = klass(url, headers, log)
+        await obj.connect()
+        return obj
+
+    async def communicate(self):
+        self.log.debug('communicate')
+        d = self.ws.bytes_to_send()
+        if d:
+            self.log.debug('writing... %d bytes %s', len(d), repr(d))
+            await self.stream.write(d)
+            self.log.debug('sent %d bytes', len(d))
+        else:
+            await self.stream.maybewrite()
+
+        self.log.debug('reading...')
+        d = await self.stream.readsome()
+        # XXX if not d: EOF
+        self.log.debug('received %d bytes: %s', len(d), repr(d))
+        if d:
+            self.ws.receive_bytes(d)
+
+    async def connect(self):
+        self.log.debug('opening connection to %s %s', self.hostname, self.port)
+        self.stream = await XStream.connect(
+            self.hostname, self.port, log=self.log)
+        if self.scheme == 'wss':
+            self.log.debug('starting SSL layer')
+            self.stream = SSLStream(self.stream, self.hostname, log=self.log)
+
+        await self.communicate()
+
+        event = next(self.ws.events())
+        if not isinstance(event, wsproto.events.ConnectionEstablished):
+            raise SnipeException(f'expected websocket event, got {event}')
+
+        self.log.debug('connected: %s', event)
+
+        self.connected = True
+
+    async def readsome(self):
+        if not self.connected:
+            await self.connect()
+        ident = f'{id(self):x}.{os.getrandom(4).hex()}: '
+
+        import traceback
+        trace = "".join(traceback.format_stack())
+
+        self.log.debug(f'{ident}\n{trace}')
+
+        if self.reading:
+            self.log.error(f'Other read in progress:\n{self.reading}')
+            raise Exception('no reading while reading')
+        try:
+            self.reading = trace
+            self.log.debug(f'{ident}outside readsome loop')
+            while True:
+                self.log.debug(f'{ident}top of readsome loop')
+                for event in self.ws.events():
+                    self.log.debug(f'{ident}readsome %s', event)
+                    if isinstance(event, wsproto.events.ConnectionClosed):
+                        self.log.error(
+                            f'{ident}Connection Closed with {self.inbuf}')
+                        return ''
+                    elif isinstance(event, wsproto.events.TextReceived):
+                        self.inbuf.append(event.data)
+                        self.log.debug(
+                            f'{ident}TextReceived {event.message_finished}')
+                        if event.message_finished:
+                            self.log.debug(
+                                f'{ident}about to release message %s',
+                                repr(self.inbuf))
+                            retval = ''.join(self.inbuf)
+                            self.inbuf = []
+                            return retval
+                        else:
+                            self.log.debug(
+                                f'{ident}supposedly not releasing message')
+                self.log.debug(f'{ident}about to communicate')
+                await self.communicate()
+                self.log.debug(f'{ident}bottom of readsome loop')
+            self.log.debug(f"{ident}at end of readsome, can't happen")
+            if event in locals():
+                self.log.debug(f"{ident}event = {event}")
+        except BaseException:
+            self.log.exception(f'{ident}exception?')
+            raise
+        finally:
+            self.log.debug(f'{ident}fiiiinally')
+            self.reading = False
+
+    async def write(self, buf):
+        if False and hasattr(buf, 'encode'):
+            buf = buf.encode('UTF-8')
+        self.log.debug('writing %d bytes %s', len(buf), repr(buf))
+        self.ws.send_data(buf)
+        d = self.ws.bytes_to_send()
+        if d:
+            self.log.debug('just writing... %d bytes %s', len(d), repr(d))
+            await self.stream.write(d)
+            self.log.debug('just sent %d bytes', len(d))
+
+    async def close(self):
+        self.log.debug('closing')
+        self.ws.close()

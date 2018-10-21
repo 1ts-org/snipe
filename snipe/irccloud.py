@@ -199,6 +199,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         if m is None:
             return
 
+        self.log.debug(f'process_message: {m}')
+
         last_eid = self.last_eid
 
         eid = int(m.get('eid', 0))
@@ -260,7 +262,11 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             return msg
 
     async def incoming(self, m):
-        msg = await self.process_message(self.messages, m)
+        try:
+            msg = await self.process_message(self.messages, m)
+        except KeyError:
+            self.log.error('failed {m}')
+            raise
         if msg is not None:
             self.drop_cache()
             self.redisplay(msg, msg)
@@ -273,6 +279,13 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             headers={'Cookie': 'session=%s' % self.session},
             compress='gzip',
             )
+        if 'success' in oob_data and not oob_data['success']:
+            self.log.error(
+                f'including out of band data {url} failure:' +
+                f' f{oob_data["message"]}')
+            return
+        self.log.error(f'INCLUDE\n{oob_data}')
+
         included = []
         for m in oob_data:
             await self.process_message(included, m)
