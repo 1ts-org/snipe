@@ -41,7 +41,6 @@ snipe._rooster
 A layer of glue between the roost backend and the upstream code.
 '''
 
-import asyncio
 import urllib.parse
 import base64
 import logging
@@ -49,6 +48,7 @@ import socket
 
 import aiohttp
 
+from . import imbroglio
 from . import util
 from ._roost_python import krb5
 from ._roost_python import gss
@@ -223,19 +223,22 @@ class Rooster(util.HTTP_JSONmixin):
 
             self.log.debug('starting new message loop')
             while True:
+                timedout = True
                 try:
-                    m = await asyncio.wait_for(ws.read(), pingfrequency)
-                except asyncio.TimeoutError as e:
-                    self.log.debug('read timeout state %s', state)
-                    if state == 'pong':
-                        self.log.debug('ping')
-                        await ws.write({
-                            'type': 'ping',
-                            })
-                        state = 'ping'
-                        continue
-                    else:
-                        raise RoosterReconnectException('ping timeout') from e
+                    async with imbroglio.Timeout(pingfrequency):
+                        m = await ws.read()
+                        timedout = False
+                    if timedout:
+                        self.log.debug('read timeout state %s', state)
+                        if state == 'pong':
+                            self.log.debug('ping')
+                            await ws.write({
+                                'type': 'ping',
+                                })
+                            state = 'ping'
+                            continue
+                        else:
+                            raise RoosterReconnectException('ping timeout')
                 except OSError as e:
                     raise RoosterReconnectException(
                         f'{e}: disconnected') from e

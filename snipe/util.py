@@ -35,16 +35,17 @@ Assorted utility functions.
 '''
 
 
-import asyncio
 import contextlib
 import ctypes
 import datetime
 import importlib
+import inspect
 import json
 import functools
 import logging
 import math
 import os
+import socket
 import ssl
 import sys
 import time
@@ -56,13 +57,15 @@ import h11
 import wsproto.connection
 import wsproto.events
 
+from . import imbroglio
+
 
 class SnipeException(Exception):
     pass
 
 
 def as_coroutine(f):
-    if asyncio.iscoroutinefunction(f):
+    if inspect.iscoroutinefunction(f):
         return f
 
     @functools.wraps(f)
@@ -198,7 +201,6 @@ for userspace_name, program_name in [
         ('log.curses', 'TTYRender.curses'),
         ('log.messager', 'Messager'),
         ('log.editor', 'Editor'),
-        ('log.asyncio', 'asyncio'),
         ('log.gapbuffer', 'GapBuffer'),
         ('log.backend.terminus', 'TerminusBackend'),
         ('log.backend.startup', 'StartupBackend'),
@@ -266,7 +268,7 @@ def coro_cleanup(f):
     async def catch_and_log(*args, **kw):
         try:
             return (await as_coroutine(f)(*args, **kw))
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             raise
         except Exception:
             if args and hasattr(args[0], 'log'):
@@ -351,7 +353,7 @@ class HTTP_JSONmixin:
             datas = []
             while True:
                 b = await response.readsome()
-                if b == b'':
+                if b is None:
                     break
                 datas.append(b)
             bs = b''.join(datas)
@@ -430,7 +432,7 @@ class HTTP_JSONmixin:
             # irccloud, evidently
         if 'compress' in kw:
             del kw['compress']  # XXX FIXME
-        response = await HTTP.request(url, method, **kw)
+        response = await HTTP.request(url, method, log=self.log, **kw)
         return (await self._result(response))
 
     async def shutdown(self):
@@ -586,45 +588,66 @@ def getobj(qualname):
     return getattr(module, name)
 
 
-class XStream:
-    def __init__(self, reader, writer, hostname='', port=0, log=None):
+class NetworkStream:
+    def __init__(self, sock, hostname='', port=0, log=None):
         if log is None:
-            self.log = logging.getLogger('XStream.%s.%d' % (hostname, port))
+            self.log = logging.getLogger('NetworkStream.%s.%d' % (hostname, port))
         else:
             self.log = log
 
-        self.reader = reader
-        self.writer = writer
+        self.socket = sock
+        self.socket.setblocking(False)
+        self.reof = False
 
     @classmethod
     async def connect(klass, hostname, port, log=None):
-        reader, writer = await asyncio.open_connection(hostname, port)
-        writer._transport.set_write_buffer_limits(0)
-        return klass(reader, writer, hostname, port, log)
+        sock = socket.create_connection((hostname, port), 5) # XXX EWOULDBLOCK
+        return klass(sock, hostname, port, log)
 
     async def readsome(self):
-        self.log.debug('readsome:')
-        buf = await self.reader.read(16384)
-        self.log.debug('read %s bytes %s', len(buf), repr(buf))
+        if self.reof:
+            return None
+        await imbroglio.readwait(self.socket.fileno())
+        try:
+            buf = self.socket.recv(4096)
+        except BlockingIOError:
+            return ''
+        if buf == b'':
+            self.log.debug('readsome: got eof')
+            self.reof = True
+            return None
+        self.log.debug('readsome: %s bytes %s reof %s', len(buf), repr(buf), self.reof)
         return buf
+
+    async def readable(self):
+        if self.reof:
+            self.log.debug('eof -> not readable')
+            return False
+        timedout, duration = await imbroglio.readwait(self.socket.fileno(), 0)
+        self.log.debug(f'readable: {not timedout}')
+        return not timedout
 
     async def write(self, data):
         self.log.debug('sending %s bytes %s', len(data), repr(data))
-        self.writer.write(data)
-        await self.writer.drain()
+        while data:
+            await imbroglio.writewait(self.socket.fileno())
+            sent = self.socket.send(data)
+            data = data[sent:]
 
     async def close(self):
         self.log.debug('closing')
-        self.writer.close()
+        self.socket.close()
 
 
 class SSLStream:
-    def __init__(self, xs, hostname, log=None):
+    def __init__(self, netstream, hostname, log=None):
         if log is None:
             self.log = logging.getLogger('SSLStream.%s' % (hostname,))
         else:
             self.log = log
-        self.xs = xs
+        self.reof = False
+
+        self.netstream = netstream
         self.incoming = ssl.MemoryBIO()
         self.outgoing = ssl.MemoryBIO()
         self.ctx = ssl.create_default_context()
@@ -644,13 +667,17 @@ class SSLStream:
                 self.obj.do_handshake()
             except ssl.SSLWantReadError:
                 if self.outgoing.pending:
-                    await self.xs.write(self.outgoing.read())
-                self.incoming.write(await self.xs.readsome())
+                    await self.netstream.write(self.outgoing.read())
+                indata = await self.netstream.readsome()
+                if indata is None:
+                    self.incoming.write_eof()
+                else:
+                    self.incoming.write(indata)
             except ssl.SSLWantWriterError:
-                await self.xs.write(self.outgoing.read())
+                await self.netstream.write(self.outgoing.read())
             break
         if self.outgoing.pending:
-            await self.xs.write(self.outgoing.read())
+            await self.netstream.write(self.outgoing.read())
         self.handshake_done = True
 
     async def write(self, data):
@@ -665,51 +692,92 @@ class SSLStream:
                 self.log.debug(
                     'nead read, %d output pending', self.outgoing.pending)
                 # if self.outgoing.pending:
-                #     await self.xs.write(self.outgoing.read())
+                #     await self.netstream.write(self.outgoing.read())
                 await self.maybewrite()
-                self.incoming.write(await self.xs.readsome())
+                incoming = await self.netstream.readsome()
+                if incoming is None:
+                    self.incoming.write_eof()
+                else:
+                    self.incoming.write(incoming)
                 continue
             break
 
-        return await self.xs.write(self.outgoing.read())
+        return await self.netstream.write(self.outgoing.read())
 
     async def maybewrite(self):
         self.log.debug(f'maybewrite {self.outgoing.pending}')
         if self.outgoing.pending:
-            await self.xs.write(self.outgoing.read())
+            await self.netstream.write(self.outgoing.read())
 
     async def readsome(self):
-        await self.do_handshake()
+        if self.reof:
+            return None
+        await self.readable()
 
-        data = await self.xs.readsome()
-
-        self.log.debug('read %d bytes from stream', len(data))
-
-        if data:
-            self.incoming.write(data)
         while True:
             try:
-                data2 = self.obj.read()
+                data = self.obj.read()
+                if data == b'':
+                    self.reof = True
+                    return None
             except ssl.SSLWantReadError:
-                data = await self.xs.readsome()
-                if data:
-                    self.log.debug('read %d more bytes from stream', len(data))
-                    self.incoming.write(data)
-                else:
-                    self.log.debug('read zero bytes from stream')
-                    # return ''  # ?
+                self.log.debug('want read')
+                await self.maybewrite()
+                data = await self.netstream.readsome()
+                if data is None:
+                    self.incoming.write_eof()
+                    self.log.debug('set eof')
+                    continue
+                self.incoming.write(data)
                 continue
+            except ssl.SSLEOFError:
+                self.log.debug('(got EOFError)', exc_info=True)
+                self.reof = True
+                return None
             break
 
-        self.log.debug('got %d bytes from SSL', len(data2))
-        return data2
+        self.log.debug('got %d bytes from SSL %s', len(data), repr(data))
+        return data
+
+    async def readable(self):
+        if self.reof:
+            self.log.debug('at eof')
+            return False
+        count = 0
+        # can actually cause network io there's anything waiting
+        await self.do_handshake()
+        while True:
+            if not await self.netstream.readable():
+                if self.netstream.reof:
+                    self.reof = True
+                    self.incoming.write_eof()
+                    self.log.debug('set eof B')
+                break
+            else:
+                self.log.debug('socket is readable?')
+            # consume all the bytes on the wire
+            d = await self.netstream.readsome()
+            if d is None:
+                self.reof = True
+                self.incoming.write_eof()
+                self.log.debug('set eof')
+                break
+            count += len(d)
+            if d:
+                self.incoming.write(d)
+        self.log.debug(f'read {count} bytes from network stream')
+        return bool(self.obj.pending()) and not self.reof
 
     async def close(self):
-        await self.xs.close()
+        await self.netstream.close()
 
 
 class HTTP:
-    def __init__(self, url, method='GET'):
+    def __init__(self, url, method='GET', log=None):
+        if log is not None:
+            self.log = log
+        else:
+            self.log = logging.getLogger('HTTP')
         self.url = url
         self.method = method
         parsed = urllib.parse.urlsplit(url)
@@ -725,13 +793,14 @@ class HTTP:
 
     @classmethod
     async def request(
-            klass, url, method='GET', data=None, json=None, headers=[]):
-        obj = klass(url, method)
+            klass, url, method='GET', data=None, json=None, headers=[],
+            log=None):
+        obj = klass(url, method, log)
         await obj.connect(data=data, _json=json, headers=headers)
         return obj
 
     async def connect(self, data=None, _json=None, headers=[]):
-        self.stream = await XStream.connect(self.hostname, self.port)
+        self.stream = await NetworkStream.connect(self.hostname, self.port)
         if self.scheme == 'https':
             self.stream = SSLStream(self.stream, self.hostname)
 
@@ -770,8 +839,15 @@ class HTTP:
     async def next_event(self):
         while True:
             event = self.conn.next_event()
+            self.log.debug('HTTP event: %s', repr(event))
             if event is h11.NEED_DATA:
-                self.conn.receive_data(await self.stream.readsome())
+                #self.log.debug('HTTP: need data')
+                data = await self.stream.readsome()
+                if data == b'':
+                    continue
+                if data is None:
+                    data = b''
+                self.conn.receive_data(data)
                 continue
             return event
 
@@ -785,8 +861,8 @@ class HTTP:
                 self.response = event
             elif type(event) is h11.Data:
                 return bytes(event.data)
-            elif type(event) is h11.EndOfMessage:
-                return b''
+            elif type(event) in (h11.EndOfMessage, h11.ConnectionClosed):
+                return None
 
     async def close(self):
         await self.stream.close()
@@ -841,12 +917,11 @@ class HTTP_WS:
         d = await self.stream.readsome()
         # XXX if not d: EOF
         self.log.debug('received %d bytes: %s', len(d), repr(d))
-        if d:
-            self.ws.receive_bytes(d)
+        self.ws.receive_bytes(d)  # turns out wsproto signals EOF with None too
 
     async def connect(self):
         self.log.debug('opening connection to %s %s', self.hostname, self.port)
-        self.stream = await XStream.connect(
+        self.stream = await NetworkStream.connect(
             self.hostname, self.port, log=self.log)
         if self.scheme == 'wss':
             self.log.debug('starting SSL layer')
@@ -867,16 +942,7 @@ class HTTP_WS:
             await self.connect()
         ident = f'{id(self):x}.{os.getrandom(4).hex()}: '
 
-        import traceback
-        trace = "".join(traceback.format_stack())
-
-        self.log.debug(f'{ident}\n{trace}')
-
-        if self.reading:
-            self.log.error(f'Other read in progress:\n{self.reading}')
-            raise Exception('no reading while reading')
         try:
-            self.reading = trace
             self.log.debug(f'{ident}outside readsome loop')
             while True:
                 self.log.debug(f'{ident}top of readsome loop')
@@ -911,7 +977,6 @@ class HTTP_WS:
             raise
         finally:
             self.log.debug(f'{ident}fiiiinally')
-            self.reading = False
 
     async def write(self, buf):
         if False and hasattr(buf, 'encode'):

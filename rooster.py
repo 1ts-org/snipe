@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import asyncio
+import snipe.imbroglio
 import pprint
 import logging
 
@@ -7,14 +7,18 @@ import snipe._rooster
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
-    loop = asyncio.get_event_loop()
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(name)s %(module)s:%(lineno)d %(funcName)s %(message)s',
+        )
     r = snipe._rooster.Rooster(
         # 'http://localhost:1080/', 'HTTP@http0.1ts.org')
         'https://roost-api.1ts.org/', 'HTTP')
-    loop.run_until_complete(
-        r.newmessages(
-            asyncio.coroutine(lambda m: pprint.pprint(m))))
+    snipe.imbroglio.run(r.newmessages(printmsg))
+
+
+async def printmsg(m):
+    pprint.pprint(m)
 
 
 if __name__ == '__main__':
