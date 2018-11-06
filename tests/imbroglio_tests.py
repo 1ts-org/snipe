@@ -157,7 +157,6 @@ class TestImbroglioCore(unittest.TestCase):
             a.close()
             b.close()
 
-
     def test_wait_zero(self):
         a, b = socket.socketpair()
 

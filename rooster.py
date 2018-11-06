@@ -9,7 +9,9 @@ import snipe._rooster
 def main():
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(asctime)s %(name)s %(module)s:%(lineno)d %(funcName)s %(message)s',
+        format=(
+            '%(asctime)s %(name)s %(module)s:%(lineno)d'
+            + ' %(funcName)s %(message)s'),
         )
     r = snipe._rooster.Rooster(
         # 'http://localhost:1080/', 'HTTP@http0.1ts.org')

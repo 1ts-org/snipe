@@ -591,7 +591,8 @@ def getobj(qualname):
 class NetworkStream:
     def __init__(self, sock, hostname='', port=0, log=None):
         if log is None:
-            self.log = logging.getLogger('NetworkStream.%s.%d' % (hostname, port))
+            self.log = logging.getLogger(
+                'NetworkStream.%s.%d' % (hostname, port))
         else:
             self.log = log
 
@@ -601,7 +602,8 @@ class NetworkStream:
 
     @classmethod
     async def connect(klass, hostname, port, log=None):
-        sock = socket.create_connection((hostname, port), 5) # XXX EWOULDBLOCK
+        sock = await imbroglio.run_in_thread(
+            socket.create_connection, (hostname, port), 5)
         return klass(sock, hostname, port, log)
 
     async def readsome(self):
@@ -616,7 +618,8 @@ class NetworkStream:
             self.log.debug('readsome: got eof')
             self.reof = True
             return None
-        self.log.debug('readsome: %s bytes %s reof %s', len(buf), repr(buf), self.reof)
+        self.log.debug(
+            'readsome: %s bytes %s reof %s', len(buf), repr(buf), self.reof)
         return buf
 
     async def readable(self):
@@ -841,7 +844,6 @@ class HTTP:
             event = self.conn.next_event()
             self.log.debug('HTTP event: %s', repr(event))
             if event is h11.NEED_DATA:
-                #self.log.debug('HTTP: need data')
                 data = await self.stream.readsome()
                 if data == b'':
                     continue

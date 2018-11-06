@@ -36,13 +36,11 @@ Backend for talking to `Slack <https://slack.com>`.
 
 import time
 import re
-import urllib.parse
 import pprint
 import contextlib
 import itertools
 
 import asyncio
-import aiohttp
 
 from . import chunks
 from . import filters
