@@ -74,9 +74,18 @@ class Timeout:
         return exc_type == TimeoutError
 
 
-async def gather(*coros):
+async def gather(*coros, return_exceptions=False):
     async def signaler(coro):
-        result = await coro
+        # this following is a little off but should produce cleaner
+        # backtraces?
+        if not return_exceptions:
+            result = await coro
+        else:
+            try:
+                result = await coro
+            except Exception as exception:
+                result = exception
+
         monitor_task.rouse()
         return result
 
