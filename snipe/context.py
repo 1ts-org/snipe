@@ -91,7 +91,9 @@ class Context:
         self.killring = []
         self.log = logging.getLogger('Snipe')
         self.context = self
-        self.directory = os.path.join(self.home_directory, '.snipe')
+        self.directory = os.environ.get(
+            'SNIPEDIR',
+            os.path.join(self.home_directory, '.snipe'))
         self.messagelog = []
         self.starks = []
         self.erasechar = None
