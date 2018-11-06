@@ -157,6 +157,27 @@ class TestImbroglioCore(unittest.TestCase):
             a.close()
             b.close()
 
+
+    def test_wait_zero(self):
+        a, b = socket.socketpair()
+
+        try:
+            async def waiter():
+                timedout, duration = \
+                    await imbroglio.readwait(a.fileno(), 0)
+                self.assertTrue(timedout)
+
+                b.send(b'foo')
+
+                timedout, duration = \
+                    await imbroglio.readwait(a.fileno(), 0)
+                self.assertFalse(timedout)
+
+            imbroglio.run(waiter())
+        finally:
+            a.close()
+            b.close()
+
     def test_exception(self):
         async def keyerror():
             {}[None]
