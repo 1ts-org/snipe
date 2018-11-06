@@ -155,6 +155,10 @@ class Supervisor:
         Returns a tuple (bool, float) of whether the timeout expired
         and how long we waited.  If duration is None (the default),
         potentially wait forever.
+
+        If duration is zero, the timeout bool indicates whether fd is
+        not readable, i.e. True means that it would have timed out and
+        thus fd is not readable.
         """
 
         self._wait_internal(task, fd, selectors.EVENT_READ, duration)
@@ -165,6 +169,10 @@ class Supervisor:
         Returns a tuple (bool, float) of whether the timeout expired
         and how long we waited.  If duration is None (the default),
         potentially wait forever.
+
+        If duration is zero, the timeout bool indicates whether fd is
+        not writable, i.e. True means that it would have timed out and
+        thus fd is not writable.
         """
         self._wait_internal(task, fd, selectors.EVENT_WRITE, duration)
 
