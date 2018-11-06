@@ -40,7 +40,6 @@ __all__ = [
     ]
 
 
-import os
 import threading
 
 
@@ -104,26 +103,34 @@ async def gather(*coros, return_exceptions=False):
 
 
 async def run_in_thread(func, *args, **kwargs):
-    read_fd, write_fd = os.pipe()
-    try:
-        result = None
-        exception = None
-        def runner():
-            nonlocal result
-            nonlocal exception
-            try:
-                result = func(*args, **kwargs)
-            except Exception as exception:
-                pass
-            os.write(write_fd, b'X')
+    result = None
+    exception = None
 
-        thread = threading.Thread(target=runner)
+    task = await core.this_task()
+
+    def runner():
+        nonlocal result
+        nonlocal exception
+        nonlocal task
+
+        try:
+            result = func(*args, **kwargs)
+        except Exception as exception:
+            pass
+
+        task.rouse()
+
+    thread = threading.Thread(target=runner)
+
+    async def launcher():
+        # wait a tick, so the parent runs again and starts to sleep
+        await core.sleep()
         thread.start()
-        await core.readwait(read_fd, None)
-        thread.join()
-        if exception is not None:
-            raise exception
-        return result
-    finally:
-        os.close(write_fd)
-        os.close(read_fd)
+
+    await core.spawn(launcher())
+    await core.sleep()
+
+    thread.join()
+    if exception is not None:
+        raise exception
+    return result
