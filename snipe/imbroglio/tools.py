@@ -36,7 +36,12 @@ __all__ = [
     'Timeout',
     'TimeoutError',
     'gather',
+    'run_in_thread',
     ]
+
+
+import os
+import threading
 
 
 from . import core
@@ -94,3 +99,29 @@ async def gather(*coros, return_exceptions=False):
 
     while not any(not t.is_done() for t in tasks):
         await core.sleep(None)
+
+
+async def run_in_thread(func, *args, **kwargs):
+    read_fd, write_fd = os.pipe()
+    try:
+        result = None
+        exception = None
+        def runner():
+            nonlocal result
+            nonlocal exception
+            try:
+                result = func(*args, **kwargs)
+            except Exception as exception:
+                pass
+            os.write(write_fd, b'X')
+
+        thread = threading.Thread(target=runner)
+        thread.start()
+        await core.readwait(read_fd, None)
+        thread.join()
+        if exception is not None:
+            raise exception
+        return result
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
