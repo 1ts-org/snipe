@@ -80,7 +80,9 @@ class Timeout:
 
 
 async def gather(*coros, return_exceptions=False):
-    async def signaler(coro):
+    async def signaller(coro):
+        # so we always schedule _after_ the parent sleeps
+        await core.sleep()
         # this following is a little off but should produce cleaner
         # backtraces?
         if not return_exceptions:
@@ -95,7 +97,7 @@ async def gather(*coros, return_exceptions=False):
         return result
 
     monitor_task = await core.this_task()
-    tasks = [(await core.spawn(signaler(coro))) for coro in coros]
+    tasks = [(await core.spawn(signaller(coro))) for coro in coros]
 
     while not any(not t.is_done() for t in tasks):
         await core.sleep(None)
