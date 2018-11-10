@@ -221,6 +221,58 @@ class TestImbroglioCore(unittest.TestCase):
 
         imbroglio.run(coro)
 
+    def test_result_exception(self):
+        async def boring(): pass
+        coro = boring()
+        task = imbroglio.Task(coro, imbroglio.Supervisor())
+        exception = Exception()
+        task.set_cancelled(exception)
+        self.assertIs(task.result(False), exception)
+
+        # prevent "coroutine not awaited" warnings
+        with self.assertRaises(StopIteration):
+            next(coro.__await__())
+
+    def test_get_supervisor(self):
+        supervisor = None
+        async def do_get_supervisor():
+            nonlocal supervisor
+            supervisor = await imbroglio.get_supervisor()
+        imbroglio.run(do_get_supervisor())
+        self.assertIsInstance(supervisor, imbroglio.Supervisor)
+
+    def test_task_list(self):
+        tasks = None
+        async def do_get_task_list():
+            nonlocal tasks
+            tasks = await imbroglio.tasks()
+        imbroglio.run(do_get_task_list())
+        self.assertEqual(([], []), tasks)
+        # current task is not on the list
+
+        async def sleep_forever():
+            await imbroglio.sleep(None)
+
+        task = None
+        async def do_get_waiting_task():
+            nonlocal task
+            task = await imbroglio.spawn(sleep_forever())
+            print(await imbroglio.tasks())
+            await do_get_task_list()
+            print(await imbroglio.tasks())
+            task.cancel()
+            await imbroglio.sleep()  # so task gets reaped
+
+        imbroglio.run(do_get_waiting_task())
+
+        self.assertEqual(2, len(tasks))
+        runnable, waiting = tasks
+        print(runnable)
+        print(waiting)
+        self.assertEqual(0, len(runnable))
+        self.assertEqual(1, len(waiting))
+        self.assertEqual([task], waiting)
+
     def test_sleepy_cancel(self):
         alarmed = False
 
@@ -304,6 +356,87 @@ class TestImbroglioTools(unittest.TestCase):
         imbroglio.run(imbroglio.gather(f(), g()))
         self.assertTrue(a and b)
         self.assertGreater(time.time() - t0, .2)
+
+        class DistinctException(Exception): pass
+
+        async def h():
+            raise DistinctException()
+
+        imbroglio.run(imbroglio.gather(f(), g(), h(), return_exceptions=True))
+
+        with self.assertRaises(DistinctException):
+            imbroglio.run(imbroglio.gather(f(), g(), h()))
+
+    def test_promise(self):
+        p = imbroglio.Promise()
+        p.set_result(5)
+        self.assertEqual(5, p.result)
+
+        r = None
+        async def get_result():
+            nonlocal r
+            r = await p()
+
+        imbroglio.run(get_result())
+
+        self.assertEqual(5, r)
+
+        p = imbroglio.Promise()
+
+        async def set_result():
+            await imbroglio.spawn(get_result())
+            await imbroglio.sleep(.1)
+            p.set_result(6)
+
+        imbroglio.run(set_result())
+
+        self.assertEqual(6, r)
+
+        class DistinctException(Exception): pass
+
+        p = imbroglio.Promise()
+        t = None
+        async def set_exception():
+            nonlocal t
+            t = await imbroglio.spawn(get_result())
+            await imbroglio.sleep(.1)
+            p.set_exception(DistinctException('foo'))
+
+        imbroglio.run(set_exception())
+
+        with self.assertRaises(DistinctException):
+            t.result()
+
+    def test_run_in_thread(self):
+        t0 = None
+        t1 = None
+
+        async def thread_sleep():
+            nonlocal t1
+            await imbroglio.run_in_thread(time.sleep, 1)
+            t1 = time.time()
+
+        async def do_thing():
+            nonlocal t0
+            await imbroglio.spawn(thread_sleep())
+            t0 = time.time()
+
+        imbroglio.run(do_thing())
+
+        self.assertLess(t0, t1)
+
+    def test_run_in_thread_exception(self):
+        class DistinctException(Exception): pass
+
+        def sleep_then_raise():
+            time.sleep(1)
+            raise DistinctException('foo')
+
+        async def check_raise():
+            with self.assertRaises(DistinctException):
+                await imbroglio.run_in_thread(sleep_then_raise)
+
+        imbroglio.run(check_raise())
 
 
 if __name__ == '__main__':

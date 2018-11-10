@@ -45,6 +45,7 @@ __all__ = [
 import bisect
 import collections
 import functools
+import itertools
 import inspect
 import logging
 import math
@@ -67,11 +68,13 @@ class UnfinishedError(ImbroglioException):
 
 
 class Task:
+    _next_id = itertools.count().__next__
+
     def __init__(self, coro, supervisor):
         if not inspect.isawaitable(coro):
             raise TypeError(
                 'Cannot make a task from non-coroutine %s' % (repr(coro,)))
-
+        self.task_id = self._next_id()
         self.coro = coro
         self.supervisor = supervisor
         self.pending_exception = None
@@ -120,6 +123,9 @@ class Task:
     def is_done(self):
         return self.state in {'DONE', 'EXCEPTION', 'CANCELLED'}
 
+    def __repr__(self):
+        return f'<{self.__class__.__name__} #{self.task_id}>'
+
 
 Runnable = collections.namedtuple('Runnable', 'task retval')
 Waiting = collections.namedtuple('Waiting', 'target start events fd task')
@@ -130,12 +136,16 @@ class Supervisor:
         self.runq = []
         self.waitq = []
 
+    def start(self, coro):
+        newtask = Task(coro, self)
+        self.runq.append(Runnable(newtask, None))
+        return newtask
+
     def _call_spawn(self, task, coro):
         """spawns a new coroutine in the event loop"""
 
-        newtask = Task(coro, self)
-        self.runq.append(Runnable(newtask, None))
-        self.runq.append(Runnable(task, newtask))
+        newtask = self.start(coro)
+        self._return(task, newtask)
 
     def _call_sleep(self, task, duration=0):
         """sleep for duration seconds
@@ -188,7 +198,21 @@ class Supervisor:
 
     def _call_this_task(self, task):
         """return the current task"""
-        self.runq.append(Runnable(task, task))
+        self._return(task, task)
+
+    def _call_get_supervisor(self, task):
+        """return the current supervisor"""
+        self._return(task, self)
+
+    def _call_tasks(self, task):
+        """return a tuple of lists of the runnable and waiting tasks"""
+        self._return(task, (
+            [t.task for t in self.runq],
+            [t.task for t in self.waitq],
+            ))
+
+    def _return(self, task, val=None):
+        self.runq.append(Runnable(task, val))
 
     def _rouse(self, task):
         for i, qe in enumerate(self.waitq):

@@ -33,6 +33,7 @@ Some useful things built on top of the imbroglio primitives
 """
 
 __all__ = [
+    'Promise',
     'Timeout',
     'TimeoutError',
     'gather',
@@ -40,13 +41,13 @@ __all__ = [
     ]
 
 
+import socket
 import threading
 
+from . import core as imbroglio
 
-from . import core
 
-
-class TimeoutError(core.ImbroglioException):
+class TimeoutError(imbroglio.ImbroglioException):
     pass
 
 
@@ -60,13 +61,13 @@ class Timeout:
         self.duration = duration
 
     async def _timer(self):
-        await core.sleep(self.duration)
+        await imbroglio.sleep(self.duration)
         self.watched_task.throw(
             TimeoutError(f'timed out after {self.duration}'))
 
     async def __aenter__(self):
-        self.watched_task = await core.this_task()
-        self.timer_task = await core.spawn(self._timer())
+        self.watched_task = await imbroglio.this_task()
+        self.timer_task = await imbroglio.spawn(self._timer())
         return self.timer_task
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -74,14 +75,14 @@ class Timeout:
             self.timer_task.cancel()
         except TimeoutError:  # pragma: nocover
             pass  # this is here to reduce raciness
-        await core.sleep()  # so the cancel above gets processed
+        await imbroglio.sleep()  # so the cancel above gets processed
         return exc_type == TimeoutError
 
 
 async def gather(*coros, return_exceptions=False):
     async def signaller(coro):
         # so we always schedule _after_ the parent sleeps
-        await core.sleep()
+        await imbroglio.sleep()
         # this following is a little off but should produce cleaner
         # backtraces?
         if not return_exceptions:
@@ -95,42 +96,76 @@ async def gather(*coros, return_exceptions=False):
         monitor_task.rouse()
         return result
 
-    monitor_task = await core.this_task()
-    tasks = [(await core.spawn(signaller(coro))) for coro in coros]
+    monitor_task = await imbroglio.this_task()
+    tasks = [(await imbroglio.spawn(signaller(coro))) for coro in coros]
 
-    while not any(not t.is_done() for t in tasks):
-        await core.sleep(None)
+    while not all(t.is_done() for t in tasks):
+        await imbroglio.sleep(None)
+
+    return [t.result() for t in tasks]
+
+
+class Promise:
+    def __init__(self):
+        self.exception_set = False
+        self.done = False
+        self.result = None
+        self.exception = None
+        self.task = None
+
+    def set_result(self, result):
+        self.done = True
+        self.result = result
+        if self.task is not None:
+            self.task.rouse()
+
+    def set_exception(self, exception):
+        self.done = True
+        self.exception_set = True
+        self.exception = exception
+        if self.task is not None:
+            self.task.rouse()
+
+    async def __call__(self):
+        self.task = await imbroglio.this_task()
+        while not self.done:
+            await imbroglio.sleep(None)
+        if self.exception_set:
+            raise self.exception
+        return self.result
 
 
 async def run_in_thread(func, *args, **kwargs):
     result = None
     exception = None
 
-    task = await core.this_task()
+    sender, receiver = socket.socketpair()
+    try:
+        def runner():
+            nonlocal result
+            nonlocal exception
 
-    def runner():
-        nonlocal result
-        nonlocal exception
-        nonlocal task
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:
+                exception = e
 
-        try:
-            result = func(*args, **kwargs)
-        except Exception as exception:
-            pass
+            sender.send(b'X')
 
-        task.rouse()
+        thread = threading.Thread(target=runner)
 
-    thread = threading.Thread(target=runner)
+        async def launcher():
+            # wait a tick, so the parent runs again and starts to sleep
+            await imbroglio.sleep()
+            thread.start()
 
-    async def launcher():
-        # wait a tick, so the parent runs again and starts to sleep
-        await core.sleep()
-        thread.start()
+        await imbroglio.spawn(launcher())
+        await imbroglio.readwait(receiver)
 
-    await core.spawn(launcher())
-    await core.sleep()
-
-    thread.join()
-    if exception is not None:
-        raise exception
-    return result
+        thread.join()
+        if exception is not None:
+            raise exception
+        return result
+    finally:
+        sender.close()
+        receiver.close()
