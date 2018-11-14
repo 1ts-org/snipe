@@ -49,10 +49,14 @@ import itertools
 import inspect
 import logging
 import math
+import os
 import selectors
 import sys
 import types
 import time
+
+
+TIME_THRESHOLD = .1  # 100 ms, completely arbitrary
 
 
 class ImbroglioException(Exception):
@@ -78,9 +82,11 @@ class Task:
         self.coro = coro
         self.supervisor = supervisor
         self.pending_exception = None
-        self.state = 'FOO'
+        self.state = 'GO'
         self.exception = None
         self._result = None
+
+        self.creation = _framemeta(coro.cr_frame)
 
     def throw(self, exception):
         if self.is_done():
@@ -123,20 +129,55 @@ class Task:
     def is_done(self):
         return self.state in {'DONE', 'EXCEPTION', 'CANCELLED'}
 
+    done = is_done
+
+    def __await__(self):
+        # ugh.  but we can't use the taskwait() because it returns a
+        # generators coerced into coroutines and __await__ (somewhat
+        # mysteriously) return a coroutine.
+        # So repeating ourselves it is!
+        yield ('taskwait', self)
+
     def __repr__(self):
-        return f'<{self.__class__.__name__} #{self.task_id}>'
+        state = ''
+        if inspect.iscoroutine(self.coro):
+            crst = inspect.getcoroutinestate(self.coro)
+            state = f' {crst} {_framemeta(self.coro.cr_frame)}'
+            if crst == 'CORO_SUSPENDED':
+                state += f' {self.coro.cr_await!r}'
+        return (
+            f'<{self.__class__.__name__}'
+            f' {self.state}'
+            f' #{self.task_id}:{self.creation}{state}'
+            '>'
+            )
 
 
 Runnable = collections.namedtuple('Runnable', 'task retval')
-Waiting = collections.namedtuple('Waiting', 'target start events fd task')
+Waiting = collections.namedtuple(
+    'Waiting', 'target start events fd task other')
+
+
+def _framemeta(frame):
+    if frame is None:
+        return ''
+    f = inspect.getframeinfo(frame)
+    try:
+        return f'{os.path.basename(f.filename)}:{f.lineno}'
+    finally:
+        del f
+        del frame
 
 
 class Supervisor:
     def __init__(self):
         self.runq = []
         self.waitq = []
+        self.log = logging.getLogger('imbroglio')
+        self.log.setLevel(logging.DEBUG)  # change this someday
 
     def start(self, coro):
+        """start a task from non-async code"""
         newtask = Task(coro, self)
         self.runq.append(Runnable(newtask, None))
         return newtask
@@ -186,15 +227,33 @@ class Supervisor:
         """
         self._wait_internal(task, fd, selectors.EVENT_WRITE, duration)
 
-    def _wait_internal(self, task, fd, events, duration):
+    def _call_taskwait(self, task, other, duration=None):
+        """wait for another task to finish
+
+        Returns a tuple (bool, float) of whether the timeout expired
+        and how long we waited.  If duration is None (the default),
+        potentially wait forever.
+
+        If duration is zero, the timeout bool indicates whether the
+        task is running, i.e. True means that it would have timed out
+        and thus the task is still running.
+        """
+        if not other.is_done():
+            self._wait_internal(task, -1, 0, duration, other)
+        else:
+            self._return(task, (False, 0.0))
+
+    def _wait_internal(self, task, fd, events, duration, other=None):
         """internals of _call_readwait and _call_writewait"""
         now = time.monotonic()
         if duration is None:
             bisect.insort_left(
-                self.waitq, Waiting(float('Inf'), now, events, fd, task))
+                self.waitq,
+                Waiting(float('Inf'), now, events, fd, task, other))
         else:
             bisect.insort_left(
-                self.waitq, Waiting(now + duration, now, events, fd, task))
+                self.waitq,
+                Waiting(now + duration, now, events, fd, task, other))
 
     def _call_this_task(self, task):
         """return the current task"""
@@ -226,7 +285,17 @@ class Supervisor:
         def _step(task, retval):
             try:
                 if task.pending_exception is None:
+                    t0 = time.time()
                     val = task.coro.send(retval)
+                    duration = time.time() - t0
+                    if duration > TIME_THRESHOLD:
+                        self.log.warning(
+                            f'spent more than {TIME_THRESHOLD} in {task!r}')
+                    if not isinstance(val, tuple):
+                        msg = f'{task!r} upcalled with {val!r}'
+                        self.log.error(msg)
+                        exc = ImbroglioException(msg)
+                        val = task.coro.throw(type(exc), exc)
                 else:
                     exc, task.pending_exception = task.pending_exception, None
                     val = task.coro.throw(type(exc), exc)
@@ -237,7 +306,7 @@ class Supervisor:
                 task.set_cancelled()
                 return
             except Exception as e:
-                logging.debug(
+                self.log.debug(
                     '%s dropped through exception',
                     task,
                     exc_info=True,
@@ -250,46 +319,63 @@ class Supervisor:
 
         self.runq.append(Runnable(runtask, None))
 
-        while True:
-            tick = time.monotonic()
-            runq, self.runq = self.runq, []
+        try:
+            while True:
+                tick = time.monotonic()
+                runq, self.runq = self.runq, []
 
-            # get the expired waits
-            division = bisect.bisect_right(
-                self.waitq, (tick, tick, None))
-            wake, self.waitq = self.waitq[:division], self.waitq[division:]
+                # get the expired waits
+                division = bisect.bisect_right(
+                    self.waitq, (tick, tick, None))
+                wake, self.waitq = self.waitq[:division], self.waitq[division:]
 
-            for wakey in wake:
-                duration = time.monotonic() - wakey.start
-                self.runq.append(Runnable(wakey.task, (True, duration)))
+                for wakey in wake:
+                    duration = time.monotonic() - wakey.start
+                    self.runq.append(Runnable(wakey.task, (True, duration)))
 
-            for run in runq:
-                _step(run.task, run.retval)
+                for run in runq:
+                    _step(run.task, run.retval)
+                    if run.task.is_done():
+                        for i, w in reversed(list(enumerate(self.waitq))):
+                            if w.other is run.task:
+                                duration = time.monotonic() - w.start
+                                self.runq.append(
+                                    Runnable(w.task, (False, duration)))
+                                del self.waitq[i]
 
-            if self.waitq:
-                target = self.waitq[0].target
-                if not math.isinf(target):
-                    duration = max(0.0, target - time.monotonic())
-                else:
-                    duration = None
-                if self.runq:  # we have runnable tasks, don't wait
-                    duration = 0
-                with selectors.DefaultSelector() as selector:
-                    for i, e in enumerate(self.waitq):
-                        if e.events:
-                            selector.register(e.fd, e.events, (i, e))
-                    cleanup = []
-                    now = time.monotonic()
-                    for key, events in selector.select(duration):
-                        i, e = key.data
-                        cleanup.append(i)
-                        self.runq.append(
-                            Runnable(e.task, (False, now - e.start)))
-                    for i in sorted(cleanup, reverse=True):
-                        del self.waitq[i]
+                if self.waitq:
+                    target = self.waitq[0].target
+                    if not math.isinf(target):
+                        duration = max(0.0, target - time.monotonic())
+                    else:
+                        duration = None
+                    if self.runq:  # we have runnable tasks, don't wait
+                        duration = 0
+                    with selectors.DefaultSelector() as selector:
+                        for i, e in enumerate(self.waitq):
+                            if e.events:
+                                selector.register(e.fd, e.events, (i, e))
+                        cleanup = []
+                        now = time.monotonic()
+                        for key, events in selector.select(duration):
+                            i, e = key.data
+                            cleanup.append(i)
+                            self.runq.append(
+                                Runnable(e.task, (False, now - e.start)))
+                        for i in sorted(cleanup, reverse=True):
+                            del self.waitq[i]
 
-            if not self.runq and not self.waitq:
-                break
+                if not self.runq and not self.waitq:
+                    break
+        finally:
+            if self.runq:  # pragma: nocover
+                print('Runnable tasks at supervisor exit:')
+                for t in self.runq:
+                    print(f' {t!r}')
+            if self.waitq:  # pragma: nocover
+                print('Waiting tasks at supervisor exit:')
+                for t in self.waitq:
+                    print(f' {t!r}')
 
         return
 

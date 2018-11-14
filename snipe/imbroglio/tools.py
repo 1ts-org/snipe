@@ -41,6 +41,8 @@ __all__ = [
     ]
 
 
+import inspect
+import logging
 import socket
 import threading
 
@@ -63,7 +65,7 @@ class Timeout:
     async def _timer(self):
         await imbroglio.sleep(self.duration)
         self.watched_task.throw(
-            TimeoutError(f'timed out after {self.duration}'))
+            TimeoutError(f'timed out after {self.duration}s'))
 
     async def __aenter__(self):
         self.watched_task = await imbroglio.this_task()
@@ -86,6 +88,9 @@ async def gather(*coros, return_exceptions=False):
         # this following is a little off but should produce cleaner
         # backtraces?
         if not return_exceptions:
+            if not inspect.isawaitable(coro):
+                logging.getLogger('imbroglio').error(
+                    f'got unawaitable {coro!r}')
             result = await coro
         else:
             try:

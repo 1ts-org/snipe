@@ -222,7 +222,9 @@ class TestImbroglioCore(unittest.TestCase):
         imbroglio.run(coro)
 
     def test_result_exception(self):
-        async def boring(): pass
+        async def boring():
+            pass
+
         coro = boring()
         task = imbroglio.Task(coro, imbroglio.Supervisor())
         exception = Exception()
@@ -230,22 +232,25 @@ class TestImbroglioCore(unittest.TestCase):
         self.assertIs(task.result(False), exception)
 
         # prevent "coroutine not awaited" warnings
-        with self.assertRaises(StopIteration):
-            next(coro.__await__())
+        coro.close()
 
     def test_get_supervisor(self):
         supervisor = None
+
         async def do_get_supervisor():
             nonlocal supervisor
             supervisor = await imbroglio.get_supervisor()
+
         imbroglio.run(do_get_supervisor())
         self.assertIsInstance(supervisor, imbroglio.Supervisor)
 
     def test_task_list(self):
         tasks = None
+
         async def do_get_task_list():
             nonlocal tasks
             tasks = await imbroglio.tasks()
+
         imbroglio.run(do_get_task_list())
         self.assertEqual(([], []), tasks)
         # current task is not on the list
@@ -254,6 +259,7 @@ class TestImbroglioCore(unittest.TestCase):
             await imbroglio.sleep(None)
 
         task = None
+
         async def do_get_waiting_task():
             nonlocal task
             task = await imbroglio.spawn(sleep_forever())
@@ -316,6 +322,22 @@ class TestImbroglioCore(unittest.TestCase):
 
         imbroglio.run(driver())
 
+    def test_taskwait(self):
+        async def longsleep():
+            await imbroglio.sleep(1)
+
+        async def shortsleep():
+            await imbroglio.sleep(.5)
+
+        async def driver():
+            sleepers = [
+                (await imbroglio.spawn(longsleep())) for i in range(10)]
+            task = await imbroglio.spawn(shortsleep())
+            await task
+            self.assertTrue(all(not t.is_done() for t in sleepers))
+
+        imbroglio.run(driver())
+
 
 class TestImbroglioTools(unittest.TestCase):
     def test_timeout(self):
@@ -357,7 +379,8 @@ class TestImbroglioTools(unittest.TestCase):
         self.assertTrue(a and b)
         self.assertGreater(time.time() - t0, .2)
 
-        class DistinctException(Exception): pass
+        class DistinctException(Exception):
+            pass
 
         async def h():
             raise DistinctException()
@@ -373,6 +396,7 @@ class TestImbroglioTools(unittest.TestCase):
         self.assertEqual(5, p.result)
 
         r = None
+
         async def get_result():
             nonlocal r
             r = await p()
@@ -392,10 +416,12 @@ class TestImbroglioTools(unittest.TestCase):
 
         self.assertEqual(6, r)
 
-        class DistinctException(Exception): pass
+        class DistinctException(Exception):
+            pass
 
         p = imbroglio.Promise()
         t = None
+
         async def set_exception():
             nonlocal t
             t = await imbroglio.spawn(get_result())
@@ -426,7 +452,8 @@ class TestImbroglioTools(unittest.TestCase):
         self.assertLess(t0, t1)
 
     def test_run_in_thread_exception(self):
-        class DistinctException(Exception): pass
+        class DistinctException(Exception):
+            pass
 
         def sleep_then_raise():
             time.sleep(1)
