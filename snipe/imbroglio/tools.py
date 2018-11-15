@@ -37,13 +37,17 @@ __all__ = [
     'Timeout',
     'TimeoutError',
     'gather',
+    'process_filter',
     'run_in_thread',
     ]
 
 
+import fcntl
 import inspect
 import logging
+import os
 import socket
+import subprocess
 import threading
 
 from . import core as imbroglio
@@ -174,3 +178,52 @@ async def run_in_thread(func, *args, **kwargs):
     finally:
         sender.close()
         receiver.close()
+
+
+async def process_filter(cmd, inbuf):
+    inr, inw = os.pipe()
+    outr, outw = os.pipe()
+
+    async def sender(inbuf):
+        inbuf = inbuf.encode()
+        while inbuf:
+            await imbroglio.writewait(inw)
+            count = os.write(inw, inbuf)
+            inbuf = inbuf[count:]
+        os.close(inw)
+
+    supe = await imbroglio.get_supervisor()
+
+    try:
+        for fd in (inw, outr):
+            fcntl.fcntl(
+                fd,
+                fcntl.F_SETFL,
+                fcntl.fcntl(fd, fcntl.F_GETFL)|os.O_NONBLOCK)
+
+        with subprocess.Popen(
+                cmd,
+                stdin=inr,
+                stdout=outw,
+                stderr=subprocess.STDOUT) as p:
+            os.close(inr)
+            os.close(outw)
+
+            await imbroglio.spawn(sender(inbuf))
+            output = []
+            s = None
+            while s != b'':
+                await imbroglio.readwait(outr)
+                s = os.read(outr, 4096)
+                output.append(s)
+            retval = await run_in_thread(p.wait)
+            return retval, b''.join(output).decode(errors='replace')
+    finally:
+        try:
+            os.close(inw)
+        except OSError:
+            pass
+        try:
+            os.close(outr)
+        except OSError:  # pragma: nocover
+            pass

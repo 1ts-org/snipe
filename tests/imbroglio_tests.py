@@ -465,6 +465,20 @@ class TestImbroglioTools(unittest.TestCase):
 
         imbroglio.run(check_raise())
 
+    def test_process_filter(self):
+        async def test():
+            self.assertEqual(
+                (0, 'foo\n'),
+                (await imbroglio.process_filter(['echo', 'foo'], '')))
+            self.assertEqual(
+                (0, 'foo'),
+                (await imbroglio.process_filter(['cat'], 'foo')))
+            self.assertEqual(
+                (0, 'FOO'),
+                (await imbroglio.process_filter(['tr', 'a-z', 'A-Z'], 'foo')))
+
+        imbroglio.run(test())
+
 
 if __name__ == '__main__':
     unittest.main()
