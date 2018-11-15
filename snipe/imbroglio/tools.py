@@ -44,7 +44,6 @@ __all__ = [
 
 import fcntl
 import inspect
-import logging
 import os
 import socket
 import subprocess
@@ -194,14 +193,12 @@ async def process_filter(cmd, inbuf):
             inbuf = inbuf[count:]
         os.close(inw)
 
-    supe = await imbroglio.get_supervisor()
-
     try:
         for fd in (inw, outr):
             fcntl.fcntl(
                 fd,
                 fcntl.F_SETFL,
-                fcntl.fcntl(fd, fcntl.F_GETFL)|os.O_NONBLOCK)
+                fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK)
 
         with subprocess.Popen(
                 cmd,

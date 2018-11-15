@@ -179,7 +179,6 @@ class Supervisor:
         self.runq = []
         self.waitq = []
         self.log = logging.getLogger('imbroglio')
-        self.log.setLevel(logging.DEBUG)  # change this someday
 
     def start(self, coro):
         """start a task from non-async code"""
@@ -288,6 +287,7 @@ class Supervisor:
 
     def _run(self, runtask):
         self.log.debug('starting scheduler loop')
+
         def _step(task, retval):
             t0 = time.time()
             try:
