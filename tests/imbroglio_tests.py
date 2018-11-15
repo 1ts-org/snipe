@@ -338,6 +338,36 @@ class TestImbroglioCore(unittest.TestCase):
 
         imbroglio.run(driver())
 
+    def test_taskwait_done(self):
+        async def quick():
+            pass
+
+        async def driver():
+            t = await imbroglio.spawn(quick())
+            await t
+            self.assertEquals((False, 0.0), (await imbroglio.taskwait(t)))
+
+        imbroglio.run(driver())
+
+    def test_time_warning(self):
+        async def sleeper():
+            time.sleep(.2)
+
+        imbroglio.run(sleeper())
+        with self.assertLogs('imbroglio', level='WARNING'):
+            imbroglio.run(sleeper())
+
+    def test_weird_upcall(self):
+        class Thing:
+            def __await__(self):
+                yield self
+
+        async def caller():
+            await Thing()
+
+        with self.assertRaises(imbroglio.ImbroglioException):
+            imbroglio.run(caller())
+
 
 class TestImbroglioTools(unittest.TestCase):
     def test_timeout(self):
@@ -389,6 +419,11 @@ class TestImbroglioTools(unittest.TestCase):
 
         with self.assertRaises(DistinctException):
             imbroglio.run(imbroglio.gather(f(), g(), h()))
+
+        fc = f()
+        with self.assertRaises(imbroglio.ImbroglioException):
+            imbroglio.run(imbroglio.gather(fc, False))
+        fc.close()
 
     def test_promise(self):
         p = imbroglio.Promise()
@@ -481,4 +516,5 @@ class TestImbroglioTools(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    import logging; logging.basicConfig(level = logging.DEBUG)
     unittest.main()

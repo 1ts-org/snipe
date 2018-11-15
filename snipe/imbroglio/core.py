@@ -75,7 +75,7 @@ class Task:
     _next_id = itertools.count().__next__
 
     def __init__(self, coro, supervisor):
-        if not inspect.isawaitable(coro):
+        if not inspect.iscoroutine(coro):
             raise TypeError(
                 'Cannot make a task from non-coroutine %s' % (repr(coro,)))
         self.task_id = self._next_id()
@@ -139,16 +139,21 @@ class Task:
         yield ('taskwait', self)
 
     def __repr__(self):
-        state = ''
+        cstate = ''
         if inspect.iscoroutine(self.coro):
             crst = inspect.getcoroutinestate(self.coro)
-            state = f' {crst} {_framemeta(self.coro.cr_frame)}'
+            cstate = f' {crst} {_framemeta(self.coro.cr_frame)}'
             if crst == 'CORO_SUSPENDED':
-                state += f' {self.coro.cr_await!r}'
+                cstate += f' {self.coro.cr_await!r}'
+        tstate = self.state
+        if self.is_done():
+            result = self.result(False)
+            if result is not None:
+                tstate += f' {result!r}'
         return (
             f'<{self.__class__.__name__}'
-            f' {self.state}'
-            f' #{self.task_id}:{self.creation}{state}'
+            f' {tstate}'
+            f' #{self.task_id}:{self.creation}{cstate}'
             '>'
             )
 
@@ -282,15 +287,12 @@ class Supervisor:
                 break
 
     def _run(self, runtask):
+        self.log.debug('starting scheduler loop')
         def _step(task, retval):
+            t0 = time.time()
             try:
                 if task.pending_exception is None:
-                    t0 = time.time()
                     val = task.coro.send(retval)
-                    duration = time.time() - t0
-                    if duration > TIME_THRESHOLD:
-                        self.log.warning(
-                            f'spent more than {TIME_THRESHOLD} in {task!r}')
                     if not isinstance(val, tuple):
                         msg = f'{task!r} upcalled with {val!r}'
                         self.log.error(msg)
@@ -313,6 +315,13 @@ class Supervisor:
                     )
                 task.set_result_exception(e)  # XXX leakage
                 return
+            finally:
+                duration = time.time() - t0
+                self.log.debug('%s', f'{task!r} ran {duration}s')
+                if duration > TIME_THRESHOLD:
+                    self.log.warning(
+                        '%s',
+                        f'spent more than {TIME_THRESHOLD} in {task!r}')
 
             call = getattr(self, '_call_' + val[0])
             call(task, *val[1:])

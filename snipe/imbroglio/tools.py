@@ -89,12 +89,10 @@ async def gather(*coros, return_exceptions=False):
     async def signaller(coro):
         # so we always schedule _after_ the parent sleeps
         await imbroglio.sleep()
+
         # this following is a little off but should produce cleaner
         # backtraces?
         if not return_exceptions:
-            if not inspect.isawaitable(coro):
-                logging.getLogger('imbroglio').error(
-                    f'got unawaitable {coro!r}')
             result = await coro
         else:
             try:
@@ -105,6 +103,10 @@ async def gather(*coros, return_exceptions=False):
         monitor_task.rouse()
         return result
 
+    unawaitable = [repr(c) for c in coros if not inspect.isawaitable(c)]
+    if unawaitable:
+        unawaitable = ' '.join(unawaitable)
+        raise imbroglio.ImbroglioException(f'got unawaitable {unawaitable}')
     monitor_task = await imbroglio.this_task()
     tasks = [(await imbroglio.spawn(signaller(coro))) for coro in coros]
 
