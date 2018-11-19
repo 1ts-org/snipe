@@ -43,7 +43,6 @@ import os
 import pwd
 import re
 import shlex
-import subprocess
 import time
 import traceback
 import unicodedata
@@ -240,8 +239,8 @@ class Roost(messages.SnipeBackend):
                 if returncode:
                     self.log.error(
                         'roost: %s returned %d',
-                        ' '.join(cmd), proc.returncode)
-                    raise Exception('zcrypt returned %d' % (proc.returncode))
+                        ' '.join(cmd), returncode)
+                    raise Exception('zcrypt returned %d' % (returncode))
                 body = stdout
 
             message = {
