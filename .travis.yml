@@ -3,9 +3,7 @@ dist: trusty
 sudo: true
 python:
  - "3.6"
- - "3.7"
  - "3.7-dev"
- - "3.8-dev"
  - "nightly"
 install:
  - pip install -r requirements.txt
