@@ -964,7 +964,7 @@ class HTTP_WS:
     async def readsome(self):
         if not self.connected:
             await self.connect()
-        ident = f'{id(self):x}.{os.getrandom(4).hex()}: '
+        ident = f'{id(self):x}: '
 
         self.log.debug(f'{ident}outside readsome loop')
         while True:
