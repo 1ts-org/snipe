@@ -15,10 +15,12 @@ ignore =
     # E704,
     # line break before binary operator
     W503,
-    # line break after binary operator
-    # W504,
+    # line break after binary operator (revisit this)
+    W504,
     #
     # my own opinions:
     # "do not use variables named ‘l’, ‘O’, or ‘I’"
     # .. or just use a reasonable font.
     E741
+    # flake8 3.6.0 thinks there should be spaces around parameter =?
+    E252

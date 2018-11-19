@@ -245,7 +245,7 @@ class InitContext(Context):
                  time_req=0,
                  channel_bindings=None):
         if channel_bindings is not None:
-            raise NotImplemented('channel_bindings')
+            raise NotImplementedError('channel_bindings')
         Context.__init__(self, credential)
         self._target = target
         self._mechanism = mechanism

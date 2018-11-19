@@ -745,7 +745,7 @@ class TTYFrontend:
         while True:  # make sure to consume all available input
             try:
                 k = self.stdscr.get_wch()
-            except curses.error as e:
+            except curses.error:
                 break  # XXX presuming no input
             if k == curses.KEY_RESIZE:
                 self.log.debug('new size (%d, %d)' % (self.maxy, self.maxx))

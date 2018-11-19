@@ -166,10 +166,10 @@ class TestWindow(unittest.TestCase):
         self.assertEqual(cheatsheetify('*foo*'), [(TAGS, 'foo')])
         self.assertEqual(
             cheatsheetify('f*o*o'), [(set(), 'f'), (TAGS, 'o'), (set(), 'o')])
-        self.assertEqual(cheatsheetify('f\*o'), [(set(), 'f*o')])
+        self.assertEqual(cheatsheetify(r'f\*o'), [(set(), 'f*o')])
         self.assertEqual(cheatsheetify('f**oo'), [(set(), 'foo')])
         self.assertEqual(
-            cheatsheetify('f*\*oo'), [(set(), 'f'), (TAGS, '*oo')])
+            cheatsheetify(r'f*\*oo'), [(set(), 'f'), (TAGS, '*oo')])
 
     def test_read_string(self):
         import snipe.prompt as prompt

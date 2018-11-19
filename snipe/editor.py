@@ -1258,7 +1258,7 @@ COMPOSE_SEQUENCES += [
     ('0 / 3', '\N{vulgar fraction zero thirds}'),
     ('- [space]', '\N{combining long stroke overlay}'),
     ('/ [space]', '\N{combining long solidus overlay}'),
-    ('\ [space]', '\N{combining reverse solidus overlay}'),
+    (r'\ [space]', '\N{combining reverse solidus overlay}'),
     ('_ [space]', '\N{combining low line}'),
     ('s s', '\N{latin small letter sharp s}'),
     ('" s', '\N{latin small letter sharp s}'),  # *frown*
