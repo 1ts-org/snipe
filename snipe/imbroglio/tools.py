@@ -39,10 +39,12 @@ __all__ = [
     'gather',
     'process_filter',
     'run_in_thread',
+    'test',
     ]
 
 
 import fcntl
+import functools
 import inspect
 import os
 import socket
@@ -226,3 +228,14 @@ async def process_filter(cmd, inbuf):
             os.close(outr)
         except OSError:  # pragma: nocover
             pass
+
+
+def test(f):
+    """
+    Wrap an async function in a call to the imbroglio supervisor,
+    intended for tests.
+    """
+    @functools.wraps(f)
+    def run(self):
+        imbroglio.run(f(self))
+    return run

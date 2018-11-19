@@ -7,7 +7,7 @@ flake8:
 	flake8 rooster.py setup.py snipe.py swearing.py snipe tests
 
 nosetests:
-	$(NOSETESTS)
+	$(NOSETESTS) --processes=8 --process-timeout=300
 
 coverage:
 	python3-coverage erase

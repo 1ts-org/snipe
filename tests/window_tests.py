@@ -32,7 +32,6 @@
 Unit tests for stuff in window.py
 '''
 
-import asyncio
 import logging
 import sys
 import unittest
@@ -42,10 +41,11 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-from snipe.chunks import Chunk  # noqa: E402
-import snipe.keymap as keymap   # noqa: E402
-import snipe.window as window   # noqa: E402
-import snipe.util as util       # noqa: E402
+from snipe.chunks import Chunk       # noqa: E402
+import snipe.imbroglio as imbroglio  # noqa: E402
+import snipe.keymap as keymap        # noqa: E402
+import snipe.window as window        # noqa: E402
+import snipe.util as util            # noqa: E402
 
 
 class TestWindow(unittest.TestCase):
@@ -75,8 +75,10 @@ class TestWindow(unittest.TestCase):
         w = window.Window(None, modes=[AMode()])
         self.assertEqual(w.cheatsheet[-1], 'foo')
 
-    def test_input_char(self):
+    @imbroglio.test
+    async def test_input_char(self):
         with mocks.mocked_up_actual_fe_window(window.Window) as w:
+            w.fe.supervisor = await imbroglio.get_supervisor()
             save = []
             w.intermediate_action = (
                 lambda keystroke=None: save.append(keystroke))
@@ -104,8 +106,7 @@ class TestWindow(unittest.TestCase):
             self.assertFalse(w.tasks)
             w.input_char('0')
             self.assertTrue(w.tasks)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(w.tasks[0])
+            await w.tasks[0]
             self.assertEqual(save, ['x', 'x', 'Ex', 'y', 'y', 'z', '0'])
 
             w.keymap['1'] = lambda: {}[None]
@@ -118,7 +119,7 @@ class TestWindow(unittest.TestCase):
             w.keymap['2'] = key_raises
             w.input_char('2')
             with self.assertLogs(w.log, logging.ERROR):
-                loop.run_until_complete(w.tasks[0])
+                await w.tasks[0]
 
     def test_misc(self):
         called = False
@@ -239,12 +240,9 @@ class TestWindow(unittest.TestCase):
 
     def test_quit(self):
         with mocks.mocked_up_actual_fe_window(window.Window) as w:
-            loop = asyncio.get_event_loop()
-            self.assertFalse(loop._stopping)
+            self.assertFalse(w.fe.quit)
             w.quit()
-            self.assertTrue(loop._stopping)
-            loop.run_forever()
-            self.assertFalse(loop._stopping)
+            self.assertTrue(w.fe.quit)
 
     def test_stop(self):
         with mocks.mocked_up_actual_fe(window.Window) as fe:

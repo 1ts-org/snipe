@@ -34,28 +34,28 @@ Backend for talking to `roost <https://github.com/roost-im>`_
 '''
 
 
-import asyncio
-import itertools
-import time
-import shlex
-import os
-import contextlib
-import re
-import pwd
-import getopt
-import traceback
 import codecs
-import subprocess
+import contextlib
+import getopt
 import inspect
+import itertools
+import os
+import pwd
+import re
+import shlex
+import subprocess
+import time
+import traceback
 import unicodedata
 
-from . import chunks
-from . import messages
 from . import _rooster
-from . import util
+from . import chunks
 from . import filters
-from . import keymap
 from . import interactive
+from . import imbroglio
+from . import keymap
+from . import messages
+from . import util
 from . import zcode
 
 
@@ -115,8 +115,9 @@ class Roost(messages.SnipeBackend):
         self._zephyr_subs = os.path.join(
             self.context.home_directory, '.zephyr.subs')
 
-    def start(self):
-        self.new_task = asyncio.Task(self.new_messages())
+    async def start(self):
+        await super().start()
+        self.new_task = await imbroglio.spawn(self.new_messages())
         self.tasks.append(self.new_task)
 
     async def new_messages(self):
@@ -140,9 +141,9 @@ class Roost(messages.SnipeBackend):
                 self.context.message(msg)
                 if e.wait:
                     self.log.debug('waiting: %d', e.wait)
-                    await asyncio.sleep(e.wait)
+                    await imbroglio.sleep(e.wait)
                 continue
-            except asyncio.CancelledError:
+            except imbroglio.CancelledError:
                 raise
             except Exception as exc:
                 errmsg = str(exc)
@@ -171,11 +172,11 @@ class Roost(messages.SnipeBackend):
         alarmist than necessary because I couldn't resist the
         reference to the Matrix.
         """)
-        f = asyncio.Future()
-        self.add_message(RoostRegistrationMessage(self, msg, f))
-        await f
+        p = imbroglio.Promise()
+        self.add_message(RoostRegistrationMessage(self, msg, p))
+        await p()
 
-        f = asyncio.Future()
+        p = imbroglio.Promise()
         msg = inspect.cleandoc("""
         This is your last chance.  After this, there is no turning
         back.  The roost server will be receiving your messages and
@@ -183,13 +184,13 @@ class Roost(messages.SnipeBackend):
         people who run the server might accidentally see some of your
         messages.
         """)
-        self.add_message(RoostRegistrationMessage(self, msg, f))
-        await f
+        self.add_message(RoostRegistrationMessage(self, msg, p))
+        await p()
         try:
             await self.r.auth(create_user=True)
             self.add_message(messages.SnipeMessage(self, 'Registered.'))
             self.load_subs(self._zephyr_subs)
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             pass
         except Exception as e:
             self.log.exception('registering')
@@ -200,7 +201,7 @@ class Roost(messages.SnipeBackend):
         """run a coroutine, creating a message with a traceback if it raises"""
         try:
             return (await func(*args))
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             raise
         except Exception as e:
             self.log.exception(activity)
@@ -232,30 +233,14 @@ class Roost(messages.SnipeBackend):
             body = codecs.encode(body, 'rot13')
 
         for recipient in recipients:
-            if '-x' in flags:
+            if '-x' in flags and False:
                 flags['-O'] = 'crypt'
                 cmd = ['zcrypt', '-E', '-c', flags.get('-c', 'MESSAGE')]
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    **dict(
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        )
-                    )
-                stdout, stderr = await proc.communicate(body.encode())
-                stdout = stdout.decode(errors='replace')
-                stderr = stderr.decode(errors='replace')
-                if proc.returncode:
+                returncode, stdout = imbroglio.process_filter(cmd, body)
+                if returncode:
                     self.log.error(
                         'roost: %s returned %d',
                         ' '.join(cmd), proc.returncode)
-                if stderr:
-                    self.log.error(
-                        'roost: %s send %s to stderr',
-                        ' '.join(cmd), repr(stderr))
-                    raise Exception('zcrypt: ' + stderr)
-                if proc.returncode:
                     raise Exception('zcrypt returned %d' % (proc.returncode))
                 body = stdout
 
@@ -287,29 +272,16 @@ class Roost(messages.SnipeBackend):
     async def construct_and_maybe_decrypt(self, m):
         msg = RoostMessage(self, m)
         try:
-            if msg.data.get('opcode') == 'crypt':
+            if msg.data.get('opcode') == 'crypt' and False:
                 cmd = ['zcrypt', '-D', '-c', msg.data['class']]
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    **dict(
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        )
-                    )
-                stdout, stderr = await proc.communicate(msg.body.encode())
-                stdout = stdout.decode(errors='replace')
-                stderr = stderr.decode(errors='replace')
-                if proc.returncode:
+                retcode, stdout = await imbroglio.process_filter(
+                    cmd, msg.body())
+                if retcode:
                     self.log.error(
                         'roost: %s returned %d',
                         ' '.join(cmd),
-                        proc.returncode)
-                if stderr:
-                    self.log.error(
-                        'roost: %s send %s to stderr',
-                        ' '.join(cmd), repr(stderr))
-                if not (proc.returncode or stderr):
+                        retcode)
+                if not retcode:
                     sigil = '**END**\n'
                     if stdout.endswith(sigil):
                         stdout = stdout[:-len(sigil)]
@@ -350,12 +322,11 @@ class Roost(messages.SnipeBackend):
 
         self.reap_tasks()
         self.tasks.append(
-            asyncio.Task(self.error_message(
+            self.supervisor.start(self.error_message(
                 'backfilling',
                 self.do_backfill, msgid, mfilter, target, count, origin)))
 
     async def do_backfill(self, start, mfilter, target, count, origin):
-        # await asyncio.sleep(.0001)
         self.log.debug(
             'do_backfill(start=%s, [filter], %s, %s, origin=%s)',
             repr(start),
@@ -416,7 +387,7 @@ class Roost(messages.SnipeBackend):
                 util.timestr(self.messages[0].time) if self.messages else '-')
 
             # and (maybe) circle around
-            await asyncio.sleep(.1)
+            await imbroglio.sleep(.1)
             self.backfill(mfilter, target, count=count, origin=origin)
 
             if ms:

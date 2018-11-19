@@ -34,20 +34,20 @@ snipe.context
 '''
 
 
+import collections
+import contextlib
+import importlib
+import json
+import logging
+import netrc
 import os
 import subprocess
-import contextlib
-import logging
-import json
-import netrc
-import collections
-import asyncio
-import importlib
 
+from . import imbroglio
+from . import messager
 from . import messages
 from . import util
 from . import window
-from . import messager
 
 
 class Context:
@@ -127,7 +127,7 @@ class Context:
 
         self.ui.initial(messager.Messager, statusline=window.StatusLine)
 
-        self.backends.start()
+        await self.backends.start()
 
     def loadbackends(self):
         loaded = []
@@ -275,6 +275,7 @@ class SnipeLogHandler(logging.Handler):
         self.context = None
         self.buffer = collections.deque(maxlen=self.size)
         self.task = None
+        self.supervisor = None
         self.setFormatter(logging.Formatter(
             '%(asctime)s.%(msecs)03d %(name)s %(filename)s:%(lineno)s:'
             ' %(message)s',
@@ -293,8 +294,10 @@ class SnipeLogHandler(logging.Handler):
                 self.buffer = collections.deque(
                     self.buffer[-self.size:], maxlen=self.size)
             self.buffer.append(s)
-            if self.writing and self.task is None:
-                self.task = asyncio.Task(self.writer())
+            if (self.writing
+                    and self.task is None
+                    and self.supervisor is not None):
+                self.task = self.supervisor.start(self.writer())
 
     @staticmethod
     def opener(file, flags):
@@ -307,8 +310,8 @@ class SnipeLogHandler(logging.Handler):
             self.buffer.clear()
 
     async def writer(self):
-        await asyncio.sleep(self.interval)
-        self.dump()
+        await imbroglio.sleep(self.interval)
+        await imbroglio.run_in_thread(self.dump)
         self.task = None
 
     def shutdown(self):

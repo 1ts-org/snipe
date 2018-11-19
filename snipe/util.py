@@ -39,7 +39,6 @@ import contextlib
 import ctypes
 import datetime
 import importlib
-import inspect
 import json
 import functools
 import logging
@@ -62,17 +61,6 @@ from . import imbroglio
 
 class SnipeException(Exception):
     pass
-
-
-def as_coroutine(f):
-    if inspect.iscoroutinefunction(f):
-        return f
-
-    @functools.wraps(f)
-    async def wrapped(*args, **kwargs):
-        f(*args, **kwargs)
-
-    return wrapped
 
 
 class Configurable:
@@ -206,6 +194,7 @@ for userspace_name, program_name in [
         ('log.backend.startup', 'StartupBackend'),
         ('log.filter', 'filter'),
         ('log.websocket', 'WebSocket'),
+        ('log.imbroglio', 'imbroglio'),
         ]:
     Level(
         userspace_name,
@@ -267,7 +256,7 @@ def coro_cleanup(f):
     @functools.wraps(f)
     async def catch_and_log(*args, **kw):
         try:
-            return (await as_coroutine(f)(*args, **kw))
+            return (await f(*args, **kw))
         except imbroglio.CancelledError:
             raise
         except Exception:
@@ -600,6 +589,11 @@ class NetworkStream:
         self.socket.setblocking(False)
         self.reof = False
 
+        self.log.debug('%s', f'connected to {self.socket!r}')
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.socket!r}>'
+
     @classmethod
     async def connect(klass, hostname, port, log=None):
         sock = await imbroglio.run_in_thread(
@@ -612,7 +606,8 @@ class NetworkStream:
         await imbroglio.readwait(self.socket.fileno())
         try:
             buf = self.socket.recv(4096)
-        except BlockingIOError:
+        except BlockingIOError:  # pragma: nocover
+            # shouldn't actually happen
             return ''
         if buf == b'':
             self.log.debug('readsome: got eof')
@@ -639,10 +634,13 @@ class NetworkStream:
 
     async def close(self):
         self.log.debug('closing')
+        self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
 
 class SSLStream:
+    # XXX needs refactored
+
     def __init__(self, netstream, hostname, log=None):
         if log is None:
             self.log = logging.getLogger('SSLStream.%s' % (hostname,))
@@ -658,6 +656,10 @@ class SSLStream:
             self.incoming, self.outgoing, server_side=False,
             server_hostname=hostname)
         self.handshake_done = False
+        self.log.debug('%s', f'wrapped {self.netstream!r}')
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.netstream!r}>'
 
     async def do_handshake(self):
         if self.handshake_done:
@@ -676,8 +678,10 @@ class SSLStream:
                     self.incoming.write_eof()
                 else:
                     self.incoming.write(indata)
-            except ssl.SSLWantWriterError:
+                continue
+            except ssl.SSLWantWriteError:
                 await self.netstream.write(self.outgoing.read())
+                continue
             break
         if self.outgoing.pending:
             await self.netstream.write(self.outgoing.read())
@@ -729,7 +733,7 @@ class SSLStream:
                 data = await self.netstream.readsome()
                 if data is None:
                     self.incoming.write_eof()
-                    self.log.debug('set eof')
+                    self.log.debug('wrote eof')
                     continue
                 self.incoming.write(data)
                 continue
@@ -752,24 +756,22 @@ class SSLStream:
         while True:
             if not await self.netstream.readable():
                 if self.netstream.reof:
-                    self.reof = True
                     self.incoming.write_eof()
-                    self.log.debug('set eof B')
+                    self.log.debug('wrote eof B')
                 break
             else:
                 self.log.debug('socket is readable?')
             # consume all the bytes on the wire
             d = await self.netstream.readsome()
             if d is None:
-                self.reof = True
                 self.incoming.write_eof()
-                self.log.debug('set eof')
+                self.log.debug('wrote eof 0')
                 break
             count += len(d)
             if d:
                 self.incoming.write(d)
         self.log.debug(f'read {count} bytes from network stream')
-        return bool(self.obj.pending()) and not self.reof
+        return bool(self.obj.pending())
 
     async def close(self):
         await self.netstream.close()
@@ -808,8 +810,9 @@ class HTTP:
             self.stream = SSLStream(self.stream, self.hostname)
 
         outheaders = [
-                ('Host', self.hostname),
-                ('Connection', 'close')]
+            ('Host', self.hostname),
+            ('Connection', 'close'),
+            ]
         if _json is not None:
             # overrides data
             data = json.dumps(_json)
@@ -831,6 +834,10 @@ class HTTP:
             await self.send(h11.Data(data=data))
         await self.send(h11.EndOfMessage())
         self.connected = True
+        self.log.debug('%s', f'{self.url}: connected to {self.stream!r}')
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.url} {self.stream!r}>'
 
     async def send(self, event):
         data = self.conn.send(event)
@@ -845,6 +852,7 @@ class HTTP:
             self.log.debug('HTTP event: %s', repr(event))
             if event is h11.NEED_DATA:
                 data = await self.stream.readsome()
+                self.log.debug('received %s', repr(data))
                 if data == b'':
                     continue
                 if data is None:
@@ -854,8 +862,7 @@ class HTTP:
             return event
 
     async def readsome(self):
-        if not self.connected:
-            await self.connect()
+        assert self.connected
 
         while True:
             event = await self.next_event()
@@ -871,12 +878,13 @@ class HTTP:
 
 
 class HTTP_WS:
-    def __init__(self, url, headers=[], log=None):
+    def __init__(self, url, headers=[], log=None, stream=None):
         if log is None:
             self.log = logging.getLogger('HTTP_WS')
         else:
             self.log = log
 
+        self.stream = stream
         self.url = url
         parsed = urllib.parse.urlsplit(url)
         self.scheme = parsed.scheme or 'ws'
@@ -892,16 +900,20 @@ class HTTP_WS:
             wsproto.connection.ConnectionType.CLIENT,
             self.hostname,
             self.resource,
-            headers=headers)
+            # headers=headers,
+            )
         self.connected = False
         self.response = None
         self.inbuf = []
         self.reading = False
 
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.url} {self.stream!r}>'
+
     @classmethod
     async def request(
-            klass, url, headers=[], log=None):
-        obj = klass(url, headers, log)
+            klass, url, headers=[], log=None, stream=None):
+        obj = klass(url, headers, log=log, stream=stream)
         await obj.connect()
         return obj
 
@@ -918,24 +930,34 @@ class HTTP_WS:
         self.log.debug('reading...')
         d = await self.stream.readsome()
         # XXX if not d: EOF
-        self.log.debug('received %d bytes: %s', len(d), repr(d))
+        if d is not None:
+            self.log.debug('received %d bytes: %s', len(d), repr(d))
         self.ws.receive_bytes(d)  # turns out wsproto signals EOF with None too
 
     async def connect(self):
         self.log.debug('opening connection to %s %s', self.hostname, self.port)
-        self.stream = await NetworkStream.connect(
-            self.hostname, self.port, log=self.log)
-        if self.scheme == 'wss':
-            self.log.debug('starting SSL layer')
-            self.stream = SSLStream(self.stream, self.hostname, log=self.log)
+        if self.stream is None:
+            self.stream = await NetworkStream.connect(
+                self.hostname, self.port, log=self.log)
+            if self.scheme == 'wss':
+                self.log.debug('starting SSL layer')
+                self.stream = SSLStream(
+                    self.stream, self.hostname, log=self.log)
 
         await self.communicate()
 
-        event = next(self.ws.events())
-        if not isinstance(event, wsproto.events.ConnectionEstablished):
-            raise SnipeException(f'expected websocket event, got {event}')
+        # pull up to one event off the events() iterator
+        for event in self.ws.events():
+            break
+        else:
+            raise SnipeException('no event waiting')
 
-        self.log.debug('connected: %s', event)
+        if not isinstance(event, wsproto.events.ConnectionEstablished):
+            raise SnipeException(
+                f'expected connection established event, got {event}')
+
+        self.log.debug('%s', f'{self.url}: connected to {self.stream!r}')
+        self.log.debug('%s', f'connected: {event}')
 
         self.connected = True
 
@@ -944,45 +966,35 @@ class HTTP_WS:
             await self.connect()
         ident = f'{id(self):x}.{os.getrandom(4).hex()}: '
 
-        try:
-            self.log.debug(f'{ident}outside readsome loop')
-            while True:
-                self.log.debug(f'{ident}top of readsome loop')
-                for event in self.ws.events():
-                    self.log.debug(f'{ident}readsome %s', event)
-                    if isinstance(event, wsproto.events.ConnectionClosed):
+        self.log.debug(f'{ident}outside readsome loop')
+        while True:
+            self.log.debug(f'{ident}top of readsome loop')
+            for event in self.ws.events():
+                self.log.debug(f'{ident}readsome %s', event)
+                if isinstance(event, wsproto.events.ConnectionClosed):
+                    if self.inbuf:
                         self.log.error(
                             f'{ident}Connection Closed with {self.inbuf}')
-                        return ''
-                    elif isinstance(event, wsproto.events.TextReceived):
-                        self.inbuf.append(event.data)
+                    return None
+                elif isinstance(event, wsproto.events.TextReceived):
+                    self.inbuf.append(event.data)
+                    self.log.debug(
+                        f'{ident}TextReceived {event.message_finished}')
+                    if event.message_finished:
                         self.log.debug(
-                            f'{ident}TextReceived {event.message_finished}')
-                        if event.message_finished:
-                            self.log.debug(
-                                f'{ident}about to release message %s',
-                                repr(self.inbuf))
-                            retval = ''.join(self.inbuf)
-                            self.inbuf = []
-                            return retval
-                        else:
-                            self.log.debug(
-                                f'{ident}supposedly not releasing message')
-                self.log.debug(f'{ident}about to communicate')
-                await self.communicate()
-                self.log.debug(f'{ident}bottom of readsome loop')
-            self.log.debug(f"{ident}at end of readsome, can't happen")
-            if event in locals():
-                self.log.debug(f"{ident}event = {event}")
-        except BaseException:
-            self.log.exception(f'{ident}exception?')
-            raise
-        finally:
-            self.log.debug(f'{ident}fiiiinally')
+                            f'{ident}about to release message %s',
+                            repr(self.inbuf))
+                        retval = ''.join(self.inbuf)
+                        self.inbuf = []
+                        return retval
+                    else:
+                        self.log.debug(
+                            f'{ident}supposedly not releasing message')
+            self.log.debug(f'{ident}about to communicate')
+            await self.communicate()
+            self.log.debug(f'{ident}bottom of readsome loop')
 
     async def write(self, buf):
-        if False and hasattr(buf, 'encode'):
-            buf = buf.encode('UTF-8')
         self.log.debug('writing %d bytes %s', len(buf), repr(buf))
         self.ws.send_data(buf)
         d = self.ws.bytes_to_send()
@@ -994,3 +1006,4 @@ class HTTP_WS:
     async def close(self):
         self.log.debug('closing')
         self.ws.close()
+        await self.stream.close()

@@ -32,7 +32,6 @@
 Unit tests for stuff in messages.py
 '''
 
-import asyncio
 import collections
 import datetime
 import itertools
@@ -46,10 +45,11 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.chunks as chunks      # noqa: E402
-import snipe.filters as filters    # noqa: E402
-import snipe.messages as messages  # noqa: E402
-import snipe.util as util          # noqa: E402
+import snipe.chunks as chunks        # noqa: E402
+import snipe.filters as filters      # noqa: E402
+import snipe.imbroglio as imbroglio  # noqa: E402
+import snipe.messages as messages    # noqa: E402
+import snipe.util as util            # noqa: E402
 
 
 class TestSnipeAddress(unittest.TestCase):
@@ -209,16 +209,17 @@ class TestStartup(unittest.TestCase):
 
 
 class TestBackend(unittest.TestCase):
-    def test_Backend(self):
+    @imbroglio.test
+    async def test_Backend(self):
         context = mocks.Context()
         synth = SyntheticBackend(context)
-        synth.start()
+        await synth.start()
         self.assertEqual(str(synth), synth.name)
         self.assertEqual(len(list(synth.walk(None))), 1)
         self.assertEqual(len(list(synth.walk(None, False))), 1)
 
         synth = SyntheticBackend(context, conf={'count': 3})
-        synth.start()
+        await synth.start()
         self.assertEqual(len(list(synth.walk(None))), 3)
         self.assertEqual(len(list(synth.walk(None, False))), 3)
 
@@ -240,34 +241,34 @@ class TestBackend(unittest.TestCase):
         self.assertRaises(
             NotImplementedError, lambda: synth.send(None, None).send(None))
 
-    def test_tasks(self):
+    @imbroglio.test
+    async def test_tasks(self):
         s = SyntheticBackend(mocks.Context())
 
-        loop = asyncio.get_event_loop()
-
         async def f():
-            await asyncio.sleep(0)
-        t = asyncio.Task(f())
+            await imbroglio.sleep(0)
+        t = await imbroglio.spawn(f())
         s.tasks.append(t)
-        loop.run_until_complete(t)
+        await t
 
         self.assertTrue(s.tasks)
         s.reap_tasks()
         self.assertFalse(s.tasks)
 
-        t = asyncio.Task(f())
+        t = await imbroglio.spawn(f())
         s.tasks.append(t)
-        loop.run_until_complete(s.shutdown())
+        await s.shutdown()
+
         self.assertFalse(s.tasks)
-        self.assertTrue(t.done())
+        self.assertTrue(t.is_done())
 
         async def g():
             raise Exception('exception')
 
-        t = asyncio.Task(g())
+        t = await imbroglio.spawn(g())
         s.tasks.append(g)
         with self.assertLogs(s.log.name, level='ERROR'):
-            loop.run_until_complete(s.shutdown())
+            await s.shutdown()
         self.assertFalse(s.tasks)
         self.assertTrue(t.done())
 
@@ -323,18 +324,19 @@ class TestMerge(unittest.TestCase):
 
 
 class TestAggregator(unittest.TestCase):
-    def test(self):
+    @imbroglio.test
+    async def test(self):
         context = mocks.Context()
         synth = SyntheticBackend(context)
         startup = messages.StartupBackend(context)
         sink = messages.SinkBackend(context)
         a = messages.AggregatorBackend(context, [startup, synth, sink])
-        a.start()
+        await a.start()
         self.assertEqual(startup.count(), 1)
         self.assertEqual(synth.count(), 1)
         self.assertEqual(a.count(), 3)
         self.assertEqual(len(list(a.walk(None, False))), 3)
-        mocks.simple_run(a.send('sink', 'a message'))
+        await a.send('sink', 'a message')
         self.assertEqual(a.count(), 4)
         self.assertEqual(len(list(a.walk(None, False))), 4)
         self.assertEqual(len(list(a.walk(None))), 4)
@@ -369,8 +371,8 @@ class TestAggregator(unittest.TestCase):
 
         self.assertEqual(a.eldest(), synth.messages[0].time)
 
-        self.assertRaises(
-            util.SnipeException, lambda: a.send('nope', None).send(None))
+        with self.assertRaises(util.SnipeException):
+            await a.send('nope', None)
 
         count = 0
 
@@ -381,8 +383,7 @@ class TestAggregator(unittest.TestCase):
         for backend in a:
             backend.shutdown = mock_shutdown
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(a.shutdown())
+        await a.shutdown()
 
         self.assertGreater(count, 0)
 
@@ -404,7 +405,8 @@ class TestAggregator(unittest.TestCase):
 
         self.assertEqual(a.count(), 4)
         synth2 = SyntheticBackend(context)
-        a.add(synth2)
+        a.backends.append(synth2)
+        await synth2.start()
         self.assertEqual(a.count(), 5)
 
 
@@ -416,8 +418,8 @@ class SyntheticBackend(messages.SnipeBackend):
         self.conf = conf
         self.myname = name
 
-    def start(self):
-        super().start()
+    async def start(self):
+        await super().start()
         count = self.conf.get('count', 1)
         string = self.conf.get('string', '0123456789')
         width = self.conf.get('width', 72)

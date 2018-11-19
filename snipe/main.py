@@ -32,19 +32,18 @@ snipe.main
 ----------
 '''
 
-import asyncio
 import logging
 import signal
 import sys
 import warnings
 
-from . import ttyfe
 from . import context
+from . import imbroglio
+from . import ttyfe
 
 
 def main():
     '''Main function, does high-level setup and kicks off the main loop.'''
-    loop = None
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
         logging.getLogger().addHandler(handler)
@@ -62,29 +61,28 @@ def main():
         handler.context = context_
         context_.load(options)
 
-        with ttyfe.TTYFrontend() as ui:
-            loop = asyncio.get_event_loop()
-            loop.set_debug(True)
-            loop.run_until_complete(context_.start(ui))
-            loop.add_reader(0, ui.readable)
-            ui.redisplay()
-            log.warning('starting event loop')
-            loop.run_forever()
-            log.warning('left main loop')
-            loop.run_until_complete(context_.shutdown())
-    except asyncio.CancelledError:
+        imbroglio.run(main_task(context_, handler, log))
+    except imbroglio.CancelledError:
         pass
     finally:
         log.warning('snipe ends')
         print()
         print('shutting down...', end='', flush=True)
-        if loop is not None and not loop.is_closed():
-            loop.close()
         if handler.writing:
             handler.dump()
         logging.shutdown()
         print('.', end='', flush=True)
     print('.', flush=True)
+
+
+async def main_task(context_, handler, log):
+    handler.supervisor = await imbroglio.get_supervisor()
+    log.warning('handler supervisor set')
+    async with ttyfe.TTYFrontend() as ui:
+        await context_.start(ui)
+        ui.redisplay()
+        await ui.read_loop()
+        await context_.shutdown()
 
 
 def parse_options(argv):

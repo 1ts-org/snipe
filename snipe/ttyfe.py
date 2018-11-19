@@ -36,8 +36,6 @@ UNIX tty frontend.
 
 
 import array
-import asyncio
-import asyncio.unix_events
 import collections
 import contextlib
 import curses
@@ -52,9 +50,9 @@ import signal
 import termios
 import textwrap
 import unicodedata
-import unittest.mock as mock
 
 
+from . import imbroglio
 from . import ttycolor
 from . import util
 
@@ -554,8 +552,10 @@ class TTYFrontend:
             ))
         self.full_redisplay = False
         self.in_redisplay = False
+        self.running = False
+        self.quit = False
 
-    def __enter__(self):
+    async def __aenter__(self):
         locale.setlocale(locale.LC_ALL, '')
         self.stdscr = curses.initscr()
         curses.noecho()
@@ -576,31 +576,23 @@ class TTYFrontend:
         self.stdscr.nodelay(1)
         self.color_assigner = ttycolor.get_assigner()
         self.maxy, self.maxx = self.stdscr.getmaxyx()
-        self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
         self.main_pid = os.getpid()
-        loop = asyncio.get_event_loop()
-        loop.add_signal_handler(signal.SIGWINCH, self.sigwinch, loop)
+        self.supervisor = await imbroglio.get_supervisor()
+        self.orig_sigtstp = signal.signal(signal.SIGTSTP, self.sigtstp)
+        self.orig_sigwinch = signal.signal(signal.SIGWINCH, self.sigwinch)
+        self.orig_sigint = signal.signal(signal.SIGINT, self.sigint)
 
-        with mock.patch(
-                'asyncio.unix_events._sighandler_noop', self.sighandler_op):
-            loop.add_signal_handler(signal.SIGINT, self.sigint)
+        self.running = True
 
         return self
 
     def renderer(self, *args, **kw):
         return TTYRenderer(self, *args, **kw)
 
-    def sigwinch(self, loop):
-        loop.call_soon(self.perform_resize)
+    def sigwinch(self, signum, frame):
+        self.supervisor.start(self.perform_resize())
 
-    def sigint(self):
-        self.ungetch(chr(self.INTCHAR))
-
-    def ungetch(self, k):
-        curses.ungetch(k)
-        self.readable()
-
-    def sighandler_op(self, signum, frame):
+    def sigint(self, signum, frame):
         from . import window
 
         if signum != signal.SIGINT:
@@ -611,6 +603,12 @@ class TTYFrontend:
                     or f.f_code is window.Window.catch_and_log_int.__code__):
                 raise KeyboardInterrupt
             f = f.f_back
+        else:
+            self.ungetch(chr(self.INTCHAR))
+
+    def ungetch(self, k):
+        curses.ungetch(k)
+        self.readable()
 
     def initial(self, winfactory, statusline=None):
         self.default_window = winfactory
@@ -647,7 +645,8 @@ class TTYFrontend:
                 return True
         return False
 
-    def __exit__(self, type, value, tb):
+    async def __aexit__(self, type, value, tb):
+        self.running = False
         # go to last line of screen, maybe cause scrolling?
         self.color_assigner.close()
         self.stdscr.keypad(0)
@@ -655,7 +654,9 @@ class TTYFrontend:
         curses.nl()
         curses.echo()
         curses.endwin()
+        signal.signal(signal.SIGINT, self.orig_sigint)
         signal.signal(signal.SIGTSTP, self.orig_sigtstp)
+        signal.signal(signal.SIGWINCH, self.orig_sigwinch)
 
     def sigtstp(self, signum, frame):
         curses.def_prog_mode()
@@ -668,7 +669,7 @@ class TTYFrontend:
     def write(self, s):
         pass  # XXX put a warning here or a debug log or something
 
-    def perform_resize(self):
+    async def perform_resize(self):
         self.log.debug('perform_resize: in_redisplay=%s', self.in_redisplay)
         if os.getpid() != self.main_pid:
             return  # sigh
@@ -735,6 +736,11 @@ class TTYFrontend:
         self.log.debug('RESIZED %d windows', len(self.windows))
         self.redisplay()
 
+    async def read_loop(self, input_fd=0):
+        while not self.quit:
+            await imbroglio.readwait(input_fd)
+            self.readable()
+
     def readable(self):
         while True:  # make sure to consume all available input
             try:
@@ -767,6 +773,9 @@ class TTYFrontend:
         self.full_redisplay = True
 
     def redisplay(self, hint=None):
+        if not self.running:
+            raise util.SnipeException('redisplay call to inactive frontend')
+
         self.log.debug('windows = %s:%d', repr(self.windows), self.output)
 
         if self.in_redisplay:

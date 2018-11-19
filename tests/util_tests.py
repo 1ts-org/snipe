@@ -33,10 +33,13 @@ Unit tests for stuff in utils.py
 '''
 
 
-import asyncio
+import inspect
+import json
 import logging
 import os
 import random
+import socket
+import ssl
 import sys
 import tempfile
 import unittest
@@ -46,7 +49,8 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.util  # noqa: E402
+import snipe.util                    # noqa: E402
+import snipe.imbroglio as imbroglio  # noqa: E402
 
 
 class TestSafeWrite(unittest.TestCase):
@@ -156,40 +160,6 @@ class TestEvalOutput(unittest.TestCase):
 class TestGetobj(unittest.TestCase):
     def test(self):
         self.assertIs(snipe.util.getobj('util_tests.TestGetobj'), TestGetobj)
-
-
-class TestAsCoroutine(unittest.TestCase):
-    def test(self):
-        val = ''
-
-        def normal():
-            nonlocal val
-            val = 'normal'
-
-        async def coroutine():
-            nonlocal val
-            await asyncio.sleep(0)
-            val = 'coroutine'
-
-        async def yielder(f):
-            await f()
-
-        self.assertTrue(
-            asyncio.iscoroutinefunction(snipe.util.as_coroutine(normal)))
-        self.assertTrue(
-            asyncio.iscoroutinefunction(snipe.util.as_coroutine(coroutine)))
-
-        self.assertTrue(asyncio.iscoroutinefunction(coroutine))
-
-        loop = asyncio.get_event_loop()
-
-        self.assertEqual(val, '')
-
-        loop.run_until_complete(yielder(snipe.util.as_coroutine(normal)))
-        self.assertEqual(val, 'normal')
-
-        loop.run_until_complete(yielder(snipe.util.as_coroutine(coroutine)))
-        self.assertEqual(val, 'coroutine')
 
 
 class TConfigurable(snipe.util.Configurable):
@@ -309,27 +279,26 @@ class TestLevel(unittest.TestCase):
 class TestCoroCleanup(unittest.TestCase):
     def test(self):
         async def self_cancel():
-            raise asyncio.CancelledError
+            raise imbroglio.CancelledError
 
         wrapped = snipe.util.coro_cleanup(self_cancel)
 
-        self.assertTrue(asyncio.iscoroutinefunction(wrapped))
+        self.assertTrue(inspect.iscoroutinefunction(wrapped))
 
-        loop = asyncio.get_event_loop()
-        with self.assertRaises(asyncio.CancelledError):
-            loop.run_until_complete(wrapped())
+        with self.assertRaises(imbroglio.CancelledError):
+            imbroglio.run(wrapped())
 
         async def key_error(*args):
             return {}[0]
 
         with self.assertLogs('coro_cleanup'):
-            loop.run_until_complete(snipe.util.coro_cleanup(key_error)())
+            imbroglio.run(snipe.util.coro_cleanup(key_error)())
 
         class X:
             log = logging.getLogger('test_coro_cleanup')
 
         with self.assertLogs('test_coro_cleanup'):
-            loop.run_until_complete(snipe.util.coro_cleanup(key_error)(X))
+            imbroglio.run(snipe.util.coro_cleanup(key_error)(X))
 
 
 class TestStopwatch(unittest.TestCase):
@@ -339,137 +308,550 @@ class TestStopwatch(unittest.TestCase):
                 pass
 
 
-class MockClientSession:
-    def __init__(self, *args, **kw):
-        self.args = args
-        self.kw = kw
-        self.result = None
-        self.method = None
-        self.closed = False
-
-    async def post(self, *args, **kw):
-        return (await self.request('post', *args, **kw))
-
-    async def patch(self, *args, **kw):
-        return (await self.request('patch', *args, **kw))
-
-    async def get(self, *args, **kw):
-        return (await self.request('get', *args, **kw))
-
-    async def ws_connect(self, *args, **kw):
-        return (await self.request('ws_connect', *args, **kw))
-
-    async def request(self, method, *args, **kw):
-        self.method = method
-        return self.result
-
-    def close(self):
-        self.closed = True
-
-
-class MockResult:
-    def __init__(self, data, exception):
-        self.data = data
-        self.exception = exception
-        self.url = ''
-        self.closed = False
-        self.wrote = None
-
-    async def json(self):
-        if self.exception is not None:
-            raise self.exception
-
-        return self.data
-
-    async def read(self):
-        return self.data
-
-    receive_json = read
-
-    async def send_json(self, data):
-        self.wrote = data
-
-    def release(self):
-        pass
-
-    async def close(self):
-        self.closed = True
-
-
 class JSONMixinTesterSuper:
     async def shutdown(self):
-        pass
+        self._is_shutdown = True
+
+
+class MockHTTP:
+    blobs = [b'']
+
+    async def request(
+            self,
+            url,
+            method='GET',
+            *,
+            json=None,
+            data={},
+            headers=(),
+            log=None):
+        self.url = url
+        self._method = method
+        self._json = json
+        self._data = data
+        self._headers = headers
+
+        self.blobindex = 0
+
+        return self
+
+    async def readsome(self):
+        if self.blobindex >= len(self.blobs):
+            return None
+        result = self.blobs[self.blobindex]
+        self.blobindex += 1
+        return result
+
+    async def close(self):
+        self.blobindex = 0
 
 
 class JSONMixinTester(snipe.util.HTTP_JSONmixin, JSONMixinTesterSuper):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 class TestHTTP_JSONmixin(unittest.TestCase):
     def test(self):
-        hjm = JSONMixinTester()
-        hjm.log = logging.getLogger('test_http_json_mixin')
-        hjm.url = 'http://example.com'
+        with unittest.mock.patch('snipe.util.HTTP', MockHTTP()) as _HTTP:
+            hjm = JSONMixinTester()
 
-        hjm.setup_client_session()
-        self.assertIn('User-Agent', dict(hjm._JSONmixin_headers))
+            hjm.log = logging.getLogger('test_http_json_mixin')
+            hjm.url = 'http://example.com'
 
-        run = asyncio.get_event_loop().run_until_complete
-        run(hjm.reset_client_session_headers())
+            hjm.setup_client_session()
+            self.assertIn('User-Agent', dict(hjm._JSONmixin_headers))
 
-        hjm._clientsession.result = MockResult('foo', None)
+            imbroglio.run(hjm.reset_client_session_headers())
 
-        self.assertEqual('foo', run(hjm._post('/foo')))
+            _HTTP.blobs = [json.dumps('foo').encode()]
+            self.assertEqual('foo', imbroglio.run(hjm._post('/foo')))
 
-        run(hjm.reset_client_session_headers({'foo': 'bar'}))
-        self.assertIsNone(hjm._clientsession.result)
-        self.assertEqual(hjm._JSONmixin_headers['foo'], 'bar')
+            imbroglio.run(hjm.reset_client_session_headers({'foo': 'bar'}))
+            self.assertEqual(dict(hjm._JSONmixin_headers)['foo'], 'bar')
 
-        hjm._clientsession.result = MockResult(b'foo', UnicodeError)
+            _HTTP.blobs = [b'zog']
 
-        with self.assertRaises(snipe.util.JSONDecodeError) as ar:
-            run(hjm._post_json('/bar', baz='quux'))
+            with self.assertRaises(snipe.util.JSONDecodeError) as ar:
+                imbroglio.run(hjm._post_json('/bar', baz='quux'))
 
-        self.assertIn('foo', str(ar.exception))
+            self.assertIn('zog', str(ar.exception))
+            self.assertEqual(_HTTP._method, 'POST')
 
-        self.assertEqual(hjm._clientsession.method, 'post')
+            _HTTP.blobs = [json.dumps('foo').encode()]
+            self.assertEqual('foo', imbroglio.run(hjm._get('/foo')))
+            self.assertEqual(_HTTP._method, 'GET')
 
-        hjm._clientsession.result = MockResult('foo', None)
+            self.assertEqual('foo', imbroglio.run(hjm._patch('/foo')))
+            self.assertEqual(_HTTP._method, 'PATCH')
 
-        self.assertEqual('foo', run(hjm._get('/foo')))
-        self.assertEqual(hjm._clientsession.method, 'get')
+            self.assertEqual(
+                'foo',
+                imbroglio.run(hjm._request(
+                    'zog', '/foo', compress='foo', headers={'foo': 'bar'})))
+            self.assertEqual(_HTTP._method, 'zog')
+            self.assertEqual(_HTTP._headers, [('foo', 'bar')])
 
-        self.assertEqual('foo', run(hjm._patch('/foo')))
-        self.assertEqual(hjm._clientsession.method, 'patch')
+            imbroglio.run(hjm.shutdown())
+            self.assertTrue(hjm._is_shutdown)
 
-        self.assertEqual('foo', run(hjm._request('zog', '/foo')))
-        self.assertEqual(hjm._clientsession.method, 'zog')
 
-        self.assertFalse(hjm._clientsession.closed)
-        run(hjm.shutdown())
-        self.assertTrue(hjm._clientsession.closed)
+class MockHTTP_WS:
+    def __init__(self):
+        self._open = False
+
+    async def request(self, url, headers={}, log=None):
+        self._url = url
+        self._headers = headers
+        self._open = True
+        self._wrote = None
+        self._toread = None
+
+        return self
+
+    async def close(self):
+        self._open = False
+
+    async def write(self, data):
+        self._wrote = data
+
+    async def readsome(self):
+        return self._toread
 
 
 class TestJSONWebSocket(unittest.TestCase):
     def test(self):
-        jws = snipe.util.JSONWebSocket(
-            logging.getLogger('test'))
-        jws.session.result = MockResult('foo', None)
-        print(jws.session)
+        with unittest.mock.patch(
+                'snipe.util.HTTP_WS', MockHTTP_WS()) as _HTTP_WS:
+            jws = snipe.util.JSONWebSocket(
+                logging.getLogger('test'))
 
-        run = asyncio.get_event_loop().run_until_complete
-        r = run(jws.connect('/bar'))
-        self.assertEqual(jws.session.method, 'ws_connect')
-        self.assertIs(r, jws.session.result)
+            self.assertFalse(_HTTP_WS._open)
+            imbroglio.run(jws.connect('/bar'))
+            self.assertIs(jws.conn, _HTTP_WS)
+            self.assertTrue(_HTTP_WS._open)
 
-        self.assertEqual(run(jws.read()), 'foo')
+            _HTTP_WS._toread = json.dumps('foo')
+            self.assertEqual(imbroglio.run(jws.read()), 'foo')
 
-        run(jws.write('bar'))
-        self.assertEqual(r.wrote, 'bar')
+            imbroglio.run(jws.write('bar'))
+            self.assertEqual(json.loads(_HTTP_WS._wrote), 'bar')
 
-        run(jws.close())
-        self.assertTrue(r.closed)
-        self.assertTrue(jws.session.closed)
+            _HTTP_WS._toread = 'bleah'
+            with self.assertRaisesRegex(
+                    snipe.util.JSONDecodeError, '.*bleah.*'):
+                imbroglio.run(jws.read())
+
+            imbroglio.run(jws.close())
+            self.assertFalse(_HTTP_WS._open)
+
+
+class MockCreateConnection:
+    def __init__(self):
+        self.left, self.right = socket.socketpair()
+
+    def __call__(self, *args, **kw):
+        self.args = args
+        self.kw = kw
+        return self.right
+
+
+class TestNetworkStream(unittest.TestCase):
+    def test(self):
+        imbroglio.run(self._test())
+
+    async def _test(self):
+        with unittest.mock.patch(
+                'socket.create_connection', MockCreateConnection()) as mc:
+            mc.left.setblocking(False)
+            self.assertIsInstance(
+                socket.create_connection, MockCreateConnection)
+            ns = await snipe.util.NetworkStream.connect('foo', 80)
+            await ns.write(b'foo')
+            self.assertEquals(b'foo', mc.left.recv(4096))
+
+            mc.left.send(b'bar')
+            self.assertTrue(await ns.readable())
+            self.assertEquals(b'bar', (await ns.readsome()))
+
+            mc.left.shutdown(socket.SHUT_RDWR)
+            mc.left.close()
+            self.assertEquals(None, (await ns.readsome()))
+            self.assertFalse(await ns.readable())
+            self.assertEquals(None, (await ns.readsome()))
+
+            await ns.close()
+            with self.assertRaises(OSError):
+                ns.socket.send(b'foo')
+
+        log = logging.getLogger('test')
+        s = socket.socket()
+        ns = snipe.util.NetworkStream(s, log=log)
+        self.assertIs(log, ns.log)
+        self.assertRegex(repr(ns), '^<NetworkStream')
+        s.close()
+
+
+class MockStream:
+    def __init__(self, pending_eof=True):
+        self.readdata = [b'stuff']
+        self.wrote = []
+        self.closed = False
+        self.remaindata = len(self.readdata)
+        self.reof = False
+        self.pending_eof = pending_eof
+
+    @classmethod
+    async def connect(klass, host, port, log=None):
+        self = klass(pending_eof=False)
+        self.host = host
+        self.port = port
+        return self
+
+    def __repr__(self):
+        return '<MockStream>'
+
+    def set_eof(self):
+        self.reof = True
+        self.readdata = []
+
+    async def readsome(self):
+        if self.reof:
+            return None
+        if not self.readdata:
+            if self.pending_eof:
+                self.reof = True
+                return None
+            return b''
+        return self.readdata.pop(0)
+
+    async def readable(self):
+        return bool(self.readdata)
+
+    async def write(self, data):
+        self.wrote.append(data)
+
+    async def close(self):
+        self.closed = True
+
+    def pushdata(self, *args):
+        self.readdata.extend(args)
+
+    async def maybewrite(self):
+        pass
+
+
+class MockContext:
+    def __init__(self):
+        self.read_exceptions = []
+
+    def wrap_bio(self, incoming, outgoing, *, server_side, server_hostname):
+        self.incoming = incoming
+        self.outgoing = outgoing
+        self.server_side = server_side
+        self.server_hostname = server_hostname
+
+        self.do_handshake_called = 0
+        self.write_called = 0
+        self.readex_iter = iter(self.read_exceptions)
+        return self
+
+    def do_handshake(self):
+        self.do_handshake_called += 1
+        if self.do_handshake_called == 1:
+            self.outgoing.write(b'foo')
+            raise ssl.SSLWantReadError
+        elif self.do_handshake_called == 2:
+            raise ssl.SSLWantReadError
+        elif self.do_handshake_called == 3:
+            self.outgoing.write(b'bar')
+            raise ssl.SSLWantWriteError
+        elif self.do_handshake_called == 4:
+            self.outgoing.write(b'baz')
+
+    def write(self, data):
+        self.write_called += 1
+        if self.write_called == 2:
+            raise ssl.SSLWantReadError
+        self.outgoing.write(data)
+
+    def push_exceptions(self, *args):
+        self.read_exceptions.extend(args)
+
+    def read(self):
+        if self.read_exceptions:
+            raise self.read_exceptions.pop(0)
+        return self.incoming.read()
+
+    def pending(self):
+        return bool(self.incoming.pending)
+
+
+class TestSSLStream(unittest.TestCase):
+    def test(self):
+        imbroglio.run(self._test())
+
+    async def _test(self):
+        with unittest.mock.patch('ssl.create_default_context', MockContext):
+            ss = snipe.util.SSLStream(MockStream(), 'foo')
+            self.assertEqual('<SSLStream <MockStream>>', repr(ss))
+            log = logging.getLogger('test')
+            ss = snipe.util.SSLStream(MockStream(), 'foo', log=log)
+            self.assertIs(log, ss.log)
+
+            self.assertEqual(0, ss.obj.do_handshake_called)
+            await ss.do_handshake()
+            self.assertTrue(ss.handshake_done)
+
+            self.assertEqual(4, ss.obj.do_handshake_called)
+            await ss.do_handshake()
+            self.assertEqual(4, ss.obj.do_handshake_called)
+
+            self.assertEqual([b'foo', b'bar', b'baz'], ss.netstream.wrote)
+
+            await ss.close()
+            self.assertTrue(ss.netstream.closed)
+
+            ss = snipe.util.SSLStream(MockStream(), 'foo')
+            ss.handshake_done = True
+            await ss.write(b'foo')
+            self.assertEqual([b'foo'], ss.netstream.wrote)
+            await ss.write(b'bar')
+            self.assertEqual([b'foo', b'bar'], ss.netstream.wrote)
+            self.assertEqual(3, ss.obj.write_called)
+
+            ss.obj.write_called = 1  # roll back the number of writes
+            await ss.write(b'baz')
+            self.assertEqual([b'foo', b'bar', b'baz'], ss.netstream.wrote)
+
+            self.assertEqual(b'stuff', ss.incoming.read())
+
+            self.assertFalse(await ss.readable())
+            self.assertTrue(ss.incoming.eof)
+
+            ss = snipe.util.SSLStream(MockStream(), 'foo')
+            ss.handshake_done = True
+
+            ss.obj.outgoing.write(b'foo')
+            await ss.maybewrite()
+
+            self.assertEqual([b'foo'], ss.netstream.wrote)
+
+            ss = snipe.util.SSLStream(MockStream(), 'foo')
+            ss.handshake_done = True
+            ss.netstream.reof = True
+            # not 100% sure this can happend with NetworkStream
+            # as current written, but it doesn exercise some code
+            self.assertTrue(await ss.netstream.readable())
+            self.assertFalse(await ss.readable())
+
+            ss = snipe.util.SSLStream(MockStream(pending_eof=False), 'foo')
+            ss.handshake_done = True
+
+            self.assertTrue(await ss.readable())
+            self.assertTrue(await ss.readable())
+            self.assertEqual(b'stuff', (await ss.readsome()))
+            self.assertFalse(await ss.readable())
+            ss.obj.push_exceptions(ssl.SSLWantReadError)
+            ss.netstream.set_eof()
+            self.assertEqual(None, (await ss.readsome()))
+            self.assertFalse(await ss.readable())
+
+            ss = snipe.util.SSLStream(MockStream(pending_eof=False), 'foo')
+            ss.handshake_done = True
+
+            self.assertTrue(await ss.readable())
+            self.assertTrue(await ss.readable())
+            self.assertEqual(b'stuff', (await ss.readsome()))
+            self.assertFalse(await ss.readable())
+            ss.netstream.pushdata(b'things')
+            self.assertTrue(await ss.readable())
+            ss.obj.push_exceptions(ssl.SSLWantReadError)
+            self.assertEqual(b'things', (await ss.readsome()))
+            ss.netstream.set_eof()
+            self.assertEqual(None, (await ss.readsome()))
+            self.assertFalse(await ss.readable())
+            self.assertEqual(None, (await ss.readsome()))
+
+            ss = snipe.util.SSLStream(MockStream(), 'foo')
+            ss.handshake_done = True
+            ss.obj.push_exceptions(ssl.SSLEOFError)
+            self.assertEqual(None, (await ss.readsome()))
+
+
+class TestHTTP(unittest.TestCase):
+    @snipe.imbroglio.test
+    async def test0(self):
+        with unittest.mock.patch('ssl.create_default_context', MockContext), \
+                unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+            HTTP = await snipe.util.HTTP.request('https://foo/foo')
+            self.assertIsInstance(HTTP.stream.obj, MockContext)
+            self.assertIsInstance(HTTP.stream.netstream, MockStream)
+
+            await HTTP.close()
+            self.assertTrue(HTTP.stream.netstream.closed)
+
+            log = logging.getLogger('test')
+            HTTP = await snipe.util.HTTP.request('http://foo/foo', log=log)
+            self.assertIsInstance(HTTP.stream, MockStream)
+
+            self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
+
+            self.assertEqual(
+                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n\r\n',
+                b''.join(HTTP.stream.wrote))
+
+            HTTP = await snipe.util.HTTP.request(
+                'http://foo/foo', method='POST', log=log, json='foo')
+            self.assertEqual(
+                b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'content-type: application/json\r\ncontent-length: 5\r\n\r\n'
+                b'"foo"',
+                b''.join(HTTP.stream.wrote))
+
+            HTTP = await snipe.util.HTTP.request(
+                'http://foo/foo', method='POST', log=log, data={'bar': 'foo'})
+            self.assertEqual(
+                b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'content-type: application/x-www-form-urlencoded\r\n'
+                b'content-length: 7\r\n\r\nbar=foo',
+                b''.join(HTTP.stream.wrote))
+
+    @snipe.imbroglio.test
+    async def test1(self):
+        with unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            self.assertIsInstance(HTTP.stream, MockStream)
+
+            self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
+
+            self.assertEqual(
+                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n\r\n',
+                b''.join(HTTP.stream.wrote))
+
+            HTTP.stream.readdata = [
+                b'',
+                b'HTTP/1.1 200 Ok\r\nContent-Length: 5\r\n\r\nfoo\r\n'
+                ]
+
+            self.assertEqual(b'foo\r\n', (await HTTP.readsome()))
+
+            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP.stream.set_eof()
+
+            with self.assertRaises(snipe.util.h11.RemoteProtocolError):
+                await HTTP.readsome()
+
+            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP.stream.pending_eof = True
+            HTTP.stream.readdata = [
+                b'HTTP/1.1 200 Ok\r\n\r\n',
+                b'foo\r\n',
+                b'bar\r\n',
+                ]
+
+            self.assertEqual(b'foo\r\n', (await HTTP.readsome()))
+            self.assertEqual(b'bar\r\n', (await HTTP.readsome()))
+            self.assertIs(None, (await HTTP.readsome()))
+
+
+class TestHTTP_WS(unittest.TestCase):
+    @snipe.imbroglio.test
+    async def test0(self):
+        import wsproto
+        eventses = []
+
+        class MockWS:
+            def __init__(self, *args, **kw):
+                nonlocal eventses
+                self.args = args
+                self.kw = kw
+                self.eventses = list(eventses)
+                self.to_send = b''
+                self.closed = False
+
+            def bytes_to_send(self):
+                ret = self.to_send
+                if ret:
+                    self.to_send = b''
+                return ret
+
+            def send_data(self, buf):
+                self.to_send = buf.encode()
+
+            def receive_bytes(self, data):
+                pass
+
+            def events(self):
+                if not self.eventses:
+                    return iter([])
+                events = self.eventses.pop(0)
+                return iter(events)
+
+            def close(self):
+                self.closed = True
+
+        with unittest.mock.patch(
+                'snipe.util.wsproto.connection.WSConnection', MockWS):
+            with self.assertRaises(snipe.util.SnipeException):
+                HTTP_WS = await snipe.util.HTTP_WS.request(
+                    'http://foo/', stream=MockStream())
+
+            eventses = [['foo']]
+            with self.assertRaises(snipe.util.SnipeException):
+                HTTP_WS = await snipe.util.HTTP_WS.request(
+                    'http://foo/', stream=MockStream())
+
+            eventses = [
+                [wsproto.events.ConnectionEstablished()],
+                ]
+            log = logging.getLogger('test')
+            HTTP_WS = await snipe.util.HTTP_WS.request(
+                'http://foo/', stream=MockStream(), log=log)
+            self.assertIs(HTTP_WS.log, log)
+            self.assertEqual(HTTP_WS.stream.wrote, [])
+
+            eventses = [
+                [wsproto.events.ConnectionEstablished()],
+                [],
+                [
+                    wsproto.events.TextReceived('foo', False, False),
+                    wsproto.events.TextReceived('bar', True, True),
+                ],
+                [
+                    wsproto.events.TextReceived('foo', False, False),
+                    wsproto.events.ConnectionClosed(0)],
+                ]
+            stream = MockStream()
+
+            HTTP_WS = snipe.util.HTTP_WS(
+                'http://foo/', stream=stream, log=log)
+
+            HTTP_WS.ws.send_data('foo')
+            self.assertEqual('foobar', (await HTTP_WS.readsome()))
+            self.assertEqual([b'foo'], stream.wrote)
+
+            await HTTP_WS.write('bar')
+            self.assertEqual([b'foo', b'bar'], stream.wrote)
+
+            self.assertEqual(None, (await HTTP_WS.readsome()))
+
+            await HTTP_WS.close()
+            self.assertTrue(stream.closed)
+            self.assertTrue(HTTP_WS.ws.closed)
+
+        with unittest.mock.patch('snipe.util.NetworkStream', MockStream), \
+                unittest.mock.patch(
+                    'ssl.create_default_context', MockContext), \
+                unittest.mock.patch(
+                    'snipe.util.wsproto.connection.WSConnection', MockWS):
+            HTTP_WS = await snipe.util.HTTP_WS.request('https://foo/')
+            self.assertTrue(HTTP_WS.connected)
+            self.assertEqual(HTTP_WS.stream.netstream.host, 'foo')
+            self.assertEqual(HTTP_WS.stream.netstream.port, 443)
+            self.assertEqual(
+                '<HTTP_WS https://foo/ <SSLStream <MockStream>>>',
+                repr(HTTP_WS))
 
 
 if __name__ == '__main__':

@@ -46,7 +46,6 @@ import base64
 import logging
 import socket
 
-import aiohttp
 
 from . import imbroglio
 from . import util
@@ -74,10 +73,8 @@ class Rooster(util.HTTP_JSONmixin):
         if self.url[-1] == '/':
             # strip _1_ trailing /
             self.url = self.url[:-1]
-        hostname = urllib.parse.urlparse(url).hostname
-        if hostname.lower() == 'localhost':
-            hostname = socket.getfqdn()
-        self.service = service + ('@' + hostname if '@' not in service else '')
+        self.inservice = service
+        self.service = None
         self.principal = None
         self.ctx = None
         self.ccache = None
@@ -86,10 +83,18 @@ class Rooster(util.HTTP_JSONmixin):
         self.setup_client_session()
 
     async def credentials(self):
-        return get_zephyr_creds()
+        return await imbroglio.run_in_thread(get_zephyr_creds)
 
     async def auth(self, create_user=False):
-        self.principal, token = get_auth_token(self.service)
+        hostname = urllib.parse.urlparse(self.url).hostname
+        if hostname.lower() == 'localhost':
+            hostname = await imbroglio.run_in_thread(socket.getfqdn)
+        self.service = (
+            self.inservice
+            + ('@' + hostname if '@' not in self.inservice else ''))
+
+        self.principal, token = await imbroglio.run_in_thread(
+            get_auth_token, self.service)
 
         result = await self._post_json(
             '/v1/auth',

@@ -34,7 +34,6 @@ Utilities and base classes for dealin with messages.
 '''
 
 
-import asyncio
 import bisect
 import contextlib
 import datetime
@@ -45,6 +44,7 @@ import time
 
 from . import chunks
 from . import filters
+from . import imbroglio
 from . import util
 
 
@@ -319,10 +319,10 @@ class SnipeBackend:
         self._destinations = set()
         self._senders = set()
 
-    def start(self):
+    async def start(self):
         """Actually connect to whatever we're connecting to and start
         retrieving messages."""
-        pass  # pragma: nocover
+        self.supervisor = await imbroglio.get_supervisor()
 
     def drop_cache(self):
         self.startcache = {}
@@ -443,11 +443,12 @@ class SnipeBackend:
     async def shutdown(self):
         tasks = list(reversed(self.tasks))
         for t in tasks:
+            self.log.error('shutting down %s', repr(t))
             try:
                 t.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+                with contextlib.suppress(imbroglio.CancelledError):
                     await t
-                    t.exception()
+                    t.result()
             except BaseException:
                 self.log.exception('while shutting down')
         self.tasks = []
@@ -662,17 +663,12 @@ class AggregatorBackend(SnipeBackend):
         self.started = False
         self.backends = [TerminusBackend(self.context)]
         for backend in backends:
-            self.add(backend)
+            self.backends.append(backend)
 
-    def add(self, backend):
-        self.backends.append(backend)
-        if self.started:
-            backend.start()
-
-    def start(self):
+    async def start(self):
         self.started = True
         for backend in self.backends:
-            backend.start()
+            await backend.start()
 
     def walk(
             self, start, forward=True, filter=None, backfill_to=None,
@@ -702,7 +698,7 @@ class AggregatorBackend(SnipeBackend):
             key=lambda m: m.time if forward else -m.time)
 
     async def shutdown(self):
-        await asyncio.gather(
+        await imbroglio.gather(
             *[backend.shutdown() for backend in self.backends],
             return_exceptions=True)
         await super().shutdown()

@@ -47,10 +47,11 @@ sys.path.append('..')
 sys.path.append('../lib')
 
 
-import snipe.chunks as chunks      # noqa: E402,F401
-import snipe.filters as filters    # noqa: E402,F401
-import snipe.messager as messager  # noqa: E402,F401
-import snipe.util as util          # noqa: E402,F401
+import snipe.chunks as chunks        # noqa: E402,F401
+import snipe.filters as filters      # noqa: E402,F401
+import snipe.imbroglio as imbroglio  # noqa: E402,F401
+import snipe.messager as messager    # noqa: E402,F401
+import snipe.util as util            # noqa: E402,F401
 
 
 class TestMessager(unittest.TestCase):
@@ -221,7 +222,8 @@ class TestMessager(unittest.TestCase):
         w.beginning()
         self.assertEqual(w.cursor, f.context.backends._messages[0])
 
-    def test_filter_slot(self):
+    @imbroglio.test
+    async def test_filter_slot(self):
         f = mocks.FE()
         w = messager.Messager(f)
         it = w.filter_slot(key='0', keyseq='0', arg=None)
@@ -239,7 +241,7 @@ class TestMessager(unittest.TestCase):
 
         w.filter_edit_name = mock_filter_edit_name
 
-        mocks.simple_run(w.filter_slot(key='0', keyseq='0', arg=[4]))
+        await w.filter_slot(key='0', keyseq='0', arg=[4])
 
         self.assertEqual(_called, (('_0',), {}))
 
@@ -272,7 +274,8 @@ class TestMessager(unittest.TestCase):
         w.filter_cleverly_negative()
         self.assertEqual(str(w.filter), 'filter default and not yes')
 
-    def test_send(self):
+    @imbroglio.test
+    async def test_send(self):
         f = mocks.FE()
         m = mocks.Message()
         m.omega = True
@@ -294,7 +297,7 @@ class TestMessager(unittest.TestCase):
             return _read_result
 
         w.read_string = read_string
-        mocks.simple_run(w.send())
+        await w.send()
 
         self.assertEqual(f.context.backends._sent[-1], ('foo', 'bar'))
         self.assertNotIn('modes', _read_kw)
@@ -303,7 +306,7 @@ class TestMessager(unittest.TestCase):
         w.cursor = c
         _read_result = 'foo'
 
-        mocks.simple_run(w.send(msg=c))
+        await w.send(msg=c)
 
         self.assertIn('modes', _read_kw)
         self.assertEqual(f.context.backends._sent[-1], ('foo', ''))
@@ -339,7 +342,8 @@ class TestMessager(unittest.TestCase):
         f.context.backends._messages[0].omega = True
         self.assertIsNone(w.replymsg())
 
-    def test_followup_and_reply(self):
+    @imbroglio.test
+    async def test_followup_and_reply(self):
         f = mocks.FE()
         w = messager.Messager(f)
 
@@ -351,63 +355,65 @@ class TestMessager(unittest.TestCase):
 
         w.send = mock_send
 
-        mocks.simple_run(w.followup())
+        await w.followup()
 
         self.assertEqual(recipient, 'followup')
 
-        mocks.simple_run(w.reply())
+        await w.reply()
 
         self.assertEqual(recipient, 'reply')
 
-    def test_filter_edit(self):
+    @imbroglio.test
+    async def test_filter_edit(self):
         f = mocks.FE()
         w = messager.Messager(f)
 
         filter = 'no and no and no and yes'
         w.read_string = returning(filter)
 
-        mocks.simple_run(w.filter_edit())
+        await w.filter_edit()
 
         self.assertEqual(str(w.filter), filter)
 
         w.read_oneof = returning('name')
-        mocks.simple_run(w.filter_edit([4]))
+        await w.filter_edit([4])
 
         self.assertEqual(f.context.conf['filter']['name'], filter)
 
         w.read_string = returning('')
 
-        mocks.simple_run(w.filter_edit([4]))
+        await w.filter_edit([4])
 
         self.assertTrue('name' not in f.context.conf['filter'])
 
-    def test_filter_color_rules(self):
+    @imbroglio.test
+    async def test_filter_color_rules(self):
         f = mocks.FE()
         w = messager.Messager(f)
         w.read_string = returning('green')
         w.filter = filters.Yes()
 
-        mocks.simple_run(w.filter_foreground_background())
+        await w.filter_foreground_background()
 
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green', 'background': 'green'})])
 
         w.filter = filters.Yes()
-        mocks.simple_run(w.filter_foreground())
+        await w.filter_foreground()
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'foreground': 'green'})])
 
         w.filter = filters.Yes()
-        mocks.simple_run(w.filter_background())
+        await w.filter_background()
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'background': 'green'})])
 
         w.read_string = returning('messager_tests.TestMessager')
         w.filter = filters.Yes()
-        mocks.simple_run(w.filter_decor())
+        await w.filter_decor()
         self.assertEqual(
             f.context.conf['rule'],
             [('yes', {'decor': 'messager_tests.TestMessager'})])
@@ -415,7 +421,7 @@ class TestMessager(unittest.TestCase):
         w.read_string = returning('nonexistent.object')
         w.filter = filters.Yes()
         with self.assertRaises(util.SnipeException):
-            mocks.simple_run(w.filter_decor())
+            await w.filter_decor()
 
     def test_filter_push(self):
         f = mocks.FE()
@@ -430,23 +436,25 @@ class TestMessager(unittest.TestCase):
         self.assertEqual(w.filter, filters.And(f0, f1))
         self.assertEqual(w.filter_stack, [f0])
 
-    def test_filter_class(self):
+    @imbroglio.test
+    async def test_filter_class(self):
         f = mocks.FE()
         w = messager.Messager(f)
         w.read_string = returning('green')
 
-        mocks.simple_run(w.filter_class())
+        await w.filter_class()
 
         self.assertEqual(
             str(w.filter),
             'filter default and backend == "roost" and class = "green"')
 
-    def test_filter_sender(self):
+    @imbroglio.test
+    async def test_filter_sender(self):
         f = mocks.FE()
         w = messager.Messager(f)
         w.read_string = returning('green')
 
-        mocks.simple_run(w.filter_sender())
+        await w.filter_sender()
 
         self.assertEqual(
             str(w.filter),
@@ -469,7 +477,8 @@ class TestMessager(unittest.TestCase):
         w.filter_pop()
         self.assertEqual(str(w.filter), 'filter default')
 
-    def test_filter_save(self):
+    @imbroglio.test
+    async def test_filter_save(self):
         f = mocks.FE()
         w = messager.Messager(f)
 
@@ -478,14 +487,14 @@ class TestMessager(unittest.TestCase):
         F1 = 'flig == "quoz"'
         w.filter = filters.makefilter(F1)
 
-        mocks.simple_run(w.filter_save(True))
+        await w.filter_save(True)
 
         self.assertEqual(w.default_filter, F1)
 
         F2 = 'flig'
         w.filter = filters.makefilter(F2)
         w.read_oneof = returning('quoz')
-        mocks.simple_run(w.filter_save())
+        await w.filter_save()
 
         self.assertEqual(f.context.conf['filter']['quoz'], F2)
 
@@ -527,7 +536,8 @@ body: ""
 
         self.assertEqual(target, (0, True, 0))
 
-    def test_goto(self):
+    @imbroglio.test
+    async def test_goto(self):
         f = mocks.FE()
         w = messager.Messager(f)
 
@@ -542,7 +552,7 @@ body: ""
 
         w.read_string = returning('1970-01-01 00:00:00')
 
-        mocks.simple_run(w.goto())
+        await w.goto()
 
         self.assertEqual(target, (0.0,))
 
@@ -675,7 +685,8 @@ body: ""
         w.list_destinations()
         self.assertEqual(out, '')
 
-    def test_write_region(self):
+    @imbroglio.test
+    async def test_write_region(self):
         w = messager.Messager(mocks.FE())
         w.context.backends._messages[0].body = 'foo'
         w.context.backends._messages.append(mocks.Message())
@@ -688,7 +699,7 @@ body: ""
             yield fp
 
         messager.open = mock_open
-        mocks.simple_run(w.write_region())
+        await w.write_region()
         del messager.open
         self.assertEqual(fp.getvalue(), 'foo')
 

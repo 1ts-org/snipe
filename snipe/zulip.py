@@ -34,7 +34,6 @@ Backend for talking to `Zulip <https://zulip.org>`.
 '''
 
 
-import aiohttp
 import asyncio
 import base64
 import pprint

@@ -33,11 +33,12 @@ snipe.window
 ------------
 '''
 
+import inspect
 import logging
-import asyncio
 import math
 
 from . import chunks
+from . import imbroglio
 from . import interactive
 from . import keymap
 from . import util
@@ -214,8 +215,9 @@ class Window:
                     self.last_command = self.this_command
                     self.last_key = k
 
-                if asyncio.iscoroutine(ret):
-                    self.tasks.append(asyncio.Task(self.catch_and_log(ret)))
+                if inspect.iscoroutine(ret):
+                    self.tasks.append(
+                        self.fe.supervisor.start(self.catch_and_log(ret)))
 
         except Exception as e:
             self.context.message(str(e))
@@ -328,7 +330,7 @@ class Window:
         :param str name: Name for the editor buffer
         """
 
-        f = asyncio.Future()
+        p = imbroglio.Promise()
 
         w = None  # for the following to capture
 
@@ -336,12 +338,12 @@ class Window:
             if validate is not None:
                 if not validate(result):
                     raise util.SnipeException('unspecified validation error')
-            f.set_result(result)
+            p.set_result(result)
             self.fe.delete_window_window(w)
 
         def destroy_callback():
-            if not f.done():
-                f.set_exception(Exception('Operation Aborted'))
+            if not p.done:
+                p.set_exception(Exception('Operation Aborted'))
 
         if window is None:
             from .prompt import ShortPrompt, LongPrompt
@@ -365,9 +367,7 @@ class Window:
         w.renderer.reframe(-1)
         self.fe.redisplay()
 
-        await f
-
-        return f.result()
+        return await p()
 
     async def read_filename(self, prompt, content=None, name='filename'):
         """Use self.read_string to read a filename from the user.
@@ -411,7 +411,7 @@ class Window:
         for w in self.fe.get_windows():
             w.quit_hook()
 
-        asyncio.get_event_loop().stop()
+        self.fe.quit = True
 
     @keymap.bind('Control-Z')
     def stop(self):

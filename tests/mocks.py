@@ -416,6 +416,7 @@ def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
         fe.maxx = curses.COLUMNS
         fe.context = Context()
         fe.color_assigner = snipe.ttycolor.NoColorAssigner()
+        fe.running = True
 
         if window_factory is None:
             window_factory = snipe.window.Window
@@ -429,11 +430,3 @@ def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
 def mocked_up_actual_fe_window(window_factory=None, statusline_factory=None):
     with mocked_up_actual_fe(window_factory, statusline_factory) as fe:
         yield fe.windows[fe.output].window
-
-
-def simple_run(coro):
-    try:
-        while True:
-            coro.send(None)
-    except StopIteration:
-        pass
