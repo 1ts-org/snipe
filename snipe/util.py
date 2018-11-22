@@ -878,7 +878,7 @@ class HTTP:
 
 
 class HTTP_WS:
-    def __init__(self, url, headers=[], log=None, stream=None):
+    def __init__(self, url, headers={}, log=None, stream=None):
         if log is None:
             self.log = logging.getLogger('HTTP_WS')
         else:
@@ -896,12 +896,18 @@ class HTTP_WS:
         self.resource = (parsed.path or '/') + (
             ('?' + parsed.query) if parsed.query else '')
 
-        self.ws = wsproto.connection.WSConnection(
-            wsproto.connection.ConnectionType.CLIENT,
-            self.hostname,
-            self.resource,
-            # headers=headers,
-            )
+        their_validate = h11._events.Request._validate
+
+        def our_validate(self):
+            self.headers += list(headers.items())
+            return their_validate(self)
+
+        with mock.patch('h11._events.Request._validate', our_validate):
+            self.ws = wsproto.connection.WSConnection(
+                wsproto.connection.ConnectionType.CLIENT,
+                self.hostname,
+                self.resource,
+                )
         self.connected = False
         self.response = None
         self.inbuf = []

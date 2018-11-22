@@ -33,6 +33,7 @@ Unit tests for stuff in utils.py
 '''
 
 
+import email.parser
 import inspect
 import json
 import logging
@@ -852,6 +853,20 @@ class TestHTTP_WS(unittest.TestCase):
             self.assertEqual(
                 '<HTTP_WS https://foo/ <SSLStream <MockStream>>>',
                 repr(HTTP_WS))
+
+    @imbroglio.test
+    async def test_wsproto_headers(self):
+        stream = MockStream()
+        stream.readdata = [
+            b'HTTP/1.1 200 Ok\r\n\r\n',
+            ]
+        HTTP_WS = snipe.util.HTTP_WS(
+            'ws://foo/', {b'Foo': b'bar'}, stream=stream)
+        with self.assertRaises(snipe.util.SnipeException):
+            await HTTP_WS.connect()
+        data = (b''.join(stream.wrote)[16:])
+        msg = email.parser.BytesParser().parsebytes(data)
+        self.assertEqual('bar', msg['Foo'])
 
 
 if __name__ == '__main__':
