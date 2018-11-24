@@ -206,6 +206,33 @@ class TestImbroglioCore(unittest.TestCase):
 
         self.assertGreater(counter, 3)
 
+    @imbroglio.test
+    async def test_cancellation_2(self):
+        one = False
+        two = False
+
+        async def thing():
+            nonlocal one
+            nonlocal two
+
+            one = True
+
+            try:
+                await imbroglio.sleep(30)
+            except imbroglio.CancelledError:
+                pass
+
+            two = True
+
+        task = await imbroglio.spawn(thing())
+
+        task.cancel()
+
+        await task
+
+        self.assertTrue(one)
+        self.assertTrue(two)
+
     def test_task_misc(self):
         with self.assertRaises(TypeError):
             imbroglio.Task(lambda: None, None)
