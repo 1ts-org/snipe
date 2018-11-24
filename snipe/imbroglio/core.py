@@ -132,11 +132,7 @@ class Task:
     done = is_done
 
     def __await__(self):
-        # ugh.  but we can't use the taskwait() because it returns a
-        # generators coerced into coroutines and __await__ (somewhat
-        # mysteriously) return a coroutine.
-        # So repeating ourselves it is!
-        yield ('taskwait', self)
+        yield from taskwait(self)  # noqa: F821
 
     def __repr__(self):
         cstate = ''
@@ -293,13 +289,13 @@ class Supervisor:
             try:
                 if task.pending_exception is None:
                     val = task.coro.send(retval)
-                    if not isinstance(val, tuple):
-                        msg = f'{task!r} upcalled with {val!r}'
-                        self.log.error(msg)
-                        exc = ImbroglioException(msg)
-                        val = task.coro.throw(type(exc), exc)
                 else:
                     exc, task.pending_exception = task.pending_exception, None
+                    val = task.coro.throw(type(exc), exc)
+                if not isinstance(val, tuple):
+                    msg = f'{task!r} upcalled with {val!r}'
+                    self.log.error(msg)
+                    exc = ImbroglioException(msg)
                     val = task.coro.throw(type(exc), exc)
             except StopIteration as e:
                 task.set_result(e.value)
@@ -313,7 +309,7 @@ class Supervisor:
                     task,
                     exc_info=True,
                     )
-                task.set_result_exception(e)  # XXX leakage
+                task.set_result_exception(e)
                 return
             finally:
                 duration = time.time() - t0
@@ -321,7 +317,7 @@ class Supervisor:
                 if duration > TIME_THRESHOLD:
                     self.log.warning(
                         '%s',
-                        f'spent more than {TIME_THRESHOLD} in {task!r}')
+                        f'spent {duration}s in {task!r}')
 
             call = getattr(self, '_call_' + val[0])
             call(task, *val[1:])
@@ -371,8 +367,16 @@ class Supervisor:
                             cleanup.append(i)
                             self.runq.append(
                                 Runnable(e.task, (False, now - e.start)))
-                        for i in sorted(cleanup, reverse=True):
-                            del self.waitq[i]
+                        oldq = list(self.waitq)
+                        try:
+                            for i in sorted(cleanup, reverse=True):
+                                del self.waitq[i]
+                        except Exception:  # pragma: nocover
+                            self.log.exception(
+                                f'old waitq: {oldq!r}  current: {self.waitq!r}'
+                                f'  cleanup: {cleanup!r}  i: {i}')
+                            raise
+                        del oldq
 
                 if not self.runq and not self.waitq:
                     break
