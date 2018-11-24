@@ -51,6 +51,7 @@ import time
 import unicodedata
 import unittest.mock as mock
 import urllib.parse
+import zlib
 
 import h11
 import wsproto.connection
@@ -796,6 +797,7 @@ class HTTP:
         self.conn = h11.Connection(our_role=h11.CLIENT)
         self.connected = False
         self.response = None
+        self.decompressor = None
 
     @classmethod
     async def request(
@@ -813,6 +815,7 @@ class HTTP:
         outheaders = [
             ('Host', self.hostname),
             ('Connection', 'close'),
+            ('Accept-Encoding', 'gzip'),
             ]
         if _json is not None:
             # overrides data
@@ -869,8 +872,21 @@ class HTTP:
             event = await self.next_event()
             if type(event) is h11.Response:
                 self.response = event
+                ce = dict(event.headers).get(b'content-encoding')
+                ce = set(ce.replace(b' ', b'').split(b','))
+                self.log.debug('%s', f'ce: {ce!r}')
+                if b'gzip' in ce:
+                    self.decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+                    self.log.debug(
+                        '%s', f'decompressor is {self.decompressor!r}')
+
             elif type(event) is h11.Data:
-                return bytes(event.data)
+                data = bytes(event.data)
+                if self.decompressor is not None:
+                    data = self.decompressor.decompress(data)
+                    self.log.debug(
+                        '%s', f'decompressed data is {data!r}')
+                return data
             elif type(event) in (h11.EndOfMessage, h11.ConnectionClosed):
                 return None
 
