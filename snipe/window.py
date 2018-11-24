@@ -53,6 +53,11 @@ Common commands in all windows
 """
 
 
+class OperationAborted(util.SnipeException):
+    def __init__(self, msg='Operation Aborted'):
+        super().__init__(msg)
+
+
 class Window:
     """
     Abstract chunk of screen real estate that displays things and can
@@ -233,9 +238,13 @@ class Window:
     async def catch_and_log(self, coro):
         try:
             await self.catch_and_log_int(coro)
-        except (Exception, KeyboardInterrupt) as e:
+        except (OperationAborted, KeyboardInterrupt) as e:
             self.context.message(str(e))
-            self.log.exception('Executing complex command')
+            self.log.error(f'Executing complex command: {e}')
+            self.whine('')
+        except Exception as e:
+            self.context.message(str(e))
+            self.log.exception(f'{e}')
             self.whine('')
         self.redisplay()
 
@@ -343,7 +352,7 @@ class Window:
 
         def destroy_callback():
             if not p.done:
-                p.set_exception(Exception('Operation Aborted'))
+                p.set_exception(OperationAborted())
 
         if window is None:
             from .prompt import ShortPrompt, LongPrompt
