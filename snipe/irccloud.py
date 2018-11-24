@@ -34,7 +34,6 @@ Backend for talking to `IRCCloud <https://irccloud.com>`.
 '''
 
 
-import asyncio
 import functools
 import itertools
 import math
@@ -44,6 +43,7 @@ import urllib.parse
 
 from . import chunks
 from . import filters
+from . import imbroglio
 from . import interactive
 from . import keymap
 from . import messages
@@ -89,8 +89,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.since_id = 0
         self.setup_client_session(read_timeout=5.0, conn_timeout=5.0)
 
-    def start(self):
-        self.new_task = asyncio.Task(self.connect())
+    async def start(self):
+        await super().start()
+        self.new_task = await imbroglio.spawn(self.connect())
         self.tasks.append(self.new_task)
 
     @property
@@ -108,11 +109,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     async def connect(self):
         while True:
+            self.log.debug('top of connect loop')
             try:
                 await self.connect_once()
-            except asyncio.TimeoutError:
+            except imbroglio.TimeoutError:
                 pass
-            await asyncio.sleep(2)
+            except imbroglio.CancelledError:
+                self.log.debug('connect loop cancelled')
+                raise
+            await imbroglio.sleep(10)
 
     async def connect_once(self):
         creds = self.context.credentials(
@@ -146,9 +151,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                     },
                     )
                 break
-            except ValueError:
+            except util.JSONDecodeError:
                 self.log.exception('logging in, sleeping then trying again')
-                await asyncio.sleep(backoff)
+                await imbroglio.sleep(backoff)
 
         if not result.get('success'):
             self.log.warn('login failed: %s', repr(result))
@@ -169,30 +174,37 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             await self.websocket.connect(
                 IRCCLOUD_API,
                 {
-                    'Origin': IRCCLOUD_API,
-                    'Cookie': 'session=%s' % (self.session,),
+                    b'Origin': IRCCLOUD_API.encode(),
+                    b'Cookie': b'session=%s' % (self.session.encode(),),
                 },
                 )
 
             while True:
-                try:
-                    m = await asyncio.wait_for(
-                        self.websocket.read(),
-                        self.header.get('idle_interval', 30000)/1000)
-                except asyncio.TimeoutError:
+                waittime = self.header.get('idle_interval', 30000) / 1000
+                m = None
+                async with imbroglio.Timeout(waittime):
+                    m = await self.websocket.read()
+                if m is None:
                     self.log.error('irccloud socket idle too long')
                     return
                 self.log.debug('message: %s', repr(m))
                 try:
                     await self.incoming(m)
-                except asyncio.CancelledError:
+                except imbroglio.CancelledError:
+                    self.log.error('read thread cancelled')
                     raise
                 except Exception:
                     self.log.exception(
                         'Processing incoming message: %s', repr(m))
                     raise
+        except imbroglio.CancelledError:
+            self.log.error('websocket loop cancelled')
+            raise
+        except Exception:
+            self.log.exception('in websocket loop')
         finally:
-            await asyncio.coroutine(self.websocket.close)()
+            self.log.debug('leaving connect loop')
+            await self.websocket.close()
             self.websocket = None
 
     async def process_message(self, msglist, m):
@@ -333,7 +345,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             for line in lines:
                 if line:
                     await self.say(cid, dest, prefix + line)
-                await asyncio.sleep(self.floodpause)
+                await imbroglio.sleep(self.floodpause)
 
     @keymap.bind('I C')
     def dump_connections(self, window: interactive.window):
@@ -356,6 +368,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         window.show(pprint.pformat(self.header))
 
     def backfill(self, mfilter, target=None):
+        if True:  # XXX
+            return
         self.log.debug('backfill([filter], %s)', util.timestr(target))
         live = [
             b for b in self.buffers.values()
@@ -379,7 +393,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('%d backfillers active', len(self.backfillers))
         if not self.backfillers:
             for b in live:
-                t = asyncio.Task(self.backfill_buffer(b, target))
+                t = self.supervisor.start(self.backfill_buffer(b, target))
                 self.backfillers.append((t, t0))
                 self.tasks.append(t)
 
@@ -388,7 +402,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             'top of backfill_buffer([%s %s], %s)',
             buf['bid'], buf.get('have_eid'), target)
         while True:
-            await asyncio.sleep(2)
+            await imbroglio.sleep(2)
             self.log.debug(
                 'loop backfill_buffer([%s %s], %s)',
                 buf['bid'], buf.get('have_eid'), target)
@@ -421,7 +435,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                             'backfilling %s, try=%d, sleeping',
                             buf['name'], count)
                         count += 1
-                        await asyncio.sleep(1)
+                        await imbroglio.sleep(1)
                         self.log.error(
                             'backfilling %s, try=%d, done sleeping',
                             buf['name'], count)
@@ -473,7 +487,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.drop_cache()
                     self.redisplay(included[0], included[-1])
 
-            except asyncio.CancelledError:
+            except imbroglio.CancelledError:
                 raise
             except Exception:
                 self.log.exception('backfilling %s', buf)

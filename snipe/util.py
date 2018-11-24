@@ -55,6 +55,7 @@ import urllib.parse
 import h11
 import wsproto.connection
 import wsproto.events
+import wsproto.extensions
 
 from . import imbroglio
 
@@ -633,7 +634,7 @@ class NetworkStream:
             data = data[sent:]
 
     async def close(self):
-        self.log.debug('closing')
+        self.log.debug('NetworkStream closing')
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
@@ -843,7 +844,7 @@ class HTTP:
         data = self.conn.send(event)
         if not data:
             return
-
+        self.log.debug(f'sending {data!r}')
         await self.stream.write(data)
 
     async def next_event(self):
@@ -880,9 +881,8 @@ class HTTP:
 class HTTP_WS:
     def __init__(self, url, headers={}, log=None, stream=None):
         if log is None:
-            self.log = logging.getLogger('HTTP_WS')
-        else:
-            self.log = log
+            log = logging.getLogger('HTTP_WS')
+        self.log = log
 
         self.stream = stream
         self.url = url
@@ -907,6 +907,7 @@ class HTTP_WS:
                 wsproto.connection.ConnectionType.CLIENT,
                 self.hostname,
                 self.resource,
+                extensions=[wsproto.extensions.PerMessageDeflate()],
                 )
         self.connected = False
         self.response = None
@@ -1010,6 +1011,6 @@ class HTTP_WS:
             self.log.debug('just sent %d bytes', len(d))
 
     async def close(self):
-        self.log.debug('closing')
+        self.log.debug('HTTP_WS closing')
         self.ws.close()
         await self.stream.close()
