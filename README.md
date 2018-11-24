@@ -1,8 +1,8 @@
 Snipe
 =====
 
-[![Build Status](https://travis-ci.org/kcr/snipe.svg?branch=master)](https://travis-ci.org/kcr/snipe)
-[![Coverage Status](https://coveralls.io/repos/github/kcr/snipe/badge.svg?branch=master)](https://coveralls.io/github/kcr/snipe?branch=master)
+[![Build Status](https://travis-ci.org/1ts-org/snipe.svg?branch=master)](https://travis-ci.org/1ts-org/snipe)
+[![Coverage Status](https://coveralls.io/repos/github/1ts-org/snipe/badge.svg?branch=master)](https://coveralls.io/github/1ts-org/snipe?branch=master)
 
 
 snipe is a text-oriented (currently curses-based) "instant" messaging
