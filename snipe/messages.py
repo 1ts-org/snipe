@@ -460,7 +460,7 @@ class SnipeBackend:
         should occasionally call this method to remove completed tasks from the
         task list.
         """
-        self.tasks = [t for t in self.tasks if not t.done()]
+        self.tasks = [t for t in self.tasks if not t.is_done()]
 
     def redisplay(self, m1, m2):
         try:

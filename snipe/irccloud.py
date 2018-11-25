@@ -377,7 +377,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         for task, when in self.backfillers:
             if (t0 - when) > 30.0:
                 task.cancel()
-            if not task.done():
+            if not task.is_done():
                 nb.append((task, when))
         self.backfillers = nb
         self.reap_tasks()

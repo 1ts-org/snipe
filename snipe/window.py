@@ -127,7 +127,7 @@ class Window:
         self.tasks = []
 
     def reap_tasks(self):
-        self.tasks = [t for t in self.tasks if not t.done()]
+        self.tasks = [t for t in self.tasks if not t.is_done()]
 
     def set_cheatsheet(self, cheatsheet):
         self.cheatsheet = cheatsheet
@@ -352,7 +352,7 @@ class Window:
 
         def destroy_callback():
             if not p.done:
-                p.set_exception(OperationAborted())
+                p.set_result_exception(OperationAborted())
 
         if window is None:
             from .prompt import ShortPrompt, LongPrompt
@@ -376,7 +376,7 @@ class Window:
         w.renderer.reframe(-1)
         self.fe.redisplay()
 
-        return await p()
+        return await p
 
     async def read_filename(self, prompt, content=None, name='filename'):
         """Use self.read_string to read a filename from the user.

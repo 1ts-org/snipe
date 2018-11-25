@@ -461,7 +461,7 @@ class TestImbroglioTools(unittest.TestCase):
 
         async def get_result():
             nonlocal r
-            r = await p()
+            r = await p
 
         imbroglio.run(get_result())
 
@@ -488,7 +488,7 @@ class TestImbroglioTools(unittest.TestCase):
             nonlocal t
             t = await imbroglio.spawn(get_result())
             await imbroglio.sleep(.1)
-            p.set_exception(DistinctException('foo'))
+            p.set_result_exception(DistinctException('foo'))
 
         imbroglio.run(set_exception())
 

@@ -277,7 +277,7 @@ class TestRoostAddresses(unittest.TestCase):
 
 class TestRoostRegistrationMessage(unittest.TestCase):
     def test(self):
-        f = MockFuture()
+        f = MockPromise()
         m = roost.RoostRegistrationMessage(
             roost.Roost(context.Context()), 'foo', f)
         self.assertFalse(f.set)
@@ -285,11 +285,11 @@ class TestRoostRegistrationMessage(unittest.TestCase):
         self.assertTrue(f.set)
 
 
-class MockFuture:
+class MockPromise:
     def __init__(self):
         self.set = False
 
-    def done(self):
+    def is_done(self):
         return False
 
     def set_result(self, result):

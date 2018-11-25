@@ -171,7 +171,7 @@ class Roost(messages.SnipeBackend):
         """)
         p = imbroglio.Promise()
         self.add_message(RoostRegistrationMessage(self, msg, p))
-        await p()
+        await p
 
         p = imbroglio.Promise()
         msg = inspect.cleandoc("""
@@ -182,7 +182,7 @@ class Roost(messages.SnipeBackend):
         messages.
         """)
         self.add_message(RoostRegistrationMessage(self, msg, p))
-        await p()
+        await p
         try:
             await self.r.auth(create_user=True)
             self.add_message(messages.SnipeMessage(self, 'Registered.'))
@@ -475,7 +475,7 @@ class Roost(messages.SnipeBackend):
 
     @keymap.bind('R R')
     def reconnect(self):
-        if self.new_task is not None and not self.new_task.done():
+        if self.new_task is not None and not self.new_task.is_done():
             self.disconnect()
         self.start()
 
@@ -719,5 +719,5 @@ class RoostRegistrationMessage(messages.SnipeMessage):
 
     @keymap.bind('Y')
     def forward_the_future(self):
-        if not self.future.done():
+        if not self.future.is_done():
             self.future.set_result(None)

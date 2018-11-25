@@ -270,7 +270,7 @@ class TestBackend(unittest.TestCase):
         with self.assertLogs(s.log.name, level='ERROR'):
             await s.shutdown()
         self.assertFalse(s.tasks)
-        self.assertTrue(t.done())
+        self.assertTrue(t.is_done())
 
     def test_redisplay(self):
         s = SyntheticBackend(mocks.Context())

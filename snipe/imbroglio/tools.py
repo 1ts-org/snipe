@@ -132,17 +132,17 @@ class Promise:
         if self.task is not None:
             self.task.rouse()
 
-    def set_exception(self, exception):
+    def set_result_exception(self, exception):
         self.done = True
         self.exception_set = True
         self.exception = exception
         if self.task is not None:
             self.task.rouse()
 
-    async def __call__(self):
-        self.task = await imbroglio.this_task()
+    def __await__(self):
+        self.task = yield from imbroglio.this_task()
         while not self.done:
-            await imbroglio.sleep(None)
+            yield from imbroglio.sleep(None)
         if self.exception_set:
             raise self.exception
         return self.result
@@ -256,7 +256,7 @@ class Event:
 
         p = Promise()
         self.promises.add(p)
-        await p()
+        await p
 
 
 def test(f):

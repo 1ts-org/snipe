@@ -129,8 +129,6 @@ class Task:
     def is_done(self):
         return self.state in {'DONE', 'EXCEPTION', 'CANCELLED'}
 
-    done = is_done
-
     def __await__(self):
         yield from taskwait(self)  # noqa: F821
 
