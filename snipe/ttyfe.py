@@ -654,9 +654,18 @@ class TTYFrontend:
         curses.nl()
         curses.echo()
         curses.endwin()
-        signal.signal(signal.SIGINT, self.orig_sigint)
-        signal.signal(signal.SIGTSTP, self.orig_sigtstp)
-        signal.signal(signal.SIGWINCH, self.orig_sigwinch)
+        try:
+            signal.signal(signal.SIGINT, self.orig_sigint)
+        except TypeError:
+            self.log.exception('%s', f'orig_sigint: {self.orig_sigint!r}')
+        try:
+            signal.signal(signal.SIGTSTP, self.orig_sigtstp)
+        except TypeError:
+            self.log.exception('%s', f'orig_sigtstp: {self.orig_sigtstp!r}')
+        try:
+            signal.signal(signal.SIGWINCH, self.orig_sigwinch)
+        except TypeError:
+            self.log.exception('%s', f'orig_sigwinch: {self.orig_sigwinch!r}')
 
     def sigtstp(self, signum, frame):
         curses.def_prog_mode()
