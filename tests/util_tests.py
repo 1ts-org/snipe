@@ -699,13 +699,15 @@ class TestHTTP(unittest.TestCase):
             self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
 
             self.assertEqual(
-                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n\r\n',
+                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'accept-encoding: gzip\r\n\r\n',
                 b''.join(HTTP.stream.wrote))
 
             HTTP = await snipe.util.HTTP.request(
                 'http://foo/foo', method='POST', log=log, json='foo')
             self.assertEqual(
                 b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'accept-encoding: gzip\r\n'
                 b'content-type: application/json\r\ncontent-length: 5\r\n\r\n'
                 b'"foo"',
                 b''.join(HTTP.stream.wrote))
@@ -714,8 +716,10 @@ class TestHTTP(unittest.TestCase):
                 'http://foo/foo', method='POST', log=log, data={'bar': 'foo'})
             self.assertEqual(
                 b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'accept-encoding: gzip\r\n'
                 b'content-type: application/x-www-form-urlencoded\r\n'
-                b'content-length: 7\r\n\r\nbar=foo',
+                b'content-length: 7\r\n'
+                b'\r\nbar=foo',
                 b''.join(HTTP.stream.wrote))
 
     @snipe.imbroglio.test
@@ -727,7 +731,8 @@ class TestHTTP(unittest.TestCase):
             self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
 
             self.assertEqual(
-                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n\r\n',
+                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'accept-encoding: gzip\r\n\r\n',
                 b''.join(HTTP.stream.wrote))
 
             HTTP.stream.readdata = [

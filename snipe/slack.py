@@ -343,7 +343,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def backfill(self, mfilter, target=None):
         if not self.connected:
             return
-        self.tasks.append(self.supervisor.start(self.do_backfill(mfilter, target)))
+        self.tasks.append(
+            self.supervisor.start(self.do_backfill(mfilter, target)))
 
     async def do_backfill(self, mfilter, target):
         self.log.debug('backfill([filter], %s)', repr(target))

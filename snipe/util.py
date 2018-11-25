@@ -873,7 +873,10 @@ class HTTP:
             if type(event) is h11.Response:
                 self.response = event
                 ce = dict(event.headers).get(b'content-encoding')
-                ce = set(ce.replace(b' ', b'').split(b','))
+                if ce is not None:
+                    ce = set(ce.replace(b' ', b'').split(b','))
+                else:
+                    ce = set()
                 self.log.debug('%s', f'ce: {ce!r}')
                 if b'gzip' in ce:
                     self.decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)

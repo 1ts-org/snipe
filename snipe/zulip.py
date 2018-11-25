@@ -236,7 +236,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             repr(mfilter), util.timestr(target))
         self.reap_tasks()
         if not self.backfilling and not self.loaded:
-            self.tasks.append(self.supervisor.start(self.do_backfill(mfilter, target)))
+            self.tasks.append(
+                self.supervisor.start(self.do_backfill(mfilter, target)))
 
     async def do_backfill(self, mfilter, target):
         if self.backfilling:

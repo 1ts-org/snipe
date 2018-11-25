@@ -559,8 +559,8 @@ class TestImbroglioTools(unittest.TestCase):
             await e.wait()
             twoflag = True
 
-        onetask = await imbroglio.spawn(one())
-        twotask = await imbroglio.spawn(two())
+        await imbroglio.spawn(one())
+        await imbroglio.spawn(two())
 
         await e.set()
 
