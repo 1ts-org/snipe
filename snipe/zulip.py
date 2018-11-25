@@ -34,7 +34,6 @@ Backend for talking to `Zulip <https://zulip.org>`.
 '''
 
 
-import asyncio
 import base64
 import pprint
 import re
@@ -43,10 +42,11 @@ import urllib.parse
 
 from . import chunks
 from . import filters
-from . import text
+from . import imbroglio
 from . import interactive
 from . import keymap
 from . import messages
+from . import text
 from . import util
 
 
@@ -109,7 +109,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.messages_by_id = {}
         self.backfilling = False
         self.loaded = False
-        self.connected = asyncio.Event()
+        self.connected = imbroglio.Event()
         hostname = urllib.parse.urlparse(self.url).hostname
 
         creds = self.context.credentials(hostname)
@@ -122,9 +122,10 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.setup_client_session(
             headers={'Authorization': f'Basic {credb64}'})
 
-    def start(self):
-        self.tasks.append(asyncio.Task(self.connect()))
-        self.tasks.append(asyncio.Task(self.presence_beacon()))
+    async def start(self):
+        await super().start()
+        self.tasks.append(await imbroglio.spawn(self.connect()))
+        self.tasks.append(await imbroglio.spawn(self.presence_beacon()))
 
     @util.coro_cleanup
     async def connect(self):
@@ -149,7 +150,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self._destinations |= set(
                         '; '.join((self.name, x['name'], ''))
                         for x in params['streams'])
-                    self.connected.set()
+                    await self.connected.set()
 
                 self.log.debug(
                     'getting events, queue_id=%s, last_event_id=%s',
@@ -181,7 +182,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     # messages (and the last old message) pairwise.
                     self.readjust(self.messages[-len(msgs) - 1:])
                     self.redisplay(msgs[0], msgs[-1])
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             raise
         finally:
             self.connected.clear()
@@ -221,7 +222,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     new_user_input='true')
             except Exception:
                 pass  # just ignore it
-            await asyncio.sleep(60)
+            await imbroglio.sleep(60)
 
     @staticmethod
     def readjust(msgs):
@@ -235,7 +236,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             repr(mfilter), util.timestr(target))
         self.reap_tasks()
         if not self.backfilling and not self.loaded:
-            self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
+            self.tasks.append(self.supervisor.start(self.do_backfill(mfilter, target)))
 
     async def do_backfill(self, mfilter, target):
         if self.backfilling:
@@ -264,7 +265,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.messages = msgs + self.messages
             self.readjust(self.messages)
             self.drop_cache()
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             raise
         except Exception:
             self.log.exception('backfilling')
