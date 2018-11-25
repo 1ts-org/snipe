@@ -259,8 +259,6 @@ def coro_cleanup(f):
     async def catch_and_log(*args, **kw):
         try:
             return (await f(*args, **kw))
-        except imbroglio.CancelledError:
-            raise
         except Exception:
             if args and hasattr(args[0], 'log'):
                 log = args[0].log

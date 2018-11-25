@@ -62,7 +62,7 @@ def main():
         context_.load(options)
 
         imbroglio.run(main_task(context_, handler, log))
-    except imbroglio.CancelledError:
+    except imbroglio.Cancelled:
         pass
     finally:
         log.warning('snipe ends')

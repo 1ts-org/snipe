@@ -446,7 +446,7 @@ class SnipeBackend:
             self.log.error('shutting down %s', repr(t))
             try:
                 t.cancel()
-                with contextlib.suppress(imbroglio.CancelledError):
+                with contextlib.suppress(imbroglio.Cancelled):
                     await t
                     t.result()
             except BaseException:

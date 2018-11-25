@@ -180,17 +180,12 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('message: %s', repr(m))
                     try:
                         await self.incoming(m)
-                    except imbroglio.CancelledError:
-                        raise
                     except Exception:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))
             finally:
                 await self.websocket.close()
                 self.websocket = None
-
-        except imbroglio.CancelledError:
-            raise
         except Exception:
             self.log.exception('connecting to slack')
 

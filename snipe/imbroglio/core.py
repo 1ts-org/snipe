@@ -33,7 +33,7 @@ This is the core of the imbroglio coroutine supervisor.
 """
 
 __all__ = [
-    'CancelledError',
+    'Cancelled',
     'ImbroglioException',
     'Supervisor',
     'Task',
@@ -63,7 +63,7 @@ class ImbroglioException(Exception):
     """Catch-all exceptions for imbroglio"""
 
 
-class CancelledError(ImbroglioException):
+class Cancelled(BaseException):
     """Your task has been cancelled"""
 
 
@@ -103,7 +103,7 @@ class Task:
         self.supervisor._rouse(self)
 
     def cancel(self):
-        self.throw(CancelledError('Task cancelled'))
+        self.throw(Cancelled('Task cancelled'))
 
     def set_result(self, result):
         self.state = 'DONE'
@@ -113,7 +113,7 @@ class Task:
         self.state = 'EXCEPTION'
         self.exception = exception
 
-    def set_cancelled(self, exception=CancelledError):
+    def set_cancelled(self, exception=Cancelled):
         self.exception = exception
         self.state = 'CANCELLED'
 
@@ -300,7 +300,7 @@ class Supervisor:
             except StopIteration as e:
                 task.set_result(e.value)
                 return
-            except CancelledError:
+            except Cancelled:
                 task.set_cancelled()
                 return
             except Exception as e:

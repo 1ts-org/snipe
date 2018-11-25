@@ -219,7 +219,7 @@ class TestImbroglioCore(unittest.TestCase):
 
             try:
                 await imbroglio.sleep(30)
-            except imbroglio.CancelledError:
+            except imbroglio.Cancelled:
                 pass
 
             two = True

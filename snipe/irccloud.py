@@ -114,9 +114,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 await self.connect_once()
             except imbroglio.TimeoutError:
                 pass
-            except imbroglio.CancelledError:
-                self.log.debug('connect loop cancelled')
-                raise
             await imbroglio.sleep(10)
 
     async def connect_once(self):
@@ -190,16 +187,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.debug('message: %s', repr(m))
                 try:
                     await self.incoming(m)
-                except imbroglio.CancelledError:
-                    self.log.error('read thread cancelled')
-                    raise
                 except Exception:
                     self.log.exception(
                         'Processing incoming message: %s', repr(m))
                     raise
-        except imbroglio.CancelledError:
-            self.log.error('websocket loop cancelled')
-            raise
         except Exception:
             self.log.exception('in websocket loop')
         finally:
@@ -486,9 +477,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                         'len(self.messages): %d -> %d', l, len(self.messages))
                     self.drop_cache()
                     self.redisplay(included[0], included[-1])
-
-            except imbroglio.CancelledError:
-                raise
             except Exception:
                 self.log.exception('backfilling %s', buf)
                 return

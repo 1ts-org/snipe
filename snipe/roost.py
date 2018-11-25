@@ -142,8 +142,6 @@ class Roost(messages.SnipeBackend):
                     self.log.debug('waiting: %d', e.wait)
                     await imbroglio.sleep(e.wait)
                 continue
-            except imbroglio.CancelledError:
-                raise
             except Exception as exc:
                 errmsg = str(exc)
                 snipe_exception = isinstance(exc, util.SnipeException)
@@ -189,7 +187,7 @@ class Roost(messages.SnipeBackend):
             await self.r.auth(create_user=True)
             self.add_message(messages.SnipeMessage(self, 'Registered.'))
             self.load_subs(self._zephyr_subs)
-        except imbroglio.CancelledError:
+        except imbroglio.Cancelled:
             pass
         except Exception as e:
             self.log.exception('registering')
@@ -200,8 +198,6 @@ class Roost(messages.SnipeBackend):
         """run a coroutine, creating a message with a traceback if it raises"""
         try:
             return (await func(*args))
-        except imbroglio.CancelledError:
-            raise
         except Exception as e:
             self.log.exception(activity)
             body = '%s: %s' % (activity, str(e))

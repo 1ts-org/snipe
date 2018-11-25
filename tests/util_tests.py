@@ -280,13 +280,13 @@ class TestLevel(unittest.TestCase):
 class TestCoroCleanup(unittest.TestCase):
     def test(self):
         async def self_cancel():
-            raise imbroglio.CancelledError
+            raise imbroglio.Cancelled
 
         wrapped = snipe.util.coro_cleanup(self_cancel)
 
         self.assertTrue(inspect.iscoroutinefunction(wrapped))
 
-        with self.assertRaises(imbroglio.CancelledError):
+        with self.assertRaises(imbroglio.Cancelled):
             imbroglio.run(wrapped())
 
         async def key_error(*args):
