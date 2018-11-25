@@ -33,6 +33,7 @@ Some useful things built on top of the imbroglio primitives
 """
 
 __all__ = [
+    'Event',
     'Promise',
     'Timeout',
     'TimeoutError',
@@ -228,6 +229,34 @@ async def process_filter(cmd, inbuf):
             os.close(outr)
         except OSError:  # pragma: nocover
             pass
+
+
+class Event:
+    def __init__(self):
+        self.flag = False
+        self.promises = set()
+
+    def clear(self):
+        self.flag = False
+
+    def is_set(self):
+        return self.flag
+
+    async def set(self):
+        if not self.flag:
+            self.flag = True
+            promises, self.promises = self.promises, set()
+            for p in promises:
+                p.set_result(True)
+        await imbroglio.sleep()
+
+    async def wait(self):
+        if self.flag:
+            return
+
+        p = Promise()
+        self.promises.add(p)
+        await p()
 
 
 def test(f):

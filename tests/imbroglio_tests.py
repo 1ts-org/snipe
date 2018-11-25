@@ -541,6 +541,43 @@ class TestImbroglioTools(unittest.TestCase):
 
         imbroglio.run(test())
 
+    @imbroglio.test
+    async def test_event(self):
+        e = imbroglio.Event()
+        oneflag = False
+        twoflag = False
+
+        async def one():
+            nonlocal e
+            nonlocal oneflag
+            await e.wait()
+            oneflag = True
+
+        async def two():
+            nonlocal e
+            nonlocal twoflag
+            await e.wait()
+            twoflag = True
+
+        onetask = await imbroglio.spawn(one())
+        twotask = await imbroglio.spawn(two())
+
+        await e.set()
+
+        notimeout = False
+        async with imbroglio.Timeout(1):
+            await e.wait()
+            notimeout = True
+
+        self.assertTrue(notimeout)
+
+        self.assertTrue(oneflag)
+        self.assertTrue(twoflag)
+
+        self.assertTrue(e.is_set())
+        e.clear()
+        self.assertFalse(e.is_set())
+
 
 if __name__ == '__main__':
     unittest.main()
