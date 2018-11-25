@@ -40,10 +40,10 @@ import pprint
 import contextlib
 import itertools
 
-import asyncio
 
 from . import chunks
 from . import filters
+from . import imbroglio
 from . import interactive
 from . import keymap
 from . import messages
@@ -132,8 +132,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.used_emoji = []
         self.setup_client_session()
 
-    def start(self):
-        self.tasks.append(asyncio.Task(self.connect(self.slackname)))
+    async def start(self):
+        await super().start()
+        self.tasks.append(await imbroglio.spawn(self.connect(self.slackname)))
 
     async def connect(self, slackname):
         try:
@@ -179,16 +180,16 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('message: %s', repr(m))
                     try:
                         await self.incoming(m)
-                    except asyncio.CancelledError:
+                    except imbroglio.CancelledError:
                         raise
                     except Exception:
                         self.log.exception(
                             'Processing incoming message: %s', repr(m))
             finally:
-                await asyncio.coroutine(self.websocket.close)()
+                await self.websocket.close()
                 self.websocket = None
 
-        except asyncio.CancelledError:
+        except imbroglio.CancelledError:
             raise
         except Exception:
             self.log.exception('connecting to slack')
@@ -342,7 +343,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     def backfill(self, mfilter, target=None):
         if not self.connected:
             return
-        self.tasks.append(asyncio.Task(self.do_backfill(mfilter, target)))
+        self.tasks.append(self.supervisor.start(self.do_backfill(mfilter, target)))
 
     async def do_backfill(self, mfilter, target):
         self.log.debug('backfill([filter], %s)', repr(target))
@@ -353,14 +354,14 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.reap_tasks()
             backfillers = [
-                asyncio.Task(self.do_backfill_dest(dest, mfilter, target))
+                imbroglio.spawn(self.do_backfill_dest(dest, mfilter, target))
                 for dest in self.dests
                 if (self.dests[dest].type in ('im', 'group') or (
                         self.dests[dest].type == 'channel'
                         and self.dests[dest].data['is_member']))
                 and not self.dests[dest].loaded]
             self.tasks += backfillers
-            await asyncio.gather(*backfillers, return_exceptions=True)
+            await imbroglio.gather(*backfillers, return_exceptions=True)
 
     async def do_backfill_dest(self, dest, mfilter, target):
         d = self.dests[dest]
