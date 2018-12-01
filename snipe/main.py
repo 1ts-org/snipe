@@ -32,6 +32,7 @@ snipe.main
 ----------
 '''
 
+import curses
 import logging
 import signal
 import sys
@@ -65,6 +66,10 @@ def main():
     except imbroglio.Cancelled:
         pass
     finally:
+        try:
+            curses.putp(curses.tigetstr('clear'))
+        except curses.error:
+            pass
         log.warning('snipe ends')
         print()
         print('shutting down...', end='', flush=True)
