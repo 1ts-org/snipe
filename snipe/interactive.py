@@ -28,11 +28,17 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+import contextlib
 import inspect
 import os
-import contextlib
+
+from typing import (NewType, Union, List, Optional, TYPE_CHECKING)
 
 from . import util
+
+if TYPE_CHECKING:
+    from . import window as _window  # noqa: F401
+    from . import keymap as _keymap  # noqa: F401
 
 
 def _keyword(name):
@@ -41,32 +47,47 @@ def _keyword(name):
     return __get_keyword
 
 
-context = _keyword('context')
-window = _keyword('window')
-keystroke = _keyword('keystroke')
-keyseq = _keyword('keyseq')
-keymap = _keyword('keymap')
-argument = _keyword('argument')
+if not TYPE_CHECKING:
+    window = _keyword('window')
+    keystroke = _keyword('keystroke')
+    keyseq = _keyword('keyseq')
+    keymap = _keyword('keymap')
+    argument = _keyword('argument')
+else:
+    window = NewType('window', '_window.Window')
+    keystroke = Union[int, str]
+    keyseq = str
+    keymap = NewType('keymap', '_keymap.Keymap')
+    argument = Union[None, int, str, List[keystroke]]
 
 
-def integer_argument(*args, **kw):
-    arg = kw.get('argument', None)
-    if isinstance(arg, int) or arg is None:
-        return arg
-    if arg == '-':
-        return -1
-    return 4**len(arg)
+if not TYPE_CHECKING:
+    def integer_argument(*args, **kw):
+        arg = kw.get('argument', None)
+        if isinstance(arg, int) or arg is None:
+            return arg
+        if arg == '-':
+            return -1
+        return 4**len(arg)
+else:
+    integer_argument = Optional[int]
 
 
-def positive_integer_argument(*args, **kw):
-    arg = integer_argument(*args, **kw)
-    if not isinstance(arg, int):  # coercion happens in integer_argument
-        return arg
-    return abs(arg)
+if not TYPE_CHECKING:
+    def positive_integer_argument(*args, **kw):
+        arg = integer_argument(*args, **kw)
+        if not isinstance(arg, int):  # coercion happens in integer_argument
+            return arg
+        return abs(arg)
+else:
+    positive_integer_argument = Optional[int]
 
 
-def isinteractive(*args, **kw):
-    return True
+if not TYPE_CHECKING:
+    def isinteractive(*args, **kw):
+        return True
+else:
+    isinteractive = bool
 
 
 def call(callable, *args, **kw):

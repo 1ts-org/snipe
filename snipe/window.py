@@ -208,7 +208,6 @@ class Window:
                     self.before_command()
                     ret = self.keymap_action(
                         v,
-                        context=self.context,
                         window=self,
                         keystroke=k,
                         argument=arg,
@@ -639,7 +638,11 @@ class Window:
         if arg is None:
             self.universal_argument = [key]
         else:
-            self.universal_argument = arg + [key]
+            if isinstance(arg, list):
+                self.universal_argument = arg + [key]
+            else:
+                raise util.SnipeException(
+                    'Inappropriate universal-argument command')
 
         # retain status quo
         self.this_command = self.last_command

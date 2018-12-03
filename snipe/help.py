@@ -38,6 +38,8 @@ import inspect
 import sys
 import logging
 
+from typing import (Dict, Tuple, List)
+
 import docutils.core
 import docutils.nodes
 
@@ -56,7 +58,7 @@ def halp(window: interactive.window):
         browsehelp(window)
     else:
         util.Configurable.set(window, 'cheatsheet', True)
-        window.active_keymap = keymap
+        window.active_keymap = help_keymap
 
 
 @keymap.bind('L')
@@ -106,9 +108,16 @@ def toggle_cheatsheet(window: interactive.window):
 class HelpBrowser(editor.PopViewer):
     """Commit assorted sins against docutils in order to present a help browser
     """
-    pages = {}
-    toc = []
-    toclines = []
+
+    pages: Dict[
+        str,
+        Tuple[
+            Tuple[int, chunks.Chunk],
+            str,
+            Dict[str, int],
+            List[Tuple[int, int, str]]]] = {}
+    toc: List[str] = []
+    toclines: List[str] = []
     base_module = None
 
     cheatsheet = [
@@ -338,7 +347,6 @@ CHEATSHEET = [
     '*L*icense',
     '*k*ey description',
     ]
-_keymap = keymap.Keymap()
-_keymap.interrogate(sys.modules[__name__])
-_keymap.set_cheatsheet(CHEATSHEET)
-keymap = _keymap
+help_keymap = keymap.Keymap()
+help_keymap.interrogate(sys.modules[__name__])
+help_keymap.set_cheatsheet(CHEATSHEET)

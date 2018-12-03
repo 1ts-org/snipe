@@ -39,6 +39,8 @@ import itertools
 import sys
 import unittest
 
+from typing import (Dict, Any, List, Optional, Tuple)
+
 sys.path.append('..')
 sys.path.append('../lib')
 
@@ -249,7 +251,7 @@ class UI:
 
 
 class Window:
-    hints = {}
+    hints: Dict[str, Any] = {}
     cursor = 0
 
     def __init__(self, chunks):
@@ -360,7 +362,7 @@ class Curses:
     COLOR_PAIRS = None
     COLORS = None
     dynamic = None
-    pairs = []
+    pairs: List[Optional[Tuple[int, int]]] = []
 
     COLUMNS = 80
     LINES = 24

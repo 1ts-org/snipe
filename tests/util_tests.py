@@ -45,6 +45,8 @@ import sys
 import tempfile
 import unittest
 
+from typing import (Dict)
+
 import mocks
 
 sys.path.append('..')
@@ -165,7 +167,7 @@ class TestGetobj(unittest.TestCase):
 
 class TConfigurable(snipe.util.Configurable):
     # Override the registry so this doesn't mess with anything else's behavior
-    registry = {}
+    registry: Dict[str, snipe.util.Configurable] = {}
 
 
 class HasContext:
@@ -254,7 +256,7 @@ class TestCoerceBool(unittest.TestCase):
 
 
 class TLevel(snipe.util.Level):
-    registry = {}
+    registry: Dict[str, snipe.util.Configurable] = {}
 
 
 class TestLevel(unittest.TestCase):

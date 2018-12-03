@@ -37,6 +37,8 @@ Editor subclasses for interacting withe user.
 '''
 
 
+from typing import (Dict, Optional, List, cast)
+
 from . import chunks
 from . import editor
 from . import keymap
@@ -44,7 +46,7 @@ from . import interactive
 
 
 class LongPrompt(editor.Editor):
-    histories = {}
+    histories: Dict[Optional[str], List[str]] = {}
 
     cheatsheet = [
         '*M-p*revious history',
@@ -192,10 +194,11 @@ class ReplyMode:
         ]
 
     @keymap.bind('Control-C Control-Y')
-    def yank_original(self, window: interactive.window):
+    def yank_original(self, _window: interactive.window):
         """Yank the contents of the message being replied to, with a > line
         prefix."""
 
+        window: editor.Editor = cast(editor.Editor, _window)
         m = window.buf.mark(window.cursor)
         prefix = '> '
         with window.save_excursion(m):

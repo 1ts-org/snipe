@@ -53,6 +53,8 @@ import unittest.mock as mock
 import urllib.parse
 import zlib
 
+from typing import (Dict)
+
 import h11
 import wsproto.connection
 import wsproto.events
@@ -66,7 +68,7 @@ class SnipeException(Exception):
 
 
 class Configurable:
-    registry = {}
+    registry: Dict[str, 'Configurable'] = {}
 
     def __init__(
             self, key,

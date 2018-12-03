@@ -42,6 +42,8 @@ import logging
 import math
 import time
 
+from typing import (List, Optional, Sequence)
+
 from . import chunks
 from . import filters
 from . import imbroglio
@@ -50,7 +52,7 @@ from . import util
 
 class SnipeAddress:
     backend = None
-    path = []
+    path: List[str] = []
 
     def __init__(self, backend, path=[]):
         self.backend = backend
@@ -294,10 +296,10 @@ class SnipeErrorMessage(SnipeMessage):
 
 class SnipeBackend:
     # name of concrete backend
-    name = None
+    name: Optional[str] = None
     # list of messages, sorted by message time
     #  (not all backends will export this, it can be None)
-    messages = ()
+    messages: Optional[Sequence[SnipeMessage]] = ()
     principal = None
 
     indent = util.Configurable(

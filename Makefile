@@ -1,13 +1,16 @@
 NOSE=nosetests3
 NOSETESTS=TZ=GMT $(NOSE) -v -w tests
 
-all check: flake8 nosetests
+all check: flake8 mypy nosetests 
 
 flake8:
 	flake8 rooster.py setup.py snipe.py swearing.py snipe tests
 
 nosetests:
 	$(NOSETESTS) --processes=8 --process-timeout=300
+
+mypy:
+	mypy --ignore-missing-imports snipe/*.py snipe/imbroglio/*.py snipe/_roost_python/*.py tests/*.py
 
 coverage:
 	python3-coverage erase

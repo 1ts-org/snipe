@@ -130,6 +130,7 @@ class Messager(window.Window, window.PagingMixIn):
         self.rules_reset()
         self.real_keymap = self.keymap
         self.install_per_message_keymap()
+        self.set_mark_state = 0
 
     def focus(self):
         if self.secondary is not None:
@@ -277,8 +278,11 @@ class Messager(window.Window, window.PagingMixIn):
         self.move(count)
 
     @keymap.bind('Control-p', 'p', 'k', '[up]')
-    def prev_message(self, count: interactive.integer_argument = 1):
+    def prev_message(self, count: interactive.integer_argument=None):
         """Move to the previous message."""
+
+        if count is None:
+            count = 1
 
         self.move(-count)
 
@@ -473,7 +477,7 @@ class Messager(window.Window, window.PagingMixIn):
             keyseq: interactive.keyseq,
             arg: interactive.argument,
             ):
-        name = '_' + key
+        name = '_' + str(key)
         if arg:
             await self.filter_edit_name(name)
         else:
@@ -654,18 +658,30 @@ class Messager(window.Window, window.PagingMixIn):
         self.filter_push(filters.Compare('=', 'sender', sender))
 
     @keymap.bind('/ /', 'Meta-/ /')
-    def filter_cleverly(self, arg: interactive.argument=[]):
+    def filter_cleverly(self, arg: interactive.argument=None):
         """Push a filter based on the current message.  More Control-Us
         increase specificity, if the backend supports it."""
 
-        self.filter_push(self.replymsg().filter(len(arg)))
+        if arg is None:
+            arg = []
+
+        if not isinstance(arg, int):
+            arg = len(arg)
+
+        self.filter_push(self.replymsg().filter(arg))
 
     @keymap.bind('/ .', 'Meta-/ .')
-    def filter_cleverly_negative(self, arg: interactive.argument=[]):
+    def filter_cleverly_negative(self, arg: interactive.argument=None):
         """Push a negative filter based on the current message.  More
         Control-Us increase specificity, if the backend supports it."""
 
-        self.filter_push(filters.Not(self.replymsg().filter(len(arg))))
+        if arg is None:
+            arg = []
+
+        if not isinstance(arg, int):
+            arg = len(arg)
+
+        self.filter_push(filters.Not(self.replymsg().filter(arg)))
 
     @keymap.bind('/ ,', '/ w', '/ Meta-/', 'Meta-/ Meta-/')
     def filter_pop(self):
@@ -739,10 +755,13 @@ class Messager(window.Window, window.PagingMixIn):
             self.goto_time(t)
 
     @keymap.bind('Control-X [')
-    def prev_day(self, count: interactive.integer_argument=1):
+    def prev_day(self, count: interactive.integer_argument=None):
         """Jump to the previous midnight, backfilling as appropriate.
 
         Integer argument specifies multiple days."""
+
+        if count is None:
+            count = 1
 
         if count < 0:
             return self.next_day(-count)
@@ -762,10 +781,13 @@ class Messager(window.Window, window.PagingMixIn):
             self.goto_time(when.timestamp())
 
     @keymap.bind('Control-X ]')
-    def next_day(self, count: interactive.integer_argument=1):
+    def next_day(self, count: interactive.integer_argument=None):
         """Jump to the next midnight.
 
         Integer argument specifies multiple days."""
+
+        if count is None:
+            count = 1
 
         if count < 0:
             return self.prev_day(-count)

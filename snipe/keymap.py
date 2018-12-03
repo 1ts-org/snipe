@@ -34,10 +34,12 @@ snipe.keymap
 '''
 
 
-import unicodedata
+import collections
 import contextlib
 import re
-import collections
+import unicodedata
+
+from typing import (List, Tuple, Sequence)
 
 from . import ttyfe
 
@@ -179,7 +181,7 @@ class Keymap(collections.defaultdict):
         re.IGNORECASE
         )
 
-    other_keys_spec = [
+    other_keys_spec: List[Tuple[Sequence[str], str]] = [
         (('escape', 'esc'), '\x1b'),
         (('delete', 'del'), '\x7f'),
         (('line feed', 'linefeed', 'newline'), '\x0a'),

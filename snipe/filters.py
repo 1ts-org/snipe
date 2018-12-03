@@ -39,6 +39,9 @@ import re
 import functools
 import weakref
 
+from typing import (Optional)
+
+
 import ply.lex
 import ply.yacc
 
@@ -149,7 +152,7 @@ class SnipeFilterError(util.SnipeException):
 
 
 class Filter(object):
-    name = None
+    name: Optional[str] = None
 
     def __init__(self):
         self._cache = weakref.WeakKeyDictionary()

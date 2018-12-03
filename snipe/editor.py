@@ -39,6 +39,8 @@ import logging
 import re
 import unicodedata
 
+from typing import (Dict, Any)
+
 from . import chunks
 from . import gap
 from . import interactive
@@ -47,7 +49,7 @@ from . import util
 from . import window
 
 
-DEFPROP = {}
+DEFPROP: Dict[str, Any] = {}
 
 
 @functools.total_ordering
@@ -113,7 +115,7 @@ class Mark:
 class Buffer:
     '''higher-level abstract notion of an editable chunk of data'''
 
-    registry = {}
+    registry: Dict[str, 'Buffer'] = {}
 
     def __init__(self, name=None, content=None, chunksize=None):
         if not name:
@@ -295,6 +297,7 @@ class Viewer(window.Window, window.PagingMixIn):
 
             self.yank_state = prototype.yank_state
             self.undo_state = prototype.undo_state  # ?
+            self.set_mark_state = 0
 
             self.goal_column = prototype.goal_column
 
@@ -334,20 +337,26 @@ class Viewer(window.Window, window.PagingMixIn):
         return self.cursor.replace(count, string, collapsible, prop)
 
     @keymap.bind('Control-F', '[right]')
-    def move_forward(self, count: interactive.integer_argument=1):
+    def move_forward(self, count: interactive.integer_argument=None):
         """Move the point forward a character.  Given a count, move forward n
         characters."""
+
+        if count is None:
+            count = 1
 
         self.move(count, True)
 
     @keymap.bind('Control-B', '[left]')
-    def move_backward(self, count: interactive.integer_argument=1):
+    def move_backward(self, count: interactive.integer_argument=None):
         """Move the point backward a character.  Given a count, move backward n
         characters."""
 
+        if count is None:
+            count = 1
+
         self.move(-count, True)
 
-    def move(self, delta, interactive=False):
+    def move(self, delta: int, interactive=False):
         """.move(delta, mark=None) -> actual distance moved
         Move the point by delta."""
 
@@ -366,9 +375,12 @@ class Viewer(window.Window, window.PagingMixIn):
         self.line_move(count, interactive=True)
 
     @keymap.bind('Control-P', '[up]')
-    def line_previous(self, count: interactive.integer_argument=1):
+    def line_previous(self, count: interactive.integer_argument=None):
         """Move the point up a line.  Given a count, move up n lines.
         Attempts to keep the cursor at the same column."""
+
+        if count is None:
+            count = 1
 
         self.line_move(-count, interactive=True)
 
@@ -667,12 +679,15 @@ class Viewer(window.Window, window.PagingMixIn):
     @keymap.bind('Meta-f')  # XXX should also be Meta-right but curses
     def word_forward(
             self,
-            count: interactive.integer_argument=1,
+            count: interactive.integer_argument=None,
             interactive: interactive.isinteractive=False,
             ):
         """Move the point forward to the location after the current word.  Given
         a count, do this n times.  Given a negative count, hand off to
         word_backward."""
+
+        if count is None:
+            count = 1
 
         if count < 0:
             return self.word_backward(-count, interactive=interactive)
@@ -687,12 +702,15 @@ class Viewer(window.Window, window.PagingMixIn):
     @keymap.bind('Meta-b')  # XXX should also be Meta-left but curses
     def word_backward(
             self,
-            count: interactive.integer_argument=1,
+            count: interactive.integer_argument=None,
             interactive: interactive.isinteractive=False,
             ):
         """Move the point backward to the beginning of the the previous word.
         Given a count, do this n times.  Given a negative count, hand off to
         word_forward."""
+
+        if count is None:
+            count = 1
 
         if count < 0:
             return self.word_forward(-count, interactive=interactive)
@@ -936,9 +954,16 @@ class Editor(Viewer):
     def self_insert(
             self,
             key: interactive.keystroke,
-            count: interactive.positive_integer_argument=1):
+            count: interactive.positive_integer_argument=None):
         """Insert the last keystroke of the triggering key sequence into the
         buffer."""
+
+        if count is None:
+            count = 1
+
+        if not hasattr(key, 'isspace'):
+            # XXX stringy for now
+            return
 
         if self.fill_column:
             if self.last_command != 'self_insert':
@@ -949,12 +974,12 @@ class Editor(Viewer):
 
         collapsible = True
         if self.last_command == 'self_insert':
-            if (not self.last_key.isspace()) and key.isspace():
+            if (not isspace(self.last_key)) and isspace(key):
                 collapsible = False
         for _ in range(count):
             self.insert(key, collapsible)
 
-        if (self.fill_column and key.isspace()
+        if (self.fill_column and isspace(key)
                 and self.column > self.fill_column):
             self.log.debug('triggering autofill')
             self.do_auto_fill()
@@ -1010,15 +1035,22 @@ class Editor(Viewer):
             self.fill_column = self.current_column
 
     @keymap.bind('[carriage return]', 'Control-J')
-    def insert_newline(self, count: interactive.positive_integer_argument=1):
+    def insert_newline(
+            self, count: interactive.positive_integer_argument=None):
         """Insert a newline, or n newlines."""
+
+        if count is None:
+            count = 1
 
         self.insert('\n' * count)
 
     @keymap.bind('Control-D', '[dc]')
-    def delete_forward(self, count: interactive.integer_argument=1):
+    def delete_forward(self, count: interactive.integer_argument=None):
         """Delete characters after the point, one by default, n if
         specified."""
+
+        if count is None:
+            count = 1
 
         if count < 0:
             moved = self.move(count, True)
@@ -1027,9 +1059,12 @@ class Editor(Viewer):
         self.delete(count)
 
     @keymap.bind('Control-H', 'Control-?', '[backspace]')
-    def delete_backward(self, count: interactive.integer_argument=1):
+    def delete_backward(self, count: interactive.integer_argument=None):
         """Delete characters before the point, one by default, n if
         specified."""
+
+        if count is None:
+            count = 1
 
         self.delete_forward(-count)
 
@@ -1119,9 +1154,12 @@ class Editor(Viewer):
         self.insert_region(self.context.yank(self.yank_state))
 
     @keymap.bind('Control-_', 'Control-x u')
-    def undo(self, count: interactive.positive_integer_argument=1):
+    def undo(self, count: interactive.positive_integer_argument=None):
         """Undo previous changes.   Repeat to undo more.  An integer argument
         is a repeat count."""
+
+        if count is None:
+            count = 1
 
         if self.last_command != 'undo':
             self.undo_state = None
@@ -1155,8 +1193,11 @@ class Editor(Viewer):
         self.move(2)
 
     @keymap.bind('Control-O')
-    def open_line(self, count: interactive.positive_integer_argument=1):
+    def open_line(self, count: interactive.positive_integer_argument=None):
         """Insert a newline (perhaps n newlines) ahead of the point."""
+
+        if count is None:
+            count = 1
 
         with self.save_excursion():
             self.insert('\n' * count)
@@ -1211,6 +1252,13 @@ class Editor(Viewer):
             return self.self_insert(key=chr(int(s, base=16)))
         else:
             return self.self_insert(key=unicodedata.lookup(s))
+
+
+def isspace(x: interactive.keystroke):
+    if isinstance(x, str):
+        return x.isspace()
+    else:
+        return False
 
 
 # wherein we work out and write down a bunch of compose key sequences for
