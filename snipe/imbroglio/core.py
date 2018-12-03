@@ -355,12 +355,15 @@ class Supervisor:
                     if self.runq:  # we have runnable tasks, don't wait
                         duration = 0
                     with selectors.DefaultSelector() as selector:
-                        fd_tasks={}
+                        fd_tasks = {}
                         for i, e in enumerate(self.waitq):
                             if e.events:
-                                fd_tasks.setdefault(e.fd, {}).setdefault(e.events, []).append((i, e))
+                                fd_tasks.setdefault(
+                                    e.fd, {}).setdefault(
+                                        e.events, []).append((i, e))
                         for k, v in fd_tasks.items():
-                            eventmask = functools.reduce(lambda a, b: a|b, v.keys())
+                            eventmask = functools.reduce(
+                                lambda a, b: a | b, v.keys())
                             selector.register(k, eventmask, v)
                         cleanup = []
                         now = time.monotonic()
@@ -370,7 +373,9 @@ class Supervisor:
                                     for i, e in waiters:
                                         cleanup.append(i)
                                         self.runq.append(
-                                            Runnable(e.task, (False, now - e.start)))
+                                            Runnable(
+                                                e.task,
+                                                (False, now - e.start)))
                         oldq = list(self.waitq)
                         try:
                             for i in sorted(cleanup, reverse=True):
