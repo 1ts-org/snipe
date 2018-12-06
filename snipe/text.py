@@ -290,7 +290,7 @@ class RSTRenderer:
         return ''.join(str(x.chunk) for x in self.output)
 
 
-class Interrogator(docutils.parsers.rst.Directive):
+class Interrogator(docutils.parsers.rst.Directive):  # type: ignore
     required_arguments = 1
     optional_arguments = 0
     has_content = True
@@ -346,7 +346,7 @@ class InterrogateKeymap(Interrogator):
         return text.splitlines()
 
 
-docutils.parsers.rst.directives.register_directive(
+docutils.parsers.rst.directives.register_directive(  # type: ignore
     'interrogate_keymap', InterrogateKeymap)
 
 
@@ -362,11 +362,11 @@ class InterrogateConfig(Interrogator):
         return lines
 
 
-docutils.parsers.rst.directives.register_directive(
+docutils.parsers.rst.directives.register_directive(  # type: ignore
     'interrogate_config', InterrogateConfig)
 
 
-class Toc(docutils.parsers.rst.Directive):
+class Toc(docutils.parsers.rst.Directive):  # type: ignore
     required_arguments = 0
     optional_arguments = 0
     has_content = True
@@ -377,7 +377,7 @@ class Toc(docutils.parsers.rst.Directive):
         return []
 
 
-docutils.parsers.rst.directives.register_directive(
+docutils.parsers.rst.directives.register_directive(  # type: ignore
     'toc', Toc)
 
 

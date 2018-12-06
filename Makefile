@@ -10,7 +10,7 @@ nosetests:
 	$(NOSETESTS) --processes=8 --process-timeout=300
 
 mypy:
-	mypy --ignore-missing-imports snipe/*.py snipe/imbroglio/*.py snipe/_roost_python/*.py tests/*.py
+	mypy --ignore-missing-imports rooster.py setup.py swearing.py snipe tests
 
 coverage:
 	python3-coverage erase
