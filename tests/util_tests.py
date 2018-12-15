@@ -388,13 +388,6 @@ class TestHTTP_JSONmixin(unittest.TestCase):
             self.assertEqual('foo', imbroglio.run(hjm._patch('/foo')))
             self.assertEqual(_HTTP._method, 'PATCH')
 
-            self.assertEqual(
-                'foo',
-                imbroglio.run(hjm._request(
-                    'zog', '/foo', compress='foo', headers={'foo': 'bar'})))
-            self.assertEqual(_HTTP._method, 'zog')
-            self.assertEqual(_HTTP._headers, [('foo', 'bar')])
-
             imbroglio.run(hjm.shutdown())
             self.assertTrue(hjm._is_shutdown)
 

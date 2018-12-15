@@ -362,14 +362,14 @@ class HTTP_JSONmixin:
         self.log.debug('result: %s', result)
         return result
 
-    async def _post(self, path, **kw):
+    async def _post(self, path, _data=None, **kw):
         self.log.debug(
             '_post(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
         response = await HTTP.request(
             urllib.parse.urljoin(self.url, path),
             method='POST',
-            data=kw,
+            data=kw if _data is None else _data,
             headers=self._JSONmixin_headers,
             )
         return (await self._result(response))
@@ -401,8 +401,9 @@ class HTTP_JSONmixin:
 
     async def _get(self, path, **kw):
         self.log.debug(
-            '_get(%s%s, %s **%s)', repr(self.url), repr(path),
-            self._JSONmixin_headers, repr(kw))
+            f'_get({path!r}, **{kw!r});'
+            f' url={self.url!r}, headers={self._JSONmixin_headers!r}')
+
         us = urllib.parse.urlsplit(urllib.parse.urljoin(self.url, path))
         response = await HTTP.request(
             urllib.parse.urlunsplit(
@@ -410,20 +411,6 @@ class HTTP_JSONmixin:
             headers=self._JSONmixin_headers,
             )
 
-        return (await self._result(response))
-
-    async def _request(self, method, url, **kw):
-        self.log.debug(
-            '_request(%s, %s, %s, **%s)', repr(method), repr(url),
-            self._JSONmixin_headers, repr(kw))
-        if 'headers' in kw:
-            kw['headers'] = list(kw['headers'].items())  # XXX FIXME
-            # really fix everything that calls this
-            # why do we even have this method
-            # irccloud, evidently
-        if 'compress' in kw:
-            del kw['compress']  # XXX FIXME
-        response = await HTTP.request(url, method, log=self.log, **kw)
         return (await self._result(response))
 
     async def shutdown(self):

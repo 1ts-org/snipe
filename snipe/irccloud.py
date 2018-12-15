@@ -58,6 +58,7 @@ IRCCLOUD_API = 'https://api.irccloud.com'
 
 class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'irccloud'
+    url = IRCCLOUD_API
     loglevel = util.Level('log.irccloud', 'IRCCloud')
 
     floodpause = util.Configurable(
@@ -114,6 +115,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 await self.connect_once()
             except imbroglio.TimeoutError:
                 pass
+            except Exception:
+                self.log.exception('connect once:')
             await imbroglio.sleep(10)
 
     async def connect_once(self):
@@ -124,9 +127,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         username, password = creds
 
         self.log.debug('retrieving formtoken')
-        result = await self._request(
-            'POST', urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'),
-            data='')
+        result = await self._post(
+            urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'), '')
         if not result.get('success'):
             self.log.warn('Could not get formtoken: %s', repr(result))
             return
@@ -135,17 +137,13 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.log.debug('retrieving logging in')
         for backoff in ((1/16) * 2**min(i, 9) for i in itertools.count()):
             try:
-                result = await self._request(
-                    'POST',
+                await self.reset_client_session_headers(
+                    {'x-auth-formtoken': token})
+                result = await self._post(
                     urllib.parse.urljoin(IRCCLOUD, '/chat/login'),
-                    data={
-                        'email': username,
-                        'password': password,
-                        'token': token,
-                        },
-                    headers={
-                        'x-auth-formtoken': token,
-                    },
+                    email=username,
+                    password=password,
+                    token=token,
                     )
                 break
             except util.JSONDecodeError:
@@ -156,6 +154,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.warn('login failed: %s', repr(result))
             return
         self.session = result['session']
+        await self.reset_client_session_headers(dict(
+            compress='gzip',
+            cookie=f'session={self.session}',
+            ))
 
         self.log.debug('connecting to websocket')
         url = IRCCLOUD_API
@@ -169,7 +171,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.websocket = util.JSONWebSocket(self.log)
         try:
             await self.websocket.connect(
-                IRCCLOUD_API,
+                url,
                 {
                     b'Origin': IRCCLOUD_API.encode(),
                     b'Cookie': b'session=%s' % (self.session.encode(),),
@@ -276,12 +278,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     async def include(self, url):
         self.log.debug('including %s', url)
-        oob_data = await self._request(
-            'GET',
-            urllib.parse.urljoin(IRCCLOUD_API, url),
-            headers={'Cookie': 'session=%s' % self.session},
-            compress='gzip',
-            )
+        oob_data = await self._get(url)
         if 'success' in oob_data and not oob_data['success']:
             self.log.error(
                 f'including out of band data {url} failure:' +
@@ -359,8 +356,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         window.show(pprint.pformat(self.header))
 
     def backfill(self, mfilter, target=None):
-        if True:  # XXX
-            return
         self.log.debug('backfill([filter], %s)', util.timestr(target))
         live = [
             b for b in self.buffers.values()
@@ -407,19 +402,12 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                         self.log.error(
                             'backfilling %s retrieving backlog, try=%d',
                             buf['name'], count)
-                        oob_data = await self._request(
-                            'GET',
-                            urllib.parse.urljoin(
-                                IRCCLOUD_API,
-                                '/chat/backlog'),
-                            params={
-                                    'cid': buf['cid'],
-                                    'bid': buf['bid'],
-                                    'num': 256,
-                                    'beforeid': buf['have_eid'] - 1,
-                                    },
-                            headers={'Cookie': 'session=%s' % self.session},
-                            compress='gzip',
+                        oob_data = await self._get(
+                            '/chat/backlog',
+                            cid=buf['cid'],
+                            bid=buf['bid'],
+                            num=256,
+                            beforeid=buf['have_eid'] - 1,
                             )
                     except Exception:
                         self.log.exception(
