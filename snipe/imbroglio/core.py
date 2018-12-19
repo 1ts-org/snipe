@@ -356,11 +356,11 @@ class Supervisor:
                         duration = 0
                     with selectors.DefaultSelector() as selector:
                         fd_tasks = {}
-                        for i, e in enumerate(self.waitq):
+                        for e in self.waitq:
                             if e.events:
                                 fd_tasks.setdefault(
                                     e.fd, {}).setdefault(
-                                        e.events, []).append((i, e))
+                                        e.events, []).append(e)
                         for k, v in fd_tasks.items():
                             eventmask = functools.reduce(
                                 lambda a, b: a | b, v.keys())
@@ -370,22 +370,13 @@ class Supervisor:
                         for key, events in selector.select(duration):
                             for mask, waiters in key.data.items():
                                 if events & mask:
-                                    for i, e in waiters:
-                                        cleanup.append(i)
+                                    for e in waiters:
+                                        if e in self.waitq:
+                                            self.waitq.remove(e)
                                         self.runq.append(
                                             Runnable(
                                                 e.task,
                                                 (False, now - e.start)))
-                        oldq = list(self.waitq)
-                        try:
-                            for i in sorted(cleanup, reverse=True):
-                                del self.waitq[i]
-                        except Exception:  # pragma: nocover
-                            self.log.exception(
-                                f'old waitq: {oldq!r}  current: {self.waitq!r}'
-                                f'  cleanup: {cleanup!r}  i: {i}')
-                            raise
-                        del oldq
 
                 if not self.runq and not self.waitq:
                     break
