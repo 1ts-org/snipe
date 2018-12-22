@@ -365,18 +365,18 @@ class Supervisor:
                             eventmask = functools.reduce(
                                 lambda a, b: a | b, v.keys())
                             selector.register(k, eventmask, v)
-                        cleanup = []
+                        cleanup = set()
                         now = time.monotonic()
                         for key, events in selector.select(duration):
                             for mask, waiters in key.data.items():
                                 if events & mask:
                                     for e in waiters:
-                                        if e in self.waitq:
-                                            self.waitq.remove(e)
+                                        cleanup.add(e)
                                         self.runq.append(
                                             Runnable(
                                                 e.task,
                                                 (False, now - e.start)))
+                        self.waitq = [e for e in self.waitq if e not in cleanup]
 
                 if not self.runq and not self.waitq:
                     break
