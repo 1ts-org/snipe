@@ -67,7 +67,11 @@ def main():
         pass
     finally:
         try:
-            curses.putp(curses.tigetstr('clear'))
+            ll = curses.tigetstr('ll')
+            if ll:
+                curses.putp(ll)
+            else:
+                curses.putp(curses.tparm(curses.tigetstr('cup'), 9999, 0))
         except curses.error:
             pass
         log.warning('snipe ends')
