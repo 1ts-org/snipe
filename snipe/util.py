@@ -359,7 +359,6 @@ class HTTP_JSONmixin:
                 raise JSONDecodeError(repr(data)) from e
         finally:
             await response.close()
-        self.log.debug('result: %s', result)
         return result
 
     async def _post(self, path, _data=None, **kw):
@@ -434,12 +433,10 @@ class JSONWebSocket:
 
     async def write(self, data):
         data = json.dumps(data)
-        self.log.debug('write: sending %s', repr(data))
         return await self.conn.write(data)
 
     async def read(self):
         data = await self.conn.readsome()
-        self.log.debug('read: got %s', data)
         try:
             return json.loads(data)
         except json.decoder.JSONDecodeError as e:
@@ -602,8 +599,7 @@ class NetworkStream:
             self.log.debug('readsome: got eof')
             self.reof = True
             return None
-        self.log.debug(
-            'readsome: %s bytes %s reof %s', len(buf), repr(buf), self.reof)
+        self.log.debug('readsome: %d bytes, reof %s', len(buf), self.reof)
         return buf
 
     async def readable(self):
@@ -615,7 +611,7 @@ class NetworkStream:
         return not timedout
 
     async def write(self, data):
-        self.log.debug('sending %s bytes %s', len(data), repr(data))
+        self.log.debug('sending %d bytes', len(data))
         while data:
             await imbroglio.writewait(self.socket.fileno())
             sent = self.socket.send(data)
@@ -732,7 +728,7 @@ class SSLStream:
                 return None
             break
 
-        self.log.debug('got %d bytes from SSL %s', len(data), repr(data))
+        self.log.debug('got %d bytes from SSL', len(data))
         return data
 
     async def readable(self):
@@ -834,7 +830,6 @@ class HTTP:
         data = self.conn.send(event)
         if not data:
             return
-        self.log.debug(f'sending {data!r}')
         await self.stream.write(data)
 
     async def next_event(self):
@@ -843,7 +838,6 @@ class HTTP:
             self.log.debug('HTTP event: %s', repr(event))
             if event is h11.NEED_DATA:
                 data = await self.stream.readsome()
-                self.log.debug('received %s', repr(data))
                 if data == b'':
                     continue
                 if data is None:
@@ -874,8 +868,6 @@ class HTTP:
                 data = bytes(event.data)
                 if self.decompressor is not None:
                     data = self.decompressor.decompress(data)
-                    self.log.debug(
-                        '%s', f'decompressed data is {data!r}')
                 return data
             elif type(event) in (h11.EndOfMessage, h11.ConnectionClosed):
                 return None
@@ -934,7 +926,6 @@ class HTTP_WS:
         self.log.debug('communicate')
         d = self.ws.bytes_to_send()
         if d:
-            self.log.debug('writing... %d bytes %s', len(d), repr(d))
             await self.stream.write(d)
             self.log.debug('sent %d bytes', len(d))
         else:
@@ -944,7 +935,7 @@ class HTTP_WS:
         d = await self.stream.readsome()
         # XXX if not d: EOF
         if d is not None:
-            self.log.debug('received %d bytes: %s', len(d), repr(d))
+            self.log.debug('received %d bytes', len(d))
         self.ws.receive_bytes(d)  # turns out wsproto signals EOF with None too
 
     async def connect(self):
@@ -994,9 +985,6 @@ class HTTP_WS:
                     self.log.debug(
                         f'{ident}TextReceived {event.message_finished}')
                     if event.message_finished:
-                        self.log.debug(
-                            f'{ident}about to release message %s',
-                            repr(self.inbuf))
                         retval = ''.join(self.inbuf)
                         self.inbuf = []
                         return retval
@@ -1008,11 +996,11 @@ class HTTP_WS:
             self.log.debug(f'{ident}bottom of readsome loop')
 
     async def write(self, buf):
-        self.log.debug('writing %d bytes %s', len(buf), repr(buf))
+        self.log.debug('writing %d bytes', len(buf))
         self.ws.send_data(buf)
         d = self.ws.bytes_to_send()
         if d:
-            self.log.debug('just writing... %d bytes %s', len(d), repr(d))
+            self.log.debug('just writing... %d bytes', len(d))
             await self.stream.write(d)
             self.log.debug('just sent %d bytes', len(d))
 

@@ -204,15 +204,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         if m is None:
             return
 
-        self.log.debug(f'process_message: {m}')
+        mtype = m.get('type')
+
+        self.log.debug(f'process_message: {mtype}')
 
         last_eid = self.last_eid
 
         eid = int(m.get('eid', 0))
         if eid > last_eid:
             self.last_eid = eid
-
-        mtype = m.get('type')
 
         if mtype == 'idle':
             pass
@@ -284,7 +284,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 f'including out of band data {url} failure:' +
                 f' f{oob_data["message"]}')
             return
-        self.log.error(f'INCLUDE\n{oob_data}')
 
         included = []
         for m in oob_data:
