@@ -303,7 +303,11 @@ class SnipeLogHandler(logging.Handler):
     def opener(file, flags):
         return os.open(file, flags, mode=0o600)
 
-    def dump(self, *args):
+    def signal_dump(self, *args):
+        logging.error('USR1', stack_info=True)
+        self.dump()
+
+    def dump(self):
         with self.the_lock(), open(
                 self.filename, 'a', opener=self.opener) as fp:
             fp.writelines(s + '\n' for s in self.buffer)

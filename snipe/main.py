@@ -48,7 +48,7 @@ def main():
     try:
         handler = context.SnipeLogHandler(logging.DEBUG)
         logging.getLogger().addHandler(handler)
-        signal.signal(signal.SIGUSR1, handler.dump)
+        signal.signal(signal.SIGUSR1, handler.signal_dump)
         log = logging.getLogger('Snipe')
         log.warning('snipe starting')
 
