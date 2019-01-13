@@ -43,7 +43,7 @@ import snipe.gap  # noqa: E402
 
 
 class TestGapBuffer(unittest.TestCase):
-    def testGapBufferSimple(self):
+    def test_GapBuffer_simple(self):
         g = snipe.gap.GapBuffer()
         g.replace(0, 0, 'flam')
         g.replace(0, 0, 'flim')
@@ -51,7 +51,7 @@ class TestGapBuffer(unittest.TestCase):
         g.replace(8, 0, 'blam')
         self.assertEqual(g.text, 'flimflamblam')
 
-    def testGapBufferExpansion(self):
+    def test_GapBuffer_expansion(self):
         g = snipe.gap.GapBuffer(chunksize=1)
         g.replace(0, 0, 'flam')
         g.replace(0, 0, 'flim')
@@ -59,7 +59,7 @@ class TestGapBuffer(unittest.TestCase):
         g.replace(8, 0, 'blam')
         self.assertEqual(g.text, 'flimflamblam')
 
-    def testGapBufferMore(self):
+    def test_GapBuffer_more(self):
         g = snipe.gap.GapBuffer()
         g.replace(0, 0, 'bar')
         self.assertEqual(g.text, 'bar')
@@ -92,27 +92,25 @@ class TestGapBuffer(unittest.TestCase):
         g.replace(3, 3, '')
         self.assertEqual(g.text, 'fooquuxbaz')
 
-    def testfuzz(
+    def test_fuzz(
             self,
             iterations=10000,
             max_len=74,
             max_op_len=10,
             show_delay=0.01,
             ):
-        """
-        For many <iterations> randomly either insert or delete up to
-        <max_op_len> chars or just move the gap around.
-
-        Make sure the entire thing is never more than max_len chars long.
-
-        Make a parallel array and confirm after each operation that
-        the gap buffer's contents are the same as the array's.
-
-        If show_delay is > 0, then the gap buffer will be shown each
-        iteration.  If it's 0 then nothign will display during
-        iteration, but the operations will be dumped after all
-        iterations.
-        """
+        # For many <iterations> randomly either insert or delete up to
+        # <max_op_len> chars or just move the gap around.
+        #
+        # Make sure the entire thing is never more than max_len chars long.
+        #
+        # Make a parallel array and confirm after each operation that
+        # the gap buffer's contents are the same as the array's.
+        #
+        # If show_delay is > 0, then the gap buffer will be shown each
+        # iteration.  If it's 0 then nothign will display during
+        # iteration, but the operations will be dumped after all
+        # iterations.
 
         contents = (
             u'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')
