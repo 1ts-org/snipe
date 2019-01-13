@@ -29,7 +29,7 @@
 # SUCH DAMAGE.
 
 '''
-Unit tests for stuff in utils.py
+Unit tests for stuff in util.py
 '''
 
 
