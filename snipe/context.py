@@ -294,10 +294,11 @@ class SnipeLogHandler(logging.Handler):
                 self.buffer = collections.deque(
                     self.buffer[-self.size:], maxlen=self.size)
             self.buffer.append(s)
-            if (self.writing
-                    and self.task is None
-                    and self.supervisor is not None):
-                self.task = self.supervisor.start(self.writer())
+            if self.writing:
+                if self.supervisor is not None and self.supervisor.running:
+                    self.task = self.supervisor.start(self.writer())
+                else:
+                    self.dump()
 
     @staticmethod
     def opener(file, flags):

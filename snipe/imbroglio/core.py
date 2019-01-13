@@ -173,6 +173,7 @@ class Supervisor:
         self.runq = []
         self.waitq = []
         self.log = logging.getLogger('imbroglio')
+        self.running = False
 
     def start(self, coro):
         """start a task from non-async code"""
@@ -323,6 +324,8 @@ class Supervisor:
         self.runq.append(Runnable(runtask, None))
 
         try:
+            self.running = True
+
             while True:
                 tick = time.monotonic()
                 runq, self.runq = self.runq, []
@@ -382,6 +385,7 @@ class Supervisor:
                 if not self.runq and not self.waitq:
                     break
         finally:
+            self.running = False
             if self.runq:  # pragma: nocover
                 print('Runnable tasks at supervisor exit:')
                 for t in self.runq:
