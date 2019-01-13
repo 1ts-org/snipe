@@ -89,6 +89,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.header = {}
         self.since_id = 0
         self.setup_client_session(read_timeout=5.0, conn_timeout=5.0)
+        self.message_set = None
 
     async def start(self):
         await super().start()
@@ -114,7 +115,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             try:
                 await self.connect_once()
             except imbroglio.TimeoutError:
-                pass
+                self.log.debug('timeout')
             except Exception:
                 self.log.exception('connect once:')
             await imbroglio.sleep(10)
@@ -178,6 +179,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 },
                 )
 
+            self.message_set = None
+
             while True:
                 waittime = self.header.get('idle_interval', 30000) / 1000
                 m = None
@@ -227,7 +230,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             # we can presumably do something useful with this later
             pass
         elif mtype in (
-                'backlog_starts', 'end_of_backlog', 'backlog_complete',
+                'backlog_starts', 'end_of_backlog',
                 'you_joined_channel', 'self_details', 'your_unique_id',
                 'cap_ls', 'cap_req', 'cap_ack', 'user_account',
                 'heartbeat_echo',
@@ -235,7 +238,15 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             # presumptively useless-to-us metadata
             pass
         elif mtype == 'oob_include':
-            await self.include(m['url'])
+            try:
+                self.message_set = set(float(m) for m in self.messages)
+                await self.include(m['url'])
+            finally:
+                self.message_set = None
+        elif mtype == 'oob_skipped':
+            self.message_set = set(float(m) for m in self.messages)
+        elif mtype == 'backlog_complete':
+            self.message_set = None
         elif mtype == 'makeserver':
             self.connections.setdefault(m['cid'], m).update(m)
         elif mtype == 'server_details_changed':
@@ -257,6 +268,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 if 'have_eid' not in buf or m['eid'] < buf['have_eid']:
                     buf['have_eid'] = m['eid']
             msg = IRCCloudMessage(self, m)
+            if self.message_set and float(msg) in self.message_set:
+                self.log.debug(f'dropping {float(msg)} {msg!r}')
+                return
             msglist.append(msg)
             if len(msglist) > 1 and msglist[-1] < msglist[-2]:
                 msglist.sort()
@@ -270,10 +284,11 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         try:
             msg = await self.process_message(self.messages, m)
         except KeyError:
+            # should make an error-message
             self.log.error('failed {m}')
-            raise
+            return
+        self.drop_cache()
         if msg is not None:
-            self.drop_cache()
             self.redisplay(msg, msg)
 
     async def include(self, url):
