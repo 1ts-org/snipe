@@ -292,7 +292,10 @@ class Viewer(window.Window, window.PagingMixIn):
             self.goal_column = None
         else:
             self.cursor = self.buf.mark(prototype.cursor)
-            self.the_mark = self.buf.mark(prototype.the_mark)
+            if prototype.the_mark is not None:
+                self.the_mark = self.buf.mark(prototype.the_mark)
+            else:
+                self.the_mark = None
             self.mark_ring = [self.buf.mark(i) for i in prototype.mark_ring]
 
             self.yank_state = prototype.yank_state

@@ -82,6 +82,10 @@ class TestREPL(unittest.TestCase):
         self.assertTrue(w.writable(0))
         w.cursor.point = 0
         self.assertFalse(w.writable(0))
+        w.cursor.point = l
+        self.assertTrue(w.writable(0))
+        w.toggle_writable()
+        self.assertFalse(w.writable(0))
 
     def test_go(self):
         w = repl.REPL(mocks.FE())
@@ -144,12 +148,17 @@ class TestREPL(unittest.TestCase):
         w.insert('''def fib(n):
             if n < 2:
                 return n
-            return fib(n - 2) + fib(n - 1)
-''')
+            return fib(n - 2) + fib(n - 1)\n''')
         w.go()
         w.insert('fib(6)')
         w.go()
         self.assertEqual(w.state['out'][3], 8)
+
+    def test_prototype_buf(self):
+        with mocks.mocked_up_actual_fe_window(repl.REPL) as w:
+            w.split_window()
+            for x in w.fe.windows:
+                self.assertIs(w.state, x.window.state)
 
 
 if __name__ == '__main__':

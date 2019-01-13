@@ -175,6 +175,12 @@ class TestGapBuffer(unittest.TestCase):
         self.assertEqual(g.undo(0), (1, 0))
         self.assertEqual(g.text, '')
 
+    def test_no_mark(self):
+        # XXX I'm sort of dubious about this, but this is the behavior
+        # and we shold know if it changes
+        g = snipe.gap.UndoableGapBuffer()
+        self.assertIsNone(g.mark(None))
+
 
 if __name__ == '__main__':
     unittest.main()

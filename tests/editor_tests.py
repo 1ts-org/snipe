@@ -703,6 +703,20 @@ class TestView(unittest.TestCase):
         e.line_next()
         self.assertEqual(e.cursor.point, 28)
 
+    def test_prototype(self):
+        with mocks.mocked_up_actual_fe_window(snipe.editor.Viewer) as w:
+            w.split_window()
+            for x in w.fe.windows:
+                self.assertIs(w.buf, x.window.buf)
+
+    def test_toggle_writable(self):
+        e = snipe.editor.Editor(None)
+        self.assertTrue(e._writable)
+        e.toggle_writable()
+        self.assertFalse(e._writable)
+        e.toggle_writable()
+        self.assertTrue(e._writable)
+
 
 if __name__ == '__main__':
     unittest.main()
