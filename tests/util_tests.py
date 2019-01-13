@@ -44,6 +44,7 @@ import ssl
 import sys
 import tempfile
 import unittest
+import zlib
 
 from typing import (Dict)
 
@@ -753,6 +754,27 @@ class TestHTTP(unittest.TestCase):
 
             self.assertEqual(b'foo\r\n', (await HTTP.readsome()))
             self.assertEqual(b'bar\r\n', (await HTTP.readsome()))
+            self.assertIs(None, (await HTTP.readsome()))
+
+    @snipe.imbroglio.test
+    async def test_decompress(self):
+        with unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            self.assertIsInstance(HTTP.stream, MockStream)
+
+            self.assertEqual(
+                b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
+                b'accept-encoding: gzip\r\n\r\n',
+                b''.join(HTTP.stream.wrote))
+
+            k = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+            HTTP.stream.pending_eof = True
+            HTTP.stream.readdata = [
+                b'HTTP/1.1 200 Ok\r\nContent-Encoding: gzip\r\n\r\n',
+                k.compress(b'foo\r\n') + k.flush(),
+                ]
+
+            self.assertEqual(b'foo\r\n', (await HTTP.readsome()))
             self.assertIs(None, (await HTTP.readsome()))
 
 
