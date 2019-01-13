@@ -711,14 +711,18 @@ class AggregatorBackend(SnipeBackend):
     async def send(self, paramstr, msg):
         params = [s.strip() for s in paramstr.split(';', 1)]
         backends = [b for b in self if b.name.startswith(params[0])]
-        if False and not params[0]:
+        if not params[0]:
             raise util.SnipeException('no backend in query string')
-        if len(backends) != 1:
+        if len(backends) == 1:
+            await backends[0].send(''.join(params[1:]), msg)
+        elif len(backends) == 0:
+            raise util.SnipeException(
+                f'{params[0]!r}: backend not found')
+        else:
             backend_str = ' '.join(str(backend) for backend in backends)
             raise util.SnipeException(
                 f'ambiguous backend {params[0]!r}:'
-                f' possibly one of f{backend_str}')
-        await backends[0].send(''.join(params[1:]), msg)
+                f' possibly one of {backend_str}')
 
     def backfill(self, filter, target=None):
         for backend in self:

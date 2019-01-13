@@ -337,6 +337,12 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(a.count(), 3)
         self.assertEqual(len(list(a.walk(None, False))), 3)
         await a.send('sink', 'a message')
+        with self.assertRaises(util.SnipeException):
+            await a.send('', 'a message')
+        with self.assertRaises(util.SnipeException):
+            await a.send('fnord', 'a message')
+        with self.assertRaises(util.SnipeException):
+            await a.send('s', 'a message')
         self.assertEqual(a.count(), 4)
         self.assertEqual(len(list(a.walk(None, False))), 4)
         self.assertEqual(len(list(a.walk(None))), 4)
