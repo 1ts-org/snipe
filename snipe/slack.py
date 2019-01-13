@@ -350,7 +350,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             self.reap_tasks()
             backfillers = [
-                (await imbroglio.spawn(self.do_backfill_dest(dest, mfilter, target)))
+                (await imbroglio.spawn(
+                    self.do_backfill_dest(dest, mfilter, target)))
                 for dest in self.dests
                 if (self.dests[dest].type in ('im', 'group') or (
                         self.dests[dest].type == 'channel'

@@ -376,7 +376,8 @@ class Supervisor:
                                             Runnable(
                                                 e.task,
                                                 (False, now - e.start)))
-                        self.waitq = [e for e in self.waitq if e not in cleanup]
+                        self.waitq = [
+                            e for e in self.waitq if e not in cleanup]
 
                 if not self.runq and not self.waitq:
                     break
