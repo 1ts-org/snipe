@@ -747,8 +747,11 @@ class TTYFrontend:
 
     async def read_loop(self, input_fd=0):
         while not self.quit:
-            await imbroglio.readwait(input_fd)
-            self.readable()
+            try:
+                await imbroglio.readwait(input_fd)
+                self.readable()
+            except Exception:
+                self.log.exception('read_loop')
 
     def readable(self):
         while True:  # make sure to consume all available input
