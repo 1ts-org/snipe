@@ -114,12 +114,12 @@ class Messager(window.Window, window.PagingMixIn):
         self.secondary = None
         self.keymap['[space]'] = self.pagedown
         self.keymap['b'] = self.pageup
-        self.keymap['?'] = help.keymap
-        self.keymap['[escape] ?'] = help.keymap
+        self.keymap['?'] = help.help_keymap
+        self.keymap['[escape] ?'] = help.help_keymap
         self.log.debug(
             'self.context.erasechar = %s', repr(self.context.erasechar))
         if self.context.erasechar != b'\x08':
-            self.keymap['Control-H'] = help.keymap
+            self.keymap['Control-H'] = help.help_keymap
         self.keymap['/'].set_cheatsheet(self.cheatsheet_filter)
         self.keymap['Meta-/'].set_cheatsheet(self.cheatsheet_filter)
         # the following will be interesting in the advent of non-singleton

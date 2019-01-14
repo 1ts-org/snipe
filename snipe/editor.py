@@ -275,9 +275,9 @@ class Viewer(window.Window, window.PagingMixIn):
         super().__init__(*args, **kw)
 
         from . import help
-        self.keymap['[escape] ?'] = help.keymap
+        self.keymap['[escape] ?'] = help.help_keymap
         if getattr(self.context, 'erasechar', b'\x08') != b'\x08':
-            self.keymap['Control-H'] = help.keymap
+            self.keymap['Control-H'] = help.help_keymap
 
         self.log = logging.getLogger('Editor.%x' % (id(self),))
 
@@ -878,7 +878,7 @@ class PopViewer(Viewer):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         from . import help
-        self.keymap['?'] = help.keymap
+        self.keymap['?'] = help.help_keymap
         self.keymap['q'] = self.delete_window
         self.keymap['Control-G'] = self.delete_window
         self.keymap['[space]'] = self.pagedown
