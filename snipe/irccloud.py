@@ -691,7 +691,7 @@ class IRCCloudMessage(messages.SnipeMessage):
                 chunk += [
                     (tags, 'created ' + time.ctime(msg.data['timestamp']))]
             elif mtype == 'user_channel_mode':
-                chunk.append((tags, msg.data['from_name'] + ' set '))
+                chunk.append((tags, msg.data['nick'] + ' set '))
                 out = []
                 for prefix, operation in [('+', 'add'), ('-', 'remove')]:
                     for action in msg.data['ops'][operation]:

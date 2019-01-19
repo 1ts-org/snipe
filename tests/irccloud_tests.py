@@ -146,13 +146,13 @@ class TestIRCCloudDecor(unittest.TestCase):
                 ]))
 
         msg.data['type'] = 'channel_topic'
-        msg.data['from_name'] = 'some luser'
+        msg.data['from_name'] = 'someone'
         msg.data['topic'] = 'something boring'
 
         self.assertEqual(
             Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
-                ((), 'some luser set topic to '),
+                ((), 'someone set topic to '),
                 (('bold',), 'something boring'),
                 (('right',), ' 00:00:00'),
                 ]))
@@ -173,10 +173,17 @@ class TestIRCCloudDecor(unittest.TestCase):
             'remove': [{'mode': 'mode', 'param': 'param'}],
             }
 
+        print(repr(Decor.headline(msg)))
+        print(repr(Chunk([
+                (('bold',), '#foo '),
+                ((), 'She set '),
+                (('bold',), '+mode param -mode param'),
+                (('right',), ' 00:00:00'),
+                ])))
         self.assertEqual(
             Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
-                ((), 'some luser set '),
+                ((), 'She set '),
                 (('bold',), '+mode param -mode param'),
                 (('right',), ' 00:00:00'),
                 ]))
