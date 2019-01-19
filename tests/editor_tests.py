@@ -669,7 +669,7 @@ class TestBuffer(unittest.TestCase):
             list(b.propter(1)))
 
 
-class TestView(unittest.TestCase):
+class TestViewer(unittest.TestCase):
     def test_constructor_misc(self):
         e = snipe.editor.Viewer(None)
         e.renderer = mocks.Renderer()
@@ -716,6 +716,25 @@ class TestView(unittest.TestCase):
         self.assertFalse(e._writable)
         e.toggle_writable()
         self.assertTrue(e._writable)
+
+    def test_beginning_end_of_line(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abc\ndef\nghi\nklm\nnop\nqrs\ntuv\nwxyz')
+        e.cursor.point = 0
+        e.end_of_line()
+        self.assertEqual(e.cursor.point, 3)
+        e.beginning_of_line()
+        self.assertEqual(e.cursor.point, 0)
+        e.end_of_line(2)
+        self.assertEqual(e.cursor.point, 7)
+        e.beginning_of_line()
+        self.assertEqual(e.cursor.point, 4)
+        e.end_of_line()
+        self.assertEqual(e.cursor.point, 7)
+        e.beginning_of_line()
+        self.assertEqual(e.cursor.point, 4)
+        e.beginning_of_line(2)
+        self.assertEqual(e.cursor.point, 8)
 
 
 if __name__ == '__main__':
