@@ -35,7 +35,6 @@ Backend for talking to `Zulip <https://zulip.org>`.
 
 
 import base64
-import pprint
 import re
 import time
 import urllib.parse
@@ -170,7 +169,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                                 event, last_event_id))
                     except Exception:
                         self.log.exception(
-                            'processing event: %s', pprint.pformat(event))
+                            'processing event: %s', repr(event))
                     if msg is not None:
                         msgs.append(msg)
 
@@ -193,7 +192,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         if type_ == 'message':
             msg = ZulipMessage(self, event['message'])
         elif type_ == 'update_message':
-            self.log.debug('update_message event: %s', pprint.pformat(event))
+            self.log.debug('update_message event: %s', repr(event))
             for mid in event.get('message_ids', [event['message_id']]):
                 if mid in self.messages_by_id:
                     m = self.messages_by_id[mid]
@@ -204,7 +203,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.debug(
                 'unknown event type %s: %s',
                 type_,
-                pprint.pformat(event),
+                repr(event),
                 )
         last_event_id = max(last_event_id, event['id'])
 
@@ -250,12 +249,12 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 'messages', num_before=1024, num_after=0, anchor=anchor,
                 apply_markdown='false')
             if result.get('result') != 'success':
-                self.log.error('backfilling: %s', pprint.pformat(result))
+                self.log.error('backfilling: %s', repr(result))
                 return
             msgs = [ZulipMessage(self, m) for m in result['messages']]
-            self.log.debug('got %d: %s', len(msgs),  pprint.pformat(msgs[-1]))
+            self.log.debug('got %d: %s', len(msgs),  repr(msgs[-1]))
             if msgs and self.messages:
-                self.log.debug('had %s', pprint.pformat(self.messages[0]))
+                self.log.debug('had %s', repr(self.messages[0]))
                 if msgs[-1].data['id'] == self.messages[0].data['id']:
                     del msgs[-1]
                 if not msgs:
@@ -277,7 +276,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         body = re.sub('(?<!\n)\n(?!\n)', ' ', body)
         result = await self._post(
             'messages', type=type_, content=body, subject=subject, to=to)
-        self.log.debug('send: %s', pprint.pformat(result))
+        self.log.debug('send: %s', repr(result))
         if result['result'] != 'success':
             raise util.SnipeException(result['msg'])
 
@@ -315,7 +314,7 @@ class ZulipMessage(messages.SnipeMessage):
             self.recipient = ', '.join(
                 sorted(x['email'] for x in data['display_recipient']))
         else:
-            backend.log.debug('weird message: %s', pprint.pformat(data))
+            backend.log.debug('weird message: %s', repr(data))
             self.noise = True
 
         backend.messages_by_id[data['id']] = self
@@ -333,7 +332,7 @@ class ZulipMessage(messages.SnipeMessage):
             data.pop('_rendered', None)
             data.pop('_html', None)
         self.data = data
-        self.backend.log.debug('updated: %s', pprint.pformat(self.data))
+        self.backend.log.debug('updated: %s', repr(self.data))
         self.backend.redisplay(self, self)
 
     def reply(self):
