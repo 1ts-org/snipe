@@ -547,11 +547,12 @@ class Viewer(window.Window, window.PagingMixIn):
                 self.line_move(count - 1)
             if self.cursor.point == 0:
                 return
+            done = False
             with self.save_excursion():
                 self.move(-1)
                 if self.character_at_point() == self.EOL:
-                    return
-            if self.find_character(self.EOL, -1):
+                    done = True
+            if not done and self.find_character(self.EOL, -1):
                 self.move(1)
         oldpoint = self.cursor.point
         self.cursor.point = self.movable(where.point, interactive)
