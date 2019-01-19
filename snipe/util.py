@@ -619,7 +619,10 @@ class NetworkStream:
 
     async def close(self):
         self.log.debug('NetworkStream closing')
-        self.socket.shutdown(socket.SHUT_RDWR)
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self.socket.close()
 
 
