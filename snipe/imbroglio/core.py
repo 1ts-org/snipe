@@ -57,6 +57,7 @@ import time
 
 
 TIME_THRESHOLD = .1  # 100 ms, completely arbitrary
+TIME_QUANTUM = .02   # 20 ms also somewhat arbitrary
 
 
 class ImbroglioException(Exception):
@@ -86,7 +87,7 @@ class Task:
         self.exception = None
         self._result = None
 
-        self.creation = _framemeta(coro.cr_frame)
+        self.creation = self._frame(coro.cr_frame)
 
     def throw(self, exception):
         if self.is_done():
@@ -132,22 +133,50 @@ class Task:
     def __await__(self):
         yield from taskwait(self)  # noqa: F821
 
+    @staticmethod
+    def _frame(frame):
+        if frame is None:
+            return ''
+        f = inspect.getframeinfo(frame)
+        try:
+            return f'{os.path.basename(f.filename)}:{f.lineno}'
+        finally:
+            del f
+            del frame
+
+    @classmethod
+    def _coro_info(klass, coro):
+        if not inspect.iscoroutine(coro):
+            return f'{coro!r}'
+
+        result = []
+        result.append(coro.__name__)
+        c = coro
+        while True:
+            if inspect.getcoroutinestate(c) == 'CORO_SUSPENDED':
+                if inspect.isgenerator(c.cr_await):
+                    result.append(
+                        f'{c.cr_await.__name__}@{klass._frame(c.cr_frame)}')
+                else:
+                    c = c.cr_await
+                    continue
+            break
+        return ' '.join(x for x in result if x)
+
     def __repr__(self):
         cstate = ''
         if inspect.iscoroutine(self.coro):
             crst = inspect.getcoroutinestate(self.coro)
-            cstate = f' {crst} {_framemeta(self.coro.cr_frame)}'
-            if crst == 'CORO_SUSPENDED':
-                cstate += f' {self.coro.cr_await!r}'
+            cstate = f' {crst} {self._coro_info(self.coro)}'
         tstate = self.state
         if self.is_done():
             result = self.result(False)
             if result is not None:
-                tstate += f' {result!r}'
+                tstate += f'={result!r}'
         return (
             f'<{self.__class__.__name__}'
             f' {tstate}'
-            f' #{self.task_id}:{self.creation}{cstate}'
+            f' #{self.task_id}@{self.creation}{cstate}'
             '>'
             )
 
@@ -155,17 +184,6 @@ class Task:
 Runnable = collections.namedtuple('Runnable', 'task retval')
 Waiting = collections.namedtuple(
     'Waiting', 'target start events fd task other')
-
-
-def _framemeta(frame):
-    if frame is None:
-        return ''
-    f = inspect.getframeinfo(frame)
-    try:
-        return f'{os.path.basename(f.filename)}:{f.lineno}'
-    finally:
-        del f
-        del frame
 
 
 class Supervisor:
@@ -269,6 +287,11 @@ class Supervisor:
             [t.task for t in self.waitq],
             ))
 
+    def _call_switch(self, task):
+        """yield if our quantum has run out"""
+        # partially handled in _step
+        self._return(task, None)
+
     def _return(self, task, val=None):
         self.runq.append(Runnable(task, val))
 
@@ -285,17 +308,28 @@ class Supervisor:
 
         def _step(task, retval):
             t0 = time.time()
+            t1 = t0
             try:
-                if task.pending_exception is None:
-                    val = task.coro.send(retval)
-                else:
-                    exc, task.pending_exception = task.pending_exception, None
-                    val = task.coro.throw(type(exc), exc)
-                if not isinstance(val, tuple):
-                    msg = f'{task!r} upcalled with {val!r}'
-                    self.log.error(msg)
-                    exc = ImbroglioException(msg)
-                    val = task.coro.throw(type(exc), exc)
+                while True:
+                    if task.pending_exception is None:
+                        val = task.coro.send(retval)
+                    else:
+                        (exc, task.pending_exception) = (
+                            task.pending_exception, None)
+                        val = task.coro.throw(type(exc), exc)
+                    if not isinstance(val, tuple):
+                        msg = f'{task!r} upcalled with {val!r}'
+                        self.log.error(msg)
+                        exc = ImbroglioException(msg)
+                        val = task.coro.throw(type(exc), exc)
+                    if val != ('switch',):
+                        break
+                    t2 = time.time()
+                    t0 = t1
+                    if (t2 - t1) > TIME_QUANTUM:
+                        self.log.debug(
+                            f'switch: {t2 - t1:5.6}s in {task!r}')
+                        break
             except StopIteration as e:
                 task.set_result(e.value)
                 return
@@ -312,7 +346,6 @@ class Supervisor:
                 return
             finally:
                 duration = time.time() - t0
-                self.log.debug('%s', f'{task!r} ran {duration}s')
                 if duration > TIME_THRESHOLD:
                     self.log.warning(
                         '%s',
