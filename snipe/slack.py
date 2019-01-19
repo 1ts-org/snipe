@@ -222,7 +222,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     async def process_message(self, messagelist, m):
         if 'reply_to' in m:
-            self.log.debug('reply_to_message: %s', pprint.pformat(m))
+            self.log.debug('reply_to_message: %s', repr(m))
 
             msgid = m['reply_to']
             if msgid not in self.unacked:
@@ -399,7 +399,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 if d.oldest is None or d.oldest > msg.time:
                     d.oldest = msg.time
             except Exception:
-                self.log.exception('processing message: %s', pprint.pformat(m))
+                self.log.exception('processing message: %s', repr(m))
                 raise
         self.log.debug('%s: got %d messages', dest, len(messagelist))
         self.messages = list(messages.merge([self.messages, messagelist]))
@@ -421,9 +421,9 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     recipient = d.data['id']
                     break
             elif 'user' in d.data:
-                self.log.debug('1: %s', pprint.pformat(d))
+                self.log.debug('1: %s', repr(d))
                 self.log.debug(
-                    '2: %s', pprint.pformat(self.users[d.data['user']]))
+                    '2: %s', repr(self.users[d.data['user']]))
                 if self.users[d.data['user']]['name'] == recipient:
                     recipient = d.data['id']
                     break
@@ -525,13 +525,12 @@ class SlackMessage(messages.SnipeMessage):
     SLACKMARKUP = re.compile(r'<(.*?)>')
 
     def __init__(self, backend, m):
-        import pprint
-        backend.log.debug('message: %s', pprint.pformat(m))
+        backend.log.debug('message: %s', repr(m))
         t = m['type']
 
         super().__init__(
             backend,
-            t + ' ' + pprint.pformat(m),
+            t + ' ' + repr(m),
             float(m.get('ts', time.time())))
 
         self.data = m
