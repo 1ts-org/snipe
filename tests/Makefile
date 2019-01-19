@@ -1,5 +1,8 @@
 all:
-	nosetests3
+	make -C .. all
+
+coverage:
+	make -C .. coverage
 
 clean distclean:
 	$(RM) -r parser.out
