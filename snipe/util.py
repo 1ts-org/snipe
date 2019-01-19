@@ -619,8 +619,10 @@ class NetworkStream:
 
     async def close(self):
         self.log.debug('NetworkStream closing')
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.socket.close()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        finally:
+            self.socket.close()
 
 
 class SSLStream:
