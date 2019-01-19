@@ -256,6 +256,7 @@ class Roost(messages.SnipeBackend):
     async def new_message(self, m):
         msg = await self.construct_and_maybe_decrypt(m)
         self.add_message(msg)
+        await imbroglio.switch()
 
     def add_message(self, msg):
         if self.messages and msg.time <= self.messages[-1].time:
@@ -375,7 +376,7 @@ class Roost(messages.SnipeBackend):
             ms.reverse()
             self.messages = ms + self.messages
             self.drop_cache()
-            self.log.warning(
+            self.log.debug(
                 '%d messages, total %d, earliest %s',
                 count,
                 len(self.messages),

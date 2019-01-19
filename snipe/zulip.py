@@ -134,6 +134,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 if self.params is None:
                     self.log.debug('registering')
                     params = await self._post('register')
+                    await imbroglio.switch()
 
                     # TODO check for an error, backoff, etc.
                     self.params = params
@@ -158,6 +159,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                 result = await self._get(
                     'events', queue_id=queue_id, last_event_id=last_event_id)
 
+                await imbroglio.switch()
                 # TODO check for error and maybe invalidate params?
 
                 msgs = []
@@ -172,14 +174,17 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                             'processing event: %s', repr(event))
                     if msg is not None:
                         msgs.append(msg)
+                    await imbroglio.switch()
 
                 if msgs:
                     self.messages.extend(msgs)
                     self.drop_cache()
+                    await imbroglio.switch()
                     # make sure that the message list remains
                     # monotonically increasing by comparing the new
                     # messages (and the last old message) pairwise.
                     self.readjust(self.messages[-len(msgs) - 1:])
+                    await imbroglio.switch()
                     self.redisplay(msgs[0], msgs[-1])
         finally:
             self.connected.clear()
@@ -248,6 +253,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
             result = await self._get(
                 'messages', num_before=1024, num_after=0, anchor=anchor,
                 apply_markdown='false')
+            await imbroglio.switch()
             if result.get('result') != 'success':
                 self.log.error('backfilling: %s', repr(result))
                 return

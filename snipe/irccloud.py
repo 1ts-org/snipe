@@ -114,6 +114,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.debug('top of connect loop')
             try:
                 await self.connect_once()
+                await imbroglio.switch()
             except imbroglio.TimeoutError:
                 self.log.debug('timeout')
             except Exception:
@@ -244,7 +245,9 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             finally:
                 self.message_set = None
         elif mtype == 'oob_skipped':
+            await imbroglio.switch()
             self.message_set = set(float(m) for m in self.messages)
+            await imbroglio.switch()
         elif mtype == 'backlog_complete':
             self.message_set = None
         elif mtype == 'makeserver':
@@ -301,8 +304,11 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             return
 
         included = []
+
+        await imbroglio.switch()
         for m in oob_data:
             await self.process_message(included, m)
+            await imbroglio.switch()
         included.sort()
 
         if included:
@@ -413,7 +419,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 count = 1
                 while True:
                     try:
-                        self.log.error(
+                        self.log.debug(
                             'backfilling %s retrieving backlog, try=%d',
                             buf['name'], count)
                         oob_data = await self._get(
@@ -442,11 +448,13 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 oldest = buf['have_eid']
                 self.log.debug('t = %f', oldest / 1000000)
 
+                await imbroglio.switch()
                 for m in oob_data:
                     if m['bid'] == -1:
                         self.log.error('? %s', repr(m))
                         continue
                     await self.process_message(included, m)
+                    await imbroglio.switch()
 
                 if len(included) == 0:
                     self.log.debug(

@@ -395,6 +395,49 @@ class TestImbroglioCore(unittest.TestCase):
         with self.assertRaises(imbroglio.ImbroglioException):
             imbroglio.run(caller())
 
+    @imbroglio.test
+    async def test_switch(self):
+        ticker = 0
+
+        async def clock():
+            nonlocal ticker
+            ticker += 1
+            await imbroglio.sleep()
+
+        async def try_switch():
+            nonlocal ticker
+
+            old_ticker = ticker
+            await imbroglio.switch()
+            self.assertEqual(ticker, old_ticker)
+
+            time.sleep(.3)
+            await imbroglio.switch()
+            self.assertNotEqual(ticker, old_ticker)
+
+        await imbroglio.spawn(clock())
+        await imbroglio.spawn(try_switch())
+
+    def test_meta_misc(self):
+        self.assertEqual(imbroglio.Task._frame(None), '')
+        self.assertEqual(imbroglio.Task._coro_info(None), 'None')
+
+    @imbroglio.test
+    async def test_task_repr(self):
+        async def thingy():
+            await imbroglio.sleep(.1)
+
+        async def other():
+            await thingy()
+
+        task = await imbroglio.spawn(other())
+
+        print(repr(task))
+        self.assertRegex(
+            repr(task),
+            r'<Task GO #\d+@imbroglio_tests.py:\d+ CORO_SUSPENDED other'
+            r' sleep@imbroglio_tests.py:\d+>')
+
 
 class TestImbroglioTools(unittest.TestCase):
     def test_timeout(self):
