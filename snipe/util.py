@@ -621,9 +621,8 @@ class NetworkStream:
         self.log.debug('NetworkStream closing')
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
-        self.socket.close()
+        finally:
+            self.socket.close()
 
 
 class SSLStream:
