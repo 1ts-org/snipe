@@ -339,8 +339,10 @@ class HTTP_JSONmixin:
     async def reset_client_session_headers(self, headers=None):
         self.setup_client_session(headers)
 
-    async def _result(self, response):
+    async def _request(self, *args, **kwargs):
+        response = None
         try:
+            response = await HTTP.request(*args, **kwargs)
             datas = []
             while True:
                 b = await response.readsome()
@@ -358,45 +360,42 @@ class HTTP_JSONmixin:
                     e.__class__.__name__, response.url, repr(data))
                 raise JSONDecodeError(repr(data)) from e
         finally:
-            await response.close()
+            if response is not None:
+                await response.close()
         return result
 
     async def _post(self, path, _data=None, **kw):
         self.log.debug(
             '_post(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
-        response = await HTTP.request(
+        return await self._request(
             urllib.parse.urljoin(self.url, path),
             method='POST',
             data=kw if _data is None else _data,
             headers=self._JSONmixin_headers,
             )
-        return (await self._result(response))
 
     async def _post_json(self, path, **kw):
         self.log.debug(
             '_post_json(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
-        response = await HTTP.request(
+        return await self._request(
             urllib.parse.urljoin(self.url, path),
             'POST',
             json=kw,
             headers=self._JSONmixin_headers,
             )
-        return (await self._result(response))
 
     async def _patch(self, path, **kw):
         self.log.debug(
             '_patch(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
-        response = await HTTP.request(
+        return await self._request(
             urllib.parse.urljoin(self.url, path),
             'PATCH',
             data=kw,
             headers=self._JSONmixin_headers,
             )
-
-        return (await self._result(response))
 
     async def _get(self, path, **kw):
         self.log.debug(
@@ -404,13 +403,11 @@ class HTTP_JSONmixin:
             f' url={self.url!r}, headers={self._JSONmixin_headers!r}')
 
         us = urllib.parse.urlsplit(urllib.parse.urljoin(self.url, path))
-        response = await HTTP.request(
+        return await self._request(
             urllib.parse.urlunsplit(
                 us[:3] + (urllib.parse.urlencode(kw), '')),
             headers=self._JSONmixin_headers,
             )
-
-        return (await self._result(response))
 
     async def shutdown(self):
         await super().shutdown()
