@@ -233,6 +233,26 @@ class TestImbroglioCore(unittest.TestCase):
         self.assertTrue(one)
         self.assertTrue(two)
 
+    @imbroglio.test
+    async def test_cancellation_finally(self):
+        finality = False
+
+        async def thing():
+            nonlocal finality
+
+            try:
+                await imbroglio.sleep(30)
+            finally:
+                finality = True
+
+        task = await imbroglio.spawn(thing())
+
+        task.cancel()
+
+        await task
+
+        self.assertTrue(finality)
+
     def test_task_misc(self):
         with self.assertRaises(TypeError):
             imbroglio.Task(lambda: None, None)
