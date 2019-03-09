@@ -1073,7 +1073,7 @@ class Editor(Viewer):
         self.delete_forward(-count)
 
     @keymap.bind('Control-k')
-    def kill_to_end_of_line(self, count: interactive.integer_argument):
+    def kill_to_end_of_line(self, count: interactive.integer_argument=None):
         """Kill (delete and copy to the kill ring) the text until the
         end of the line.  If the point is at the end of the line
         already, kill the line boundary.  Given a count of zero, kill to
@@ -1115,13 +1115,17 @@ class Editor(Viewer):
             return
         self.log.debug('kill region %d-%d', self.cursor.point, mark.point)
 
+        self.log.debug(
+            '%s',
+            f'mark {mark} cursor {self.cursor} < {mark < self.cursor}'
+            f' append {append}')
         if not append:
             self.context.copy(self.region(mark))
         else:
             self.context.copy(self.region(mark), mark < self.cursor)
 
         count = abs(mark.point - self.cursor.point)
-        self.cursor = min(self.cursor, mark)
+        self.cursor.point = min(self.cursor, mark)
         self.delete(count)
 
         self.yank_state = 1

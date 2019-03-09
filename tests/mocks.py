@@ -170,6 +170,7 @@ class Context:
         self.status = None
         self.keys = []
         self.clear()
+        self.kill_log = []
 
     def clear(self):
         self._message = ''
@@ -177,8 +178,8 @@ class Context:
     def message(self, s):
         self._message = s
 
-    def copy(*args, **kw):
-        pass
+    def copy(self, data, append=None):
+        self.kill_log.append((data, append))
 
     def write_starks(self):
         pass

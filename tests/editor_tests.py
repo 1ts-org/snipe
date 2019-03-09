@@ -45,8 +45,9 @@ import mocks
 sys.path.append('..')
 sys.path.append('../lib')
 
-import snipe.editor  # noqa: E402
-import snipe.chunks  # noqa: E402
+import snipe.imbroglio  # noqa: E402
+import snipe.chunks     # noqa: E402
+import snipe.editor     # noqa: E402
 
 
 class TestEditor(unittest.TestCase):
@@ -452,6 +453,43 @@ class TestEditor(unittest.TestCase):
         self.assertFalse(e.writable(4, 3))
         self.assertTrue(e.writable(0, 6))
 
+    @snipe.imbroglio.test
+    async def test_self_insert_auto_fill_undo(self):
+        e = snipe.editor.Editor(None)
+        await e.set_fill_column(5)
+        e.last_command = 'self_insert'
+        for c in 'abc def ghi jik ':
+            e.self_insert(c)
+        self.assertEqual('abc\ndef\nghi\njik ', str(e.buf))
+        e.undo(3)
+        self.assertEqual('abc\ndef\nghi ', str(e.buf))
+
+    def test_kill_to_end_of_line(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.insert('abcdef')
+        e.move_backward(3)
+        e.kill_to_end_of_line()
+        self.assertEqual('abc', str(e.buf))
+        e.kill_to_end_of_line()
+        self.assertEqual('abc', str(e.buf))
+        e.kill_to_end_of_line(0)
+        self.assertEqual('', str(e.buf))
+
+    def test_kill_region(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.insert('abcdef')
+        e.cursor.point = 0
+        e.set_mark()
+        e.move_forward(3)
+        e.kill_region()
+        self.assertEqual('def', str(e.buf))
+        e.move_forward(3)
+        e.kill_region(append=True)
+        self.assertEqual('', str(e.buf))
+        self.assertEqual(e.context.kill_log, [('abc', None), ('def', True)])
+
 
 class TestBuffer(unittest.TestCase):
     def testRegister(self):
@@ -735,6 +773,101 @@ class TestViewer(unittest.TestCase):
         self.assertEqual(e.cursor.point, 4)
         e.beginning_of_line(2)
         self.assertEqual(e.cursor.point, 8)
+
+    def test_beginning_end_of_buffer(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abc')
+        e.cursor.point = 0
+        self.assertEqual(3, e.end_of_buffer())
+        self.assertEqual(e.cursor.point, 3)
+        self.assertEqual(-3, e.beginning_of_buffer())
+        self.assertEqual(e.cursor.point, 0)
+
+    def test_input_char(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.input_char('x')
+        self.assertEqual(str(e.buf), 'x')
+
+    def test_word_forward_backward(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abc def ghi\nhij klm nop\n')
+        e.cursor.point = 0
+        e.word_forward()
+        self.assertEqual(e.cursor.point, 3)
+        e.word_forward(-1)
+        self.assertEqual(e.cursor.point, 0)
+        e.word_forward(4)
+        self.assertEqual(e.cursor.point, 15)
+        e.word_backward(3)
+        self.assertEqual(e.cursor.point, 4)
+        e.word_backward(-1)
+        self.assertEqual(e.cursor.point, 7)
+        e.word_forward(9000)
+        self.assertEqual(e.cursor.point, len(e.buf))
+        e.word_backward(9000)
+        self.assertEqual(e.cursor.point, 0)
+
+    def test_region_yank(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        TEXT = 'abc def ghi'
+        e.insert(TEXT)
+        e.cursor.point = 0
+
+        self.assertIsNone(e.the_mark)
+        e.copy_region()
+        self.assertIn('notify', e.fe.called)
+
+        e.end_of_buffer()
+        self.assertEqual(e.region(), TEXT)
+        e.copy_region()
+        self.assertEqual(e.context.kill_log[-1], (TEXT, None))
+
+    def test_mark_region(self):
+        e = snipe.editor.Editor(None)
+        e.insert('abc def ghi')
+        e.cursor.point = 4
+        e.set_mark()
+        e.cursor.point = 7
+        self.assertEqual(e.region(), 'def')
+        e.set_mark(prefix=['x'])
+        self.assertEqual(e.cursor.point, 4)
+        self.assertEqual(e.region(), 'def')
+        e.set_mark(prefix=['x'])
+        self.assertEqual(e.cursor.point, 7)
+
+    def test_evaller_1(self):
+        e = snipe.editor.Editor(None)
+        e.set_mark()
+        e.insert('2 + 2')
+        self.assertEqual('2 + 2', str(e.buf))
+        e.eval_region(arg=['x'])
+        self.assertEqual('2 + 2\n4\n', str(e.buf))
+        e.set_mark()
+        e.insert('#foo')
+        e.eval_region(arg=['x'])
+        self.assertEqual('2 + 2\n4\n#foo', str(e.buf))
+
+    def test_evaller_2(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.set_mark()
+        e.insert('if True:\n')
+        self.assertEqual('if True:\n', str(e.buf))
+        e.eval_region(arg=['x'])
+        self.assertIn('notify', e.fe.called)
+        self.assertEqual('if True:\n', str(e.buf))
+
+
+class TestPopViewer(unittest.TestCase):
+    def test(self):
+        fe = mocks.FE()
+        v = snipe.editor.PopViewer(fe, content='', name='test')
+        v.renderer = mocks.Renderer()
+        v.renderer._range = [0, 0]
+        self.assertEqual(
+            (([(set(), '- test')]), ([({'right'}, '1')])), v.modeline())
 
 
 if __name__ == '__main__':
