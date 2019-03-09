@@ -130,6 +130,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
     async def connect(self):
         try:
             self.params = None
+            last_event_id = None
             while True:
                 if self.params is None:
                     self.log.debug('registering')
@@ -140,7 +141,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.params = params
 
                     queue_id = params['queue_id']
-                    last_event_id = params['last_event_id']
+                    if last_event_id is None:
+                        last_event_id = params['last_event_id']
 
                     self._senders |= set(
                         '; '.join((self.name, x['email']))
@@ -156,11 +158,15 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     'getting events, queue_id=%s, last_event_id=%s',
                     queue_id, last_event_id)
 
-                result = await self._get(
-                    'events', queue_id=queue_id, last_event_id=last_event_id)
+                try:
+                    result = await self._get(
+                        'events', queue_id=queue_id, last_event_id=last_event_id)
+                except Exception:
+                    self.log.exception('getting new messages')
+                    self.params = None
+                    continue
 
                 await imbroglio.switch()
-                # TODO check for error and maybe invalidate params?
 
                 msgs = []
 
