@@ -44,6 +44,7 @@ import ssl
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zlib
 
 from typing import (Dict)
@@ -52,6 +53,9 @@ import mocks
 
 sys.path.append('..')
 sys.path.append('../lib')
+
+import wsproto                       # noqa: E402
+from wsproto import events           # noqa: E402
 
 import snipe.util                    # noqa: E402
 import snipe.imbroglio as imbroglio  # noqa: E402
@@ -412,7 +416,7 @@ class MockHTTP_WS:
     async def write(self, data):
         self._wrote = data
 
-    async def readsome(self):
+    async def read(self):
         return self._toread
 
 
@@ -778,104 +782,55 @@ class TestHTTP(unittest.TestCase):
             self.assertIs(None, (await HTTP.readsome()))
 
 
-class TestHTTP_WS(unittest.TestCase):
-    @snipe.imbroglio.test
-    async def test0(self):
-        import wsproto
-        eventses = []
+class WebSocketServerStream:
+    def __init__(self):
+        self.ws = wsproto.WSConnection(wsproto.ConnectionType.SERVER)
+        self.out = []
+        self.closed = False
+        self.srream = None
 
-        class MockWS:
-            def __init__(self, *args, **kw):
-                nonlocal eventses
-                self.args = args
-                self.kw = kw
-                self.eventses = list(eventses)
-                self.to_send = b''
-                self.closed = False
+    def __repr__(self):
+        return f'{self.__class__.__name__}()'
 
-            def bytes_to_send(self):
-                ret = self.to_send
-                if ret:
-                    self.to_send = b''
-                return ret
+    async def maybewrite(self):
+        await imbroglio.sleep()
 
-            def send_data(self, buf):
-                self.to_send = buf.encode()
+    async def readsome(self):
+        out, self.out = self.out, []
+        print(f'out: {out}')
+        return b''.join(out)
 
-            def receive_bytes(self, data):
-                pass
+    def _send(self, event):
+        data = self.ws.send(event)
+        print(f'_send: {data}')
+        self.out.append(data)
 
-            def events(self):
-                if not self.eventses:
-                    return iter([])
-                events = self.eventses.pop(0)
-                return iter(events)
-
-            def close(self):
+    async def write(self, data):
+        print(f'write: {data}')
+        self.ws.receive_data(data)
+        for event in self.ws.events():
+            if isinstance(event, events.Request):
+                self._send(events.AcceptConnection())
+            elif isinstance(event, events.CloseConnection):
                 self.closed = True
+            elif isinstance(event, events.BytesMessage):
+                self._send(events.Message(data=event.data))
+            elif isinstance(event, events.TextMessage):
+                self._send(events.Message(data=event.data))
+            elif isinstance(event, events.Ping):
+                self._send(event.response())
 
-        with unittest.mock.patch(
-                'snipe.util.wsproto.connection.WSConnection', MockWS):
-            with self.assertRaises(snipe.util.SnipeException):
-                HTTP_WS = await snipe.util.HTTP_WS.request(
-                    'http://foo/', stream=MockStream())
+    def ping(self):
+        self._send(events.Ping())
 
-            eventses = [['foo']]
-            with self.assertRaises(snipe.util.SnipeException):
-                HTTP_WS = await snipe.util.HTTP_WS.request(
-                    'http://foo/', stream=MockStream())
+    def doclose(self):
+        self._send(events.CloseConnection(code=0))
 
-            eventses = [
-                [wsproto.events.ConnectionEstablished()],
-                ]
-            log = logging.getLogger('test')
-            HTTP_WS = await snipe.util.HTTP_WS.request(
-                'http://foo/', stream=MockStream(), log=log)
-            self.assertIs(HTTP_WS.log, log)
-            self.assertEqual(HTTP_WS.stream.wrote, [])
+    async def close(self):
+        pass
 
-            eventses = [
-                [wsproto.events.ConnectionEstablished()],
-                [],
-                [
-                    wsproto.events.TextReceived('foo', False, False),
-                    wsproto.events.TextReceived('bar', True, True),
-                ],
-                [
-                    wsproto.events.TextReceived('foo', False, False),
-                    wsproto.events.ConnectionClosed(0)],
-                ]
-            stream = MockStream()
 
-            HTTP_WS = snipe.util.HTTP_WS(
-                'http://foo/', stream=stream, log=log)
-
-            HTTP_WS.ws.send_data('foo')
-            self.assertEqual('foobar', (await HTTP_WS.readsome()))
-            self.assertEqual([b'foo'], stream.wrote)
-
-            await HTTP_WS.write('bar')
-            self.assertEqual([b'foo', b'bar'], stream.wrote)
-
-            self.assertEqual(None, (await HTTP_WS.readsome()))
-
-            await HTTP_WS.close()
-            self.assertTrue(stream.closed)
-            self.assertTrue(HTTP_WS.ws.closed)
-
-        with unittest.mock.patch('snipe.util.NetworkStream', MockStream), \
-                unittest.mock.patch(
-                    'ssl.create_default_context', MockContext), \
-                unittest.mock.patch(
-                    'snipe.util.wsproto.connection.WSConnection', MockWS):
-            HTTP_WS = await snipe.util.HTTP_WS.request('https://foo/')
-            self.assertTrue(HTTP_WS.connected)
-            self.assertEqual(HTTP_WS.stream.netstream.host, 'foo')
-            self.assertEqual(HTTP_WS.stream.netstream.port, 443)
-            self.assertEqual(
-                '<HTTP_WS https://foo/ <SSLStream <MockStream>>>',
-                repr(HTTP_WS))
-
+class TestHTTP_WS(unittest.TestCase):
     @imbroglio.test
     async def test_wsproto_headers(self):
         stream = MockStream()
@@ -883,12 +838,60 @@ class TestHTTP_WS(unittest.TestCase):
             b'HTTP/1.1 200 Ok\r\n\r\n',
             ]
         HTTP_WS = snipe.util.HTTP_WS(
-            'ws://foo/', {b'Foo': b'bar'}, stream=stream)
+            'ws://foo/', stream=stream)
         with self.assertRaises(snipe.util.SnipeException):
-            await HTTP_WS.connect()
+            await HTTP_WS.connect([(b'Foo', b'bar')])
         data = (b''.join(stream.wrote)[16:])
         msg = email.parser.BytesParser().parsebytes(data)
         self.assertEqual('bar', msg['Foo'])
+
+    @snipe.imbroglio.test
+    async def test(self):
+        stream = WebSocketServerStream()
+        ws = await snipe.util.HTTP_WS.request(
+            'http://foo/bar', stream=stream)
+        self.assertEqual(
+            repr(ws),
+            r'<HTTP_WS http://foo/bar WebSocketServerStream()>')
+        await ws.write('A' * 512)
+        self.assertEqual('A' * 512, (await ws.read()))
+        stream.ping()
+        await ws.write(b'B' * 512)
+        self.assertEqual(b'B' * 512, (await ws.read()))
+        await ws.close()
+        self.assertTrue(stream.closed)
+        self.assertIsNone(await ws.read())
+        self.assertIsNone(await ws.write(''))
+
+    @snipe.imbroglio.test
+    async def test_remoteclose(self):
+        stream = WebSocketServerStream()
+        ws = await snipe.util.HTTP_WS.request(
+            'http://foo/bar', stream=stream)
+        await ws.write('A' * 512)
+        self.assertEqual('A' * 512, (await ws.read()))
+        stream.doclose()
+        self.assertIsNone(await ws.read())
+        self.assertTrue(ws.closed)
+
+    @snipe.imbroglio.test
+    async def test_connect(self):
+        ns_connect_called = False
+
+        async def connect(*args, **kwargs):
+            nonlocal ns_connect_called
+            ns_connect_called = True
+
+        async def _send(*args, **kwargs):
+            raise Exception
+
+        with mock.patch('snipe.util.NetworkStream.connect', connect), \
+                mock.patch('snipe.util.SSLStream') as ssl, \
+                mock.patch('snipe.util.HTTP_WS._send', _send):
+            with self.assertRaises(Exception):
+                await snipe.util.HTTP_WS.request('wss://foo')
+            self.assertTrue(ns_connect_called)
+            self.assertTrue(ssl.called)
 
 
 if __name__ == '__main__':
