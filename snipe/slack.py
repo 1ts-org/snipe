@@ -99,6 +99,10 @@ Slack configuration
 """  # noqa: E501
 
 
+class SlackReconnectException(Exception):
+    pass
+
+
 class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'slack'
     loglevel = util.Level(
@@ -130,6 +134,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.nextid = itertools.count().__next__
         self.unacked = {}
         self.used_emoji = []
+        self.websocket = None
         self.setup_client_session()
 
     async def start(self):
@@ -153,41 +158,76 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
             await self.emoji_update()
 
-            self.data = await self.method('rtm.start')
-            if not self.check_ok(self.data, 'connecting to %s', slackname):
-                return
+            method = 'rtm.start'
+            backoff = 0
 
-            url = self.data['url']
+            while True:
+                data = await self.method(method)
+                if not self.check_ok(data, f'{method} to {slackname}'):
+                    backoff = await self.backoff(backoff)
+                    continue
 
-            self.users = {u['id']: u for u in self.data['users']}
-            self.users.update({b['id']: b for b in self.data['bots']})
+                url = data['url']
 
-            self.dests = dict(sum((
-                [(x['id'], SlackDest(self, t, x)) for x in self.data[t + 's']]
-                for t in ['user', 'bot', 'im', 'group', 'channel']
-                ), []))
+                if method == 'rtm.start':
+                    self.data = data
+                    self.users = {u['id']: u for u in data['users']}
+                    self.users.update({b['id']: b for b in data['bots']})
 
-            self.log.debug('websocket url is %s', url)
+                    self.dests = dict(sum((
+                        [(x['id'],
+                          SlackDest(self, t, x)) for x in data[t + 's']]
+                        for t in ['user', 'bot', 'im', 'group', 'channel']
+                        ), []))
 
-            self.websocket = util.JSONWebSocket(self.log)
-            try:
-                await self.websocket.connect(url)
+                self.log.debug('websocket url is %s', url)
 
-                self.connected = True
+                self.websocket = util.JSONWebSocket(self.log)
+                try:
+                    await self.websocket.connect(url)
+                    backoff = 0
 
-                while True:
-                    m = await self.websocket.read()
-                    self.log.debug('message: %s', repr(m))
-                    try:
-                        await self.incoming(m)
-                    except Exception:
-                        self.log.exception(
-                            'Processing incoming message: %s', repr(m))
-            finally:
-                await self.websocket.close()
-                self.websocket = None
+                    self.connected = True
+
+                    if self.messages:  # XXX possibly racey
+                        after = self.messages[-1].time
+                        self.tasks += [
+                            await imbroglio.spawn(
+                                self.do_backfill_dest(
+                                    name, lambda m: True, None, after))
+                            for (name, dest) in self.dests.items()
+                            if dest.loadable]
+
+                    while True:
+                        m = await self.websocket.read()
+                        self.log.debug('message: %s', repr(m))
+                        try:
+                            await self.incoming(m)
+                        except SlackReconnectException:
+                            break
+                        except Exception:
+                            self.log.exception(
+                                'Processing incoming message: %s', repr(m))
+                finally:
+                    self.log.debug('cleaning up connection')
+                    self.reap_tasks()
+                    if self.websocket is not None:
+                        await self.websocket.close()
+                    self.websocket = None
+
+                method = 'rtm.connect'
+                backoff = await self.backoff(backoff)
+
         except Exception:
             self.log.exception('connecting to slack')
+
+    @staticmethod
+    async def backoff(time):
+        if time:
+            await imbroglio.sleep(time)
+            return time * 2
+        else:
+            return .5
 
     def destinations(self):
         return set(
@@ -240,6 +280,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 return
         if t in self.IGNORED_TYPES:
             return
+        elif t == 'team_migration_started':
+            if messagelist is self.messages:
+                raise SlackReconnectException(t)
+            return  # if we somehow get this in a backfill
         elif t == 'emoji_changed':
             await self.emoji_update()
             return
@@ -348,19 +392,16 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.debug('already backfilling')
                 return
 
-            self.reap_tasks()
             backfillers = [
                 (await imbroglio.spawn(
-                    self.do_backfill_dest(dest, mfilter, target)))
-                for dest in self.dests
-                if (self.dests[dest].type in ('im', 'group') or (
-                        self.dests[dest].type == 'channel'
-                        and self.dests[dest].data['is_member']))
-                and not self.dests[dest].loaded]
+                    self.do_backfill_dest(name, mfilter, target)))
+                for (name, dest) in self.dests.items()
+                if dest.loadable and not dest.loaded]
             self.tasks += backfillers
             await imbroglio.gather(*backfillers, return_exceptions=True)
+        self.reap_tasks()
 
-    async def do_backfill_dest(self, dest, mfilter, target):
+    async def do_backfill_dest(self, dest, mfilter, target, after=None):
         d = self.dests[dest]
 
         self.log.debug(
@@ -374,19 +415,19 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if target is not None and d.oldest is not None and target > d.oldest:
             return
 
-        if d.loaded:
+        if d.loaded and after is None:
             return
 
         d.loaded = True
 
-        data = await self.method(
-            {
-                'channel': 'channels.history',
-                'im': 'im.history',
-                'group': 'groups.history',
-            }[d.type],
-            channel=dest,
-            **({'latest': d.oldest} if d.oldest is not None else {}))
+        if after is not None:
+            kwargs = {'oldest': after}
+        elif d.oldest is not None:
+            kwargs = {'latest': d.oldest}
+        else:
+            kwargs = {}
+
+        data = await self.method(d.history_method, channel=dest, **kwargs)
 
         if not self.check_ok(data, 'backfilling %s', dest):
             return
@@ -462,6 +503,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         try:
             self.check(response, context, *args)
         except util.SnipeException as error:
+            self.log.error(f'%s', '{error}: {response}')
             self.messages.append(messages.SnipeErrorMessage(
                 self,
                 str(error) + '\n' + repr(response),
@@ -480,7 +522,15 @@ class SlackDest:
     def __init__(self, backend, type_, data):
         self.backend = backend
         self.type = type_
+        self.history_method = {
+                'channel': 'channels.history',
+                'im': 'im.history',
+                'group': 'groups.history',
+            }.get(type_)
         self.data = data
+        self.loadable = (
+            type_ in ('im', 'group')
+            or type_ == 'channel' and data['is_member'])
 
         self.oldest = None
         self.loaded = False

@@ -160,7 +160,9 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
                 try:
                     result = await self._get(
-                        'events', queue_id=queue_id, last_event_id=last_event_id)
+                        'events',
+                        queue_id=queue_id,
+                        last_event_id=last_event_id)
                 except Exception:
                     self.log.exception('getting new messages')
                     self.params = None
