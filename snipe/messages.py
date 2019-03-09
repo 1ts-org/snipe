@@ -355,9 +355,6 @@ class SnipeBackend:
         redisplay, for date headers and such that want to bypass filters on
         display.
         """
-        self.log.debug(
-            'walk(%s, %s, [filter], %s, %s)',
-            repr(start), forward, util.timestr(backfill_to), search)
         # I have some concerns that that this depends on the
         # self.messages list being stable over the life of the
         # iterator.  This doesn't seem to be a a problem as of when I
@@ -448,8 +445,8 @@ class SnipeBackend:
             self.log.error('shutting down %s', repr(t))
             try:
                 t.cancel()
+                await t
                 with contextlib.suppress(imbroglio.Cancelled):
-                    await t
                     t.result()
             except BaseException:
                 self.log.exception('while shutting down')
