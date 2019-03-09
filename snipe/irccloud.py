@@ -174,10 +174,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         try:
             await self.websocket.connect(
                 url,
-                {
-                    b'Origin': IRCCLOUD_API.encode(),
-                    b'Cookie': b'session=%s' % (self.session.encode(),),
-                },
+                [('Origin', IRCCLOUD_API.encode()),
+                 ('Cookie', f'session={self.session}')]
                 )
 
             self.message_set = None
@@ -201,7 +199,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.log.exception('in websocket loop')
         finally:
             self.log.debug('leaving connect loop')
-            await self.websocket.close()
+            if self.websocket is not None:
+                await self.websocket.close()
             self.websocket = None
 
     async def process_message(self, msglist, m):

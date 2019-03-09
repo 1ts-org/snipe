@@ -53,9 +53,10 @@ import unittest.mock as mock
 import urllib.parse
 import zlib
 
-from typing import (Dict)
+from typing import (Dict, List, Tuple)
 
 import h11
+import wsproto
 import wsproto.connection
 import wsproto.events
 import wsproto.extensions
@@ -423,8 +424,7 @@ class JSONWebSocket:
             await self.conn.close()
             self.conn = None
 
-    async def connect(self, url, headers={}):
-        # ignore headers for now
+    async def connect(self, url, headers=[]):
         self.log.debug('connecting to %s %s', url, headers)
         self.conn = await HTTP_WS.request(url, headers=headers, log=self.log)
 
@@ -433,7 +433,7 @@ class JSONWebSocket:
         return await self.conn.write(data)
 
     async def read(self):
-        data = await self.conn.readsome()
+        data = await self.conn.read()
         try:
             return json.loads(data)
         except json.decoder.JSONDecodeError as e:
@@ -615,11 +615,10 @@ class NetworkStream:
             data = data[sent:]
 
     async def close(self):
-        self.log.debug('NetworkStream closing')
-        try:
+        self.log.debug('%s', f'NetworkStream {self} closing')
+        with contextlib.suppress(OSError):
             self.socket.shutdown(socket.SHUT_RDWR)
-        finally:
-            self.socket.close()
+        self.socket.close()
 
 
 class SSLStream:
@@ -758,6 +757,7 @@ class SSLStream:
         return bool(self.obj.pending())
 
     async def close(self):
+        self.log.debug('%s', f'closing {self.netstream}')
         await self.netstream.close()
 
 
@@ -872,11 +872,12 @@ class HTTP:
                 return None
 
     async def close(self):
+        self.log.debug('%s', 'closing {self.stream}')
         await self.stream.close()
 
 
 class HTTP_WS:
-    def __init__(self, url, headers={}, log=None, stream=None):
+    def __init__(self, url, log=None, stream=None):
         if log is None:
             log = logging.getLogger('HTTP_WS')
         self.log = log
@@ -893,51 +894,15 @@ class HTTP_WS:
         self.resource = (parsed.path or '/') + (
             ('?' + parsed.query) if parsed.query else '')
 
-        their_validate = h11._events.Request._validate
+        self.ws = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
 
-        def our_validate(self):
-            self.headers += list(headers.items())
-            return their_validate(self)
-
-        with mock.patch('h11._events.Request._validate', our_validate):
-            self.ws = wsproto.connection.WSConnection(
-                wsproto.connection.ConnectionType.CLIENT,
-                self.hostname,
-                self.resource,
-                extensions=[wsproto.extensions.PerMessageDeflate()],
-                )
         self.connected = False
+        self.closed = False
         self.response = None
         self.inbuf = []
         self.reading = False
 
-    def __repr__(self):
-        return f'<{self.__class__.__name__} {self.url} {self.stream!r}>'
-
-    @classmethod
-    async def request(
-            klass, url, headers=[], log=None, stream=None):
-        obj = klass(url, headers, log=log, stream=stream)
-        await obj.connect()
-        return obj
-
-    async def communicate(self):
-        self.log.debug('communicate')
-        d = self.ws.bytes_to_send()
-        if d:
-            await self.stream.write(d)
-            self.log.debug('sent %d bytes', len(d))
-        else:
-            await self.stream.maybewrite()
-
-        self.log.debug('reading...')
-        d = await self.stream.readsome()
-        # XXX if not d: EOF
-        if d is not None:
-            self.log.debug('received %d bytes', len(d))
-        self.ws.receive_bytes(d)  # turns out wsproto signals EOF with None too
-
-    async def connect(self):
+    async def connect(self, headers=[]):
         self.log.debug('opening connection to %s %s', self.hostname, self.port)
         if self.stream is None:
             self.stream = await NetworkStream.connect(
@@ -947,15 +912,20 @@ class HTTP_WS:
                 self.stream = SSLStream(
                     self.stream, self.hostname, log=self.log)
 
-        await self.communicate()
+        await self._send(wsproto.events.Request(
+            host=self.hostname,
+            target=self.resource,
+            extra_headers=headers,
+            extensions=[wsproto.extensions.PerMessageDeflate()]))
 
         # pull up to one event off the events() iterator
-        for event in self.ws.events():
-            break
-        else:
-            raise SnipeException('no event waiting')
+        event = None
+        while event is None:
+            await self._communicate()
+            with contextlib.suppress(StopIteration):
+                event = next(self.ws.events())
 
-        if not isinstance(event, wsproto.events.ConnectionEstablished):
+        if not isinstance(event, wsproto.events.AcceptConnection):
             raise SnipeException(
                 f'expected connection established event, got {event}')
 
@@ -964,40 +934,66 @@ class HTTP_WS:
 
         self.connected = True
 
-    async def readsome(self):
-        if not self.connected:
-            await self.connect()
+    @classmethod
+    async def request(
+            klass,
+            url,
+            headers: List[Tuple[str, str]]=[],
+            log=None,
+            stream=None):
+        obj = klass(url, log=log, stream=stream)
+        await obj.connect(headers)
+        return obj
+
+    async def read(self):
+        if self.closed or not self.connected:
+            return None
         ident = f'{id(self):x}: '
 
         self.log.debug(f'{ident}outside readsome loop')
         while True:
             self.log.debug(f'{ident}top of readsome loop')
             for event in self.ws.events():
-                self.log.debug(f'{ident}readsome %s', event)
-                if isinstance(event, wsproto.events.ConnectionClosed):
-                    if self.inbuf:
+                self.log.debug('%s', f'{ident}readsome {event}')
+                if isinstance(event, wsproto.events.CloseConnection):
+                    await self._send(event.response())
+                    if self.inbuf:  # pragma: nocover
                         self.log.error(
-                            f'{ident}Connection Closed with {self.inbuf}')
+                            '%s',
+                            f'{ident}Connection Closed with {self.inbuf!r}'
+                            f'code={event.code} reason={event.reason}')
+                    self.connected = False
+                    self.closed = True
                     return None
-                elif isinstance(event, wsproto.events.TextReceived):
+                elif isinstance(event, wsproto.events.TextMessage):
                     self.inbuf.append(event.data)
                     self.log.debug(
-                        f'{ident}TextReceived {event.message_finished}')
+                        '%s',
+                        f'{ident}{event.__class__.__name__}'
+                        ' {event.message_finished}')
                     if event.message_finished:
                         retval = ''.join(self.inbuf)
                         self.inbuf = []
                         return retval
-                    else:
+                    else:  # pragma: nocover
+                        # this seems to be a difficult situation to generate
                         self.log.debug(
                             f'{ident}supposedly not releasing message')
+                elif isinstance(event, wsproto.events.Ping):
+                    await self._send(event.response())
+                elif isinstance(event, wsproto.events.BytesMessage):
+                    self.log.debug(
+                        '%s', f'{ident}binary message {event.data!r}?')
+                    return event.data
             self.log.debug(f'{ident}about to communicate')
-            await self.communicate()
+            await self._communicate()
             self.log.debug(f'{ident}bottom of readsome loop')
 
     async def write(self, buf):
+        if not self.connected or self.closed:
+            return
         self.log.debug('writing %d bytes', len(buf))
-        self.ws.send_data(buf)
-        d = self.ws.bytes_to_send()
+        d = self.ws.send(wsproto.events.Message(data=buf))
         if d:
             self.log.debug('just writing... %d bytes', len(d))
             await self.stream.write(d)
@@ -1005,5 +1001,34 @@ class HTTP_WS:
 
     async def close(self):
         self.log.debug('HTTP_WS closing')
-        self.ws.close()
-        await self.stream.close()
+        self.closed = True
+        self.connected = False
+        try:
+            await self._send(wsproto.events.CloseConnection(code=0))
+        except Exception:  # pragma: nocover
+            self.log.exception(
+                '%s', f'while closing websocket connection for {self.url}')
+        finally:
+            self.log.debug('%s', f'closing {self.stream} for {self.url}')
+            await self.stream.close()
+
+    async def _communicate(self):
+        self.log.debug(
+            '%s',
+            f'communicate: connected={self.connected} closed={self.closed}')
+        await self.stream.maybewrite()
+
+        self.log.debug('reading...')
+        d = await self.stream.readsome()
+        # XXX if not d: EOF
+        if d is not None:
+            self.log.debug('received %d bytes', len(d))
+        self.ws.receive_data(d)  # turns out wsproto signals EOF with None too
+
+    async def _send(self, event):
+        bytes_to_send = self.ws.send(event)
+        if bytes_to_send:
+            await self.stream.write(bytes_to_send)
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.url} {self.stream!r}>'
