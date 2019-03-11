@@ -282,11 +282,11 @@ class InterrogateMe:
 
 
 def parse_rest(text):
-        _, pub = docutils.core.publish_programmatically(
-            docutils.io.StringInput, text, None, docutils.io.NullOutput,
-            None, None, None, 'standalone', None, 'restructuredtext', None,
-            'null', None, None, {}, None, None)
-        return pub
+    _, pub = docutils.core.publish_programmatically(
+        docutils.io.StringInput, text, None, docutils.io.NullOutput,
+        None, None, None, 'standalone', None, 'restructuredtext', None,
+        'null', None, None, {}, None, None)
+    return pub
 
 
 def rest_flat(input):
