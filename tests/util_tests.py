@@ -176,8 +176,8 @@ class TConfigurable(snipe.util.Configurable):
 
 
 class HasContext:
-        def __init__(self):
-            self.context = None
+    def __init__(self):
+        self.context = None
 
 
 class TestConfigurable(unittest.TestCase):
