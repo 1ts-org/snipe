@@ -709,6 +709,13 @@ class TestViewer(unittest.TestCase):
         e.renderer = mocks.Renderer()
         f = snipe.editor.Viewer(None, prototype=e)
         self.assertIs(e.buf, f.buf)
+        e = snipe.editor.Viewer(None)
+        e.renderer = mocks.Renderer()
+        e.set_mark()
+        self.assertIsNotNone(e.the_mark)
+        f = snipe.editor.Viewer(None, prototype=e)
+        self.assertIs(e.buf, f.buf)
+        self.assertEqual(e.the_mark, f.the_mark)
 
     def test_misc(self):
         snipe.editor.Buffer.registry.clear()
@@ -855,6 +862,15 @@ class TestViewer(unittest.TestCase):
         self.assertIn('notify', e.fe.called)
         self.assertEqual('if True:\n', str(e.buf))
 
+    def test_movable(self):
+        e = snipe.editor.Viewer(None)
+        e.insert('abc\n')
+        e.insert('def\n', prop={'navigable': False})
+        e.insert('ghi\n')
+        self.assertEqual('def\n', e.buf[4:8])
+        self.assertEqual(e.movable(5, True), 8)
+        e.cursor.point = 0
+        self.assertEqual(e.movable(5, True), 3)
 
 class TestPopViewer(unittest.TestCase):
     def test(self):
