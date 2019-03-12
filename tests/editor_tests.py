@@ -777,7 +777,7 @@ class TestViewer(unittest.TestCase):
         e.beginning_of_line(2)
         self.assertEqual(e.cursor.point, 8)
 
-    def test_beginning_end_of_buffer(self):
+    def test_beginning_end_of_buffer_0(self):
         e = snipe.editor.Editor(None)
         e.insert('abc')
         e.cursor.point = 0
@@ -785,6 +785,22 @@ class TestViewer(unittest.TestCase):
         self.assertEqual(e.cursor.point, 3)
         self.assertEqual(-3, e.beginning_of_buffer())
         self.assertEqual(e.cursor.point, 0)
+
+    def test_beginning_end_of_buffer_1(self):
+        e = snipe.editor.Editor(None)
+        e.insert('\n' * 10)
+        e.beginning_of_buffer(3)
+        self.assertEqual(e.cursor.point, 3)
+        self.assertEqual(e.the_mark.point, 10)
+        e.end_of_buffer(3)
+        self.assertEqual(e.cursor.point, 7)
+        self.assertEqual(e.the_mark.point, 3)
+        e.end_of_buffer(-3)
+        self.assertEqual(e.cursor.point, 3)
+        self.assertEqual(e.the_mark.point, 7)
+        e.beginning_of_buffer(-3)
+        self.assertEqual(e.cursor.point, 7)
+        self.assertEqual(e.the_mark.point, 3)
 
     def test_input_char(self):
         e = snipe.editor.Editor(None)
