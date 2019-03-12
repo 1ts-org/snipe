@@ -611,17 +611,20 @@ class Viewer(window.Window, window.PagingMixIn):
         self.log.debug('beginning_of_buffer: pct=%s', repr(pct))
         where = self.buf.mark(self.cursor)
         oldpoint = self.cursor.point
-        with self.save_excursion(where):
-            if not isinstance(pct, int):
-                pct = 0
-            if pct < 0:
-                return self.end_of_buffer(-pct)
-            self.cursor.point = min(pct * len(self.buf) // 10, len(self.buf))
-            self.beginning_of_line()
-            if oldpoint != self.cursor.point:
+        if not isinstance(pct, int):
+            pct = 0
+        if pct < 0:
+            return self.end_of_buffer(-pct)
+        else:
+            with self.save_excursion(where):
+                self.cursor.point = min(
+                    pct * len(self.buf) // 10,
+                    len(self.buf))
+                self.beginning_of_line()
+            if oldpoint != where.point:
                 self.set_mark(oldpoint)
-        self.cursor.point = self.movable(where.point, interactive)
-        return self.cursor.point - oldpoint
+            self.cursor.point = self.movable(where.point, interactive)
+            return self.cursor.point - oldpoint
 
     beginning = beginning_of_buffer
 
@@ -639,21 +642,23 @@ class Viewer(window.Window, window.PagingMixIn):
             'end_of_buffer: arg, %s oldpoint %s', repr(pct), self.cursor.point)
         where = self.buf.mark(self.cursor)
         oldpoint = self.cursor.point
-        with self.save_excursion(where):
-            noarg = pct is None
-            if not isinstance(pct, int):
-                pct = 0
-            if pct < 0:
-                return self.beginning_of_buffer(-pct)
-            self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
-            if not noarg:
-                self.beginning_of_line()
-            self.log.debug('end_of_buffer: newpoint %s', self.cursor.point)
-            if oldpoint != self.cursor.point:
+        noarg = pct is None
+        if not isinstance(pct, int):
+            pct = 0
+        if pct < 0:
+            return self.beginning_of_buffer(-pct)
+        else:
+            with self.save_excursion(where):
+                self.cursor.point = max((10 - pct) * len(self.buf) // 10, 0)
+                if not noarg:
+                    self.beginning_of_line()
+                self.log.debug('end_of_buffer: newpoint %s', self.cursor.point)
+            if oldpoint != where.point:
                 self.log.debug('end_of_buffer: setting mark %s', oldpoint)
                 self.set_mark(oldpoint)
-        self.cursor.point = self.movable(where.point, interactive)
-        return self.cursor.point - oldpoint
+                self.log.debug('end_of_buffer: set mark %s', self.the_mark)
+            self.cursor.point = self.movable(where.point, interactive)
+            return self.cursor.point - oldpoint
 
     end = end_of_buffer
 
