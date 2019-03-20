@@ -35,9 +35,13 @@ Unit tests for context code
 import os
 import logging
 import unittest
+import unittest.mock
 import tempfile
 
+from unittest.mock import (patch, Mock)
+
 import snipe.context as context
+import snipe.imbroglio as imbroglio
 
 
 class TestContext(unittest.TestCase):
@@ -60,6 +64,66 @@ class TestContext(unittest.TestCase):
                 d.load()
 
             self.assertEqual(c.backend_spec, d.backend_spec)
+
+    def test_ensure_directory(self):
+        HOME = '/afs/user/foo'
+        DIR = os.path.join(HOME, '.snipe')
+        c = context.Context(home=HOME)
+        with patch('os.path.isdir') as isdir:
+            isdir.return_value = True
+            c.ensure_directory()  # doesn't raise
+        with patch('os.path.isdir') as isdir, \
+                patch('os.mkdir') as mkdir, \
+                patch('os.chmod') as chmod, \
+                patch('os.path.realpath') as realpath, \
+                patch('subprocess.Popen') as Popen:
+            isdir.return_value = False
+            realpath.return_value = DIR
+            pipe = Mock()
+            pipe.returncode = 1
+            pipe.communicate.return_value = ['foo']
+            Popen.return_value = pipe
+            with self.assertLogs() as log:
+                c.ensure_directory()
+            self.assertEqual(
+                f'ERROR:Snipe:fs sa {DIR} system:anyuser none'
+                ' system:authuser none (=1): foo',
+                log.output[0])
+            isdir.assert_called_with(DIR)
+            mkdir.assert_called_with(DIR)
+            chmod.assert_called_with(DIR, 0o700)
+
+            pipe.returncode = 0
+            with self.assertLogs(level='DEBUG') as log:
+                c.ensure_directory()
+            self.assertEqual(
+                f'DEBUG:Snipe:fs sa {DIR} system:anyuser none'
+                ' system:authuser none: foo',
+                log.output[0])
+
+    @imbroglio.test
+    async def test_start(self):
+        c = context.Context()
+        ui = Mock()
+        ui.get_erasechar.return_value = chr(8)
+        c.backends = Mock()
+        c.backends.start.return_value = promise(None)
+
+        with patch('snipe.util.Configurable') as Configurable:
+            await c.start(ui)
+            self.assertIs(c.ui, ui)
+            self.assertIs(ui.context, c)
+            self.assertIs(c.erasechar, chr(8))
+            Configurable.immanentize.assert_called()
+            ui.initial.assert_called()
+            c.backends.start.assert_called()
+
+
+def promise(val):
+    async def f():
+        return val
+
+    return f()
 
 
 if __name__ == '__main__':
