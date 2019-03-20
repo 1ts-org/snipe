@@ -1041,7 +1041,7 @@ class Editor(Viewer):
         elif isinstance(column, int):
             self.fill_column = column
         else:
-            self.fill_column = self.current_column
+            self.fill_column = self.current_column()
 
     @keymap.bind('[carriage return]', 'Control-J')
     def insert_newline(
