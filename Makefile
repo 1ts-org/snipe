@@ -5,6 +5,7 @@ MYPY=$(VBIN)/mypy
 COVERAGE=$(VBIN)/coverage
 
 NOSETESTS=TZ=GMT $(NOSE) -v -w tests
+TEST=
 
 all check: flake8 mypy nosetests 
 
@@ -12,14 +13,14 @@ flake8: venv
 	$(FLAKE8) rooster.py setup.py snipe.py swearing.py snipe tests
 
 nosetests: venv
-	$(NOSETESTS) --processes=8 --process-timeout=300
+	$(NOSETESTS) --processes=8 --process-timeout=300 $(TEST)
 
 mypy: venv
 	$(MYPY) --ignore-missing-imports rooster.py setup.py swearing.py snipe tests
 
 coverage: venv
 	$(COVERAGE) erase
-	$(NOSETESTS) --with-coverage
+	$(NOSETESTS) --with-coverage $(TEST)
 	$(COVERAGE) html
 
 clean::
