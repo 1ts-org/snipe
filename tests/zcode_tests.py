@@ -35,11 +35,8 @@ Unit tests for zephyr scribelike markup parsing
 
 import random
 import unittest
-import sys
 
-sys.path.append('..')
-
-import snipe.zcode as zcode  # noqa: E402
+import snipe.zcode as zcode
 
 
 class TestZcode(unittest.TestCase):
