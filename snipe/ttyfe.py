@@ -97,9 +97,6 @@ class TTYRenderer:
     def active(self):
         return self.ui.windows[self.ui.output] == self
 
-    def write(self, s):
-        self.log.debug('someone used write(%s)', repr(s))
-
     def redisplay(self):
         if self.head is None:
             self.log.debug('redisplay with no frame, firing reframe')
@@ -354,7 +351,7 @@ class TTYRenderer:
                     self.clrtoeol()
                 try:
                     self.w.addstr(y, x, text, attr)
-                except curses.error:
+                except curses.error:  # pragma: nocover
                     self.log.debug(
                         'addstr(%d, %d, %s, %d) errored.  *yawn*',
                         y, x, repr(text), attr)
@@ -389,7 +386,7 @@ class TTYRenderer:
                     curses.curs_set(0)
                 except curses.error:
                     self.move(self.height - 1, self.width - 1)
-        else:
+        else:  # pragma: nocover
             self.log.debug('place_cursor called on inactive window')
             self.w.leaveok(1)
 
@@ -567,8 +564,8 @@ class TTYFrontend:
         nope = bytes([0])  # to disable a character
         termstate[6][termios.VQUIT] = nope
         termstate[6][termios.VSUSP] = nope
-        if hasattr(termios, 'VDSUSP'):
-            termstate[6][termios.VDSUSP] = nope  # pragma: nocover
+        if hasattr(termios, 'VDSUSP'):  # pragma: nocover
+            termstate[6][termios.VDSUSP] = nope
         termstate[3] |= termios.ISIG
         termios.tcsetattr(0, termios.TCSANOW, termstate)
 
@@ -790,7 +787,7 @@ class TTYFrontend:
 
         self.log.debug('windows = %s:%d', repr(self.windows), self.output)
 
-        if self.in_redisplay:
+        if self.in_redisplay:  # pragma: nocover
             raise RedisplayInProgress
 
         while True:
@@ -822,7 +819,7 @@ class TTYFrontend:
                     active.place_cursor()
                 curses.doupdate()
                 break
-            except RedisplayInProgress:
+            except RedisplayInProgress:  # pragma: nocover
                 pass
             finally:
                 self.in_redisplay = False
