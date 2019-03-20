@@ -38,6 +38,7 @@ import array
 import itertools
 import random
 import unittest
+import unittest.mock
 
 import mocks
 
@@ -47,6 +48,29 @@ import snipe.imbroglio
 
 
 class TestEditor(unittest.TestCase):
+    def test_constructor(self):
+        e = snipe.editor.Editor(None)
+        self.assertEqual(e.fill_column, 0)
+
+        e = snipe.editor.Editor(None, fill=True)
+        self.assertEqual(
+            e.fill_column, e.default_fill_column)
+
+        self.assertTrue(e._writable)
+        e.toggle_writable()
+        self.assertFalse(e._writable)
+
+        e.renderer = mocks.Renderer()
+
+        f = snipe.editor.Editor(None, prototype=e)
+        self.assertFalse(f._writable)
+
+    def test_inserter(self):
+        e = snipe.editor.Editor(None)
+        insert_a = e._inserter('a')
+        insert_a()
+        self.assertEqual('a', str(e.buf))
+
     def testEditorSimple(self):
         e = snipe.editor.Editor(None)
         e.insert('flam')
@@ -431,12 +455,22 @@ class TestEditor(unittest.TestCase):
         w = snipe.editor.Editor(None)
         w.insert('abc.def.ghi')
         w.cursor.point = 0
-        w.find('def', True)
-        self.assertEqual(w.cursor.point, 4)
-        w.find('ghi', True)
-        self.assertEqual(w.cursor.point, 8)
-        w.find('abc', False)
+        self.assertIsNone(w.find('', True))
         self.assertEqual(w.cursor.point, 0)
+        self.assertTrue(w.find('def', True))
+        self.assertEqual(w.cursor.point, 4)
+        self.assertTrue(w.find('ghi', True))
+        self.assertEqual(w.cursor.point, 8)
+        self.assertTrue(w.find('abc', False))
+        self.assertEqual(w.cursor.point, 0)
+        self.assertFalse(w.find('jkl', True))
+
+    def test_match(self):
+        w = snipe.editor.Editor(None)
+        w.insert('abc.def.ghi')
+        w.cursor.point = 0
+        self.assertFalse(w.match('foo'))
+        self.assertTrue(w.match('abc'))
 
     def test_writable(self):
         e = snipe.editor.Editor(None)
@@ -448,6 +482,19 @@ class TestEditor(unittest.TestCase):
         self.assertFalse(e.writable(0, 3))
         self.assertFalse(e.writable(4, 3))
         self.assertTrue(e.writable(0, 6))
+        e.toggle_writable()
+        self.assertFalse(e.writable(0, 6))
+        e.fe = unittest.mock.Mock()
+        e.insert('jkl')
+        e.fe.notify.assert_called()
+
+    def test_self_insert(self):
+        e = snipe.editor.Editor(None, fill=True)
+        e.self_insert('a')
+        self.assertEqual('a', str(e.buf))
+        self.assertEqual(1, e.column)
+        e.self_insert(5)
+        self.assertEqual('a', str(e.buf))
 
     @snipe.imbroglio.test
     async def test_self_insert_auto_fill_undo(self):
@@ -460,6 +507,51 @@ class TestEditor(unittest.TestCase):
         e.undo(3)
         self.assertEqual('abc\ndef\nghi ', str(e.buf))
 
+    @snipe.imbroglio.test
+    async def test_do_auto_fill_prompt(self):
+        e = snipe.editor.Editor(None)
+        e.insert('>', prop=dict(mutable=False, navigable=False))
+        await e.set_fill_column(5)
+        e.last_command = 'self_insert'
+        for c in 'abc def ghi jik ':
+            e.self_insert(c)
+        self.assertEqual('>abc def ghi jik ', str(e.buf))
+
+    @snipe.imbroglio.test
+    async def test_do_auto_fill_long(self):
+        e = snipe.editor.Editor(None)
+        await e.set_fill_column(5)
+        e.last_command = 'self_insert'
+        for c in 'sassafras ':
+            e.self_insert(c)
+        self.assertEqual('sassafras\n', str(e.buf))
+
+    @snipe.imbroglio.test
+    async def test_set_fill_column(self):
+        response = '5'
+
+        async def my_read_string(*args, **kw):
+            nonlocal response
+            return response
+
+        e = snipe.editor.Editor(None)
+
+        e.read_string = my_read_string
+        self.assertNotEqual(5, e.fill_column)
+        await e.set_fill_column()
+        self.assertEqual(5, e.fill_column)
+
+        response = 'plants'
+        e.whine = unittest.mock.Mock()
+        await e.set_fill_column()
+        self.assertEqual(5, e.fill_column)
+        e.whine.assert_called_with(
+            "invalid literal for int() with base 10: 'plants'")
+
+        e.insert('abcdef')
+        await e.set_fill_column([])
+        self.assertEqual(6, e.fill_column)
+
     def test_kill_to_end_of_line(self):
         e = snipe.editor.Editor(None)
         e.fe = mocks.FE()
@@ -471,10 +563,17 @@ class TestEditor(unittest.TestCase):
         self.assertEqual('abc', str(e.buf))
         e.kill_to_end_of_line(0)
         self.assertEqual('', str(e.buf))
+        e.insert_region('1\n2\n3\n4\n5\n6\n7\n8\n9\n')
+        e.exchange_point_and_mark()
+        e.kill_to_end_of_line(5)
+        self.assertEqual('6\n7\n8\n9\n', str(e.buf))
 
     def test_kill_region(self):
         e = snipe.editor.Editor(None)
         e.fe = mocks.FE()
+        e.whine = unittest.mock.Mock()
+        e.kill_region()
+        e.whine.assert_called_with('no mark is set')
         e.insert('abcdef')
         e.cursor.point = 0
         e.set_mark()
@@ -485,6 +584,16 @@ class TestEditor(unittest.TestCase):
         e.kill_region(append=True)
         self.assertEqual('', str(e.buf))
         self.assertEqual(e.context.kill_log, [('abc', None), ('def', True)])
+
+    def test_yank(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.insert_region('foo')
+        self.assertEqual('foo', str(e.buf))
+        e.kill_region()
+        self.assertEqual('', str(e.buf))
+        e.yank()
+        self.assertEqual('foo', str(e.buf))
 
 
 class TestBuffer(unittest.TestCase):
@@ -824,12 +933,26 @@ class TestViewer(unittest.TestCase):
         self.assertEqual(e.cursor.point, 7)
         e.word_forward(9000)
         self.assertEqual(e.cursor.point, len(e.buf))
+        x = len(e.buf)
+        e.insert('q')
+        e.insert('rs', prop={'navigable': False})
+        self.assertEqual(e.cursor.point, len(e.buf))
         e.word_backward(9000)
         self.assertEqual(e.cursor.point, 0)
+        e.word_forward(9000, interactive=True)
+        self.assertEqual(e.cursor.point, x)
+        e.word_backward(9000)
+        self.assertEqual(e.cursor.point, 0)
+        e.insert('0', prop={'navigable': False})
+        e.word_backward(interactive=True)
+        self.assertEqual(e.cursor.point, 1)
 
     def test_region_yank(self):
         e = snipe.editor.Editor(None)
         e.fe = mocks.FE()
+
+        self.assertIsNone(e.region())
+
         TEXT = 'abc def ghi'
         e.insert(TEXT)
         e.cursor.point = 0
@@ -856,6 +979,44 @@ class TestViewer(unittest.TestCase):
         e.set_mark(prefix=['x'])
         self.assertEqual(e.cursor.point, 7)
 
+    def test_make_go_mark(self):
+        e = snipe.editor.Editor(None)
+        m = e.make_mark(0)
+
+        self.assertEqual(m, e.cursor)
+        self.assertIsNot(m, e.cursor)
+
+        e.insert('foo')
+
+        self.assertNotEqual(m, e.cursor)
+        e.go_mark(m)
+        self.assertEqual(m, e.cursor)
+
+    def test_insert_region(self):
+        e = snipe.editor.Editor(None)
+        e.insert('foo')
+
+        self.assertEqual('foo', str(e.buf))
+        e.insert_region('bar')
+        self.assertEqual('foobar', str(e.buf))
+        self.assertEqual('bar', e.region())
+
+    def test_exchange_point_and_mark(self):
+        e = snipe.editor.Editor(None)
+        e.insert_region('foo')
+        self.assertEqual(3, int(e.cursor))
+        self.assertEqual(0, int(e.the_mark))
+
+        e.exchange_point_and_mark()
+        self.assertEqual(0, int(e.cursor))
+        self.assertEqual(3, int(e.the_mark))
+
+    def test_evaller_0(self):
+        e = snipe.editor.Editor(None)
+        e.insert_region('print(2 + 2)')
+        e.exec_region(arg=['x'])
+        self.assertEqual('print(2 + 2)\n4\n', str(e.buf))
+
     def test_evaller_1(self):
         e = snipe.editor.Editor(None)
         e.set_mark()
@@ -878,6 +1039,24 @@ class TestViewer(unittest.TestCase):
         self.assertIn('notify', e.fe.called)
         self.assertEqual('if True:\n', str(e.buf))
 
+    def test_evaller_3(self):
+        with unittest.mock.patch('snipe.editor.Editor.show'):
+            e = snipe.editor.Editor(None)
+            e.insert_region('print(2 + 2)')
+            e.exec_buffer(None)
+            e.show.assert_called()
+            e.show.assert_called_with('4\n')
+            self.assertEqual('print(2 + 2)', str(e.buf))
+
+    def test_evaller_4(self):
+        with unittest.mock.patch('snipe.editor.Editor.show'):
+            e = snipe.editor.Editor(None)
+            e.set_mark()
+            self.assertEqual('', str(e.buf))
+            e.exec_buffer(None)
+            e.show.assert_not_called()
+            self.assertEqual('', str(e.buf))
+
     def test_movable(self):
         e = snipe.editor.Viewer(None)
         e.insert('abc\n')
@@ -888,6 +1067,7 @@ class TestViewer(unittest.TestCase):
         e.cursor.point = 0
         self.assertEqual(e.movable(5, True), 3)
 
+
 class TestPopViewer(unittest.TestCase):
     def test(self):
         fe = mocks.FE()
@@ -896,6 +1076,10 @@ class TestPopViewer(unittest.TestCase):
         v.renderer._range = [0, 0]
         self.assertEqual(
             (([(set(), '- test')]), ([({'right'}, '1')])), v.modeline())
+        name = v.buf.name
+        self.assertIn(name, v.buf.registry)
+        v.destroy()
+        self.assertNotIn(name, v.buf.registry)
 
 
 if __name__ == '__main__':

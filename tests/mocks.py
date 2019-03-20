@@ -187,6 +187,12 @@ class Context:
     def keyecho(self, keystroke):
         self.keys.append(keystroke)
 
+    def yank(self, off=1):
+        if self.kill_log:
+            return self.kill_log[-(1 + (off - 1) % len(self.kill_log))][0]
+        else:
+            return ''
+
 
 class FE:
     def __init__(self):
