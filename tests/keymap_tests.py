@@ -35,13 +35,9 @@ Unit tests for various context-related things
 
 
 import curses
-import sys
 import unittest
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.keymap  # noqa: E402
+import snipe.keymap
 
 
 class TestKeymap(unittest.TestCase):

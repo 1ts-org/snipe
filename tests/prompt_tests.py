@@ -33,18 +33,14 @@ Unit tests for prompt windows
 '''
 
 import unittest
-import sys
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.editor as editor            # noqa: E402
-import snipe.prompt as prompt            # noqa: E402
-import snipe.messages as messages        # noqa: E402
-import snipe.keymap as keymap            # noqa: E402
-import snipe.interactive as interactive  # noqa: E402
+import snipe.editor as editor
+import snipe.interactive as interactive
+import snipe.keymap as keymap
+import snipe.prompt as prompt
+import snipe.messages as messages
 
 
 class TestPrompt(unittest.TestCase):

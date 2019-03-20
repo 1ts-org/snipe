@@ -33,12 +33,8 @@ Unit tests for main function
 '''
 
 import unittest
-import sys
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.main as main   # noqa: E402,F401
+import snipe.main as main
 
 
 class TestMain(unittest.TestCase):

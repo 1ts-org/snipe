@@ -33,12 +33,8 @@ Unit tests for stuff in chunks.py
 '''
 
 import unittest
-import sys
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-from snipe.chunks import Chunk  # noqa: E402
+from snipe.chunks import Chunk
 
 
 class TestChunk(unittest.TestCase):

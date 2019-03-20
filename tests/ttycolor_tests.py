@@ -35,14 +35,10 @@ Unit tests for tty color infrastructure
 
 import unittest
 import unittest.mock
-import sys
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.ttycolor as ttycolor  # noqa: E402,F401
+import snipe.ttycolor as ttycolor
 
 
 class TestTTYColor(unittest.TestCase):

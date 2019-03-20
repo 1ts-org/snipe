@@ -34,16 +34,12 @@ Unit tests for roost backend
 
 import os
 import unittest
-import sys
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.context as context    # noqa: E402,F401
-import snipe.messages as messages  # noqa: E402,F401
-import snipe.roost as roost        # noqa: E402,F401
+import snipe.context as context
+import snipe.messages as messages
+import snipe.roost as roost
 
 
 class TestRoostDecor(unittest.TestCase):

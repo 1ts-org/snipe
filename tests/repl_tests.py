@@ -33,14 +33,10 @@ Unit tests for REPL window
 '''
 
 import unittest
-import sys
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.repl as repl  # noqa: E402
+import snipe.repl as repl
 
 
 class TestREPL(unittest.TestCase):

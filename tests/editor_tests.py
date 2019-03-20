@@ -37,17 +37,13 @@ Unit tests for the Editor object
 import array
 import itertools
 import random
-import sys
 import unittest
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.imbroglio  # noqa: E402
-import snipe.chunks     # noqa: E402
-import snipe.editor     # noqa: E402
+import snipe.chunks
+import snipe.editor
+import snipe.imbroglio
 
 
 class TestEditor(unittest.TestCase):

@@ -32,14 +32,11 @@
 Unit tests for help system
 '''
 
-import sys
 import unittest
 
-sys.path.append('..')
-sys.path.append('../lib')
+import snipe.help as help
 
-import snipe.help as help             # noqa: E402,F401
-from snipe.chunks import Chunk, View  # noqa: E402,F401
+from snipe.chunks import (Chunk, View)
 
 
 class TestHelp(unittest.TestCase):

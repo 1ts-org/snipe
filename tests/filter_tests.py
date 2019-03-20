@@ -35,19 +35,16 @@ Unit tests for various filter-related things
 '''
 
 import re
-import sys
 import unittest
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
+import snipe.filters
 
-import snipe.filters                                           # noqa: E402
 from snipe.filters import (
     And, Compare, Identifier, Lexer, No, Not, Or, Parser, RECompare,
     SnipeFilterError, Truth, Yes, Xor, makefilter,
-    )                                                          # noqa: E402
+    )
 
 
 class TestFilters(unittest.TestCase):

@@ -33,19 +33,16 @@ Unit tests for stuff in window.py
 '''
 
 import logging
-import sys
 import unittest
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
+import snipe.imbroglio as imbroglio
+import snipe.keymap as keymap
+import snipe.util as util
+import snipe.window as window
 
-from snipe.chunks import Chunk       # noqa: E402
-import snipe.imbroglio as imbroglio  # noqa: E402
-import snipe.keymap as keymap        # noqa: E402
-import snipe.window as window        # noqa: E402
-import snipe.util as util            # noqa: E402
+from snipe.chunks import (Chunk)
 
 
 class TestWindow(unittest.TestCase):

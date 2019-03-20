@@ -33,12 +33,8 @@ Unit tests for interactive function infrastructure
 '''
 
 import unittest
-import sys
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.interactive as interactive  # noqa: E402,F401
+import snipe.interactive as interactive  # noqa: F401
 
 
 class TestInteractive(unittest.TestCase):

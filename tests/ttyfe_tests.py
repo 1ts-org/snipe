@@ -36,17 +36,13 @@ Unit tests for the TTY frontend objects
 """
 
 import curses
-import sys
 import unittest
 import unittest.mock
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.ttyfe as ttyfe        # noqa: E402
-import snipe.window as window      # noqa: E402
+import snipe.ttyfe as ttyfe
+import snipe.window as window
 
 
 class TestTTYFrontend(unittest.TestCase):

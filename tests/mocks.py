@@ -41,14 +41,11 @@ import unittest
 
 from typing import (Dict, Any, List, Optional, Tuple)
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.chunks    # noqa: E402
-import snipe.filters   # noqa: E402
-import snipe.ttycolor  # noqa: E402
-import snipe.ttyfe     # noqa: E402
-import snipe.window    # noqa: E402
+import snipe.chunks
+import snipe.filters
+import snipe.ttycolor
+import snipe.ttyfe
+import snipe.window
 
 
 class Backend:

@@ -41,24 +41,21 @@ import os
 import random
 import socket
 import ssl
-import sys
 import tempfile
 import unittest
-from unittest import mock
 import zlib
 
 from typing import (Dict)
+from unittest import (mock)
+
+import wsproto
+
+from wsproto import (events)
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import wsproto                       # noqa: E402
-from wsproto import events           # noqa: E402
-
-import snipe.util                    # noqa: E402
-import snipe.imbroglio as imbroglio  # noqa: E402
+import snipe.imbroglio as imbroglio
+import snipe.util
 
 
 class TestSafeWrite(unittest.TestCase):
