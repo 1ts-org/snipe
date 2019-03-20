@@ -8,6 +8,7 @@ python:
 install:
  - pip install -r requirements.txt
  - pip install flake8 mypy coveralls
+ - pip install .
 script:
  - flake8 rooster.py setup.py snipe.py swearing.py snipe tests
  - mypy --ignore-missing-imports snipe/*.py snipe/imbroglio/*.py snipe/_roost_python/*.py tests/*.py
