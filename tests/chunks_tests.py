@@ -34,8 +34,6 @@ Unit tests for stuff in chunks.py
 
 import unittest
 
-import snipe  # noqa: F401
-
 from snipe.chunks import Chunk
 
 
