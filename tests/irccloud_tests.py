@@ -34,17 +34,14 @@ Unit tests for irccloud backend
 
 import os
 import unittest
-import sys
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
+import snipe.context as context
+import snipe.irccloud as irccloud
+import snipe.messages as messages
 
-from snipe.chunks import Chunk     # noqa: E402,F401
-import snipe.context as context    # noqa: E402,F401
-import snipe.irccloud as irccloud  # noqa: E402,F401
-import snipe.messages as messages  # noqa: E402,F401
+from snipe.chunks import (Chunk)
 
 
 class TestIRCCloudDecor(unittest.TestCase):

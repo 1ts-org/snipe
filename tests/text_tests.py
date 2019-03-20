@@ -38,14 +38,12 @@ import docutils.core
 import sys
 import unittest
 
-sys.path.append('..')
-sys.path.append('../lib')
+import snipe.help as help
+import snipe.keymap as keymap
+import snipe.text as text
+import snipe.util as util
 
-from snipe.chunks import Chunk  # noqa: E402
-import snipe.help as help       # noqa: E402
-import snipe.keymap as keymap   # noqa: E402
-import snipe.text as text       # noqa: E402
-import snipe.util as util       # noqa: E402
+from snipe.chunks import (Chunk)
 
 
 class TestRendering(unittest.TestCase):

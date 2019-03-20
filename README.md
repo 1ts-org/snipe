@@ -11,7 +11,7 @@ client intended for services with persistence.  One such service is
 [zephyr](https://github.com/zephyr-im).  snipe is also has
 minimal support for [IRCCloud](https://www.irccloud.com).
 
-I've decided that supporting anything earlier thant python 3.6 isn't
+I've decided that supporting anything earlier than python 3.6 isn't
 worth it.
 
 M-g in the messager window requires
@@ -26,6 +26,11 @@ useful for this.
 It is known that there are bugs and missing features everywhere.  I
 would mostly characterize this as "demoable" but not yet "usable".  As
 always, if it breaks you get to keep both pieces.
+
+Running snipe (or the tests) in situ is best done with a virtualenv;
+run `make venv` to create one with the appropriate dependencies, or
+just `make` to do so and run the tests.  Once the venv is set up you
+can run `venv/bin/snipe`.
 
 Keybindings
 -----------

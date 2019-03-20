@@ -7,7 +7,5 @@ omit =
     */site-packages/ordereddict.py
     */site-packages/nose/*
     */unittest2/*
-    ../lib/*
-    lib/*
     tests/*
     snipe/_roost_python/*.py

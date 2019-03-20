@@ -33,12 +33,8 @@ Unit tests for rooster backend backend
 '''
 
 import unittest
-import sys
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe._rooster as rooster  # noqa: E402,F401
+import snipe._rooster as rooster  # noqa: F401
 
 
 class TestRooster(unittest.TestCase):

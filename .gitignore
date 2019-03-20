@@ -10,9 +10,12 @@ parser.out
 cover/
 .coverage
 htmlcov/
-lib/
+
+.mypy_cache/
 
 venv/
 
 snipe_im.egg-info/
+
+venv-stamp
 

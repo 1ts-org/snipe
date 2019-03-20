@@ -36,20 +36,16 @@ import collections
 import datetime
 import itertools
 import os
-import sys
 import time
 import unittest
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.chunks as chunks        # noqa: E402
-import snipe.filters as filters      # noqa: E402
-import snipe.imbroglio as imbroglio  # noqa: E402
-import snipe.messages as messages    # noqa: E402
-import snipe.util as util            # noqa: E402
+import snipe.chunks as chunks
+import snipe.filters as filters
+import snipe.imbroglio as imbroglio
+import snipe.messages as messages
+import snipe.util as util
 
 
 class TestSnipeAddress(unittest.TestCase):

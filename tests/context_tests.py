@@ -34,14 +34,10 @@ Unit tests for context code
 
 import os
 import logging
-import sys
 import unittest
 import tempfile
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-import snipe.context as context  # noqa: E402,F401
+import snipe.context as context
 
 
 class TestContext(unittest.TestCase):

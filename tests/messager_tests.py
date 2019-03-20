@@ -37,21 +37,16 @@ import datetime
 import io
 import math
 import os
-import sys
 import unittest
 import unittest.mock as mock
 
 import mocks
 
-sys.path.append('..')
-sys.path.append('../lib')
-
-
-import snipe.chunks as chunks        # noqa: E402,F401
-import snipe.filters as filters      # noqa: E402,F401
-import snipe.imbroglio as imbroglio  # noqa: E402,F401
-import snipe.messager as messager    # noqa: E402,F401
-import snipe.util as util            # noqa: E402,F401
+import snipe.chunks as chunks
+import snipe.filters as filters
+import snipe.imbroglio as imbroglio
+import snipe.messager as messager
+import snipe.util as util
 
 
 class TestMessager(unittest.TestCase):
