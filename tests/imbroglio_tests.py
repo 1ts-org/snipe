@@ -32,15 +32,12 @@
 Unit tests for the imbroglio core
 '''
 
-import socket
 import signal
-import sys
+import socket
 import time
 import unittest
 
-sys.path.append('..')
-
-from snipe import imbroglio   # noqa: E402
+from snipe import imbroglio
 
 
 class TestImbroglioCore(unittest.TestCase):

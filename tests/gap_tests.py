@@ -33,13 +33,11 @@
 Unit tests for the Gapbuffer object
 '''
 
-import sys
-import unittest
 import array
 import random
+import unittest
 
-sys.path.append('..')
-import snipe.gap  # noqa: E402
+import snipe.gap
 
 
 class TestGapBuffer(unittest.TestCase):
