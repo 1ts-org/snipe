@@ -197,7 +197,7 @@ class UndoableGapBuffer(GapBuffer):
 
     def undo_entry(self, which):
         if not self.undolog:
-            return None
+            return None, None, None
         if which is not None:
             off = which
         else:
@@ -206,7 +206,7 @@ class UndoableGapBuffer(GapBuffer):
 
     def undo(self, which):
         if not self.undolog:
-            return None
+            return None, None
         if which is not None:
             off = which
         else:

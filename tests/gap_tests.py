@@ -156,8 +156,8 @@ class TestGapBuffer(unittest.TestCase):
 
     def test_undo1(self):
         g = snipe.gap.UndoableGapBuffer()
-        self.assertEqual(g.undo_entry(0), None)
-        self.assertEqual(g.undo(0), None)
+        self.assertEqual(g.undo_entry(0), (None, None, None))
+        self.assertEqual(g.undo(0), (None, None))
         g.replace(0, 0, 'foo')
         self.assertEqual(g.text, 'foo')
         self.assertEqual(g.undo(0), (1, 0))
@@ -165,7 +165,7 @@ class TestGapBuffer(unittest.TestCase):
 
     def test_undo2(self):
         g = snipe.gap.UndoableGapBuffer()
-        self.assertEqual(g.undo(0), None)
+        self.assertEqual(g.undo(0), (None, None))
         g.replace(0, 0, 'foo', True)
         self.assertEqual(g.text, 'foo')
         g.replace(3, 0, 'bar', True)
