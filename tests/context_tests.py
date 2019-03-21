@@ -43,6 +43,8 @@ from unittest.mock import (patch, Mock)
 import snipe.context as context
 import snipe.imbroglio as imbroglio
 
+import mocks
+
 
 class TestContext(unittest.TestCase):
     def test(self):
@@ -107,7 +109,7 @@ class TestContext(unittest.TestCase):
         ui = Mock()
         ui.get_erasechar.return_value = chr(8)
         c.backends = Mock()
-        c.backends.start.return_value = promise(None)
+        c.backends.start.return_value = mocks.promise(None)
 
         with patch('snipe.util.Configurable') as Configurable:
             await c.start(ui)
@@ -117,13 +119,6 @@ class TestContext(unittest.TestCase):
             Configurable.immanentize.assert_called()
             ui.initial.assert_called()
             c.backends.start.assert_called()
-
-
-def promise(val):
-    async def f():
-        return val
-
-    return f()
 
 
 if __name__ == '__main__':

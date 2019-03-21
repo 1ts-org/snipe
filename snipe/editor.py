@@ -248,8 +248,10 @@ class Buffer:
         for (start, props), (end, _) in zip(
                 itertools.chain(start, self.props[offset:]),
                 itertools.chain(self.props[offset:], [(-1, DEFPROP)])):
-            if start == end == 0:
-                continue
+            if int(start) == int(end) == 0:
+                # the following statement seems to be missed by
+                # coverage under ill-defined circumstances
+                continue  # pragma: nocover
             if end == -1:
                 end = len(self)
             yield props, self[start:end]
@@ -1178,11 +1180,12 @@ class Editor(Viewer):
             self.undo_state = None
         for _ in range(count):
             where, size = self.buf.undo_peek(self.undo_state)
-            if not self.writable(size, where):
+            if where is not None and not self.writable(size, where):
                 self.whine('window is read-only')
                 return
             self.undo_state, where = self.buf.undo(self.undo_state)
-            self.cursor.point = where
+            if where is not None:
+                self.cursor.point = where
             if self.undo_state is None:
                 self.whine('Nothing to undo')
                 break

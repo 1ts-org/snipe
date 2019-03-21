@@ -594,6 +594,112 @@ class TestEditor(unittest.TestCase):
         self.assertEqual('', str(e.buf))
         e.yank()
         self.assertEqual('foo', str(e.buf))
+        e.kill_region()
+        self.assertEqual('', str(e.buf))
+        e.insert_region('bar')
+        self.assertEqual('bar', str(e.buf))
+        e.kill_region()
+        self.assertEqual('', str(e.buf))
+        e.yank(2)
+        self.assertEqual('foo', str(e.buf))
+        self.assertEqual(3, e.cursor)
+        self.assertEqual(0, e.the_mark)
+        e.kill_region()
+        e.yank([])
+        self.assertEqual('foo', str(e.buf))
+        self.assertEqual(0, e.cursor)
+        self.assertEqual(3, e.the_mark)
+        e.kill_region()
+        e.yank()
+        self.assertEqual('foo', str(e.buf))
+        e.whine = unittest.mock.Mock()
+        e.yank_pop()
+        e.whine.assert_called()
+        e.last_command = 'yank'
+        e.yank_pop(2)
+        self.assertEqual('bar', str(e.buf))
+
+    def test_undo(self):
+        e = snipe.editor.Editor(None)
+        e.whine = unittest.mock.Mock()
+        e.undo()
+        self.assertEqual('', str(e.buf))
+        e.whine.assert_called()
+        e.insert('abc')
+        e.insert('def')
+        self.assertEqual('abcdef', str(e.buf))
+        e.undo()
+        self.assertEqual('abc', str(e.buf))
+        e.last_command = 'undo'
+        e.undo()
+        self.assertEqual('', str(e.buf))
+        e.insert('foo')
+        e._writable = False
+        e.whine = unittest.mock.Mock()
+        e.undo()
+        self.assertEqual('foo', str(e.buf))
+        e.whine.assert_called()
+
+    def test_transpose_chars(self):
+        e = snipe.editor.Editor(None)
+        e.whine = unittest.mock.Mock()
+        e.transpose_chars()
+        e.whine.assert_called()
+        e.insert('ba')
+        self.assertEqual('ba', str(e.buf))
+        e.cursor.point = 1
+        e.transpose_chars()
+        self.assertEqual('ab', str(e.buf))
+        self.assertEqual(2, e.cursor)
+
+    def test_open_line(self):
+        e = snipe.editor.Editor(None)
+        e.open_line()
+        self.assertEqual('\n', str(e.buf))
+        self.assertEqual(0, e.cursor)
+
+    def test_kill_word(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.insert('foo ')
+        e.insert_region('bar')
+        self.assertEqual('foo bar', str(e.buf))
+        e.exchange_point_and_mark()
+        e.kill_word_forward()
+        self.assertEqual('foo ', str(e.buf))
+        e.undo()
+        e.cursor.point = 4
+        e.kill_word_backward()
+        self.assertEqual('bar', str(e.buf))
+
+    @snipe.imbroglio.test
+    async def test_insert_file(self):
+        e = snipe.editor.Editor(None)
+        e.read_filename = unittest.mock.Mock()
+        e.read_filename.return_value = mocks.promise(__file__)
+        await e.insert_file()
+        self.assertEqual(
+            '# -*- encoding: utf-8 -*-', str(e.buf).splitlines()[0])
+
+    def test_quote_insert(self):
+        e = snipe.editor.Editor(None)
+        e.fe = mocks.FE()
+        e.quote_insert()
+        e.input_char(chr(ord('P') - ord('@')))
+        self.assertEqual(chr(ord('P') - ord('@')), str(e.buf))
+
+    @snipe.imbroglio.test
+    async def test_unicode_insert(self):
+        e = snipe.editor.Editor(None)
+        e.read_string = unittest.mock.Mock()
+        e.read_string.return_value = mocks.promise(
+            'LATIN CAPITAL LETTER A')
+        await e.insert_unicode()
+        self.assertEqual('A', str(e.buf))
+        e.read_string.return_value = mocks.promise(
+            '42')
+        await e.insert_unicode()
+        self.assertEqual('AB', str(e.buf))
 
 
 class TestBuffer(unittest.TestCase):
@@ -810,6 +916,12 @@ class TestBuffer(unittest.TestCase):
                 ({}, TEXT[8:]),
             ],
             list(b.propter(1)))
+
+    def test_propter_boundary(self):
+        b = snipe.editor.Buffer()
+        b.replace(0, 0, 'foo', prop={'key': 'value'})
+
+        self.assertEqual([({'key': 'value'}, 'foo')], list(b.propter(0)))
 
 
 class TestViewer(unittest.TestCase):
@@ -1080,6 +1192,13 @@ class TestPopViewer(unittest.TestCase):
         self.assertIn(name, v.buf.registry)
         v.destroy()
         self.assertNotIn(name, v.buf.registry)
+
+
+class TestMisc(unittest.TestCase):
+    def test_isspace(self):
+        self.assertEqual(True, snipe.editor.isspace(' '))
+        self.assertEqual(False, snipe.editor.isspace('X'))
+        self.assertEqual(False, snipe.editor.isspace(None))
 
 
 if __name__ == '__main__':
