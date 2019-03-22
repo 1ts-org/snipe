@@ -34,7 +34,8 @@ Unit tests for tty color infrastructure
 '''
 
 import unittest
-import unittest.mock
+
+from unittest.mock import (patch)
 
 import mocks
 
@@ -43,18 +44,18 @@ import snipe.ttycolor as ttycolor
 
 class TestTTYColor(unittest.TestCase):
     def test_get_assigner(self):
-        with unittest.mock.patch('snipe.ttycolor.curses', mocks.Curses()):
+        with patch('snipe.ttycolor.curses', mocks.Curses()):
             self.assertIsInstance(
                 ttycolor.get_assigner(), ttycolor.NoColorAssigner)
 
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=256, dynamic=True)):
             self.assertIsInstance(
                 ttycolor.get_assigner(),
                 ttycolor.DynamicColorAssigner)
 
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=256, dynamic=False)):
             self.assertIsInstance(
@@ -66,7 +67,7 @@ class TestTTYColor(unittest.TestCase):
         assign.close()
 
     def test_SimpleColorAssigner(self):
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=8, color_pairs=2)):
             assign = ttycolor.SimpleColorAssigner()
@@ -76,7 +77,7 @@ class TestTTYColor(unittest.TestCase):
             self.assertEqual(assign('black', 'white'), 0)
 
     def test_CleverColorAssigner(self):
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=8, color_pairs=2)):
             assign = ttycolor.CleverColorAssigner()
@@ -86,7 +87,7 @@ class TestTTYColor(unittest.TestCase):
             self.assertIsNone(assign.strtorgb('nonexistent color'))
 
     def test_StaticColorAssigner(self):
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=8, color_pairs=2)):
             assign = ttycolor.StaticColorAssigner()
@@ -97,19 +98,19 @@ class TestTTYColor(unittest.TestCase):
             self.assertEqual(assign('black', 'white'), 0)
             self.assertEqual(assign.getcolor('nonexistent color'), -1)
             self.assertIs(assign.getcolor('#fff'), assign.getcolor('#fff'))
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=256, color_pairs=2)):
             assign = ttycolor.StaticColorAssigner()
             self.assertEqual(
                 len(assign.map), len(ttycolor.colors_xterm_256color))
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=88, color_pairs=2)):
             assign = ttycolor.StaticColorAssigner()
             self.assertEqual(
                 len(assign.map), len(ttycolor.colors_xterm_88color))
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=16, color_pairs=2)):
             assign = ttycolor.StaticColorAssigner()
@@ -117,7 +118,7 @@ class TestTTYColor(unittest.TestCase):
                 len(assign.map), len(ttycolor.colors_xterm))
 
     def test_DynamicColorAssigner(self):
-        with unittest.mock.patch(
+        with patch(
                 'snipe.ttycolor.curses',
                 mocks.Curses(colors=8, color_pairs=2)):
             assign = ttycolor.DynamicColorAssigner()

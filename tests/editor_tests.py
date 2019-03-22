@@ -38,7 +38,8 @@ import array
 import itertools
 import random
 import unittest
-import unittest.mock
+
+from unittest.mock import (Mock, patch)
 
 import mocks
 
@@ -484,7 +485,7 @@ class TestEditor(unittest.TestCase):
         self.assertTrue(e.writable(0, 6))
         e.toggle_writable()
         self.assertFalse(e.writable(0, 6))
-        e.fe = unittest.mock.Mock()
+        e.fe = Mock()
         e.insert('jkl')
         e.fe.notify.assert_called()
 
@@ -542,7 +543,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(5, e.fill_column)
 
         response = 'plants'
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         await e.set_fill_column()
         self.assertEqual(5, e.fill_column)
         e.whine.assert_called_with(
@@ -571,7 +572,7 @@ class TestEditor(unittest.TestCase):
     def test_kill_region(self):
         e = snipe.editor.Editor(None)
         e.fe = mocks.FE()
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         e.kill_region()
         e.whine.assert_called_with('no mark is set')
         e.insert('abcdef')
@@ -612,7 +613,7 @@ class TestEditor(unittest.TestCase):
         e.kill_region()
         e.yank()
         self.assertEqual('foo', str(e.buf))
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         e.yank_pop()
         e.whine.assert_called()
         e.last_command = 'yank'
@@ -621,7 +622,7 @@ class TestEditor(unittest.TestCase):
 
     def test_undo(self):
         e = snipe.editor.Editor(None)
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         e.undo()
         self.assertEqual('', str(e.buf))
         e.whine.assert_called()
@@ -635,14 +636,14 @@ class TestEditor(unittest.TestCase):
         self.assertEqual('', str(e.buf))
         e.insert('foo')
         e._writable = False
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         e.undo()
         self.assertEqual('foo', str(e.buf))
         e.whine.assert_called()
 
     def test_transpose_chars(self):
         e = snipe.editor.Editor(None)
-        e.whine = unittest.mock.Mock()
+        e.whine = Mock()
         e.transpose_chars()
         e.whine.assert_called()
         e.insert('ba')
@@ -675,8 +676,7 @@ class TestEditor(unittest.TestCase):
     @snipe.imbroglio.test
     async def test_insert_file(self):
         e = snipe.editor.Editor(None)
-        e.read_filename = unittest.mock.Mock()
-        e.read_filename.return_value = mocks.promise(__file__)
+        e.read_filename = Mock(return_value=mocks.promise(__file__))
         await e.insert_file()
         self.assertEqual(
             '# -*- encoding: utf-8 -*-', str(e.buf).splitlines()[0])
@@ -691,13 +691,11 @@ class TestEditor(unittest.TestCase):
     @snipe.imbroglio.test
     async def test_unicode_insert(self):
         e = snipe.editor.Editor(None)
-        e.read_string = unittest.mock.Mock()
-        e.read_string.return_value = mocks.promise(
-            'LATIN CAPITAL LETTER A')
+        e.read_string = Mock(return_value=mocks.promise(
+            'LATIN CAPITAL LETTER A'))
         await e.insert_unicode()
         self.assertEqual('A', str(e.buf))
-        e.read_string.return_value = mocks.promise(
-            '42')
+        e.read_string.return_value = mocks.promise('42')
         await e.insert_unicode()
         self.assertEqual('AB', str(e.buf))
 
@@ -1152,7 +1150,7 @@ class TestViewer(unittest.TestCase):
         self.assertEqual('if True:\n', str(e.buf))
 
     def test_evaller_3(self):
-        with unittest.mock.patch('snipe.editor.Editor.show'):
+        with patch('snipe.editor.Editor.show'):
             e = snipe.editor.Editor(None)
             e.insert_region('print(2 + 2)')
             e.exec_buffer(None)
@@ -1161,7 +1159,7 @@ class TestViewer(unittest.TestCase):
             self.assertEqual('print(2 + 2)', str(e.buf))
 
     def test_evaller_4(self):
-        with unittest.mock.patch('snipe.editor.Editor.show'):
+        with patch('snipe.editor.Editor.show'):
             e = snipe.editor.Editor(None)
             e.set_mark()
             self.assertEqual('', str(e.buf))
