@@ -128,11 +128,12 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if self.name == self.__class__.name:
             self.name = Slack.name + '.' + slackname
         self.backfilling = False
+        self.data = {}
         self.dests = {}
+        self.users = {}
         self.connected = False
         self.messages = []
         self.nextid = itertools.count().__next__
-        self.unacked = {}
         self.used_emoji = []
         self.websocket = None
         self.setup_client_session()
@@ -264,12 +265,6 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         if 'reply_to' in m:
             self.log.debug('reply_to_message: %s', repr(m))
 
-            msgid = m['reply_to']
-            if msgid not in self.unacked:
-                # this is probably a response from a previous session
-                return
-
-            m.update(self.unacked[msgid])
             if 'user' not in m:
                 m['user'] = self.data['self']['id']
             # because they don't include the actual message for some reason
@@ -322,14 +317,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     if m['user'] in reaction['users']:
                         reaction['users'].remove(m['user'])
             return msg
-        elif t == 'team_join':
+        elif t in {'team_join', 'user_change'}:
             u = m['user']
             self.users[u['id']] = u
             self.dests[u['id']] = SlackDest(self, 'user', u)
-            return
-        elif t == 'user_change':
-            u = m['user']
-            self.users[u['id']] = u
             return
         elif t == 'channel_created':
             c = m['channel']
@@ -338,6 +329,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif t in ('channel_rename', 'group_rename'):
             c = m['channel']
             self.dests[c['id']].update(c)
+            return
         elif t == 'group_joined':
             c = m['channel']
             self.dests[c['id']] = SlackDest(self, 'group', c)
@@ -608,7 +600,7 @@ class SlackMessage(messages.SnipeMessage):
                     self.body += s
                 else:
                     if '|' in s:
-                        self.body += s.split('!', 1)[-1]
+                        self.body += s.split('|', 1)[-1]
                     else:
                         if s[:2] in ('#C', '@U'):
                             self.body += self.displayname(s[1:])
@@ -635,6 +627,7 @@ class SlackMessage(messages.SnipeMessage):
         return str(self.backend.dests.get(s, s))
 
     def slackmarkup(self, text, tags):
+        # XXX see https://api.slack.com/messaging/composing/formatting
         if not text:
             text = ''
         chunk = chunks.Chunk()
@@ -676,7 +669,8 @@ class SlackMessage(messages.SnipeMessage):
             terms.append(filters.Compare('==', 'sender', self.field('sender')))
         if len(terms) > 1:
             return filters.And(*terms)
-        else:
+        else:  # pragma: nocover
+            # can't happen at the moment
             return terms[0]
 
     @keymap.bind('+')
