@@ -286,29 +286,6 @@ class Rooster(util.HTTP_JSONmixin):
             await ws.close()
 
 
-class ExileException(RoosterException):
-    def __init__(self, gloss, error):
-        self.gloss = gloss
-        self.error = error
-
-    def __str__(self):
-        return self.gloss
-
-    def __repr__(self):
-        return '<%s: %s\n%s\n>' % (
-            self.__class__.__name__,
-            self.gloss,
-            self.error)
-
-
-def trampoline(f, *args, **kwargs):
-    import traceback
-    try:
-        return f(*args, **kwargs)
-    except BaseException as e:
-        raise ExileException(str(e), str(traceback.format_exc())) from None
-
-
 def get_auth_token(service):
     context = krb5.Context()
     ccache = context.cc_default()
