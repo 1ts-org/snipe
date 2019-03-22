@@ -37,9 +37,9 @@ import curses
 import functools
 import itertools
 import sys
-import unittest
 
 from typing import (Dict, Any, List, Optional, Tuple)
+from unittest.mock import (patch)
 
 import snipe.chunks
 import snipe.filters
@@ -414,7 +414,7 @@ class Curses:
 @contextlib.contextmanager
 def mocked_up_actual_fe(window_factory=None, statusline_factory=None):
     curses = Curses()
-    with unittest.mock.patch('snipe.ttyfe.curses', curses):
+    with patch('snipe.ttyfe.curses', curses):
         fe = snipe.ttyfe.TTYFrontend()
         # emulating fe.__enter_
         fe.stdscr = curses.stdscr

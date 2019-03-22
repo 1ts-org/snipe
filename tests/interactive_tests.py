@@ -35,7 +35,8 @@ Unit tests for interactive function infrastructure
 import inspect
 import unittest
 
-from typing import TYPE_CHECKING
+from unittest.mock import (Mock)
+from typing import (TYPE_CHECKING)
 
 import snipe.interactive as interactive  # noqa: F401
 
@@ -131,11 +132,11 @@ class TestFileCompleter(unittest.TestCase):
 
 class TestDestCompleter(unittest.TestCase):
     def test(self):
-        roost = unittest.mock.Mock()
+        roost = Mock()
         roost.name = 'roost'
-        irccloud = unittest.mock.Mock()
+        irccloud = Mock()
         irccloud.name = 'irccloud'
-        context = unittest.mock.Mock()
+        context = Mock()
         context.backends = [roost, irccloud]
         d = interactive.DestCompleter(
             ['roost; foo', 'roost; bar', 'irccloud; baz'], context)

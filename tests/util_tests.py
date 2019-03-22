@@ -46,7 +46,7 @@ import unittest
 import zlib
 
 from typing import (Dict)
-from unittest import (mock)
+from unittest.mock import (patch)
 
 import wsproto
 
@@ -358,7 +358,7 @@ class JSONMixinTester(snipe.util.HTTP_JSONmixin, JSONMixinTesterSuper):
 
 class TestHTTP_JSONmixin(unittest.TestCase):
     def test(self):
-        with unittest.mock.patch('snipe.util.HTTP', MockHTTP()) as _HTTP:
+        with patch('snipe.util.HTTP', MockHTTP()) as _HTTP:
             hjm = JSONMixinTester()
 
             hjm.log = logging.getLogger('test_http_json_mixin')
@@ -419,7 +419,7 @@ class MockHTTP_WS:
 
 class TestJSONWebSocket(unittest.TestCase):
     def test(self):
-        with unittest.mock.patch(
+        with patch(
                 'snipe.util.HTTP_WS', MockHTTP_WS()) as _HTTP_WS:
             jws = snipe.util.JSONWebSocket(
                 logging.getLogger('test'))
@@ -459,7 +459,7 @@ class TestNetworkStream(unittest.TestCase):
         imbroglio.run(self._test())
 
     async def _test(self):
-        with unittest.mock.patch(
+        with patch(
                 'socket.create_connection', MockCreateConnection()) as mc:
             mc.left.setblocking(False)
             self.assertIsInstance(
@@ -590,7 +590,7 @@ class TestSSLStream(unittest.TestCase):
         imbroglio.run(self._test())
 
     async def _test(self):
-        with unittest.mock.patch('ssl.create_default_context', MockContext):
+        with patch('ssl.create_default_context', MockContext):
             ss = snipe.util.SSLStream(MockStream(), 'foo')
             self.assertEqual('<SSLStream <MockStream>>', repr(ss))
             log = logging.getLogger('test')
@@ -680,8 +680,8 @@ class TestSSLStream(unittest.TestCase):
 class TestHTTP(unittest.TestCase):
     @snipe.imbroglio.test
     async def test0(self):
-        with unittest.mock.patch('ssl.create_default_context', MockContext), \
-                unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+        with patch('ssl.create_default_context', MockContext), \
+                patch('snipe.util.NetworkStream', MockStream):
             HTTP = await snipe.util.HTTP.request('https://foo/foo')
             self.assertIsInstance(HTTP.stream.obj, MockContext)
             self.assertIsInstance(HTTP.stream.netstream, MockStream)
@@ -721,7 +721,7 @@ class TestHTTP(unittest.TestCase):
 
     @snipe.imbroglio.test
     async def test1(self):
-        with unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+        with patch('snipe.util.NetworkStream', MockStream):
             HTTP = await snipe.util.HTTP.request('http://foo/foo')
             self.assertIsInstance(HTTP.stream, MockStream)
 
@@ -759,7 +759,7 @@ class TestHTTP(unittest.TestCase):
 
     @snipe.imbroglio.test
     async def test_decompress(self):
-        with unittest.mock.patch('snipe.util.NetworkStream', MockStream):
+        with patch('snipe.util.NetworkStream', MockStream):
             HTTP = await snipe.util.HTTP.request('http://foo/foo')
             self.assertIsInstance(HTTP.stream, MockStream)
 
@@ -882,9 +882,9 @@ class TestHTTP_WS(unittest.TestCase):
         async def _send(*args, **kwargs):
             raise Exception
 
-        with mock.patch('snipe.util.NetworkStream.connect', connect), \
-                mock.patch('snipe.util.SSLStream') as ssl, \
-                mock.patch('snipe.util.HTTP_WS._send', _send):
+        with patch('snipe.util.NetworkStream.connect', connect), \
+                patch('snipe.util.SSLStream') as ssl, \
+                patch('snipe.util.HTTP_WS._send', _send):
             with self.assertRaises(Exception):
                 await snipe.util.HTTP_WS.request('wss://foo')
             self.assertTrue(ns_connect_called)

@@ -38,7 +38,8 @@ import io
 import math
 import os
 import unittest
-import unittest.mock as mock
+
+from unittest.mock import (patch)
 
 import mocks
 
@@ -148,7 +149,7 @@ class TestMessager(unittest.TestCase):
             def now():
                 return datetime.datetime.fromtimestamp(60)
 
-        with mock.patch('datetime.datetime', mockdatetime):
+        with patch('datetime.datetime', mockdatetime):
             self.assertEqual(
                 w.modeline(), (
                     [({'dim'}, '00:01'), (set(), ' filter default')],
@@ -574,11 +575,11 @@ body: ""
         os.environ['TZ'] = 'GMT'
         try:
             # pypy
-            with mock.patch('datetime.date.today', MockDate.today):
+            with patch('datetime.date.today', MockDate.today):
                 w.prev_day()
         except TypeError:
             # cpython
-            with mock.patch('datetime.date', MockDate):
+            with patch('datetime.date', MockDate):
                 w.prev_day()
         self.assertEqual(target, (0.0,))
 
