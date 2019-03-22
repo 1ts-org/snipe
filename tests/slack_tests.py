@@ -51,9 +51,6 @@ from snipe.chunks import (Chunk)
 
 
 class TestSlack(unittest.TestCase):
-    def test_instantiate(self):
-        s = slack.Slack(None, name='test')
-
     @imbroglio.test
     async def test_backoff(self):
         with patch('snipe.imbroglio.sleep') as sleep:
@@ -69,7 +66,6 @@ class TestSlack(unittest.TestCase):
         s.dests = {'foo': slack.SlackDest(s, 'user', {'name': 'bar'})}
         self.assertEqual({'test; bar'}, s.destinations())
         self.assertEqual({'test; bar'}, s.senders())
-
 
     @imbroglio.test
     async def test_incoming_find(self):
@@ -109,7 +105,7 @@ class TestSlack(unittest.TestCase):
         with self.assertRaises(slack.SlackReconnectException):
             await s.process_message(s.messages, {
                 'type': 'team_migration_started'})
-        s.emoji_update = Mock(return_value = mocks.promise())
+        s.emoji_update = Mock(return_value=mocks.promise())
         self.assertIsNone(
             await s.process_message(l, {
                 'type': 'emoji_changed'}))
@@ -164,7 +160,6 @@ class TestSlack(unittest.TestCase):
             'type': 'message',
             'user': 'USLACKBOT',
             })
-
 
         self.assertEqual(
             s.messages[0].body,
@@ -716,12 +711,12 @@ class TestSlackMessage(unittest.TestCase):
         m = slack.SlackMessage(s, {'type': 'message', 'channel': 'foo'})
         o = object()
 
-        m.react = Mock(return_value = mocks.promise())
+        m.react = Mock(return_value=mocks.promise())
 
         await m.add_reaction(o)
         m.react.assert_called_with(o, 'reactions.add')
 
-        m.react = Mock(return_value = mocks.promise())
+        m.react = Mock(return_value=mocks.promise())
 
         await m.remove_reaction(o)
         m.react.assert_called_with(o, 'reactions.remove')
@@ -756,13 +751,13 @@ class TestSlackMessage(unittest.TestCase):
             s, {'type': 'message', 'channel': 'foo', 'ts': 0.0})
 
         window = Mock()
-        window.cursor=None
+        window.cursor = None
         window.read_string.return_value = mocks.promise('foo')
 
         with self.assertRaises(Exception):
             await m.edit_message(window)
 
-        s.method = Mock(return_value = mocks.promise({'ok': True}))
+        s.method = Mock(return_value=mocks.promise({'ok': True}))
 
         window.read_string.return_value = mocks.promise('\nfoo')
         await m.edit_message(window)
