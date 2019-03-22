@@ -36,7 +36,7 @@ from typing import (NewType, Union, List, Optional, TYPE_CHECKING)
 
 from . import util
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: nocover
     from . import window as _window  # noqa: F401
     from . import keymap as _keymap  # noqa: F401
 
@@ -53,7 +53,7 @@ if not TYPE_CHECKING:
     keyseq = _keyword('keyseq')
     keymap = _keyword('keymap')
     argument = _keyword('argument')
-else:
+else:  # pragma: nocover
     window = NewType('window', '_window.Window')
     keystroke = Union[int, str]
     keyseq = str
@@ -69,7 +69,7 @@ if not TYPE_CHECKING:
         if arg == '-':
             return -1
         return 4**len(arg)
-else:
+else:  # pragma: nocover
     integer_argument = Optional[int]
 
 
@@ -79,14 +79,14 @@ if not TYPE_CHECKING:
         if not isinstance(arg, int):  # coercion happens in integer_argument
             return arg
         return abs(arg)
-else:
+else:  # pragma: nocover
     positive_integer_argument = Optional[int]
 
 
 if not TYPE_CHECKING:
     def isinteractive(*args, **kw):
         return True
-else:
+else:  # pragma: nocover
     isinteractive = bool
 
 
@@ -124,7 +124,7 @@ class UnCompleter:
     def check(x, y):
         return False
 
-    def expand(self, value, index):
+    def expand(self, value):
         return None, None
 
 
@@ -207,7 +207,7 @@ class DestCompleter(Completer):
         self.context = context
         super().__init__(candidates)
         self.backends = [b.name for b in self.context.backends]
-        if not self.enable:
+        if not self.enable:  # pragma: nocover
             self.live = False
 
     def check(self, x, y):
