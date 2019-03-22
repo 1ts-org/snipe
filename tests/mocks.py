@@ -438,7 +438,7 @@ def mocked_up_actual_fe_window(window_factory=None, statusline_factory=None):
         yield fe.windows[fe.output].window
 
 
-def promise(val):
+def promise(val=None):
     async def f(*args, **kw):
         return val
 
