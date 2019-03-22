@@ -134,6 +134,7 @@ class TestMessager(unittest.TestCase):
         self.assertEqual(
             w.modeline(), ([(set(), 'filter default')], [({'right'}, '1')]))
         m = f.context.backends._messages[0]
+        m.time = 0.0
         w.renderer = mocks.Renderer((m, m))
         os.environ['TZ'] = 'GMT'
         self.assertEqual(
