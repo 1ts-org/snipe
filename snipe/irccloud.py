@@ -221,7 +221,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             pass
         elif mtype == 'header':
             self.header = m
-        elif mtype in ('bannned', 'socket_closed'):
+        elif mtype in ('banned', 'socket_closed'):
             # the system seems to generate multiple
             # socket_closed/banned messages with the same eid/time
             # with distinct cids, which confuses the message list.
@@ -249,9 +249,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             await imbroglio.switch()
         elif mtype == 'backlog_complete':
             self.message_set = None
-        elif mtype == 'makeserver':
-            self.connections.setdefault(m['cid'], m).update(m)
-        elif mtype == 'server_details_changed':
+        elif mtype in ('makeserver', 'server_details_changed'):
             self.connections.setdefault(m['cid'], m).update(m)
         elif mtype == 'status_changed':
             self.connections[m['cid']]['status'] = m['new_status']
@@ -263,6 +261,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif mtype == 'channel_init':
             self.channels.setdefault(m['bid'], m).update(m)
         else:
+            print('X', m)
             if eid < self.since_id and eid > 0:
                 return
             if 'bid' in m:
@@ -281,6 +280,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             self._destinations.add(msg.followup())
             self._senders.add(msg.reply())
             return msg
+        return None
 
     async def incoming(self, m):
         try:
@@ -322,7 +322,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             raise util.SnipeException('nowhere to send the message')
 
         connections = [
-            c['cid'] for c in self.connections.values()
+            (c['cid'], c['hostname']) for c in self.connections.values()
             if params[0] in c['hostname']]
 
         if not connections:
@@ -330,9 +330,10 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         if len(connections) > 1:
             raise util.SnipeException(
-                'ambiguous server name %s matches %s', params[0], connections)
+                f'ambiguous server name {params[0]}'
+                f' matches {list(zip(*connections))[1]}')
 
-        (cid,) = connections
+        ((cid, _)), = connections
 
         if len(params) < 2:
             dest = '*'
@@ -514,7 +515,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     async def reconnect(self):
         if self.new_task is not None:
             await self.disconnect()
-        self.start()
+        await self.start()
 
 
 class IRCCloudMessage(messages.SnipeMessage):
