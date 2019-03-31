@@ -32,14 +32,386 @@
 Unit tests for roost backend
 '''
 
+import io
 import os
 import unittest
+
+from unittest.mock import (patch, Mock)
 
 import mocks
 
 import snipe.context as context
+import snipe.imbroglio as imbroglio
 import snipe.messages as messages
 import snipe.roost as roost
+
+
+class TestRoost(unittest.TestCase):
+    @imbroglio.test
+    async def test_error_message(self):
+        r = roost.Roost(mocks.Context())
+
+        async def raises():
+            raise Exception('foo')
+
+        r.add_message = Mock()
+        await r.error_message('activity', raises)
+        m = r.add_message.call_args[0][0]
+        self.assertEqual('activity: foo', m.body.splitlines()[0])
+
+    @imbroglio.test
+    async def test_send(self):
+        r = roost.Roost(mocks.Context())
+
+        r.r.send = Mock(return_value=mocks.promise())
+        await r.send('-c class -i instance -s sig -O opcode', 'body')
+
+        self.assertEqual(
+            r.r.send.call_args[0][0],
+            {
+                'class': 'class',
+                'instance': 'instance',
+                'recipient': '',
+                'opcode': 'opcode',
+                'signature': 'sig',
+                'message': 'body',
+            })
+
+        r.r.send = Mock(return_value=mocks.promise())
+        await r.send('-c class -R -s sig recipient', 'body')
+
+        self.assertEqual(
+            r.r.send.call_args[0][0],
+            {
+                'class': 'class',
+                'instance': 'PERSONAL',
+                'recipient': 'recipient',
+                'opcode': '',
+                'signature': 'sig',
+                'message': 'obql',
+            })
+
+        r.r.send = Mock(return_value=mocks.promise())
+        with self.assertRaises(RuntimeError):
+            await r.send('-c class -s sig -C r1 r2', 'body')
+
+        self.assertEqual(
+            r.r.send.call_args[0][0],
+            {
+                'class': 'class',
+                'instance': 'PERSONAL',
+                'recipient': 'r2',
+                'opcode': '',
+                'signature': 'sig',
+                'message': 'CC: r1 r2\nbody',
+            })
+
+        with patch(
+                'snipe.imbroglio.process_filter',
+                return_value=mocks.promise((0, 'foo'))):
+            r.r.send = Mock(return_value=mocks.promise())
+            await r.send('-c class -x -s sig recipient', 'body')
+
+            self.assertEqual(
+                {
+                    'class': 'class',
+                    'instance': 'PERSONAL',
+                    'recipient': 'recipient',
+                    'opcode': 'crypt',
+                    'signature': 'sig',
+                    'message': 'foo',
+                }, r.r.send.call_args[0][0])
+
+        with patch(
+                'snipe.imbroglio.process_filter',
+                return_value=mocks.promise((1, 'foo'))), \
+                self.assertRaises(Exception):
+            r.r.send = Mock(return_value=mocks.promise())
+            await r.send('-c class -x -s sig recipient', 'body')
+
+    @imbroglio.test
+    async def test_new_message(self):
+        r = roost.Roost(mocks.Context())
+
+        o = object()
+        r.construct_and_maybe_decrypt = Mock(return_value=mocks.promise(o))
+        r.add_message = Mock()
+
+        await r.new_message({})
+        r.construct_and_maybe_decrypt.assert_called_with({})
+        r.add_message.assert_called_with(o)
+
+    def test_add_message(self):
+        r = roost.Roost(mocks.Context())
+
+        r.drop_cache = Mock()
+        r.redisplay = Mock()
+
+        m = messages.SnipeMessage(r, 'foo', 1.0)
+        r.add_message(m)
+
+        r.drop_cache.assert_called()
+        r.redisplay.assert_called_with(m, m)
+
+        m = messages.SnipeMessage(r, 'bar', 1.0)
+        r.add_message(m)
+
+        self.assertEqual(2, len(r.messages))
+        self.assertEqual(1.00001, r.messages[-1].time)
+
+    @imbroglio.test
+    async def test_construct_and_maybe_decrypt(self):
+        r = roost.Roost(mocks.Context())
+
+        self.assertEqual(0, len(r._destinations))
+        self.assertEqual(0, len(r._senders))
+
+        m = await r.construct_and_maybe_decrypt({
+                'message': 'body',
+                'receiveTime': 0.0,
+                'sender': 'sender',
+                'class': 'class',
+                'instance': 'instance',
+                'recipient': '',
+                'opcode': '',
+                'signature': 'sig',
+                'time': 0.0,
+                })
+
+        self.assertEqual('body', m.body)
+        self.assertEqual(2, len(r._destinations))
+        self.assertEqual(1, len(r._senders))
+
+        with patch(
+                'snipe.imbroglio.process_filter',
+                return_value=mocks.promise((0, 'foo\n**END**\n'))):
+            m = await r.construct_and_maybe_decrypt({
+                    'message': 'body',
+                    'receiveTime': 0.0,
+                    'sender': 'sender',
+                    'class': 'class',
+                    'instance': 'instance',
+                    'recipient': '',
+                    'opcode': 'crypt',
+                    'signature': 'sig',
+                    'time': 0.0,
+                    })
+            self.assertEqual('zcrypt', m.transformed)
+            self.assertEqual('foo\n', m.body)
+
+        with patch(
+                'snipe.imbroglio.process_filter',
+                return_value=mocks.promise((1, 'foo\n**END**\n'))), \
+                self.assertLogs() as l:
+            m = await r.construct_and_maybe_decrypt({
+                    'message': 'body',
+                    'receiveTime': 0.0,
+                    'sender': 'sender',
+                    'class': 'class',
+                    'instance': 'instance',
+                    'recipient': '',
+                    'opcode': 'crypt',
+                    'signature': 'sig',
+                    'time': 0.0,
+                    })
+        (m,) = l.output
+        self.assertRegex(
+            m,
+            r'ERROR:Roost.[0-9a-f]+:roost: zcrypt -D -c class returned 1')
+
+        with patch(
+                'snipe.imbroglio.process_filter',
+                return_value=mocks.promise(exception=Exception)), \
+                self.assertLogs() as l:
+            m = await r.construct_and_maybe_decrypt({
+                    'message': 'body',
+                    'receiveTime': 0.0,
+                    'sender': 'sender',
+                    'class': 'class',
+                    'instance': 'instance',
+                    'recipient': '',
+                    'opcode': 'crypt',
+                    'signature': 'sig',
+                    'time': 0.0,
+                    })
+        (m,) = l.output
+        m = m.splitlines()[0]
+        self.assertRegex(
+            m,
+            'ERROR:Roost.[0-9a-f]+:zcrypt, decrypting')
+
+    @imbroglio.test
+    async def test_dump_subscriptions(self):
+        r = roost.Roost(mocks.Context())
+
+        r.r.subscriptions = Mock(return_value=mocks.promise([{
+            'class': 'class',
+            'instance': 'instance',
+            'recipient': '',
+            }]))
+        w = Mock()
+
+        await r.dump_subscriptions(w)
+        w.show.assert_called_with('class instance *')
+
+    def test_spec_to_triplets(self):
+        self.assertEqual(
+            [('class', 'instance', 'recipient@REALM')],
+            roost.Roost.spec_to_triplets(
+                '-c class -i instance -r REALM recipient'))
+
+        # at this remoe, not sure what this is for
+        self.assertEqual(
+            [('c1', '*', ''), ('c2', '*', '')],
+            roost.Roost.spec_to_triplets(
+                'c1 c2'))
+
+    @imbroglio.test
+    async def test_load_subs(self):
+        r = roost.Roost(mocks.Context())
+
+        r.r.subscribe = Mock(return_value=mocks.promise())
+
+        with patch('os.path.exists', return_value=False), \
+                patch('snipe.roost.open', return_value=io.StringIO(
+                    'class,instance,*\n')) as o:
+            await r.load_subs('foo')
+            o.assert_not_called()
+
+        with patch('os.path.exists', return_value=True), \
+                patch('snipe.roost.open', return_value=io.StringIO(
+                    'class,instance,@ATHENA.MIT.EDU\n')):
+            await r.load_subs('foo')
+        r.r.subscribe.assert_called_with([['class', 'instance', '*']])
+
+    def test_do_subunify(self):
+        self.assertEqual([
+            ('a', 'b', ''),
+            ('a.d', 'b', ''),
+            ('a.d.d', 'b', ''),
+            ('a.d.d.d', 'b', ''),
+            ('una', 'b', ''),
+            ('una.d', 'b', ''),
+            ('una.d.d', 'b', ''),
+            ('una.d.d.d', 'b', ''),
+            ('ununa', 'b', ''),
+            ('ununa.d', 'b', ''),
+            ('ununa.d.d', 'b', ''),
+            ('ununa.d.d.d', 'b', ''),
+            ('unununa', 'b', ''),
+            ('unununa.d', 'b', ''),
+            ('unununa.d.d', 'b', ''),
+            ('unununa.d.d.d', 'b', ''),
+            ], roost.Roost.do_subunify([('a', 'b', '')]))
+
+    @imbroglio.test
+    async def test_subscribe(self):
+        r = roost.Roost(mocks.Context())
+        r.subunify = True
+
+        w = Mock()
+        w.read_string.return_value = mocks.promise('a')
+
+        r.r.subscribe = Mock(return_value=mocks.promise())
+
+        await r.subscribe(w)
+
+        r.r.subscribe.assert_called_with([
+            ('a', '*', ''),
+            ('a.d', '*', ''),
+            ('a.d.d', '*', ''),
+            ('a.d.d.d', '*', ''),
+            ('una', '*', ''),
+            ('una.d', '*', ''),
+            ('una.d.d', '*', ''),
+            ('una.d.d.d', '*', ''),
+            ('ununa', '*', ''),
+            ('ununa.d', '*', ''),
+            ('ununa.d.d', '*', ''),
+            ('ununa.d.d.d', '*', ''),
+            ('unununa', '*', ''),
+            ('unununa.d', '*', ''),
+            ('unununa.d.d', '*', ''),
+            ('unununa.d.d.d', '*', ''),
+            ])
+
+    @imbroglio.test
+    async def test_subscribe_fie(self):
+        r = roost.Roost(mocks.Context())
+
+        w = Mock()
+        w.read_filename.return_value = mocks.promise('filename')
+
+        r.load_subs = Mock(return_value=mocks.promise())
+
+        with patch('os.path.exists', return_value=False):
+            await r.subscribe_file(w)
+
+        r.load_subs.assert_called_with('filename')
+
+    @imbroglio.test
+    async def test_unsubscribe(self):
+        r = roost.Roost(mocks.Context())
+        r.subunify = True
+
+        w = Mock()
+        w.read_string.return_value = mocks.promise('a')
+
+        r.r.unsubscribe = Mock(return_value=mocks.promise())
+
+        await r.unsubscribe(w)
+
+        r.r.unsubscribe.assert_called_with([
+            ('a', '*', ''),
+            ('a.d', '*', ''),
+            ('a.d.d', '*', ''),
+            ('a.d.d.d', '*', ''),
+            ('una', '*', ''),
+            ('una.d', '*', ''),
+            ('una.d.d', '*', ''),
+            ('una.d.d.d', '*', ''),
+            ('ununa', '*', ''),
+            ('ununa.d', '*', ''),
+            ('ununa.d.d', '*', ''),
+            ('ununa.d.d.d', '*', ''),
+            ('unununa', '*', ''),
+            ('unununa.d', '*', ''),
+            ('unununa.d.d', '*', ''),
+            ('unununa.d.d.d', '*', ''),
+            ])
+
+    @imbroglio.test
+    async def test_reconnect(self):
+        r = roost.Roost(mocks.Context())
+
+        r.new_task = Mock()
+        r.new_task.is_done.return_value = False
+
+        r.disconnect = Mock(return_value=mocks.promise())
+        r.start = Mock(return_value=mocks.promise())
+
+        await r.reconnect()
+
+        r.disconnect.assert_called()
+        r.start.assert_called()
+
+    @imbroglio.test
+    async def test_disconnect(self):
+        cancelled = False
+
+        class Tusk:
+            def cancel(self):
+                nonlocal cancelled
+                cancelled = True
+
+            def __await__(self):
+                yield ('sleep',)
+
+        r = roost.Roost(mocks.Context())
+        r.new_task = Tusk()
+        r.tasks.append(r.new_task)
+        await r.disconnect()
+        self.assertTrue(cancelled)
 
 
 class TestRoostDecor(unittest.TestCase):
