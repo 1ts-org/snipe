@@ -213,7 +213,7 @@ class Roost(messages.SnipeBackend):
     async def send(self, paramstr, body):
         self.log.debug('send paramstr=%s', paramstr)
 
-        flags, recipients = getopt.getopt(shlex.split(paramstr), 'xRCc:i:O:')
+        flags, recipients = getopt.getopt(shlex.split(paramstr), 'xRCc:i:O:s:')
 
         flags = dict(flags)
         self.log.debug('send flags=%s', repr(flags))
@@ -228,10 +228,10 @@ class Roost(messages.SnipeBackend):
             body = codecs.encode(body, 'rot13')
 
         for recipient in recipients:
-            if '-x' in flags and False:
+            if '-x' in flags:
                 flags['-O'] = 'crypt'
                 cmd = ['zcrypt', '-E', '-c', flags.get('-c', 'MESSAGE')]
-                returncode, stdout = imbroglio.process_filter(cmd, body)
+                returncode, stdout = await imbroglio.process_filter(cmd, body)
                 if returncode:
                     self.log.error(
                         'roost: %s returned %d',
@@ -268,16 +268,16 @@ class Roost(messages.SnipeBackend):
     async def construct_and_maybe_decrypt(self, m):
         msg = RoostMessage(self, m)
         try:
-            if msg.data.get('opcode') == 'crypt' and False:
+            if msg.data.get('opcode') == 'crypt':
                 cmd = ['zcrypt', '-D', '-c', msg.data['class']]
                 retcode, stdout = await imbroglio.process_filter(
-                    cmd, msg.body())
+                    cmd, msg.body)
                 if retcode:
                     self.log.error(
                         'roost: %s returned %d',
                         ' '.join(cmd),
                         retcode)
-                if not retcode:
+                else:
                     sigil = '**END**\n'
                     if stdout.endswith(sigil):
                         stdout = stdout[:-len(sigil)]
@@ -475,17 +475,17 @@ class Roost(messages.SnipeBackend):
             await self.r.unsubscribe(subs)
 
     @keymap.bind('R R')
-    def reconnect(self):
+    async def reconnect(self):
         if self.new_task is not None and not self.new_task.is_done():
-            self.disconnect()
-        self.start()
+            await self.disconnect()
+        await self.start()
 
     @keymap.bind('R D')
     async def disconnect(self):
         self.new_task.cancel()
         try:
             await self.new_task
-        except BaseException:
+        except BaseException:  # pragma: nocover
             self.log.exception('cancelling new_task')
         with contextlib.suppress(BaseException):
             self.tasks.remove(self.new_task)

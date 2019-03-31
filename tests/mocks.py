@@ -168,6 +168,7 @@ class Context:
         self.keys = []
         self.clear()
         self.kill_log = []
+        self.home_directory = 'homedir'
 
     def clear(self):
         self._message = ''
