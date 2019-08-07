@@ -57,7 +57,7 @@ class REPL(editor.Editor):
         super().__init__(*args, **kw)
 
         # YYY
-        import _sitebuiltins
+        import _sitebuiltins  # type:ignore
         _sitebuiltins._Printer.MAXLINES = 99999999999999999
 
         if 'REPL' not in self.buf.state:

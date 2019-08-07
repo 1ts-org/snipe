@@ -486,10 +486,10 @@ class QuoteHack:
 
 
 class SnipeFBP(markdown.extensions.fenced_code.FencedBlockPreprocessor):
-    CODE_WRAP = QuoteHack()
+    CODE_WRAP = QuoteHack()  # type: ignore
 
 
-class SnipeFencedCodeExtension(markdown.Extension):
+class SnipeFencedCodeExtension(markdown.Extension):  # type:ignore
     def extendMarkdown(self, md, md_globals):
         md.registerExtension(self)
         md.preprocessors.add(
