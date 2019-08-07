@@ -30,12 +30,12 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 """
-This is a cheap knockoff of David Beazly's curio that started out running under
-python 3.4 becasue reasons, but that was abandoned when I realized that many of
+This is a cheap knockoff of David Beazley's curio that started out running under
+python 3.4 becasue reasons, but 3.4 was abandoned when I realized that many of
 the libraries I wanted to use had moved on.  Seriously, curio
 <https://github.com/dabeaz/curio> is a carefully thought out carefully polished
 gem of a codebase; this is a hack.  I'm mostly not using curio because the
-documentation says not to.
+documentation said not to.
 """
 
 __version__ = '0'
@@ -43,7 +43,12 @@ __version__ = '0'
 from .core import *
 from .tools import *
 
+from . import core
+from . import tools
+
 __all__ = (
     *core.__all__,
     *tools.__all__,
     )
+
+del core, tools
