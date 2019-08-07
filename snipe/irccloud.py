@@ -261,7 +261,6 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         elif mtype == 'channel_init':
             self.channels.setdefault(m['bid'], m).update(m)
         else:
-            print('X', m)
             if eid < self.since_id and eid > 0:
                 return
             if 'bid' in m:
