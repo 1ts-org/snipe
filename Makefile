@@ -16,7 +16,7 @@ nosetests: venv
 	$(NOSETESTS) --processes=8 --process-timeout=300 $(TEST)
 
 mypy: venv
-	$(MYPY) --ignore-missing-imports rooster.py setup.py swearing.py snipe tests
+	$(MYPY) rooster.py setup.py swearing.py snipe tests
 
 coverage: venv
 	$(COVERAGE) erase
