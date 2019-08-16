@@ -220,7 +220,6 @@ class Messager(window.Window, window.PagingMixIn):
             if max(head, m1) <= min(sill, m2):
                 self.log.debug('True!')
                 return True
-        self.log.debug("Fals.e")
         return False
 
     def install_per_message_keymap(self):
