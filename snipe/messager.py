@@ -138,7 +138,7 @@ class Messager(window.Window, window.PagingMixIn):
             self.secondary = None
         return True
 
-    def walk(self, origin, direction, backfill_to=None, search=False):
+    def msg_walk(self, origin, direction, backfill_to=None, search=False):
         self.log.debug(
             'walk(%s, forward=%s, backfill_to=%s, search=%s)',
             repr(origin), repr(direction),
@@ -149,7 +149,7 @@ class Messager(window.Window, window.PagingMixIn):
     def view(self, origin, direction='forward'):
         self.log.debug('view(%s, %s)', repr(origin), repr(direction))
 
-        for x in self.walk(
+        for x in self.msg_walk(
                 origin, direction == 'forward'):
             chunk = None
             try:
@@ -190,7 +190,7 @@ class Messager(window.Window, window.PagingMixIn):
             yield chunks.View(x, chunk)
 
     def find(self, string, forward):
-        for msg in self.walk(self.cursor, forward, search=True):
+        for msg in self.msg_walk(self.cursor, forward, search=True):
             if msg is self.cursor:
                 continue
             m = str(msg.display({}))
@@ -351,7 +351,7 @@ class Messager(window.Window, window.PagingMixIn):
     def cursor_set_walk(self, origin, direction, backfill_to=None):
         """Set the cursor by getting the first result from a walk"""
 
-        self.cursor = next(self.walk(origin, direction, backfill_to))
+        self.cursor = next(self.msg_walk(origin, direction, backfill_to))
 
     def cursor_set_walk_mark(self, origin, direction, backfill_to=None):
         """Set the cursor by getting the first result from a walk, and set the
@@ -368,11 +368,11 @@ class Messager(window.Window, window.PagingMixIn):
         super().pageup()
         # trigger backfill if we're at the earliest extant message
         try:
-            it = self.walk(self.cursor, False, None)
+            it = self.msg_walk(self.cursor, False, None)
             next(it)
             next(it)
         except StopIteration:
-            next(self.walk(self.cursor, False, float('-inf')))
+            next(self.msg_walk(self.cursor, False, float('-inf')))
 
     @keymap.bind('s', 'z')
     async def send(self, recipient='', msg=None, name='send message'):
@@ -899,7 +899,7 @@ class Messager(window.Window, window.PagingMixIn):
         start = min(self.the_mark or self.cursor, self.cursor)
         end = max(self.the_mark or self.cursor, self.cursor)
         with open(filename, 'w') as output:
-            for m in self.walk(start, True, search=True):
+            for m in self.msg_walk(start, True, search=True):
                 output.write(str(m))
                 if m >= end:
                     break
