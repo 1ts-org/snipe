@@ -129,6 +129,9 @@ class TestKeymap(unittest.TestCase):
         k = snipe.keymap.Keymap()
         k.default = 5
         self.assertEqual(k['9'], 5)
+        self.assertEqual(k[' '], 5)
+        with self.assertRaises(KeyError):
+            k[chr(0)]
 
     def test_repr(self):
         k = snipe.keymap.Keymap()

@@ -62,7 +62,7 @@ class Keymap(collections.defaultdict):
     def __missing__(self, key):
         if (self.default is not None
                 and isinstance(key, str)
-                and (ord(key) > ord(' ')  # not a number, not a control char
+                and (ord(key) >= ord(' ')  # not a number, not a control char
                      or self.controldefault)):
             return self.default
         raise KeyError
