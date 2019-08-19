@@ -229,7 +229,7 @@ class HelpBrowser(editor.PopViewer):
             self.cursor.point = self.refs[anchor]
         self.page = name
 
-    def view(self, origin, direction='forward'):
+    def view(self, origin, forward=True):
         l = len(self.chunks) - 1
         i = min(
             bisect.bisect_left([x.mark for x in self.chunks], int(origin)),
@@ -254,7 +254,7 @@ class HelpBrowser(editor.PopViewer):
                 yield chunks.View(
                     self.buf.mark(self.chunks[i].mark), self.chunks[i].chunk)
 
-            if direction == 'forward':
+            if forward:
                 i += 1
             else:
                 i -= 1

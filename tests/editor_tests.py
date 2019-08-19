@@ -185,13 +185,11 @@ class TestEditor(unittest.TestCase):
                 i + 72))+'\n'
             for i in range(256)]
         e.insert(''.join(lines))
-        with self.assertRaises(ValueError):
-            list(e.view(0, 'pants'))
         c = e.cursor.point
-        forward = [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')]
+        forward = [(int(m), l.tagsets()) for (m, l) in e.view(0)]
         self.assertEqual(e.cursor.point, c)
         backward = [
-            (int(m), l.tagsets()) for (m, l) in e.view(len(e.buf), 'backward')]
+            (int(m), l.tagsets()) for (m, l) in e.view(len(e.buf), False)]
         self.assertEqual(e.cursor.point, c)
         self.assertEqual(len(forward), 257)
         self.assertEqual(forward, list(reversed(backward)))
@@ -200,12 +198,12 @@ class TestEditor(unittest.TestCase):
             (len(e.buf), [({'cursor', 'visible'}, '')]))
         self.assertEqual(len(forward), 257)
         c = e.cursor.point
-        it = iter(e.view(0, 'forward'))
+        it = iter(e.view(0))
         next(it)
         self.assertEqual(e.cursor.point, c)
         next(it)
         self.assertEqual(e.cursor.point, c)
-        it = iter(e.view(len(e.buf), 'backward'))
+        it = iter(e.view(len(e.buf), False))
         next(it)
         self.assertEqual(e.cursor.point, c)
         next(it)
@@ -215,7 +213,7 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.insert('abc')
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [((), 'abc'), ({'cursor', 'visible'}, '')])])
 
     def test_view_search(self):
@@ -223,7 +221,7 @@ class TestEditor(unittest.TestCase):
         e.insert('abcdefghi')
         e.search_term = 'def'
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'abc'),
                 ({'reverse'}, 'def'),
@@ -235,7 +233,7 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.insert('abcdef\007hi')
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'abcdef'),
                 (snipe.chunks.Chunk.SHOW_CONTROL, '^G'),
@@ -244,7 +242,7 @@ class TestEditor(unittest.TestCase):
             ])])
         e.move(-3, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'abcdef'),
                 (snipe.chunks.Chunk.SHOW_CONTROL | {'cursor', 'visible'},
@@ -256,21 +254,21 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.insert('aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a')
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'),
                 ({'cursor', 'visible'}, ''),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
                 ({'cursor', 'visible'}, 'a'),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a \N{COMBINING DIAERESIS}'),
@@ -280,7 +278,7 @@ class TestEditor(unittest.TestCase):
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a'),
@@ -290,7 +288,7 @@ class TestEditor(unittest.TestCase):
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING | {'cursor', 'visible'},
@@ -299,14 +297,14 @@ class TestEditor(unittest.TestCase):
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ({'cursor', 'visible'},
                     'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}a'),
             ])])
         e.delete_forward()
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ({'cursor', 'visible'}, ''),
                 (e.SHOW_COMBINING,
@@ -317,14 +315,14 @@ class TestEditor(unittest.TestCase):
         e.end_of_line()
         e.delete_backward()
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'aa\N{COMBINING DIAERESIS}\N{COMBINING CEDILLA}'),
                 ({'cursor', 'visible'}, ''),
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a \N{COMBINING DIAERESIS}'),
@@ -334,7 +332,7 @@ class TestEditor(unittest.TestCase):
             ])])
         e.move(-1, False)
         self.assertEqual(
-            [(int(m), l.tagsets()) for (m, l) in e.view(0, 'forward')],
+            [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
                 ((), 'a'),
                 (e.SHOW_COMBINING, 'a'),

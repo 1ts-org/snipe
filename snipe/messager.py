@@ -43,6 +43,8 @@ import re
 import time
 import traceback
 
+from typing import Dict
+
 from . import chunks
 from . import filters
 from . import help
@@ -144,14 +146,13 @@ class Messager(window.Window, window.PagingMixIn):
         kw['mfilter'] = self.filter
         return self.fe.context.backends.walk(*args, **kw)
 
-    def view(self, origin, direction='forward'):
-        self.log.debug('view(%s, %s)', repr(origin), repr(direction))
+    def view(self, origin, forward=True):
+        self.log.debug('view(%s, %s)', repr(origin), repr(forward))
 
-        for x in self.msg_walk(
-                origin, direction == 'forward'):
+        for x in self.msg_walk(origin, forward):
             chunk = None
             try:
-                decoration = {}
+                decoration: Dict[str, str] = {}
                 for filt, decor in self.rules:
                     if filt(x):
                         decoration.update(decor)

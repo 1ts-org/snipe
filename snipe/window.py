@@ -37,6 +37,8 @@ import inspect
 import logging
 import math
 
+from typing import Any
+
 from . import chunks
 from . import imbroglio
 from . import interactive
@@ -269,12 +271,12 @@ class Window:
         self.log.debug('base redisplay_hint')
         return {'window': self}
 
-    def view(self, origin=None, direction=None):
+    def view(self, origin: Any=None, forward: bool=True):
         """Called by the frontend to iterate through the visible contents of the
         window.
 
         :param origin: a cursor object saying where to start
-        :param direction: which direction to walk
+        :param forward: which direction to walk
         :type direction: 'forward' or 'backward'
 
         Yields tuple pairs of ``cursor, chunk``
@@ -747,7 +749,7 @@ class StatusLine(Window):
         self.noresize = True
         self.clear()
 
-    def view(self, origin=0, direction='forward'):
+    def view(self, origin=0, forward=True):
         # this is a "friend" class to the stuff in ttyfe for now
         try:
             active = self.fe.windows[self.fe.output].window

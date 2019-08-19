@@ -287,11 +287,10 @@ class Window:
     def redisplay(*args, **kw):
         pass
 
-    def view(self, origin, direction='forward'):
-        assert direction in ('forward', 'backward')
-        if direction == 'forward':
+    def view(self, origin, forward=True):
+        if forward:
             r = range(origin, len(self.chunks))
-        elif direction == 'backward':
+        else:
             r = range(origin, -1, -1)
         for i in r:
             yield snipe.chunks.View(i, self.chunks[i])

@@ -418,7 +418,7 @@ class TTYRenderer:
             'reframe(target=%s, action=%s) window=%s',
             repr(target), repr(action), repr(self.window))
 
-        cursor, chunk = next(self.window.view(self.window.cursor, 'backward'))
+        cursor, chunk = next(self.window.view(self.window.cursor, False))
 
         if action == 'pagedown':
             self.head = self.sill
@@ -448,7 +448,7 @@ class TTYRenderer:
         self.log.debug(
             'reframe, initial, mark=%x: %s', id(cursor), repr(self.head))
 
-        view = self.window.view(self.window.cursor, 'backward')
+        view = self.window.view(self.window.cursor, False)
 
         mark, chunk = next(view)
         self.log.debug(
@@ -1074,12 +1074,12 @@ class Location:
         if delta <= 0 and -delta < self.offset:
             return Location(self.fe, self.cursor, self.offset + delta)
 
-        direction = 'forward' if delta > 0 else 'backward'
+        forward = delta > 0
 
-        view = self.fe.window.view(self.cursor, direction)
+        view = self.fe.window.view(self.cursor, forward)
         cursor, chunks = next(view)
         lines = self.fe.chunksize(chunks)
-        if direction == 'forward':
+        if forward:
             if self.offset + delta < lines:
                 return Location(self.fe, self.cursor, self.offset + delta)
             delta -= lines - self.offset
@@ -1089,7 +1089,7 @@ class Location:
                     break
                 delta -= lines
             return Location(self.fe, cursor, min(lines + delta, lines))
-        else:  # 'backward', delta < 0
+        else:  # backward delta < 0
             delta += self.offset - 1
             for cursor, chunks in view:
                 lines = self.fe.chunksize(chunks)

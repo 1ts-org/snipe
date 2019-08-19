@@ -436,11 +436,8 @@ class Viewer(window.Window, window.PagingMixIn):
 
     SHOW_COMBINING = {'bg:blue', 'bold'}
 
-    def view(self, origin, direction='forward'):
+    def view(self, origin, forward=True):
         m = self.buf.mark(origin)
-
-        if direction not in ('forward', 'backward'):
-            raise ValueError('invalid direction', direction)
 
         while True:
             with self.save_excursion(m):
@@ -515,7 +512,7 @@ class Viewer(window.Window, window.PagingMixIn):
 
             yield chunks.View(self.buf.mark(p), chunk)
 
-            if direction == 'forward':
+            if forward:
                 if p == len(self.buf) or s[-1:] != '\n':
                     break
                 m.point += l

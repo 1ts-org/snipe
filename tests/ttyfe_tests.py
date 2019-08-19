@@ -474,10 +474,10 @@ class TestTTYRenderer(unittest.TestCase):
 class TestLocation(unittest.TestCase):
     def test_mocks_Window(self):
         w = mocks.Window(cx(['']))
-        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        self.assertEqual(list(w.view(0)), [(0, [((), '')])])
         w = mocks.Window(cx(['abc\n', 'def\n']))
         self.assertEqual(
-            list(w.view(0, 'forward')),
+            list(w.view(0)),
             [
                 (0, [((), 'abc\n')]),
                 (1, [((), 'def\n')]),
@@ -485,7 +485,7 @@ class TestLocation(unittest.TestCase):
 
     def test_Location_0(self):
         w = mocks.Window(cx(['']))
-        self.assertEqual(list(w.view(0, 'forward')), [(0, [((), '')])])
+        self.assertEqual(list(w.view(0)), [(0, [((), '')])])
         ui = mocks.UI()
         renderer = ttyfe.TTYRenderer(ui, 0, 24, w)
         l = ttyfe.Location(renderer, 0, 0)
