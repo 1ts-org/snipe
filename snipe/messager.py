@@ -340,7 +340,7 @@ class Messager(window.Window, window.PagingMixIn):
                 if candidate == self.cursor:
                     candidate = next(it)
                 # you don't want to move-with-filter onto the omega message,
-                # but the omega message has code to buypass filters.  meh.
+                # but the omega message has code to bypass filters.  meh.
                 if infilter is None or not candidate.omega:
                     self.cursor = candidate
                 self.log.debug(
