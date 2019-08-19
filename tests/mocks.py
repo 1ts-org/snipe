@@ -64,12 +64,12 @@ class Aggregator:
         yield from self._backends
 
     def walk(
-            self, origin, direction, filter=None, backfill_to=None,
+            self, origin, forward=True, *, mfilter=None, backfill_to=None,
             search=False,
             ):
         if backfill_to is not None:
             self._target = backfill_to
-        if direction:
+        if forward:
             for m in self._messages:
                 if origin is not None and float(origin) > float(m.time):
                     continue

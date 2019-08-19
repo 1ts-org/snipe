@@ -344,12 +344,12 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(len(list(a.walk(a.earliest()))), 4)
         self.assertEqual(len(list(a.walk(a.earliest(), search=True))), 3)
         self.assertEqual(
-            len(list(a.walk(a.earliest(), filter=filters.makefilter('yes')))),
+            len(list(a.walk(a.earliest(), mfilter=filters.makefilter('yes')))),
             4)
         self.assertEqual(
             len(list(a.walk(
                 a.earliest(),
-                filter=filters.makefilter('backend == "sink"'),
+                mfilter=filters.makefilter('backend == "sink"'),
                 search=True))),
             1)
         self.assertEqual(len(list(a.walk(

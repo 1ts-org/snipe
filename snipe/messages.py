@@ -332,7 +332,7 @@ class SnipeBackend:
 
     def walk(
             self, start: Union[SnipeMessage, float], forward=True,
-            mfilter=None, backfill_to=None, search=False):
+            *, mfilter=None, backfill_to=None, search=False):
         """Iterate through a list of messages associated with a backend.
 
         :param start: Where to start iterating from.
@@ -539,12 +539,14 @@ class TerminusBackend(SnipeBackend):
         self.messages = [m]
 
     def walk(
-            self, start, forward=True, mfilter=None, backfill_to=None,
+            self, start, forward=True, *, mfilter=None, backfill_to=None,
             search=False):
         self.log.debug('walk(..., search=%s)', search)
         if search:
             return
-        yield from super().walk(start, forward, None, backfill_to, search)
+        yield from super().walk(
+            start, forward, mfilter=None, backfill_to=backfill_to,
+            search=search)
 
 
 class StartupBackend(SnipeBackend):
@@ -571,7 +573,7 @@ class DateBackend(SnipeBackend):
             self.starting_at = datetime.datetime.fromtimestamp(eldest)
 
     def walk(
-            self, start, forward=True, mfilter=None, backfill_to=None,
+            self, start, forward=True, *, mfilter=None, backfill_to=None,
             search=False):
         # Note that this ignores mfilter
         self.log.debug(
@@ -687,7 +689,7 @@ class AggregatorBackend(SnipeBackend):
             await backend.start()
 
     def walk(
-            self, start, forward=True, filter=None, backfill_to=None,
+            self, start, forward=True, *, mfilter=None, backfill_to=None,
             search=False):
         self.log.debug(
             'walk(%s, forward=%s, [filter], backfill_to=%s, search=%s',
@@ -705,9 +707,9 @@ class AggregatorBackend(SnipeBackend):
                 backend.walk(
                     start if backend is startbackend else when,
                     forward,
-                    filter,
-                    backfill_to,
-                    search,
+                    mfilter=mfilter,
+                    backfill_to=backfill_to,
+                    search=search,
                     )
                 for backend in self.backends
                 ],

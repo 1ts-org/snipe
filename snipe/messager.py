@@ -138,13 +138,11 @@ class Messager(window.Window, window.PagingMixIn):
             self.secondary = None
         return True
 
-    def msg_walk(self, origin, direction, backfill_to=None, search=False):
+    def msg_walk(self, *args, **kw):
         self.log.debug(
-            'walk(%s, forward=%s, backfill_to=%s, search=%s)',
-            repr(origin), repr(direction),
-            util.timestr(backfill_to), repr(search))
-        return self.fe.context.backends.walk(
-            origin, direction, self.filter, backfill_to, search)
+            'msg_walk(%s, **%s)', ', '.join(repr(x) for x in args), repr(kw))
+        kw['mfilter'] = self.filter
+        return self.fe.context.backends.walk(*args, **kw)
 
     def view(self, origin, direction='forward'):
         self.log.debug('view(%s, %s)', repr(origin), repr(direction))
@@ -330,7 +328,12 @@ class Messager(window.Window, window.PagingMixIn):
         self.log.debug('move %d: target: %s', count, target)
 
         it = iter(self.fe.context.backends.walk(
-            self.cursor, count > 0, mfilter, target, infilter is not None))
+            self.cursor,
+            count > 0,
+            mfilter=mfilter,
+            backfill_to=target,
+            search=infilter is not None,
+            ))
 
         try:
             candidate = next(it)
@@ -351,7 +354,8 @@ class Messager(window.Window, window.PagingMixIn):
     def cursor_set_walk(self, origin, direction, backfill_to=None):
         """Set the cursor by getting the first result from a walk"""
 
-        self.cursor = next(self.msg_walk(origin, direction, backfill_to))
+        self.cursor = next(
+            self.msg_walk(origin, direction, backfill_to=backfill_to))
 
     def cursor_set_walk_mark(self, origin, direction, backfill_to=None):
         """Set the cursor by getting the first result from a walk, and set the
@@ -368,11 +372,11 @@ class Messager(window.Window, window.PagingMixIn):
         super().pageup()
         # trigger backfill if we're at the earliest extant message
         try:
-            it = self.msg_walk(self.cursor, False, None)
+            it = self.msg_walk(self.cursor, False, backfill_to=None)
             next(it)
             next(it)
         except StopIteration:
-            next(self.msg_walk(self.cursor, False, float('-inf')))
+            next(self.msg_walk(self.cursor, False, backfill_to=float('-inf')))
 
     @keymap.bind('s', 'z')
     async def send(self, recipient='', msg=None, name='send message'):
@@ -414,7 +418,7 @@ class Messager(window.Window, window.PagingMixIn):
                 it = self.fe.context.backends.walk(
                     self.cursor,
                     False,
-                    filters.And(
+                    mfilter=filters.And(
                         self.filter, filters.Not(filters.Truth('noise'))),
                     )
                 next(it)
