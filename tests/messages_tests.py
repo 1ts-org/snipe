@@ -200,8 +200,8 @@ class TestStartup(unittest.TestCase):
     def test(self):
         context = mocks.Context()
         startup = messages.StartupBackend(context)
-        self.assertEqual(len(list(startup.walk(None))), 1)
-        self.assertEqual(len(list(startup.walk(None, False))), 1)
+        self.assertEqual(len(list(startup.walk(startup.earliest()))), 1)
+        self.assertEqual(len(list(startup.walk(startup.latest(), False))), 1)
 
 
 class TestBackend(unittest.TestCase):
@@ -211,16 +211,16 @@ class TestBackend(unittest.TestCase):
         synth = SyntheticBackend(context)
         await synth.start()
         self.assertEqual(str(synth), synth.name)
-        self.assertEqual(len(list(synth.walk(None))), 1)
-        self.assertEqual(len(list(synth.walk(None, False))), 1)
+        self.assertEqual(len(list(synth.walk(synth.earliest()))), 1)
+        self.assertEqual(len(list(synth.walk(synth.latest(), False))), 1)
 
         synth = SyntheticBackend(context, conf={'count': 3})
         await synth.start()
-        self.assertEqual(len(list(synth.walk(None))), 3)
-        self.assertEqual(len(list(synth.walk(None, False))), 3)
+        self.assertEqual(len(list(synth.walk(synth.earliest()))), 3)
+        self.assertEqual(len(list(synth.walk(synth.latest(), False))), 3)
 
-        self.assertEqual(len(list(synth.walk(None))), 3)
-        self.assertEqual(len(list(synth.walk(None, False))), 3)
+        self.assertEqual(len(list(synth.walk(synth.earliest()))), 3)
+        self.assertEqual(len(list(synth.walk(synth.latest(), False))), 3)
         self.assertEqual(
             list(synth.walk(synth.messages[1], True)),
             [synth.messages[1], synth.messages[2]])
@@ -290,13 +290,13 @@ class TestDateBackend(unittest.TestCase):
     def test(self):
         d = messages.DateBackend(mocks.Context())
         d.context.backends.eldest = lambda: None
-        self.assertFalse(list(d.walk(None, True)))
-        self.assertFalse(list(d.walk(None, False)))
+        self.assertFalse(list(d.walk(d.earliest(), True)))
+        self.assertFalse(list(d.walk(d.latest(), False)))
 
         d.context.backends.eldest = lambda: (
             datetime.datetime.now() - datetime.timedelta(days=1)).timestamp()
-        self.assertTrue(list(d.walk(None, True)))
-        self.assertFalse(list(d.walk(None, True, search=True)))
+        self.assertTrue(list(d.walk(d.earliest(), True)))
+        self.assertFalse(list(d.walk(d.earliest(), True, search=True)))
 
         self.assertFalse(list(d.walk(float('Inf'), True)))
         self.assertTrue(list(d.walk(float('Inf'), False)))
@@ -331,7 +331,7 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(startup.count(), 1)
         self.assertEqual(synth.count(), 1)
         self.assertEqual(a.count(), 3)
-        self.assertEqual(len(list(a.walk(None, False))), 3)
+        self.assertEqual(len(list(a.walk(a.latest(), False))), 3)
         await a.send('sink', 'a message')
         with self.assertRaises(util.SnipeException):
             await a.send('', 'a message')
@@ -340,15 +340,15 @@ class TestAggregator(unittest.TestCase):
         with self.assertRaises(util.SnipeException):
             await a.send('s', 'a message')
         self.assertEqual(a.count(), 4)
-        self.assertEqual(len(list(a.walk(None, False))), 4)
-        self.assertEqual(len(list(a.walk(None))), 4)
-        self.assertEqual(len(list(a.walk(None, search=True))), 3)
+        self.assertEqual(len(list(a.walk(a.latest(), False))), 4)
+        self.assertEqual(len(list(a.walk(a.earliest()))), 4)
+        self.assertEqual(len(list(a.walk(a.earliest(), search=True))), 3)
         self.assertEqual(
-            len(list(a.walk(None, filter=filters.makefilter('yes')))),
+            len(list(a.walk(a.earliest(), filter=filters.makefilter('yes')))),
             4)
         self.assertEqual(
             len(list(a.walk(
-                None,
+                a.earliest(),
                 filter=filters.makefilter('backend == "sink"'),
                 search=True))),
             1)
@@ -360,11 +360,11 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(len(list(a.walk(float('-Inf')))), 4)
 
         for i in range(2):  # because caching?
-            forward = list(a.walk(None, True))
+            forward = list(a.walk(a.earliest(), True))
             for (x, y) in list(zip([None] + forward, forward + [None]))[1:-1]:
                 self.assertLess(x, y)
 
-            backward = list(a.walk(None, False))
+            backward = list(a.walk(a.latest(), False))
             for (x, y) in list(
                     zip([None] + backward, backward + [None]))[1:-1]:
                 self.assertGreater(x, y)

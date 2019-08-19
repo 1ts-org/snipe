@@ -97,7 +97,7 @@ class Messager(window.Window, window.PagingMixIn):
         prototype = kw.get('prototype')
 
         if prototype is None:
-            self.cursor = next(self.fe.context.backends.walk(None, False))
+            self.cursor = self.fe.context.backends.latest()
             self.the_mark = None
             self.mark_ring = []
             self.filter_reset()

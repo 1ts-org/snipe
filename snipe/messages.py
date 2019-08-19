@@ -42,7 +42,7 @@ import logging
 import math
 import time
 
-from typing import (List, Optional, Sequence)
+from typing import (List, Optional, Sequence, Union)
 
 from . import chunks
 from . import filters
@@ -299,7 +299,7 @@ class SnipeBackend:
     name: Optional[str] = None
     # list of messages, sorted by message time
     #  (not all backends will export this, it can be None)
-    messages: Optional[Sequence[SnipeMessage]] = ()
+    messages: Sequence[SnipeMessage] = ()
     principal = None
 
     indent = util.Configurable(
@@ -331,12 +331,12 @@ class SnipeBackend:
         self.adjcache = {}
 
     def walk(
-            self, start, forward=True, mfilter=None, backfill_to=None,
-            search=False):
+            self, start: Union[SnipeMessage, float], forward=True,
+            mfilter=None, backfill_to=None, search=False):
         """Iterate through a list of messages associated with a backend.
 
         :param start: Where to start iterating from.
-        :type start: integer, SnipeMessage, float or None
+        :type start: integer, SnipeMessage, float
         :param bool forward: Whether to go forwards or backwards.
         :param mfilter: Any applicable message filter
         :type mfilter: Filter or None
@@ -385,18 +385,12 @@ class SnipeBackend:
         needcache = False
         if point is None:
             needcache = True
-            if start is not None:
-                left = bisect.bisect_left(self.messages, start)
-                right = bisect.bisect_right(self.messages, start)
-                try:
-                    point = self.messages.index(start, left, right)
-                except ValueError:
-                    point = None
-            else:
-                if forward:
-                    point = 0
-                else:
-                    point = len(self.messages) - 1
+            left = bisect.bisect_left(self.messages, start)
+            right = bisect.bisect_right(self.messages, start)
+            try:
+                point = self.messages.index(start, left, right)
+            except ValueError:
+                point = None
 
             if forward:
                 point = point if point is not None else left
@@ -435,6 +429,22 @@ class SnipeBackend:
         # specifically catch the situation where we're trying to go off the top
         if point < 0 and backfill_to is not None:
             self.backfill(mfilter, backfill_to)
+
+    def earliest(self):
+        """Probably returns the earliest message in the backend.  Might return
+        a magic cookie saying start from the beginning."""
+
+        if not self.messages:
+            return None
+        return self.messages[0]
+
+    def latest(self):
+        """Probably returns the latest message in the backend.  Might return
+        a magic cookie saying start from the end."""
+
+        if not self.messages:
+            return None
+        return self.messages[-1]
 
     def backfill(self, mfilter, target=None):
         pass
@@ -553,7 +563,6 @@ class DateBackend(SnipeBackend):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        self.messages = None
         self.starting_at = datetime.datetime.now()
 
     def backfill(self, mfilter, backfill_to):
@@ -580,21 +589,15 @@ class DateBackend(SnipeBackend):
 
         now = datetime.datetime.now()
 
-        if start is None:
-            if forward:
+        start = float(start)
+
+        if math.isinf(start):
+            if start < 0:  # -inf
                 start = self.starting_at
-            else:
+            else:  # +inf
                 start = now
         else:
-            start = float(start)
-
-            if math.isinf(start):
-                if start < 0:  # -inf
-                    start = self.starting_at
-                else:  # +inf
-                    start = now
-            else:
-                start = datetime.datetime.fromtimestamp(start)
+            start = datetime.datetime.fromtimestamp(start)
 
         self.log.debug('start = %s', util.timestr(start.timestamp()))
 
@@ -616,14 +619,29 @@ class DateBackend(SnipeBackend):
 
         while now > t >= self.starting_at:
             self.log.debug('date header at %s', util.timestr(t.timestamp()))
-            yield InfoMessage(
-                self,
-                t.strftime('%A, %B %d, %Y\n\n'),
-                t.timestamp(),
-                )
+            yield self.make_message(t.timestamp())
             t += delta
 
         self.log.debug('leaving walk')
+
+    def make_message(self, stamp):
+        t = datetime.datetime.fromtimestamp(stamp)
+        return InfoMessage(
+            self,
+            t.strftime('%A, %B %d, %Y\n\n'),
+            t.timestamp(),
+            )
+
+    def earliest(self):
+        t = self.context.backends.eldest()
+        if t is None:
+            # this is basically here to make the tests work, IRL there
+            # should always be a StartupMessage
+            t = -2**31
+        return self.make_message(t)
+
+    def latest(self):
+        return self.make_message(time.time())
 
 
 def merge(iterables, key=lambda x: x):
@@ -654,7 +672,6 @@ def merge(iterables, key=lambda x: x):
 class AggregatorBackend(SnipeBackend):
     # this won't be used as a /backend/ most of the time, but there's
     # no reason that it shouldn't expose the same API for now
-    messages = None
     loglevel = util.Level('log.aggregator', 'AggregatorBackend')
 
     def __init__(self, context, backends=[], conf={}):
@@ -695,6 +712,24 @@ class AggregatorBackend(SnipeBackend):
                 for backend in self.backends
                 ],
             key=lambda m: m.time if forward else -m.time)
+
+    def earliest(self):
+        l = list(filter(
+            lambda x: x is not None,
+            (backend.earliest() for backend in self.backends)))
+        try:
+            return min(l)
+        except ValueError:
+            return None
+
+    def latest(self):
+        l = list(filter(
+            lambda x: x is not None,
+            (backend.latest() for backend in self.backends)))
+        try:
+            return max(l)
+        except ValueError:
+            return None
 
     async def shutdown(self):
         await imbroglio.gather(

@@ -92,6 +92,12 @@ class Aggregator:
     def senders(self):
         return ()
 
+    def latest(self):
+        return self._messages[-1]
+
+    def earliest(self):
+        return self._messages[0]
+
 
 @functools.total_ordering
 class Message:
