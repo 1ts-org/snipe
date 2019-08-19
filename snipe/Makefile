@@ -1,5 +1,6 @@
-all:
-	make -C .. all
+all check coverage:
+	$(MAKE) -C .. $@
 
-coverage:
-	make -C .. coverage
+clean distclean install:
+
+.PHONY: all coverage check clean distclean install

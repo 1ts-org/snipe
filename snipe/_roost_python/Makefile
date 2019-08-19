@@ -1,9 +1,6 @@
 all check coverage:
-	$(MAKE) -C .. $@
+	$(MAKE) -C ../.. $@
 
-clean distclean:
-	$(RM) -r parser.out
-
-install:
+clean distclean install:
 
 .PHONY: all coverage check clean distclean install
