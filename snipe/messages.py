@@ -434,7 +434,7 @@ class SnipeBackend:
         """Probably returns the earliest message in the backend.  Might return
         a magic cookie saying start from the beginning."""
 
-        if not self.messages:
+        if not self.messages:  # pragma: nocover
             return None
         return self.messages[0]
 
@@ -442,7 +442,7 @@ class SnipeBackend:
         """Probably returns the latest message in the backend.  Might return
         a magic cookie saying start from the end."""
 
-        if not self.messages:
+        if not self.messages:  # pragma: nocover
             return None
         return self.messages[-1]
 
@@ -483,10 +483,7 @@ class SnipeBackend:
 
     def count(self):
         """Return the number of messages stored (locally) in this backend."""
-        if self.messages is not None:
-            return len(self.messages)
-        else:
-            return 0
+        return len(self.messages)
 
     async def send(self, recipient, body):
         """Send a message"""
@@ -500,7 +497,7 @@ class SnipeBackend:
 
     def eldest(self):
         """Return the time of the eldest message or None if there isn't one"""
-        if not self.messages:
+        if not self.messages:  # pragma: nocover
             return None
         return self.messages[0].time
 
@@ -721,7 +718,7 @@ class AggregatorBackend(SnipeBackend):
             (backend.earliest() for backend in self.backends)))
         try:
             return min(l)
-        except ValueError:
+        except ValueError:  # pragma: nocover
             return None
 
     def latest(self):
@@ -730,7 +727,7 @@ class AggregatorBackend(SnipeBackend):
             (backend.latest() for backend in self.backends)))
         try:
             return max(l)
-        except ValueError:
+        except ValueError:  # pragma: nocover
             return None
 
     async def shutdown(self):
