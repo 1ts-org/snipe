@@ -213,7 +213,10 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('cleaning up connection')
                     self.reap_tasks()
                     if self.websocket is not None:
-                        await self.websocket.close()
+                        try:
+                            await self.websocket.close()
+                        except wsproto.utilities.LocalProtocolError:
+                            self.log.exception('closing websocket')
                     self.websocket = None
 
                 method = 'rtm.connect'
