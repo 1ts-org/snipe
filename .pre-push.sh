@@ -50,7 +50,7 @@ do
     # run tests on the ref we're pushing
     here="$(pwd)"
     tmpdir="/tmp/test-checkout-$(basename "$here")-$(date +%s)"
-    git clone --local . "$tmpdir"
+    git clone . "$tmpdir"
     cd "$tmpdir"
     git checkout $local_sha
     make check
