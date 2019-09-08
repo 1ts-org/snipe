@@ -37,6 +37,7 @@ Utilities and base classes for dealin with messages.
 import bisect
 import contextlib
 import datetime
+import enum
 import functools
 import logging
 import math
@@ -294,6 +295,14 @@ class SnipeErrorMessage(SnipeMessage):
         return nfilter
 
 
+class BackendState(enum.Enum):
+    IDLE = enum.auto()
+    CONNECTING = enum.auto()
+    LOADING = enum.auto()
+    BACKFILLING = enum.auto()
+    DISCONNECTED = enum.auto()
+
+
 class SnipeBackend:
     # name of concrete backend
     name: Optional[str] = None
@@ -320,6 +329,14 @@ class SnipeBackend:
         self.tasks = []
         self._destinations = set()
         self._senders = set()
+        self._state = BackendState.IDLE
+
+    def state(self):
+        return self._state
+
+    def state_set(self, state: BackendState):
+        self._state = state
+        self.context.ui.redisplay({})
 
     async def start(self):
         """Actually connect to whatever we're connecting to and start
@@ -778,3 +795,9 @@ class AggregatorBackend(SnipeBackend):
         else:
             # this really shouldn't happen, but
             return None  # pragma: nocover
+
+    def statusline(self):
+        return ' '.join(
+            f'[{backend.name} {backend.state().name!s}]'
+            for backend in self.backends
+            if backend.state() != BackendState.IDLE)

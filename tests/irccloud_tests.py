@@ -228,6 +228,9 @@ class TestIRCCloud(unittest.TestCase):
     @imbroglio.test
     async def test_include(self):
         i = irccloud.IRCCloud(None)
+        i.context = Mock()
+        i.context.ui = Mock()
+        i.context.ui.redisplay = Mock()
         i._get = Mock(return_value=mocks.promise({
             'success': False,
             'message': 'ouch',

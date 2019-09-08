@@ -311,9 +311,12 @@ class Window:
 
     def modeline(self):
         count = self.context.backends.count()
+        status = self.context.backends.statusline()
+        if status:
+            status += ' '
         return (
             chunks.Chunk([((), self.title())]),
-            chunks.Chunk([(('right',), '%d' % (count,))]))
+            chunks.Chunk([(('right',), f'{status}{count}')]))
 
     # Convenience functions for interacting with the user
 

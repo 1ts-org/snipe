@@ -1005,6 +1005,12 @@ class HTTP_WS:
         self.connected = False
         try:
             await self._send(wsproto.events.CloseConnection(code=0))
+        except wsproto.utilities.LocalProtocolError:  # pragma: nocover
+            self.log.debug(
+                '%s',
+                f'ignored while closing websocket connection for {self.url}',
+                exc_info=True,
+                )
         except Exception:  # pragma: nocover
             self.log.exception(
                 '%s', f'while closing websocket connection for {self.url}')

@@ -133,7 +133,11 @@ class Roost(messages.SnipeBackend):
             try:
                 self.connected = True  # XXX kinda racy?
                 self.log.debug(activity)
-                await self.r.newmessages(self.new_message, start)
+                self.state_set(messages.BackendState.CONNECTING)
+                await self.r.newmessages(
+                    self.new_message, start,
+                    connected_coro=self.state_connected
+                    )
             except _rooster.RoosterReconnectException as e:
                 msg = '%s: %s' % (self.name, str(e))
                 self.log.exception(msg)
@@ -148,6 +152,7 @@ class Roost(messages.SnipeBackend):
                 self.log.exception(activity)
                 tb = traceback.format_exc()
             finally:
+                self.state_set(messages.BackendState.DISCONNECTED)
                 self.connected = False
 
             if errmsg is None:
@@ -160,6 +165,9 @@ class Roost(messages.SnipeBackend):
                     body += '\n' + tb
                 self.add_message(messages.SnipeErrorMessage(self, body, tb))
                 return
+
+    async def state_connected(self):
+        self.state_set(messages.BackendState.IDLE)
 
     async def new_registration(self):
         msg = inspect.cleandoc("""
@@ -345,52 +353,58 @@ class Roost(messages.SnipeBackend):
             if already:
                 self.log.debug('already backfiling')
                 return
+            self.state_set(messages.BackendState.BACKFILLING)
 
-            if mfilter is None:
-                def mfilter(m):
-                    return True
+            try:
+                if mfilter is None:
+                    def mfilter(m):
+                        return True
 
-            if self.loaded:
-                self.log.debug('no more messages to backfill')
-                return
-            self.log.debug('backfilling')
-            chunk = await self.r.messages(start, self.chunksize)
+                if self.loaded:
+                    self.log.debug('no more messages to backfill')
+                    return
+                self.log.debug('backfilling')
+                chunk = await self.r.messages(start, self.chunksize)
 
-            if chunk['isDone']:
-                self.log.info('IT IS DONE.')
-                self.loaded = True
-            ms = []
-            for m in chunk['messages']:
-                cm = await self.construct_and_maybe_decrypt(m)
-                ms.append(cm)
-            count += len([m for m in ms if mfilter(m)])
-            # Make sure ordering is stable
-            # XXX really assuming messages are millisecond unique si dumb
-            anchor = []
-            if self.messages and ms:
-                anchor = [(self.messages[0], ms[0])]
-            for (nextmsg, prevmsg) in itertools.chain(anchor, zip(ms, ms[1:])):
-                # walking backwards through time
-                if nextmsg.time == prevmsg.time:
-                    prevmsg.time = nextmsg.time - .00001
-            ms.reverse()
-            self.messages = ms + self.messages
-            self.drop_cache()
-            self.log.debug(
-                '%d messages, total %d, earliest %s',
-                count,
-                len(self.messages),
-                util.timestr(self.messages[0].time) if self.messages else '-')
+                if chunk['isDone']:
+                    self.log.info('IT IS DONE.')
+                    self.loaded = True
+                ms = []
+                for m in chunk['messages']:
+                    cm = await self.construct_and_maybe_decrypt(m)
+                    ms.append(cm)
+                count += len([m for m in ms if mfilter(m)])
+                # Make sure ordering is stable
+                # XXX really assuming messages are millisecond unique si dumb
+                anchor = []
+                if self.messages and ms:
+                    anchor = [(self.messages[0], ms[0])]
+                for (nextmsg, prevmsg) in itertools.chain(
+                        anchor, zip(ms, ms[1:])):
+                    # walking backwards through time
+                    if nextmsg.time == prevmsg.time:
+                        prevmsg.time = nextmsg.time - .00001
+                ms.reverse()
+                self.messages = ms + self.messages
+                self.drop_cache()
+                self.log.debug(
+                    '%d messages, total %d, earliest %s',
+                    count,
+                    len(self.messages),
+                    util.timestr(
+                        self.messages[0].time) if self.messages else '-')
 
-            # and (maybe) circle around
-            await imbroglio.sleep(.1)
-            self.backfill(mfilter, target, count=count, origin=origin)
+                # and (maybe) circle around
+                await imbroglio.sleep(.1)
+                self.backfill(mfilter, target, count=count, origin=origin)
 
-            if ms:
-                self.redisplay(ms[0], ms[-1])
-            else:
-                self.redisplay(None, None)
-            self.log.debug('done backfilling')
+                if ms:
+                    self.redisplay(ms[0], ms[-1])
+                else:
+                    self.redisplay(None, None)
+                self.log.debug('done backfilling')
+            finally:
+                self.state_set(messages.BackendState.IDLE)
 
     @keymap.bind('R S')
     async def dump_subscriptions(self, window: interactive.window):

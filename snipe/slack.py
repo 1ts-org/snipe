@@ -139,6 +139,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.used_emoji = []
         self.websocket = None
         self.setup_client_session()
+        self.backfiller_count = 0
 
     async def start(self):
         await super().start()
@@ -165,6 +166,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
             backoff = 0
 
             while True:
+                self.state_set(messages.BackendState.CONNECTING)
                 data = await self.method(method)
                 if not self.check_ok(data, f'{method} to {slackname}'):
                     backoff = await self.backoff(backoff)
@@ -191,6 +193,7 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                     backoff = 0
 
                     self.connected = True
+                    self.state_set(messages.BackendState.IDLE)
 
                     if self.messages:  # XXX possibly racey
                         after = self.messages[-1].time
@@ -211,14 +214,17 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
                         except Exception:
                             self.log.exception(
                                 'Processing incoming message: %s', repr(m))
+                except wsproto.utilities.LocalProtocolError:
+                    self.log.exception("slack, while reading")
                 finally:
+                    self.state_set(messages.BackendState.DISCONNECTED)
                     self.log.debug('cleaning up connection')
                     self.reap_tasks()
                     if self.websocket is not None:
                         try:
                             await self.websocket.close()
                         except wsproto.utilities.LocalProtocolError:
-                            self.log.exception('closing websocket')
+                            self.log.exception("slack, while closing")
                     self.websocket = None
 
                 method = 'rtm.connect'
@@ -417,33 +423,42 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
 
         d.loaded = True
 
-        if after is not None:
-            kwargs = {'oldest': after}
-        elif d.oldest is not None:
-            kwargs = {'latest': d.oldest}
-        else:
-            kwargs = {}
+        self.backfiller_count += 1
+        if self.backfiller_count == 1:
+            self.state_set(messages.BackendState.BACKFILLING)
 
-        data = await self.method(d.history_method, channel=dest, **kwargs)
+        try:
+            if after is not None:
+                kwargs = {'oldest': after}
+            elif d.oldest is not None:
+                kwargs = {'latest': d.oldest}
+            else:
+                kwargs = {}
 
-        if not self.check_ok(data, 'backfilling %s', dest):
-            return
+            data = await self.method(d.history_method, channel=dest, **kwargs)
 
-        messagelist = []
-        for m in reversed(data['messages']):
-            m['channel'] = dest
-            try:
-                msg = await self.process_message(messagelist, m)
-                if d.oldest is None or d.oldest > msg.time:
-                    d.oldest = msg.time
-            except Exception:
-                self.log.exception('processing message: %s', repr(m))
-                raise
-        self.log.debug('%s: got %d messages', dest, len(messagelist))
-        self.messages = list(messages.merge([self.messages, messagelist]))
-        self.drop_cache()
-        if messagelist:
-            self.redisplay(messagelist[0], messagelist[-1])
+            if not self.check_ok(data, 'backfilling %s', dest):
+                return
+
+            messagelist = []
+            for m in reversed(data['messages']):
+                m['channel'] = dest
+                try:
+                    msg = await self.process_message(messagelist, m)
+                    if d.oldest is None or d.oldest > msg.time:
+                        d.oldest = msg.time
+                except Exception:
+                    self.log.exception('processing message: %s', repr(m))
+                    raise
+            self.log.debug('%s: got %d messages', dest, len(messagelist))
+            self.messages = list(messages.merge([self.messages, messagelist]))
+            self.drop_cache()
+            if messagelist:
+                self.redisplay(messagelist[0], messagelist[-1])
+        finally:
+            self.backfiller_count -= 1
+            if self.backfiller_count == 0:
+                self.state_set(messages.BackendState.IDLE)
 
     async def send(self, inrecipient, body):
         inrecipient = inrecipient.strip()

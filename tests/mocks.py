@@ -98,6 +98,9 @@ class Aggregator:
     def earliest(self):
         return self._messages[0]
 
+    def statusline(self):
+        return ''
+
 
 @functools.total_ordering
 class Message:

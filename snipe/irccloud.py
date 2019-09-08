@@ -119,6 +119,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 self.log.debug('timeout')
             except Exception:
                 self.log.exception('connect once:')
+            finally:
+                self.state_set(messages.BackendState.DISCONNECTED)
             await imbroglio.sleep(10)
 
     async def connect_once(self):
@@ -128,6 +130,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
             return
         username, password = creds
 
+        self.state_set(messages.BackendState.CONNECTING)
         self.log.debug('retrieving formtoken')
         result = await self._post(
             urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'), '')
@@ -179,6 +182,8 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 )
 
             self.message_set = None
+
+            self.state_set(messages.BackendState.IDLE)
 
             while True:
                 waittime = self.header.get('idle_interval', 30000) / 1000
@@ -294,25 +299,29 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     async def include(self, url):
         self.log.debug('including %s', url)
-        oob_data = await self._get(url)
-        if 'success' in oob_data and not oob_data['success']:
-            self.log.error(
-                f'including out of band data {url} failure:' +
-                f' f{oob_data["message"]}')
-            return
+        self.state_set(messages.BackendState.LOADING)
+        try:
+            oob_data = await self._get(url)
+            if 'success' in oob_data and not oob_data['success']:
+                self.log.error(
+                    f'including out of band data {url} failure:' +
+                    f' f{oob_data["message"]}')
+                return
 
-        included = []
+            included = []
 
-        await imbroglio.switch()
-        for m in oob_data:
-            await self.process_message(included, m)
             await imbroglio.switch()
-        included.sort()
+            for m in oob_data:
+                await self.process_message(included, m)
+                await imbroglio.switch()
+            included.sort()
 
-        if included:
-            self.messages = list(messages.merge([self.messages, included]))
-            self.drop_cache()
-            self.redisplay(included[0], included[-1])
+            if included:
+                self.messages = list(messages.merge([self.messages, included]))
+                self.drop_cache()
+                self.redisplay(included[0], included[-1])
+        finally:
+            self.state_set(messages.BackendState.IDLE)
 
     async def send(self, paramstr, body):
         params = paramstr.split()
@@ -401,106 +410,115 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                 t = self.supervisor.start(self.backfill_buffer(b, target))
                 self.backfillers.append((t, t0))
                 self.tasks.append(t)
+            if self.backfillers:
+                self.state_set(messages.BackendState.BACKFILLING)
 
     async def backfill_buffer(self, buf, target):
         self.log.debug(
             'top of backfill_buffer([%s %s], %s)',
             buf['bid'], buf.get('have_eid'), target)
-        while True:
-            await imbroglio.sleep(2)
-            self.log.debug(
-                'loop backfill_buffer([%s %s], %s)',
-                buf['bid'], buf.get('have_eid'), target)
-            try:
-                target = max(
-                    target, buf['have_eid'] - self.backfill_length * 1000000)
+        try:
+            while True:
+                await imbroglio.sleep(2)
+                self.log.debug(
+                    'loop backfill_buffer([%s %s], %s)',
+                    buf['bid'], buf.get('have_eid'), target)
+                try:
+                    target = max(
+                        target,
+                        buf['have_eid'] - self.backfill_length * 1000000)
 
-                count = 1
-                while True:
-                    try:
-                        self.log.debug(
-                            'backfilling %s retrieving backlog, try=%d',
-                            buf['name'], count)
-                        oob_data = await self._get(
-                            '/chat/backlog',
-                            cid=buf['cid'],
-                            bid=buf['bid'],
-                            num=256,
-                            beforeid=buf['have_eid'] - 1,
-                            )
-                    except Exception:
-                        self.log.exception(
-                            'backfilling %s, try=%d, sleeping',
-                            buf['name'], count)
-                        count += 1
-                        await imbroglio.sleep(1)
-                        self.log.error(
-                            'backfilling %s, try=%d, done sleeping',
-                            buf['name'], count)
-                        continue
-                    break
-                included = []
+                    count = 1
+                    while True:
+                        try:
+                            self.log.debug(
+                                'backfilling %s retrieving backlog, try=%d',
+                                buf['name'], count)
+                            oob_data = await self._get(
+                                '/chat/backlog',
+                                cid=buf['cid'],
+                                bid=buf['bid'],
+                                num=256,
+                                beforeid=buf['have_eid'] - 1,
+                                )
+                        except Exception:
+                            self.log.exception(
+                                'backfilling %s, try=%d, sleeping',
+                                buf['name'], count)
+                            count += 1
+                            await imbroglio.sleep(1)
+                            self.log.error(
+                                'backfilling %s, try=%d, done sleeping',
+                                buf['name'], count)
+                            continue
+                        break
+                    included = []
 
-                if isinstance(oob_data, dict):
-                    raise Exception(str(oob_data))
+                    if isinstance(oob_data, dict):
+                        raise Exception(str(oob_data))
 
-                oldest = buf['have_eid']
-                self.log.debug('t = %f', oldest / 1000000)
+                    oldest = buf['have_eid']
+                    self.log.debug('t = %f', oldest / 1000000)
 
-                await imbroglio.switch()
-                for m in oob_data:
-                    if m['bid'] == -1:
-                        self.log.error('? %s', repr(m))
-                        continue
-                    await self.process_message(included, m)
                     await imbroglio.switch()
+                    for m in oob_data:
+                        if m['bid'] == -1:
+                            self.log.error('? %s', repr(m))
+                            continue
+                        await self.process_message(included, m)
+                        await imbroglio.switch()
 
-                if len(included) == 0:
-                    self.log.debug(
-                        'got zero messages, clamping min_eid from %d to %d',
-                        buf.get('min_eid', -1), buf['have_eid'])
-                    buf['min_eid'] = buf['have_eid']
-                    break
-
-                included.sort()
-                self.log.debug('processed %d messages', len(included))
-
-                clip = None
-                included.reverse()
-                for i, m in enumerate(included):
-                    if m.data['eid'] >= oldest:
-                        clip = i
+                    if len(included) == 0:
                         self.log.debug(
-                            'BETRAYAL %d %f %s',
-                            i, m.data['eid'] / 1000000, repr(m.data))
-                if clip is not None:
-                    included = included[clip + 1:]
-                included.reverse()
+                            'got zero messages, clamping min_eid'
+                            ' from %d to %d',
+                            buf.get('min_eid', -1), buf['have_eid'])
+                        buf['min_eid'] = buf['have_eid']
+                        break
 
-                if included:
-                    self.log.debug('merging %d messages', len(included))
-                    l = len(self.messages)
-                    self.messages = list(messages.merge(
-                        [self.messages, included]))
-                    self.log.debug(
-                        'len(self.messages): %d -> %d', l, len(self.messages))
-                    self.drop_cache()
-                    self.redisplay(included[0], included[-1])
-            except Exception:
-                self.log.exception('backfilling %s', buf)
-                return
+                    included.sort()
+                    self.log.debug('processed %d messages', len(included))
 
-            self.log.debug(
-                'bottom of backfill_buffer([%s %s], %s) loop',
-                buf['bid'], buf.get('have_eid'), target)
-            self.log.debug(' have_eid %s', buf.get('have_eid', '-'))
-            self.log.debug(' min_eid %s', buf.get('min_eid', '-'))
-            if (not math.isfinite(target)
-                    or target >= buf['have_eid']
-                    or not (
-                        'min_eid' not in buf
-                        or buf['have_eid'] > buf['min_eid'])):
-                break
+                    clip = None
+                    included.reverse()
+                    for i, m in enumerate(included):
+                        if m.data['eid'] >= oldest:
+                            clip = i
+                            self.log.debug(
+                                'BETRAYAL %d %f %s',
+                                i, m.data['eid'] / 1000000, repr(m.data))
+                    if clip is not None:
+                        included = included[clip + 1:]
+                    included.reverse()
+
+                    if included:
+                        self.log.debug('merging %d messages', len(included))
+                        l = len(self.messages)
+                        self.messages = list(messages.merge(
+                            [self.messages, included]))
+                        self.log.debug(
+                            'len(self.messages): %d -> %d',
+                            l, len(self.messages))
+                        self.drop_cache()
+                        self.redisplay(included[0], included[-1])
+                except Exception:
+                    self.log.exception('backfilling %s', buf)
+                    return
+
+                self.log.debug(
+                    'bottom of backfill_buffer([%s %s], %s) loop',
+                    buf['bid'], buf.get('have_eid'), target)
+                self.log.debug(' have_eid %s', buf.get('have_eid', '-'))
+                self.log.debug(' min_eid %s', buf.get('min_eid', '-'))
+                if (not math.isfinite(target)
+                        or target >= buf['have_eid']
+                        or not (
+                            'min_eid' not in buf
+                            or buf['have_eid'] > buf['min_eid'])):
+                    break
+        finally:
+            if len([t for t in self.backfillers if not t.is_done()]) < 2:
+                self.state_set(messages.BackendState.IDLE)
 
     @keymap.bind('I D')
     async def disconnect(self):

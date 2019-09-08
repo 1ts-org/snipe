@@ -197,7 +197,8 @@ class Rooster(util.HTTP_JSONmixin):
             count=limit,
             ))
 
-    async def newmessages(self, coro, startid=None, pingfrequency=5):
+    async def newmessages(
+            self, coro, startid=None, pingfrequency=5, connected_coro=None):
         # will coincidentally ensure_auth
         if startid is None:
             ms = await self.messages(None, 1, reverse=1, inclusive=0)
@@ -220,6 +221,8 @@ class Rooster(util.HTTP_JSONmixin):
                 'type': 'auth',
                 'token': self.token,
                 })
+            if connected_coro is not None:
+                await connected_coro()
 
             state = 'start'
             msgcount = 1

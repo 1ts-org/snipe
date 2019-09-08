@@ -128,14 +128,31 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
     @util.coro_cleanup
     async def connect(self):
+        self.state_set(messages.BackendState.CONNECTING)
         try:
             self.params = None
             last_event_id = None
+            attempt = 0
             while True:
+                attempt += 1
+                if attempt > 1:
+                    await imbroglio.sleep(1)
                 if self.params is None:
                     self.log.debug('registering')
-                    params = await self._post('register')
+                    try:
+                        params = await self._post('register')
+                    except util.JSONDecodeError:
+                        self.log.exception('registering')
+                        continue
                     await imbroglio.switch()
+
+                    if ('queue_id' not in params
+                            or 'last_event_id' not in params
+                            or 'realm_users' not in params
+                            or 'streams' not in params):
+                        self.log.error(
+                            'bad params, recycling: %s', repr(params))
+                        continue
 
                     # TODO check for an error, backoff, etc.
                     self.params = params
@@ -153,6 +170,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                         '; '.join((self.name, x['name'], ''))
                         for x in params['streams'])
                     await self.connected.set()
+                    self.state_set(messages.BackendState.IDLE)
 
                 self.log.debug(
                     'getting events, queue_id=%s, last_event_id=%s',
@@ -172,7 +190,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
 
                 msgs = []
 
-                for event in result['events']:
+                for event in result.get('events', []):
                     try:
                         msg, last_event_id = (
                             await self.process_event(
@@ -196,6 +214,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.redisplay(msgs[0], msgs[-1])
         finally:
             self.connected.clear()
+            self.state_set(messages.BackendState.DISCONNECTED)
 
         self.log.debug('connect ends')
 
@@ -253,6 +272,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         if self.backfilling:
             return
         self.backfilling = True
+        self.state_set(messages.BackendState.BACKFILLING)
         try:
             if self.messages:
                 anchor = self.messages[0].data['id']
@@ -280,6 +300,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         except Exception:
             self.log.exception('backfilling')
         finally:
+            self.state_set(messages.BackendState.IDLE)
             self.backfilling = False
 
     async def send(self, dest, body):

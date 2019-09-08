@@ -237,6 +237,8 @@ class TestBackend(unittest.TestCase):
         self.assertRaises(
             NotImplementedError, lambda: synth.send(None, None).send(None))
 
+        self.assertEqual(messages.BackendState.IDLE, synth.state())
+
     @imbroglio.test
     async def test_tasks(self):
         s = SyntheticBackend(mocks.Context())
@@ -410,6 +412,13 @@ class TestAggregator(unittest.TestCase):
         a.backends.append(synth2)
         await synth2.start()
         self.assertEqual(a.count(), 5)
+
+        self.assertEqual(a.statusline(), '')
+
+        synth2.context.ui = mocks.FE()
+        synth2.state_set(messages.BackendState.BACKFILLING)
+
+        self.assertEqual(a.statusline(), '[synthetic BACKFILLING]')
 
 
 class SyntheticBackend(messages.SnipeBackend):
