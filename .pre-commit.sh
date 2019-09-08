@@ -5,9 +5,14 @@ STASH_NAME="pre-commit-$(date +%s)"
 git stash save --keep-index $STASH_NAME
 
 # the tests take too long for each commit
+set +e
 make flake8 mypy
+makeret=$?
+set -e
 
 TOPSTASH=$(git stash list | head -1 | awk '{print $NF}')
 if [ "$TOPSTASH" = "$STASH_NAME" ]; then
   git stash pop
 fi
+
+exit $makeret
