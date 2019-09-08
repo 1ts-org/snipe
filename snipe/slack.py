@@ -40,6 +40,8 @@ import pprint
 import contextlib
 import itertools
 
+import wsproto
+import wsproto.utilities
 
 from . import chunks
 from . import filters
