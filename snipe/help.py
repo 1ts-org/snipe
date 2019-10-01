@@ -53,8 +53,9 @@ from . import util
 
 @keymap.bind('?', 'Control-H')
 def halp(window: interactive.window):
+    """Get help.  Possibly more help."""
     if util.Configurable.get(window, 'cheatsheet') and \
-      not isinstance(window, HelpBrowser):
+            not isinstance(window, HelpBrowser):
         browsehelp(window)
     else:
         util.Configurable.set(window, 'cheatsheet', True)
@@ -88,7 +89,7 @@ async def describe_key(window: interactive.window, keymap: interactive.keymap):
         out = '"%s" is bound to %s' % (
             keyseq, getattr(func, '__name__', '???'))
         if hasattr(func, '__doc__'):
-            out += '\n\n' + inspect.getdoc(func)
+            out += '\n\n' + (inspect.getdoc(func) or '*undocumented*')
     window.show(out, '*Help*')
 
 

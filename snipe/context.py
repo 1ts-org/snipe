@@ -202,6 +202,7 @@ class Context:
 
     def message(self, s):
         self.messagelog.append(s)
+        self.log.warning('message: %s', s)
         if self.status is not None:
             self.status.message(s)
 

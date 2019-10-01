@@ -36,6 +36,7 @@ snipe.keymap
 
 import collections
 import contextlib
+import inspect
 import re
 import unicodedata
 
@@ -57,6 +58,7 @@ class Keymap(collections.defaultdict):
         self.update(d)
         self.default = None
         self.controldefault = False
+        self.audited = False
         self['Control-G'] = noop
 
     def __missing__(self, key):
@@ -331,6 +333,23 @@ class Keymap(collections.defaultdict):
                     yield keyseq, self[k].__name__
                 else:
                     yield keyseq, '???'
+
+    def walkitems(self, keypref=()):
+        for k, v in self.items():
+            if hasattr(v, 'walkitems'):
+                yield from v.walkitems(keypref + (k,))
+            else:
+                yield keypref + (k,), v
+        if self.default is not None:
+            yield keypref + ('default',), self.default
+
+    def audit(self):
+        if self.audited:
+            return
+        for keyseq, func in self.walkitems():
+            if callable(func) and inspect.getdoc(func) is None:
+                name = getattr(func, '__name__', '???')
+                yield f'{keyseq!r} bound to undocumented {name}'
 
     def __str__(self):
         mappings = list(self.pairify())

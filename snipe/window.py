@@ -135,6 +135,11 @@ class Window:
         self.cheatsheet = cheatsheet
         self._normal_cheatsheet = cheatsheet
 
+    def activated_keymap(self, keymap):
+        for msg in self.keymap.audit():
+            self.context.message(msg)
+        self.maybe_install_cheatsheet(keymap)
+
     def maybe_install_cheatsheet(self, keymap):
         """Install a cheatsheet if there's one hiding in the keymap"""
         self.cheatsheet = keymap.get_cheatsheet(self._normal_cheatsheet)
@@ -231,8 +236,7 @@ class Window:
             self.whine(k)
             self.active_keymap = self.keymap
         finally:
-            if self.activated_keymap is not None:
-                self.activated_keymap(self.active_keymap)
+            self.activated_keymap(self.active_keymap)
             if self.keyseq:
                 self.keyecho(self.keyseq)
 
@@ -268,7 +272,6 @@ class Window:
     def redisplay_hint(self):
         """Return an appropriate redisplay hint."""
 
-        self.log.debug('base redisplay_hint')
         return {'window': self}
 
     def view(self, origin: Any=None, forward: bool=True):
