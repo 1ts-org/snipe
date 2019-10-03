@@ -111,6 +111,8 @@ class Slack(messages.SnipeBackend, util.HTTP_JSONmixin):
         'log.slack', 'Slack',
         doc='loglevel for slack backend')
 
+    SOFT_NEWLINES = True
+
     IGNORED_TYPES = (
         'hello', 'user_typing', 'channel_marked', 'pref_change', 'file_public',
         'file_shared', 'file_created', 'accounts_changed', 'im_marked',

@@ -51,6 +51,8 @@ import snipe.window
 class Backend:
     name = 'mock'
     index = ''
+    AUTO_FILL = True
+    SOFT_NEWLINES = False
 
 
 class Aggregator:

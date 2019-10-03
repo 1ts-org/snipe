@@ -45,7 +45,7 @@ class TestREPL(unittest.TestCase):
         self.assertEqual(len(w.state['stakes']), 2)
         self.assertEqual(w.state['stakes'][0][1], repl.OUTPUT_START)
         self.assertEqual(w.state['stakes'][1][1], repl.OUTPUT_END)
-        w.cursor.insert('foo\n')
+        w.insert('foo\n')
         w.output('bar ')
         w.output('baz: ')
         self.assertEqual(len(w.state['stakes']), 4)
@@ -59,7 +59,7 @@ class TestREPL(unittest.TestCase):
             w.brackets(len(w.buf)), (w.state['stakes'][-1], (None, None)))
         self.assertEqual(w.brackets(0), tuple(w.state['stakes'][0:2]))
         l = len(w.buf)
-        w.cursor.insert('data')
+        w.buf.insert(w.cursor, 'data')
         m = len(w.buf)
         w.output('output')
         OUTPUT = [repl.OUTPUT_START, repl.OUTPUT_END]
@@ -85,19 +85,25 @@ class TestREPL(unittest.TestCase):
 
     def test_go(self):
         w = repl.REPL(mocks.FE())
-        w.cursor.insert('2 + 2')
+        w.log.debug('A: %s', repr(w.buf[:]))
+        w.insert('2 + 2')
+        w.log.debug('B: %s', repr(w.buf[:]))
         earlier = w.cursor.point
         w.go()
+        w.log.debug('C: %s', repr(w.buf[:]))
         result = '\n' + str(4) + '\n' + w.state['ps1']
         self.assertEqual(w.buf[-len(result):], result)
         self.assertEqual(w.state['in'][0], '2 + 2')
         self.assertEqual(w.state['out'][0], 4)
 
         t = 'def flurb():'
-        w.cursor.insert(t)
+        w.insert(t)
+        w.log.debug('D: %s', repr(w.buf[:]))
         w.go()
         self.assertEqual(w.context._message, 'incomplete input')
+        w.log.debug('E before go2: %s', repr(w.buf[:]))
         w.go2()
+        w.log.debug('F after go2: %s', repr(w.buf[:]))
         self.assertEqual(w.buf[-(len(t) + 1):], t + '\n')
 
         w.cursor.point = earlier

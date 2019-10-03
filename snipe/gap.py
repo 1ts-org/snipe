@@ -168,54 +168,6 @@ class GapBuffer:
         return GapMark(self, where, right)
 
 
-class UndoableGapBuffer(GapBuffer):
-    def __init__(self, *args, **kw):
-        self.undolog = []
-        super().__init__(*args, **kw)
-
-    def replace(self, where, size, string, collapsible=False):
-        self.log.debug(
-            'collapsible %s %d %d %s', collapsible, where, size, repr(string))
-        if self.undolog:
-            self.log.debug('self.undolog[-1] %s', repr(self.undolog[-1]))
-        if (collapsible and self.undolog
-                and where == self.undolog[-1][0] + self.undolog[-1][1]
-                and string != '' and self.undolog[-1][2] == ''):
-            # XXX only "collapses" inserts
-            self.log.debug('collapse %s', repr(self.undolog[-1]))
-            self.undolog[-1] = (
-                self.undolog[-1][0],
-                len(string) + self.undolog[-1][1], '',
-                )
-        else:
-            self.undolog.append((
-                int(where),
-                len(string),
-                self.textrange(where, int(where) + size),
-                ))
-        return super().replace(where, size, string)
-
-    def undo_entry(self, which):
-        if not self.undolog:
-            return None, None, None
-        if which is not None:
-            off = which
-        else:
-            off = len(self.undolog) - 1
-        return self.undolog[off]
-
-    def undo(self, which):
-        if not self.undolog:
-            return None, None
-        if which is not None:
-            off = which
-        else:
-            off = len(self.undolog) - 1
-        where, size, string = self.undo_entry(off)
-        self.replace(where, size, string)
-        return (off - 1) % len(self.undolog), where + len(string)
-
-
 class GapMark:
     def __init__(self, buf, point, right):
         self.buf = buf

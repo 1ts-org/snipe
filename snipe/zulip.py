@@ -101,6 +101,8 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         'log.zulip', 'Zulip',
         doc='loglevel for zulip backend')
 
+    SOFT_NEWLINES = True
+
     def __init__(self, context, url='https://chat.zulip.org', **kw):
         super().__init__(context, **kw)
         self.url = url.rstrip('/') + '/api/v1/'

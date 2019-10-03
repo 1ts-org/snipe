@@ -74,15 +74,6 @@ class Mark:
             repr(self.mark),
             )
 
-    def replace(self, count, string, collapsible=False, prop=DEFPROP):
-        return self.buf.replace(self, count, string, collapsible, prop)
-
-    def insert(self, s, collapsible=False, prop=DEFPROP):
-        self.point += self.replace(0, s, collapsible, prop)
-
-    def delete(self, count):
-        self.replace(count, '')
-
     def prop(self, key):
         return self.buf.get_prop(self, key)
 
@@ -122,13 +113,18 @@ class Buffer:
             name = '*x%x*' % (id(self),)
         self.name = self.register(name)
 
-        self.buf = gap.UndoableGapBuffer(content=content, chunksize=chunksize)
+        self.buf = gap.GapBuffer(content=content, chunksize=chunksize)
         self.cache = {}
         self.props = []
         self.base_property = {'mutable': True, 'navigable': True}
 
+        self.undo_log = []
+        self.undo_buffer = []
+
         # place for windows to stash buffer-specific state
         self.state = {}
+
+        self.log = logging.getLogger('Buffer.{name}')
 
     def register(self, name):
         if name not in self.registry:
@@ -165,13 +161,42 @@ class Buffer:
                 k += self.buf.size
             return self.buf.textrange(k, k+1)
 
+    def undo_entry(self, which):
+        if not self.undo_log:
+            return None, []
+        if which is not None:
+            off = which
+        else:
+            off = len(self.undo_log) - 1
+        return self.undo_log[off]
+
     def undo(self, which):
         self.cache = {}
-        return self.buf.undo(which)
+        if self.undo_buffer:
+            self.log.warning('doing undo_commit() in undo()')
+            self.undo_commit(None)
+        if not self.undo_log:
+            return None, None
+        if which is not None:
+            off = which
+        else:
+            off = len(self.undo_log) - 1
+        point, buf = self.undo_entry(off)
+        self.log.debug('point, buf = %s, %s', point, buf)
+        for where, size, string, prop, _ in buf:
+            self._replace(where, size, string, prop=prop)
+        if point is None:
+            point = where + len(string)
+        return (off - 1) % len(self.undo_log), point
 
     def undo_peek(self, which):
-        where, size, _ = self.buf.undo_entry(which)
-        return where, size
+        return self.undo_entry(which)
+
+    def undo_commit(self, where):
+        if self.undo_buffer:
+            undo_buffer, self.undo_buffer = self.undo_buffer, []
+            # TODO check for collapsibility here
+            self.undo_log.append((where, list(reversed(undo_buffer))))
 
     # why bisect.bisect_* doesn't have a key argument...
     def _bisect_props_left(self, where):
@@ -216,6 +241,15 @@ class Buffer:
         return prop.get(key, self.base_property.get(key))
 
     def replace(self, where, count, string, collapsible=False, prop=None):
+        self.undo_buffer.append((
+            int(where),
+            len(string),
+            self[where:int(where) + count],
+            None,  # props[where:int(where) + size],
+            collapsible))
+        return self._replace(where, count, string, prop)
+
+    def _replace(self, where, count, string, prop=None):
         if prop is None:
             prop = DEFPROP
         self.cache = {}
@@ -225,7 +259,7 @@ class Buffer:
         end_index, end_mark, end_prop = self._find_prop(end)
         r_start = self._bisect_props_left(where)
         r_end = self._bisect_props(end)
-        size = self.buf.replace(where, count, string, collapsible)
+        size = self.buf.replace(where, count, string)
         newprops = []
         if size != 0 and start_prop != prop:
             newprops = [(self.mark(where), prop)]
@@ -236,6 +270,15 @@ class Buffer:
                 newprops.append((self.mark(where + size), end_prop))
         self.props[r_start:r_end] = newprops
         return size
+
+    def insert(self, where, string, prop=DEFPROP):
+        x = self.replace(where, 0, string, prop=prop)
+        if isinstance(where, Mark):
+            where += x
+        return x
+
+    def delete(self, where, count):
+        return self.replace(where, count, '')
 
     def propter(self, where=0):
         if where == 0:
@@ -257,9 +300,13 @@ class Buffer:
             yield props, self[start:end]
 
 
-class Viewer(window.Window, window.PagingMixIn):
-    EOL = '\n'
+# using \x0b (VT) as a soft newline
+SOFT_LINEBREAK = '\x0b'
+HARD_LINEBREAK = '\n'
+EOL = HARD_LINEBREAK + SOFT_LINEBREAK
 
+
+class Viewer(window.Window, window.PagingMixIn):
     def __init__(
             self,
             *args,
@@ -339,7 +386,7 @@ class Viewer(window.Window, window.PagingMixIn):
         self.replace(count, '')
 
     def replace(self, count, string, collapsible=False, prop=DEFPROP):
-        return self.cursor.replace(count, string, collapsible, prop)
+        return self.buf.replace(self.cursor, count, string, collapsible, prop)
 
     @keymap.bind('Control-F', '[right]')
     def move_forward(self, count: interactive.integer_argument=None):
@@ -442,6 +489,13 @@ class Viewer(window.Window, window.PagingMixIn):
         while True:
             with self.save_excursion(m):
                 p, s = self.extract_current_line()
+
+            # if self.fill_column:
+            # self.show_hard_newlines:
+            #     # indicate hard newlines
+            #     s = s.replace('\n', '\N{return symbol}\n')
+
+            s = s.replace(SOFT_LINEBREAK, '\n')
 
             chunk = chunks.Chunk([((), s)])
 
@@ -549,9 +603,9 @@ class Viewer(window.Window, window.PagingMixIn):
             done = False
             with self.save_excursion():
                 self.move(-1)
-                if self.character_at_point() == self.EOL:
+                if self.character_at_point() in EOL:
                     done = True
-            if not done and self.find_character(self.EOL, -1):
+            if not done and self.find_character(EOL, -1):
                 self.move(1)
         oldpoint = self.cursor.point
         self.cursor.point = self.movable(where.point, interactive)
@@ -570,8 +624,8 @@ class Viewer(window.Window, window.PagingMixIn):
         with self.save_excursion(where):
             if count is not None:
                 self.line_move(count - 1)
-            if not self.character_at_point() == self.EOL:
-                self.find_character(self.EOL)
+            if not self.character_at_point() in EOL:
+                self.find_character(EOL)
         oldpoint = self.cursor.point
         self.cursor.point = self.movable(where.point, interactive)
         return self.cursor.point - oldpoint
@@ -917,7 +971,7 @@ class Editor(Viewer):
         else:
             self.fill_column = 0
 
-        self.column = None
+        self.serial = 0
 
         self.keymap.default = self.self_insert
 
@@ -930,6 +984,8 @@ class Editor(Viewer):
         for keystroke, character in COMPOSE_SEQUENCES:
             self.keymap[
                 'Control-X 8 ' + keystroke] = self._inserter(character)
+
+        self.replacing = False
 
     def _inserter(self, s):
         def inserter(count: interactive.positive_integer_argument=1):
@@ -954,7 +1010,24 @@ class Editor(Viewer):
         if not self.writable(count):
             self.whine('window is readonly')
             return 0
-        return super().replace(count, string, collapsible, prop)
+        p = self.cursor.point
+        if not ((count or string) and self.buf[p:p + count] != string):
+            # XXX TODO property change?
+            return len(string)
+        x = super().replace(count, string, collapsible, prop)
+        self.serial += 1
+        return x
+
+    def input_char(self, k):
+        serial = self.serial
+        super().input_char(k)
+        if serial != self.serial:
+            self.after_change()
+
+    def after_change(self):
+        if self.fill_column:
+            self.do_auto_fill()
+        self.buf.undo_commit(self.cursor.point)
 
     @keymap.bind(
         '[tab]', '[linefeed]',
@@ -973,24 +1046,12 @@ class Editor(Viewer):
             # XXX stringy for now
             return
 
-        if self.fill_column:
-            if self.last_command != 'self_insert':
-                self.column = None
-            if self.column is None:
-                self.column = self.current_column()
-            self.column += count  # XXX tabs, wide characters
-
         collapsible = True
         if self.last_command == 'self_insert':
             if (not isspace(self.last_key)) and isspace(key):
                 collapsible = False
         for _ in range(count):
             self.insert(key, collapsible)
-
-        if (self.fill_column and isspace(key)
-                and self.column > self.fill_column):
-            self.log.debug('triggering autofill')
-            self.do_auto_fill()
 
     def current_column(self):
         with self.save_excursion():
@@ -999,28 +1060,25 @@ class Editor(Viewer):
             return p0 - self.cursor.point
 
     def do_auto_fill(self):
+        self.log.debug('autofilling %s', self.fill_column)
+
+        if not self.writable(0):
+            return  # don't wrap prompt lines :-p
+
         with self.save_excursion():
-            p0 = self.cursor.point
+            point = self.cursor.point
 
             self.beginning_of_line()
-            bol = self.cursor.point
+            p0 = self.cursor.point
 
-            if not self.writable(0):
-                return  # don't wrap prompt lines :-p
+            with self.save_excursion():
+                self.find_character(HARD_LINEBREAK)
+                p1 = self.cursor.point
 
-            import textwrap
-            ll = textwrap.wrap(
-                self.buf[bol:p0],
-                width=self.fill_column,
-                break_long_words=False)
-            s = '\n'.join(ll)
-            if ll:
-                if len(ll[-1]) < self.fill_column:
-                    s += ' '
-                else:
-                    s += '\n'
-            self.replace(p0 - bol, s)
-            self.column = None
+            s = wrap(self.buf[p0:p1], self.fill_column)
+            self.replace(p1 - p0, s)
+
+        self.cursor.point = point
 
     @keymap.bind('Control-X f')
     async def set_fill_column(self, column: interactive.argument=None):
@@ -1176,10 +1234,11 @@ class Editor(Viewer):
         if self.last_command != 'undo':
             self.undo_state = None
         for _ in range(count):
-            where, size = self.buf.undo_peek(self.undo_state)
-            if where is not None and not self.writable(size, where):
-                self.whine('window is read-only')
-                return
+            point, buf = self.buf.undo_peek(self.undo_state)
+            for where, size, _, _, _ in reversed(sorted(buf)):
+                if where is not None and not self.writable(size, where):
+                    self.whine('window is read-only')
+                    return
             self.undo_state, where = self.buf.undo(self.undo_state)
             if where is not None:
                 self.cursor.point = where
@@ -1272,6 +1331,28 @@ def isspace(x: interactive.keystroke):
         return x.isspace()
     else:
         return False
+
+
+def wrap(s: str, width: int):
+    l = []
+    col = -1
+    bow = 0
+    space = True
+    for i, c in enumerate(s):
+        col += 1
+        if c in ' ' + SOFT_LINEBREAK:
+            l.append(' ')
+            space = True
+        else:
+            if space:
+                bow = i
+            if col >= width:
+                if bow - 1 >= 0 and l[bow - 1] != HARD_LINEBREAK:
+                    l[bow - 1] = SOFT_LINEBREAK
+                col = i - bow
+            l.append(c)
+            space = False
+    return ''.join(l)
 
 
 # wherein we work out and write down a bunch of compose key sequences for
