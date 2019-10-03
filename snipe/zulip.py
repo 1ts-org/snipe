@@ -131,7 +131,6 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.state_set(messages.BackendState.CONNECTING)
         try:
             self.params = None
-            last_event_id = None
             attempt = 0
             while True:
                 attempt += 1
@@ -158,8 +157,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.params = params
 
                     queue_id = params['queue_id']
-                    if last_event_id is None:
-                        last_event_id = params['last_event_id']
+                    last_event_id = params['last_event_id']
 
                     self._senders |= set(
                         '; '.join((self.name, x['email']))
