@@ -97,9 +97,9 @@ class REPL(editor.Editor):
                 (self.buf.mark(len(self.buf)), OUTPUT_START))
         self.state['high_water_mark'].point = len(self.buf)
         if prop is None:
-            self.state['high_water_mark'].insert(s)
+            self.buf.insert(self.state['high_water_mark'], s)
         else:
-            self.state['high_water_mark'].insert(s, prop)
+            self.buf.insert(self.state['high_water_mark'], s, prop)
         self.cursor.point = self.state['high_water_mark']
         self.state['stakes'].append((self.buf.mark(len(self.buf)), OUTPUT_END))
 
@@ -135,7 +135,7 @@ class REPL(editor.Editor):
             self.end_of_buffer()
             self.insert('\n')
             self.redisplay()
-            self.undo()
+            self.delete_backward()
 
         result_val = None
 
@@ -156,11 +156,11 @@ class REPL(editor.Editor):
             self.state['in'].append(input)
             self.state['out'].append(result_val)
             self.cursor.point = len(self.buf)
-            self.cursor.insert('\n')
+            self.insert('\n')
             self.output(result)
             self.output(self.state['ps1'], prop={'mutable': False})
         # possiby incomplete from uphistory
-        self.cursor.replace(0, save)
+        self.replace(0, save)
         return result is not None
 
     @keymap.bind('Control-M')

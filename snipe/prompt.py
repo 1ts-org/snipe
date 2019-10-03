@@ -151,7 +151,7 @@ class LongPrompt(editor.Editor):
                 yield chunks.View(mark, newchunk)
 
     def input(self):
-        return self.buf[self.divider:]
+        return self.buf[self.divider:].replace(editor.SOFT_LINEBREAK, '\n')
 
     @keymap.bind('Control-C Control-C')
     def runcallback(self):
@@ -407,13 +407,13 @@ class Composer(Leaper):
             for b in self.context.backends
             if b.name.startswith(params[0])]
         if len(backends) == 1:
-            backend = backends[0].name
+            backend = backends[0]
 
-        if backend and self.set_fill_column_for != backend:
-            if backend == 'irccloud':
-                self.fill_column = 0
-            else:
+        if backend and self.set_fill_column_for is not backend:
+            if backend.AUTO_FILL:
                 self.fill_column = self.default_fill_column
+            else:
+                self.fill_column = 0
             self.set_fill_column_for = backend
             self.saved_fill_column = self.fill_column
 
@@ -485,6 +485,9 @@ class Composer(Leaper):
         self.cursor.point = start
         self.cursor += self.replace(end - start, new)
         self.histptrs[ind] = new_ptr
+
+    def input(self):
+        return self.buf[self.divider:]
 
     @keymap.bind('Meta-Control-p')
     def previous_history_full(self):

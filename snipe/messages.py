@@ -46,6 +46,7 @@ import time
 from typing import (List, Optional, Sequence, Union)
 
 from . import chunks
+from . import editor
 from . import filters
 from . import imbroglio
 from . import util
@@ -310,6 +311,9 @@ class SnipeBackend:
     #  (not all backends will export this, it can be None)
     messages: Sequence[SnipeMessage] = ()
     principal = None
+
+    AUTO_FILL = True
+    SOFT_NEWLINES = False
 
     indent = util.Configurable(
         'message.indent_body_string', '',
@@ -762,7 +766,12 @@ class AggregatorBackend(SnipeBackend):
         if not params[0]:
             raise util.SnipeException('no backend in query string')
         if len(backends) == 1:
-            await backends[0].send(''.join(params[1:]), msg)
+            backend = backends[0]
+            if backend.SOFT_NEWLINES:
+                msg = msg.replace(editor.SOFT_LINEBREAK, ' ')
+            else:
+                msg = msg.replace(editor.SOFT_LINEBREAK, '\n')
+            await backend.send(''.join(params[1:]), msg)
         elif len(backends) == 0:
             raise util.SnipeException(
                 f'{params[0]!r}: backend not found')

@@ -60,6 +60,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'irccloud'
     url = IRCCLOUD_API
     loglevel = util.Level('log.irccloud', 'IRCCloud')
+    AUTO_FILL = False
 
     floodpause = util.Configurable(
         'irccloud.floodpause',

@@ -491,7 +491,6 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None, fill=True)
         e.self_insert('a')
         self.assertEqual('a', str(e.buf))
-        self.assertEqual(1, e.column)
         e.self_insert(5)
         self.assertEqual('a', str(e.buf))
 
@@ -502,9 +501,10 @@ class TestEditor(unittest.TestCase):
         e.last_command = 'self_insert'
         for c in 'abc def ghi jik ':
             e.self_insert(c)
-        self.assertEqual('abc\ndef\nghi\njik ', str(e.buf))
-        e.undo(3)
-        self.assertEqual('abc\ndef\nghi ', str(e.buf))
+            e.after_change()
+        self.assertEqual('abc\x0bdef\x0bghi\x0bjik ', str(e.buf))
+        e.undo(4)
+        self.assertEqual('abc\x0bdef\x0bghi ', str(e.buf))
 
     @snipe.imbroglio.test
     async def test_do_auto_fill_prompt(self):
@@ -518,12 +518,11 @@ class TestEditor(unittest.TestCase):
 
     @snipe.imbroglio.test
     async def test_do_auto_fill_long(self):
-        e = snipe.editor.Editor(None)
+        e = snipe.editor.Editor(mocks.Context())
         await e.set_fill_column(5)
-        e.last_command = 'self_insert'
-        for c in 'sassafras ':
-            e.self_insert(c)
-        self.assertEqual('sassafras\n', str(e.buf))
+        for c in 'sassa fras ':
+            e.input_char(c)
+        self.assertEqual('sassa\x0bfras ', str(e.buf))
 
     @snipe.imbroglio.test
     async def test_set_fill_column(self):
@@ -625,7 +624,9 @@ class TestEditor(unittest.TestCase):
         self.assertEqual('', str(e.buf))
         e.whine.assert_called()
         e.insert('abc')
+        e.after_change()
         e.insert('def')
+        e.after_change()
         self.assertEqual('abcdef', str(e.buf))
         e.undo()
         self.assertEqual('abc', str(e.buf))
@@ -633,6 +634,7 @@ class TestEditor(unittest.TestCase):
         e.undo()
         self.assertEqual('', str(e.buf))
         e.insert('foo')
+        e.after_change()
         e._writable = False
         e.whine = Mock()
         e.undo()
@@ -661,14 +663,18 @@ class TestEditor(unittest.TestCase):
         e = snipe.editor.Editor(None)
         e.fe = mocks.FE()
         e.insert('foo ')
+        e.after_change()
         e.insert_region('bar')
+        e.after_change()
         self.assertEqual('foo bar', str(e.buf))
         e.exchange_point_and_mark()
         e.kill_word_forward()
+        e.after_change()
         self.assertEqual('foo ', str(e.buf))
         e.undo()
         e.cursor.point = 4
         e.kill_word_backward()
+        e.after_change()
         self.assertEqual('bar', str(e.buf))
 
     @snipe.imbroglio.test
@@ -741,17 +747,17 @@ class TestBuffer(unittest.TestCase):
         self.assertFalse(m < 0)
 
         self.assertEqual(b[:], '')
-        m.insert('foo')
+        b.insert(m, 'foo')
         self.assertEqual(b[:], 'foo')
         m.point = 0
-        m.delete(3)
+        b.delete(m, 3)
         self.assertEqual(b[:], '')
 
     def test_getitem(self):
         b = snipe.editor.Buffer()
         m = b.mark(0)
         TEXT = 'abcdef'
-        m.insert(TEXT)
+        b.insert(m, TEXT)
 
         self.assertEqual(b[:], TEXT)
         self.assertEqual(b[3], TEXT[3])
@@ -768,7 +774,7 @@ class TestBuffer(unittest.TestCase):
         b = snipe.editor.Buffer()
         m = b.mark(0)
         TEXT = 'abcdef'
-        m.insert(TEXT)
+        b.insert(m, TEXT)
         self.assertEqual(b[:], TEXT)
         b.undo(None)
         self.assertEqual(b[:], '')
