@@ -134,7 +134,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.state_set(messages.BackendState.CONNECTING)
         self.log.debug('retrieving formtoken')
         result = await self._post(
-            urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'), '')
+            urllib.parse.urljoin(IRCCLOUD, '/chat/auth-formtoken'), data=b'')
         if not result.get('success'):
             self.log.warn('Could not get formtoken: %s', repr(result))
             return

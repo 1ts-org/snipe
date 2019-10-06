@@ -318,7 +318,7 @@ class JSONMixinTesterSuper:
         self._is_shutdown = True
 
 
-class MockHTTP:
+class MockHTTPStream:
     blobs = [b'']
 
     async def request(
@@ -358,7 +358,7 @@ class JSONMixinTester(snipe.util.HTTP_JSONmixin, JSONMixinTesterSuper):
 
 class TestHTTP_JSONmixin(unittest.TestCase):
     def test(self):
-        with patch('snipe.util.HTTP', MockHTTP()) as _HTTP:
+        with patch('snipe.util.HTTPStream', MockHTTPStream()) as _HTTP:
             hjm = JSONMixinTester()
 
             hjm.log = logging.getLogger('test_http_json_mixin')
@@ -677,12 +677,12 @@ class TestSSLStream(unittest.TestCase):
             self.assertEqual(None, (await ss.readsome()))
 
 
-class TestHTTP(unittest.TestCase):
+class TestHTTPStream(unittest.TestCase):
     @snipe.imbroglio.test
     async def test0(self):
         with patch('ssl.create_default_context', MockContext), \
                 patch('snipe.util.NetworkStream', MockStream):
-            HTTP = await snipe.util.HTTP.request('https://foo/foo')
+            HTTP = await snipe.util.HTTPStream.request('https://foo/foo')
             self.assertIsInstance(HTTP.stream.obj, MockContext)
             self.assertIsInstance(HTTP.stream.netstream, MockStream)
 
@@ -690,31 +690,35 @@ class TestHTTP(unittest.TestCase):
             self.assertTrue(HTTP.stream.netstream.closed)
 
             log = logging.getLogger('test')
-            HTTP = await snipe.util.HTTP.request('http://foo/foo', log=log)
+            HTTP = await snipe.util.HTTPStream.request(
+                'http://foo/foo', log=log)
             self.assertIsInstance(HTTP.stream, MockStream)
 
-            self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
+            self.assertEqual(
+                '<HTTPStream http://foo/foo <MockStream>>', repr(HTTP))
 
             self.assertEqual(
                 b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
                 b'accept-encoding: gzip\r\n\r\n',
                 b''.join(HTTP.stream.wrote))
 
-            HTTP = await snipe.util.HTTP.request(
+            HTTP = await snipe.util.HTTPStream.request(
                 'http://foo/foo', method='POST', log=log, json='foo')
             self.assertEqual(
                 b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
                 b'accept-encoding: gzip\r\n'
-                b'content-type: application/json\r\ncontent-length: 5\r\n\r\n'
+                b'content-type: application/json; charset=utf-8\r\n'
+                b'content-length: 5\r\n\r\n'
                 b'"foo"',
                 b''.join(HTTP.stream.wrote))
 
-            HTTP = await snipe.util.HTTP.request(
+            HTTP = await snipe.util.HTTPStream.request(
                 'http://foo/foo', method='POST', log=log, data={'bar': 'foo'})
             self.assertEqual(
                 b'POST /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
                 b'accept-encoding: gzip\r\n'
-                b'content-type: application/x-www-form-urlencoded\r\n'
+                b'content-type:'
+                b' application/x-www-form-urlencoded; charset=utf-8\r\n'
                 b'content-length: 7\r\n'
                 b'\r\nbar=foo',
                 b''.join(HTTP.stream.wrote))
@@ -722,10 +726,11 @@ class TestHTTP(unittest.TestCase):
     @snipe.imbroglio.test
     async def test1(self):
         with patch('snipe.util.NetworkStream', MockStream):
-            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP = await snipe.util.HTTPStream.request('http://foo/foo')
             self.assertIsInstance(HTTP.stream, MockStream)
 
-            self.assertEqual('<HTTP http://foo/foo <MockStream>>', repr(HTTP))
+            self.assertEqual(
+                '<HTTPStream http://foo/foo <MockStream>>', repr(HTTP))
 
             self.assertEqual(
                 b'GET /foo HTTP/1.1\r\nhost: foo\r\nconnection: close\r\n'
@@ -739,13 +744,13 @@ class TestHTTP(unittest.TestCase):
 
             self.assertEqual(b'foo\r\n', (await HTTP.readsome()))
 
-            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP = await snipe.util.HTTPStream.request('http://foo/foo')
             HTTP.stream.set_eof()
 
             with self.assertRaises(snipe.util.h11.RemoteProtocolError):
                 await HTTP.readsome()
 
-            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP = await snipe.util.HTTPStream.request('http://foo/foo')
             HTTP.stream.pending_eof = True
             HTTP.stream.readdata = [
                 b'HTTP/1.1 200 Ok\r\n\r\n',
@@ -760,7 +765,7 @@ class TestHTTP(unittest.TestCase):
     @snipe.imbroglio.test
     async def test_decompress(self):
         with patch('snipe.util.NetworkStream', MockStream):
-            HTTP = await snipe.util.HTTP.request('http://foo/foo')
+            HTTP = await snipe.util.HTTPStream.request('http://foo/foo')
             self.assertIsInstance(HTTP.stream, MockStream)
 
             self.assertEqual(

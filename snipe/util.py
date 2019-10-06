@@ -35,6 +35,7 @@ Assorted utility functions.
 '''
 
 
+import cgi
 import contextlib
 import ctypes
 import datetime
@@ -343,7 +344,7 @@ class HTTP_JSONmixin:
     async def _request(self, *args, **kwargs):
         response = None
         try:
-            response = await HTTP.request(*args, **kwargs)
+            response = await HTTPStream.request(*args, **kwargs)
             datas = []
             while True:
                 b = await response.readsome()
@@ -365,14 +366,14 @@ class HTTP_JSONmixin:
                 await response.close()
         return result
 
-    async def _post(self, path, _data=None, **kw):
+    async def _post(self, path, **kw):
         self.log.debug(
             '_post(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
         return await self._request(
             urllib.parse.urljoin(self.url, path),
             method='POST',
-            data=kw if _data is None else _data,
+            data=kw,
             headers=self._JSONmixin_headers,
             )
 
@@ -761,12 +762,12 @@ class SSLStream:
         await self.netstream.close()
 
 
-class HTTP:
+class HTTPStream:
     def __init__(self, url, method='GET', log=None):
         if log is not None:
             self.log = log
         else:
-            self.log = logging.getLogger('HTTP')
+            self.log = logging.getLogger('HTTPStream')
         self.url = url
         self.method = method
         parsed = urllib.parse.urlsplit(url)
@@ -785,11 +786,13 @@ class HTTP:
     async def request(
             klass, url, method='GET', data=None, json=None, headers=[],
             log=None):
-        obj = klass(url, method, log)
+        obj = klass(url, method.upper(), log)
         await obj.connect(data=data, _json=json, headers=headers)
         return obj
 
-    async def connect(self, data=None, _json=None, headers=[]):
+    async def connect(
+            self, data: Dict = {}, _json=None, blob: bytes = b'',
+            headers: List[Tuple[str, str]] = []) -> None:
         self.stream = await NetworkStream.connect(self.hostname, self.port)
         if self.scheme == 'https':
             self.stream = SSLStream(self.stream, self.hostname)
@@ -799,25 +802,25 @@ class HTTP:
             ('Connection', 'close'),
             ('Accept-Encoding', 'gzip'),
             ]
-        if _json is not None:
+        if _json and not blob:  # blob wins
             # overrides data
-            data = json.dumps(_json)
-            outheaders.append(('Content-Type', 'application/json'))
-        if data is not None:
-            if hasattr(data, 'items'):
-                data = urllib.parse.urlencode(data)
-                outheaders.append(
-                    ('Content-Type', 'application/x-www-form-urlencoded'))
-            if hasattr(data, 'encode'):
-                data = data.encode('UTF-8')
-            outheaders.append(('Content-Length', str(len(data))))
+            blob = json.dumps(_json).encode('UTF-8')
+            outheaders.append(
+                ('Content-Type', 'application/json; charset=utf-8'))
+        if data and not blob:   # blob and thus _json wins
+            blob = urllib.parse.urlencode(data).encode('UTF-8')
+            outheaders.append((
+                'Content-Type',
+                'application/x-www-form-urlencoded; charset=utf-8'))
+        if blob:
+            outheaders.append(('Content-Length', str(len(blob))))
         outheaders.extend(headers)
         await self.send(h11.Request(
             method=self.method,
             target=self.qs,
             headers=outheaders))
-        if data is not None:
-            await self.send(h11.Data(data=data))
+        if blob:
+            await self.send(h11.Data(data=blob))
         await self.send(h11.EndOfMessage())
         self.connected = True
         self.log.debug('%s', f'{self.url}: connected to {self.stream!r}')
@@ -874,6 +877,97 @@ class HTTP:
     async def close(self):
         self.log.debug('%s', 'closing {self.stream}')
         await self.stream.close()
+
+
+class Retrieve:
+    url: str
+    data: bytes
+    status: int
+    headers: List[Tuple[bytes, bytes]]
+    version: bytes
+    reason: bytes
+    log: logging.Logger
+
+    def __init__(self):
+        self.url = b''
+        self.data = b''
+        self.status = 0
+        self.headers = []
+        self.version = b''
+        self.reason = b''
+
+        self.log = logging.getLogger('Retrieve')
+
+    @classmethod
+    async def request(
+            klass, method: str, url: str, *, data: Dict = {},
+            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
+        obj = klass()
+        await obj._do(method.upper(), url, data=data, headers=headers)
+        return obj
+
+    async def _do(
+            self, method: str, url: str, *, data: Dict = {},
+            headers: List[Tuple[str, str]] = []) -> None:
+        if headers == []:
+            headers = []
+        if 'user-agent' not in set(k.lower() for (k, v) in headers):
+            headers.append(
+                ('User-Agent', USER_AGENT + f' (h11 {h11.__version__})'))
+
+        self.url = url
+
+        while True:
+
+            http = await HTTPStream.request(
+                url, method, headers=headers, data=data)
+
+            datas = []
+            while True:
+                b = await http.readsome()
+                if b is None:
+                    break
+                datas.append(b)
+
+            self.data = b''.join(datas)
+            self.status = http.response.status_code
+            self.headers = http.response.headers
+            self.version = http.response.http_version
+            self.reason = http.response.reason
+
+            self.log.debug(
+                '%s %s -> %d %s', method, url, self.status, self.reason)
+
+            if self.status not in (301, 302, 303, 307):
+                break
+
+            url = dict(self.headers)[b'location'].decode('us-ascii')
+
+            if self.status == 301:
+                self.url = url
+
+            if self.status == 303:
+                if method.upper() == 'POST':
+                    method = 'GET'
+
+    @classmethod
+    async def get(
+            klass, url: str, *,
+            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
+        return await klass.request('GET', url, headers=headers)
+
+    @classmethod
+    async def post(
+            klass, url: str, *, data: Dict = {},
+            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
+        return await klass.request('POST', url, data=data, headers=headers)
+
+    def decode(self) -> str:
+        content_type_bs = dict(self.headers).get(
+            b'content-type', b'text/plain')
+        content_type = content_type_bs.decode('us-ascii')
+        charset = cgi.parse_header(content_type)[1].get('charset', 'utf-8')
+        return self.data.decode(charset)
 
 
 class HTTP_WS:
