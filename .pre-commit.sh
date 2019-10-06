@@ -6,7 +6,7 @@ git stash save --keep-index $STASH_NAME
 
 # the tests take too long for each commit
 set +e
-make flake8 mypy
+make -j 2 flake8 mypy
 makeret=$?
 set -e
 
