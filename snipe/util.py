@@ -430,6 +430,7 @@ class JSONWebSocket:
         self.conn = await HTTP_WS.request(url, headers=headers, log=self.log)
 
     async def write(self, data):
+        self.log.debug('sending %s', data)
         data = json.dumps(data)
         return await self.conn.write(data)
 
@@ -784,10 +785,11 @@ class HTTPStream:
 
     @classmethod
     async def request(
-            klass, url, method='GET', data=None, json=None, headers=[],
-            log=None):
+            klass, url: str, method: str ='GET', data: dict={},
+            json: dict={}, blob: bytes=b'', headers=[], log=None):
         obj = klass(url, method.upper(), log)
-        await obj.connect(data=data, _json=json, headers=headers)
+        await obj.connect(
+            _json=json, data=data, blob=blob, headers=headers)
         return obj
 
     async def connect(
@@ -807,7 +809,7 @@ class HTTPStream:
             blob = json.dumps(_json).encode('UTF-8')
             outheaders.append(
                 ('Content-Type', 'application/json; charset=utf-8'))
-        if data and not blob:   # blob and thus _json wins
+        if data and not blob:   # blob and thus json wins
             blob = urllib.parse.urlencode(data).encode('UTF-8')
             outheaders.append((
                 'Content-Type',
@@ -901,13 +903,17 @@ class Retrieve:
     @classmethod
     async def request(
             klass, method: str, url: str, *, data: Dict = {},
+            json=None, blob: bytes = b'',
             headers: List[Tuple[str, str]] = []) -> 'Retrieve':
         obj = klass()
-        await obj._do(method.upper(), url, data=data, headers=headers)
+        await obj._do(
+            method.upper(), url, data=data, json=json, blob=blob,
+            headers=headers)
         return obj
 
     async def _do(
             self, method: str, url: str, *, data: Dict = {},
+            json=None, blob: bytes = b'',
             headers: List[Tuple[str, str]] = []) -> None:
         if headers == []:
             headers = []
@@ -918,9 +924,8 @@ class Retrieve:
         self.url = url
 
         while True:
-
             http = await HTTPStream.request(
-                url, method, headers=headers, data=data)
+                url, method, headers=headers, data=data, json=json, blob=blob)
 
             datas = []
             while True:
@@ -959,8 +964,10 @@ class Retrieve:
     @classmethod
     async def post(
             klass, url: str, *, data: Dict = {},
+            json=None, blob: bytes = b'',
             headers: List[Tuple[str, str]] = []) -> 'Retrieve':
-        return await klass.request('POST', url, data=data, headers=headers)
+        return await klass.request(
+            'POST', url, data=data, json=json, blob=blob, headers=headers)
 
     def decode(self) -> str:
         content_type_bs = dict(self.headers).get(
