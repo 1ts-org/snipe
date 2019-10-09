@@ -364,6 +364,7 @@ class HTTP_JSONmixin:
         finally:
             if response is not None:
                 await response.close()
+        self._response = response.response
         return result
 
     async def _post(self, path, **kw):
@@ -903,8 +904,8 @@ class Retrieve:
     @classmethod
     async def request(
             klass, method: str, url: str, *, data: Dict = {},
-            json=None, blob: bytes = b'',
-            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
+            json=None, blob: bytes = b'', headers: List[Tuple[str, str]] = [],
+            ) -> 'Retrieve':
         obj = klass()
         await obj._do(
             method.upper(), url, data=data, json=json, blob=blob,
@@ -913,8 +914,8 @@ class Retrieve:
 
     async def _do(
             self, method: str, url: str, *, data: Dict = {},
-            json=None, blob: bytes = b'',
-            headers: List[Tuple[str, str]] = []) -> None:
+            json=None, blob: bytes = b'', headers: List[Tuple[str, str]] = [],
+            ) -> None:
         if headers == []:
             headers = []
         if 'user-agent' not in set(k.lower() for (k, v) in headers):
@@ -922,6 +923,7 @@ class Retrieve:
                 ('User-Agent', USER_AGENT + f' (h11 {h11.__version__})'))
 
         self.url = url
+        self.method = method
 
         while True:
             http = await HTTPStream.request(
@@ -954,18 +956,20 @@ class Retrieve:
             if self.status == 303:
                 if method.upper() == 'POST':
                     method = 'GET'
+                    self.method = method
 
     @classmethod
     async def get(
-            klass, url: str, *,
-            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
-        return await klass.request('GET', url, headers=headers)
+            klass, url: str, *, headers: List[Tuple[str, str]] = [],
+            ) -> 'Retrieve':
+        return await klass.request(
+            'GET', url, headers=headers)
 
     @classmethod
     async def post(
             klass, url: str, *, data: Dict = {},
-            json=None, blob: bytes = b'',
-            headers: List[Tuple[str, str]] = []) -> 'Retrieve':
+            json=None, blob: bytes = b'', headers: List[Tuple[str, str]] = [],
+            ) -> 'Retrieve':
         return await klass.request(
             'POST', url, data=data, json=json, blob=blob, headers=headers)
 

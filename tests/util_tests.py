@@ -45,7 +45,7 @@ import tempfile
 import unittest
 import zlib
 
-from typing import (Dict)
+from typing import (Dict, List, Tuple)
 from unittest.mock import (patch)
 
 import wsproto
@@ -319,7 +319,8 @@ class JSONMixinTesterSuper:
 
 
 class MockHTTPStream:
-    blobs = [b'']
+    blobs: List[bytes] = [b'']
+    responses: List[Tuple[int, List[Tuple[bytes, bytes]]]] = []
 
     async def request(
             self,
@@ -328,13 +329,28 @@ class MockHTTPStream:
             *,
             json=None,
             data={},
+            blob=b'',
             headers=(),
             log=None):
         self.url = url
         self._method = method
         self._json = json
         self._data = data
+        self._blob = blob
         self._headers = headers
+
+        class MockResponse:
+            pass
+
+        self.response = MockResponse()
+        if self.responses:
+            self.response.status_code, self.response.headers = \
+                self.responses.pop(0)
+        else:
+            self.response.status_code = 200
+            self.response.headers = []
+        self.response.http_version = '1.1'
+        self.response.reason = 'ok'
 
         self.blobindex = 0
 
@@ -894,6 +910,35 @@ class TestHTTP_WS(unittest.TestCase):
                 await snipe.util.HTTP_WS.request('wss://foo')
             self.assertTrue(ns_connect_called)
             self.assertTrue(ssl.called)
+
+
+class TestRetrieve(unittest.TestCase):
+    @snipe.imbroglio.test
+    async def test_get(self):
+        with patch('snipe.util.HTTPStream', MockHTTPStream()) as _HTTPStream:
+            _HTTPStream.blobs = [
+                '\N{vulgar fraction one quarter}'.encode('UTF-8')]
+            _HTTPStream.responses = [
+                (200, [('content-type', 'text/plain; charset=UTF-8')])]
+            r = await snipe.util.Retrieve.get('http://foo.org/')
+            self.assertEqual('\N{vulgar fraction one quarter}', r.decode())
+
+    @snipe.imbroglio.test
+    async def test_post(self):
+        with patch('snipe.util.HTTPStream', MockHTTPStream()) as _HTTPStream:
+            await snipe.util.Retrieve.post('http://foo.org/', blob=b'foo')
+            self.assertEqual(b'foo', _HTTPStream._blob)
+
+    @snipe.imbroglio.test
+    async def test_redirect(self):
+        with patch('snipe.util.HTTPStream', MockHTTPStream()) as _HTTPStream:
+            _HTTPStream.responses = [
+                (301, [(b'location', b'foo')]),
+                (303, [(b'location', b'bar')]),
+                ]
+            r = await snipe.util.Retrieve.post('http://foo.org/')
+            self.assertEqual('GET', r.method)
+            self.assertEqual('foo', r.url)
 
 
 if __name__ == '__main__':

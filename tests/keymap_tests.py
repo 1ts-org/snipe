@@ -48,8 +48,7 @@ class TestKeymap(unittest.TestCase):
         self.assertTrue(m, msg='Keymap.keyseq_re.match(' + s + ')')
 
         self.assertEqual(
-            m.groupdict(),
-            {
+            m.groupdict(), {
                 'char': None,
                 'modifiers': 'control-Shift-META-hyper-SUPER-aLT-ctl-',
                 'name': 'LATIN CAPITAL LETTER A',
@@ -187,6 +186,23 @@ class TestKeymap(unittest.TestCase):
         del k['Control-G']
         k['a'] = 5
         self.assertEqual(str(k), 'a  ???')
+
+    def test_walkitems(self):
+        k = snipe.keymap.Keymap()
+        k['a b'] = lambda: True
+        k.default = snipe.keymap.noop
+        self.assertRegex(
+            repr(list(k.walkitems())),
+            r"^\[\(\('\\x07',\), <function noop at 0x[0-9a-f]+>\), "
+            r"\(\('a', '\\x07'\), <function noop at 0x[0-9a-f]+>\), "
+            r"\(\('a', 'b'\),"
+            r" <function TestKeymap\.test_walkitems\.<locals>\.<lambda>"
+            r" at 0x[0-9a-f]+>\), "
+            r"\(\('default',\), <function noop at 0x[0-9a-f]+>\)\]$")
+        self.assertEqual(
+            ["('a', 'b') bound to undocumented <lambda>"], list(k.audit()))
+        k.audited = True
+        self.assertEqual([], list(k.audit()))
 
 
 if __name__ == '__main__':
