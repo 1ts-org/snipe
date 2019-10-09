@@ -33,7 +33,6 @@ snipe.mattermost
 Backend for talking to `mattermost <https://mattermost.com>`.
 '''
 
-import json
 import logging
 import pprint
 import urllib
@@ -53,7 +52,7 @@ Place documentation here.
 """
 
 
-class Mattermost(messages.SnipeBackend):
+class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'mattermost'
     loglevel = util.Level(
         'log.mattermost', 'Mattermost',
@@ -61,6 +60,8 @@ class Mattermost(messages.SnipeBackend):
         doc='log level for mattermost backend')
 
     SOFT_NEWLINES = True
+
+    reconnect = True
 
     def __init__(self, context, url='https://mattermost.xvm.mit.edu', **kw):
         super().__init__(context, **kw)
@@ -79,74 +80,55 @@ class Mattermost(messages.SnipeBackend):
                 await self.connect_once()
             except Exception:
                 self.log.exception(f'connecting to mattermost {self.name}')
-            # don't loop for now to avoid spamming the server
-            # when something (inevitably) goes wrong await
-            break
-            # imbroglio.sleep(1)
+            await imbroglio.sleep(1)
+            if not self.reconnect:
+                break
+
+        self.log.info('%s shut down', self)
+        self.state_set(messages.BackendState.DISCONNECTED)
 
     async def connect_once(self):
         host = urllib.parse.urlparse(self.url).netloc.split(':')[0]
         email, password = self.context.credentials(host)
-        r = await util.Retrieve.post(self.url + 'users/login', json={
-            'login_id': email,
-            'password': password,
-            })
-        self.log.debug('login headers=%s', repr(r.headers))
-        self.session = json.loads(r.decode())
-        self.log.debug('session=%s', repr(self.session))
+        self.setup_client_session()
+        self.session = await self._post_json(
+            'users/login', login_id=email, password=password)
+        self.token = dict(self._response.headers)[b'token'].decode('us-ascii')
 
-        self.token = dict(r.headers)[b'token'].decode('iso8859-1')
         ws = util.JSONWebSocket(self.log)
 
-        self.authheader = ('Authorization', 'Bearer ' + self.token)
+        self.authheaders = [('Authorization', 'Bearer ' + self.token)]
+        self.setup_client_session(dict(self.authheaders))
 
         await ws.connect(
-            self.url + 'websocket', headers=[self.authheader])
+            self.url + 'websocket', headers=self.authheaders)
 
-        r = await util.Retrieve.get(
-            self.url + 'teams', headers=[self.authheader])
-        teamdata = json.loads(r.decode())
+        self.log.debug('self._get = %s', repr(self._get))
+        teamdata = await self._get('teams')
+        # XXX should do paging
         self.log.debug('teamdata = %s', pprint.pformat(teamdata))
-        self.teams_id = {}
-        self.teams_name = {}
+        self.team_id = {}
+        self.team_name = {}
         for team in teamdata:
-            self.teams_id[team['id']] = team
-            self.teams_name[team['id']] = team
+            self.team_id[team['id']] = team
+            self.team_name[team['name']] = team
 
-        for team in self.teams_id:
-            userdata = []
-            self.log.debug('retrieving users for team=%s', team)
-            page = 0
-            while True:
-                url = self.url + 'users?' + urllib.parse.urlencode(
-                    {'page': page})
-                self.log.debug('GETing %s', url)
-                r = await util.Retrieve.get(
-                    url,
-                    headers=[self.authheader])
-                got = json.loads(r.decode())
-                self.log.debug('got=%s', repr(got))
-                if not got:
-                    break
-                userdata += got
-                page += 1
-            self.log.debug('userdata = %s', pprint.pformat(userdata))
-            users_id = {}
-            users_name = {}
-            for user in userdata:
-                users_id[user['id']] = user
-                users_name[user['username']] = user
-            self.teams_id[team]['users_id'] = users_id
-            self.teams_id[team]['users_name'] = users_name
-
-        if False:
-            await ws.write({
-                'seq': 1,
-                'action': 'authentication_challenge',
-                'data': {
-                    'token': self.token
-                    }
-                })
+        # apparently not split by teams?
+        userdata = []
+        page = 0
+        while True:
+            got = await self._get('users', page=page)
+            self.log.debug('got = %s', repr(got))
+            if not got:
+                break
+            userdata += got
+            page += 1
+        self.log.debug('userdata = %s', pprint.pformat(userdata))
+        self.user_id = {}
+        self.user_name = {}
+        for user in userdata:
+            self.user_id[user['id']] = user
+            self.user_name[user['username']] = user
 
         self.state_set(messages.BackendState.IDLE)
 
