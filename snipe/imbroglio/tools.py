@@ -163,7 +163,10 @@ async def run_in_thread(func, *args, **kwargs):
             except Exception as e:
                 exception = e
 
-            sender.send(b'X')
+            try:
+                sender.send(b'X')
+            except Exception:  # pragma: nocover
+                pass
 
         thread = threading.Thread(target=runner)
 
