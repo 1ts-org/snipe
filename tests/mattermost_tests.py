@@ -35,9 +35,8 @@ Unit tests for the mattermost backend
 
 import unittest
 
-import unittest.mock as mock
-
 from typing import List
+from unittest import mock
 
 import snipe.imbroglio as imbroglio
 import snipe.mattermost as mattermost
@@ -82,28 +81,26 @@ class TestMattermost(unittest.TestCase):
         m._response = mock.Mock()
         m._response.headers = [(b'token', b'foo')]
 
-        post_json = AsyncMock(return_value=[])
+        m._post_json = AsyncMock(return_value=[])
 
         team_object = {'id': 'a', 'name': 'team'}
         user_object = {'id': 'b', 'username': 'user'}
 
-        get = AsyncMock(return_value=[])
-        get.async_seq = [[team_object], [user_object], []]
+        m._get = AsyncMock(return_value=[])
+        m._get.async_seq = [[team_object], [user_object], []]
 
-        ws_instance = mock.Mock()
-        ws_instance.connect = AsyncMock()
-        ws_instance.connect.return_value = ws_instance
-        ws_instance.read = AsyncMock()
-        ws_instance.read.async_seq = [{'event': 'fake'}]
-        ws_instance.read.async_except = util.SnipeException('done')
+        m.process_event = mock.Mock()
+        event = {'event': 'fake'}
+
         ws = mock.Mock()
-        ws.return_value = ws_instance
+        ws.return_value = ws
+        ws.connect = AsyncMock()
+        ws.connect.return_value = ws
+        ws.read = AsyncMock()
+        ws.read.async_seq = [event]
+        ws.read.async_except = util.SnipeException('done')
 
-        with \
-                mock.patch.object(
-                    mattermost.Mattermost, '_post_json', post_json), \
-                mock.patch.object(mattermost.Mattermost, '_get', get), \
-                mock.patch('snipe.util.JSONWebSocket', ws):
+        with mock.patch('snipe.util.JSONWebSocket', ws):
             with self.assertRaises(util.SnipeException):
                 await m.connect_once()
 
@@ -116,6 +113,16 @@ class TestMattermost(unittest.TestCase):
         self.assertEqual(m.user_id['b'], user_object)
         self.assertIn('user', m.user_name)
         self.assertEqual(m.user_name['user'], user_object)
+
+        m.process_event.assert_called_with(event)
+
+    def test_process_event(self):
+        m = mattermost.Mattermost(None)
+        self.assertEqual(len(m.messages), 0)
+
+        event = {'event': 'fake'}
+
+        m.process_event(event)
 
         self.assertEqual(len(m.messages), 1)
 

@@ -135,9 +135,16 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
         while True:
             data = await ws.read()
             self.log.debug('got %s', repr(data))
-            msg = MattermostMessage(self, pprint.pformat(data))
-            self.messages.append(msg)
-            self.redisplay(msg, msg)
+            self.process_event(data)
+
+    def process_event(self, event):
+        msg = MattermostMessage(self, pprint.pformat(event) + '\n')
+        if self.messages:
+            while msg.time <= self.messages[-1].time:
+                msg.time += .0000013
+        self.messages.append(msg)
+        self.log.debug('appended msg %s', repr(msg))
+        self.redisplay(msg, msg)
 
 
 class MattermostMessage(messages.SnipeMessage):
