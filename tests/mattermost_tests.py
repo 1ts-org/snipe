@@ -33,6 +33,7 @@ Unit tests for the mattermost backend
 '''
 
 
+import time
 import unittest
 
 from typing import List
@@ -117,14 +118,29 @@ class TestMattermost(unittest.TestCase):
         m.process_event.assert_called_with(event)
 
     def test_process_event(self):
-        m = mattermost.Mattermost(None)
+        m = mattermost.Mattermost(mock.Mock())
         self.assertEqual(len(m.messages), 0)
 
-        event = {'event': 'fake'}
+        with self.assertLogs():
+            m.process_event({'malformed': 'event'})
+        self.assertEqual(len(m.messages), 0)
 
-        m.process_event(event)
+        with self.assertLogs():
+            m.process_event({'event': 'no_such_event_should_exist'})
+        self.assertEqual(len(m.messages), 0)
 
+        m.process_event({'event': 'channel_viewed'})
+        self.assertEqual(len(m.messages), 0)
+
+        m.process_event({'event': 'posted'})  # will eventually need more here
         self.assertEqual(len(m.messages), 1)
+
+        t0 = time.time()
+        with mock.patch('time.time', return_value=t0):
+            m.process_event({'event': 'posted'})
+            m.process_event({'event': 'posted'})
+        self.assertEqual(len(m.messages), 3)
+        self.assertNotEqual(m.messages[1].time, m.messages[2].time,)
 
 
 if __name__ == '__main__':

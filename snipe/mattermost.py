@@ -52,6 +52,25 @@ Place documentation here.
 """
 
 
+# documented event types as of 2019-10-10
+KNOWN_EVENTS = frozenset({
+    'added_to_team', 'authentication_challenge', 'channel_converted',
+    'channel_created', 'channel_deleted', 'channel_member_updated',
+    'channel_updated', 'channel_viewed', 'config_changed', 'delete_team',
+    'direct_added', 'emoji_added', 'ephemeral_message', 'group_added',
+    'hello', 'leave_team', 'license_changed', 'memberrole_updated',
+    'new_user', 'plugin_disabled', 'plugin_enabled',
+    'plugin_statuses_changed', 'post_deleted', 'post_edited', 'posted',
+    'preference_changed', 'preferences_changed', 'preferences_deleted',
+    'reaction_added', 'reaction_removed', 'response', 'role_updated',
+    'status_change', 'typing', 'update_team', 'user_added', 'user_removed',
+    'user_role_updated', 'user_updated', 'dialog_opened',
+    })
+
+# these events are of no use to us
+IGNORE_EVENTS = frozenset({'channel_viewed', 'typing'})
+
+
 class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
     name = 'mattermost'
     loglevel = util.Level(
@@ -143,6 +162,58 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
             self.process_event(data)
 
     def process_event(self, event):
+        """
+        Process a mattermost event, adjust metadata and/or create a message.
+        """
+        # Untriaged event types:
+        #  added_to_team
+        #  authentication_challenge
+        #  channel_converted
+        #  channel_created
+        #  channel_deleted
+        #  channel_member_updated
+        #  channel_updated
+        #  config_changed
+        #  delete_team
+        #  direct_added
+        #  emoji_added
+        #  ephemeral_message
+        #  group_added
+        #  hello
+        #  leave_team
+        #  license_changed
+        #  memberrole_updated
+        #  new_user
+        #  plugin_disabled
+        #  plugin_enabled
+        #  plugin_statuses_changed
+        #  post_deleted
+        #  post_edited
+        #  posted
+        #  preference_changed
+        #  preferences_changed
+        #  preferences_deleted
+        #  reaction_added
+        #  reaction_removed
+        #  response
+        #  role_updated
+        #  status_change
+        #  update_team
+        #  user_added
+        #  user_removed
+        #  user_role_updated
+        #  user_updated
+        #  dialog_opened
+        if 'event' not in event:
+            self.log.error('malformed event: %s', repr(event))
+            return
+        etype = event['event']
+        if etype not in KNOWN_EVENTS:
+            # maybe turn this into a message?
+            self.log.error('malformed event: %s', repr(event))
+            return
+        if etype in IGNORE_EVENTS:
+            return
         msg = MattermostMessage(self, pprint.pformat(event) + '\n')
         if self.messages:
             while msg.time <= self.messages[-1].time:
