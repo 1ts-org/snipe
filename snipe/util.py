@@ -329,7 +329,7 @@ class JSONDecodeError(SnipeException):
 
 
 class HTTP_JSONmixin:
-    # object must have a .log attribute
+    # object must have a .netlog attribute
 
     def setup_client_session(self, headers=None, **kw):
         if headers is None:
@@ -357,7 +357,7 @@ class HTTP_JSONmixin:
                 result = json.loads(u)
             except (UnicodeError, ValueError) as e:
                 data = bs.decode(errors='replace')
-                self.log.error(
+                self.netlog.error(
                     'json %s from %s on %s',
                     e.__class__.__name__, response.url, repr(data))
                 raise JSONDecodeError(repr(data)) from e
@@ -368,7 +368,7 @@ class HTTP_JSONmixin:
         return result
 
     async def _post(self, path, **kw):
-        self.log.debug(
+        self.netlog.debug(
             '_post(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
         return await self._request(
@@ -379,7 +379,7 @@ class HTTP_JSONmixin:
             )
 
     async def _post_json(self, path, **kw):
-        self.log.debug(
+        self.netlog.debug(
             '_post_json(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
         return await self._request(
@@ -390,7 +390,7 @@ class HTTP_JSONmixin:
             )
 
     async def _patch(self, path, **kw):
-        self.log.debug(
+        self.netlog.debug(
             '_patch(%s%s, %s, **%s)', repr(self.url), repr(path),
             self._JSONmixin_headers, repr(kw))
         return await self._request(
@@ -401,7 +401,7 @@ class HTTP_JSONmixin:
             )
 
     async def _get(self, path, **kw):
-        self.log.debug(
+        self.netlog.debug(
             f'_get({path!r}, **{kw!r});'
             f' url={self.url!r}, headers={self._JSONmixin_headers!r}')
 

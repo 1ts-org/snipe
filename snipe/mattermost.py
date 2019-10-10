@@ -59,6 +59,11 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
         default=logging.DEBUG,
         doc='log level for mattermost backend')
 
+    netloglevel = util.Level(
+        'log.mattermost.network', 'Mattermost.network',
+        default=logging.INFO,
+        doc='log level more mattermost network traffic')
+
     SOFT_NEWLINES = True
 
     reconnect = True
@@ -95,7 +100,7 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
             'users/login', login_id=email, password=password)
         self.token = dict(self._response.headers)[b'token'].decode('us-ascii')
 
-        ws = util.JSONWebSocket(self.log)
+        ws = util.JSONWebSocket(self.netlog)
 
         self.authheaders = [('Authorization', 'Bearer ' + self.token)]
         self.setup_client_session(dict(self.authheaders))

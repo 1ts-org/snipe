@@ -326,8 +326,9 @@ class SnipeBackend:
         if name is not None:
             self.name = name
             logname += '.' + name
-        logname += '.%x' % (id(self),)
-        self.log = logging.getLogger(logname)
+        logpost = '.%x' % (id(self),)
+        self.log = logging.getLogger(logname + logpost)
+        self.netlog = logging.getLogger(logname + '.network' + logpost)
         self.conf = conf
         self.drop_cache()
         self.tasks = []
@@ -376,6 +377,9 @@ class SnipeBackend:
         redisplay, for date headers and such that want to bypass filters on
         display.
         """
+
+        self.log.debug(
+            '%s(%s, %s, ...)', self.__class__.__name__, start, forward)
         # I have some concerns that that this depends on the
         # self.messages list being stable over the life of the
         # iterator.  This doesn't seem to be a a problem as of when I
@@ -720,8 +724,7 @@ class AggregatorBackend(SnipeBackend):
         else:
             startbackend = None
             when = start
-        return merge(
-            [
+        backend_walks = [
                 backend.walk(
                     start if backend is startbackend else when,
                     forward,
@@ -730,8 +733,10 @@ class AggregatorBackend(SnipeBackend):
                     search=search,
                     )
                 for backend in self.backends
-                ],
-            key=lambda m: m.time if forward else -m.time)
+                ]
+        for message in merge(
+                backend_walks, key=lambda m: m.time if forward else -m.time):
+            yield message
 
     def earliest(self):
         l = list(filter(

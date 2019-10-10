@@ -80,6 +80,7 @@ class Rooster(util.HTTP_JSONmixin):
         self.ccache = None
         self.tailid = 0
         self.log = logging.getLogger('Rooster.%x' % (id(self),))
+        self.netlog = logging.getLogger('Rooster.network.%x' % (id(self),))
         self.setup_client_session()
 
     async def credentials(self):
