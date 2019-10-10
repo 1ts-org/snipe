@@ -376,6 +376,9 @@ class SnipeBackend:
         redisplay, for date headers and such that want to bypass filters on
         display.
         """
+
+        self.log.debug(
+            '%s.walk(%s, %s, ...)', self.__class__.__name__, start, forward)
         # I have some concerns that that this depends on the
         # self.messages list being stable over the life of the
         # iterator.  This doesn't seem to be a a problem as of when I
