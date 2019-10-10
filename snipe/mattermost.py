@@ -149,6 +149,7 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
                 msg.time += .0000013
         self.messages.append(msg)
         self.log.debug('appended msg %s', repr(msg))
+        self.drop_cache()
         self.redisplay(msg, msg)
 
 

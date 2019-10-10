@@ -320,6 +320,22 @@ class TestMerge(unittest.TestCase):
                 []])),
             [1, 2, 3, 4, 5, 6, 8])
 
+    def test_key(self):
+        self.assertEquals(
+            list(messages.merge([
+                [1, 3, 5],
+                [2, 3, 4, 6, 8],
+                []], key=lambda x: 2*x)),
+            [1, 2, 3, 4, 5, 6, 8])
+
+    def test_key_reverse(self):
+        self.assertEquals(
+            list(messages.merge([
+                reversed([1, 3, 5]),
+                reversed([2, 3, 4, 6, 8]),
+                []], key=lambda x: -x)),
+            [8, 6, 5, 4, 3, 2, 1])
+
 
 class TestAggregator(unittest.TestCase):
     @imbroglio.test
