@@ -377,7 +377,7 @@ class TestHTTP_JSONmixin(unittest.TestCase):
         with patch('snipe.util.HTTPStream', MockHTTPStream()) as _HTTP:
             hjm = JSONMixinTester()
 
-            hjm.log = logging.getLogger('test_http_json_mixin')
+            hjm.netlog = logging.getLogger('test_http_json_mixin')
             hjm.url = 'http://example.com'
 
             hjm.setup_client_session()

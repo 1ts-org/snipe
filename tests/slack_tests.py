@@ -73,7 +73,7 @@ class TestSlack(unittest.TestCase):
         self.assertEqual(0, len(s.messages))
         with self.assertLogs(level=logging.DEBUG) as l:
             self.assertIsNone(s.find_message(0, {'type': 'foo'}))
-        self.assertIn('unknown', l.output[0])
+        self.assertIn('unknown', '\n'.join(l.output))
         await s.incoming({
             'channel': 'D03RVNN0U',
             'text': 'To start, what is your first name?',
@@ -84,7 +84,7 @@ class TestSlack(unittest.TestCase):
         self.assertEqual(1, len(s.messages))
         with self.assertLogs(level=logging.DEBUG) as l:
             self.assertIsNone(s.find_message(0, {'type': 'foo'}))
-        self.assertIn('found message', l.output[0])
+        self.assertIn('found message', '\n'.join(l.output))
         self.assertIs(
             s.messages[0],
             s.find_message(float(s.messages[0].time), {}))

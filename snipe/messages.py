@@ -379,7 +379,7 @@ class SnipeBackend:
         """
 
         self.log.debug(
-            '%s(%s, %s, ...)', self.__class__.__name__, start, forward)
+            '%s.walk(%s, %s, ...)', self.__class__.__name__, start, forward)
         # I have some concerns that that this depends on the
         # self.messages list being stable over the life of the
         # iterator.  This doesn't seem to be a a problem as of when I
