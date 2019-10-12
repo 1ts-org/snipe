@@ -118,29 +118,58 @@ class TestMattermost(unittest.TestCase):
         m.process_event.assert_called_with(event)
 
     def test_process_event(self):
+        msgcount = 0
         m = mattermost.Mattermost(mock.Mock())
-        self.assertEqual(len(m.messages), 0)
+        self.assertEqual(len(m.messages), msgcount)
 
         with self.assertLogs():
             m.process_event({'malformed': 'event'})
-        self.assertEqual(len(m.messages), 0)
+        with self.assertLogs():
+            m.process_event({'event': 'hello'})
+        self.assertEqual(len(m.messages), msgcount)
 
         with self.assertLogs():
-            m.process_event({'event': 'no_such_event_should_exist'})
-        self.assertEqual(len(m.messages), 0)
+            m.process_event(
+                {'event': 'no_such_event_should_exist', 'data': {}})
+        self.assertEqual(len(m.messages), msgcount)
 
-        m.process_event({'event': 'channel_viewed'})
-        self.assertEqual(len(m.messages), 0)
+        m.process_event({'event': 'channel_viewed', 'data': {}})
+        self.assertEqual(len(m.messages), msgcount)
 
-        m.process_event({'event': 'posted'})  # will eventually need more here
-        self.assertEqual(len(m.messages), 1)
+        m._get_user_name = mock.Mock(return_value='foo')
+        m.process_event({
+            'event': 'status_change',
+            'data': {
+                'user_id': 'foo',
+                'status': 'online',
+                }})
+        msgcount += 1
+        self.assertEqual(len(m.messages), msgcount)
+
+        # else clause
+        m.process_event({'event': 'license_changed', 'data': {}})
+        msgcount += 1
+        self.assertEqual(len(m.messages), msgcount)
+
+        # will eventually need more here
+        m.process_event({'event': 'posted', 'data': {}})
+        msgcount += 1
+        self.assertEqual(len(m.messages), msgcount)
 
         t0 = time.time()
         with mock.patch('time.time', return_value=t0):
-            m.process_event({'event': 'posted'})
-            m.process_event({'event': 'posted'})
-        self.assertEqual(len(m.messages), 3)
+            m.process_event({'event': 'posted', 'data': {}})
+            m.process_event({'event': 'posted', 'data': {}})
+        msgcount += 2
+        self.assertEqual(len(m.messages), msgcount)
         self.assertNotEqual(m.messages[1].time, m.messages[2].time,)
+
+    def test__get_user_name(self):
+        m = mattermost.Mattermost(mock.Mock())
+        m.user_id = {'foobarbaz': {'username': 'foo'}}
+
+        self.assertEqual('foo', m._get_user_name('foobarbaz'))
+        self.assertEqual('quux', m._get_user_name('quux'))
 
 
 if __name__ == '__main__':

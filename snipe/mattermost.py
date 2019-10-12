@@ -33,6 +33,7 @@ snipe.mattermost
 Backend for talking to `mattermost <https://mattermost.com>`.
 '''
 
+import json
 import logging
 import pprint
 import urllib
@@ -68,7 +69,7 @@ KNOWN_EVENTS = frozenset({
     })
 
 # these events are of no use to us
-IGNORE_EVENTS = frozenset({'channel_viewed', 'typing'})
+IGNORE_EVENTS = frozenset({'channel_viewed', 'hello', 'typing'})
 
 
 class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
@@ -179,7 +180,6 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
         #  emoji_added
         #  ephemeral_message
         #  group_added
-        #  hello
         #  leave_team
         #  license_changed
         #  memberrole_updated
@@ -204,17 +204,37 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
         #  user_role_updated
         #  user_updated
         #  dialog_opened
-        if 'event' not in event:
+        data = {}
+        if 'event' not in event or 'data' not in event:
             self.log.error('malformed event: %s', repr(event))
             return
         etype = event['event']
         if etype not in KNOWN_EVENTS:
             # maybe turn this into a message?
-            self.log.error('malformed event: %s', repr(event))
+            self.log.error('unknown event type: %s: %s', etype, repr(event))
             return
         if etype in IGNORE_EVENTS:
             return
-        msg = MattermostMessage(self, pprint.pformat(event) + '\n')
+        elif etype == 'status_change':
+            status = event['data'].get('status', '???')
+            username = self._get_user_name(event['data'].get('user_id', '???'))
+            body = f'status: {username} is {status}'
+            data = self._twist_event(event)
+        elif etype == 'posted':
+            # I don't /even/
+            self.log.debug('posted: %s', repr(event))
+            post = json.loads(event['data'].get('post', '{}'))
+            self.log.debug('dejsoned: %s', repr(post))
+            body = pprint.pformat(post) + '\n'
+            data = self._twist_event(event)
+        else:
+            body = pprint.pformat(event) + '\n'
+            data = event
+
+        msg = MattermostMessage(self, body, data)
+        self.append_message(msg)
+
+    def append_message(self, msg):
         if self.messages:
             while msg.time <= self.messages[-1].time:
                 msg.time += .0000013
@@ -223,6 +243,22 @@ class Mattermost(messages.SnipeBackend, util.HTTP_JSONmixin):
         self.drop_cache()
         self.redisplay(msg, msg)
 
+    @staticmethod
+    def _twist_event(event):
+        data = event['data']
+        del event['data']
+        data['event'] = event
+        return data
+
+    def _get_user_name(self, id):
+        if id in self.user_id:
+            return self.user_id[id].get('username', id)
+        else:
+            return id
+
 
 class MattermostMessage(messages.SnipeMessage):
-    pass
+    def __init__(self, backend, body, data):
+        super().__init__(backend, body=body)
+        self.log = self.backend.log
+        self.data = data
