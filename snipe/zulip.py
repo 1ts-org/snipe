@@ -142,7 +142,7 @@ class Zulip(messages.SnipeBackend, util.HTTP_JSONmixin):
                     self.log.debug('registering')
                     try:
                         params = await self._post('register')
-                    except util.JSONDecodeError:
+                    except Exception:
                         self.log.exception('registering')
                         continue
                     await imbroglio.switch()
