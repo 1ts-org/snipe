@@ -338,15 +338,6 @@ class TestTTYRenderer(unittest.TestCase):
         self.assertEqual(
             ttyfe.TTYRenderer.doline('ab\x96cdef', 3, 3),
             [('abc', 0), ('def', 0)])
-        self.assertEqual(
-            ttyfe.TTYRenderer.doline('ab def', 3, 3, ('fill',)),
-            [('ab ', 0), ('def', 0)])
-        self.assertEqual(
-            ttyfe.TTYRenderer.doline('abc def', 3, 0, ('fill',)),
-            [('abc', 0), ('def', 0)])
-        self.assertEqual(
-            ttyfe.TTYRenderer.doline('abc def\n', 3, 0, ('fill',)),
-            [('abc', 0), ('def', 0)])
 
     def test_chunksize(self):
         w = mocks.Window(cx(['abc\nabc\n', 'def\n', 'ghi\n', 'jkl']))

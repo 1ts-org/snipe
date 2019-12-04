@@ -372,7 +372,7 @@ class TestIRCCloudDecor(unittest.TestCase):
             Decor.headline(msg), Chunk([
                 (('bold',), '#foo '),
                 (('bold',), 'mock'),
-                (('fill',), ': bar'),
+                ((), ': bar'),
                 (('right',), ' 00:00:00'),
                 ]))
 

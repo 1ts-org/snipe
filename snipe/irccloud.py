@@ -47,6 +47,7 @@ from . import imbroglio
 from . import interactive
 from . import keymap
 from . import messages
+from . import text
 from . import util
 
 
@@ -639,6 +640,9 @@ class IRCCloudMessage(messages.SnipeMessage):
             mtype = msg.data.get('type')
             chan = msg.channel
 
+            if not isinstance(tags, frozenset):
+                tags = frozenset(tags)
+
             if chan is not None:
                 chunk += [((tags | {'bold'}), chan + ' ')]
 
@@ -653,8 +657,10 @@ class IRCCloudMessage(messages.SnipeMessage):
             if mtype in msgy:
                 chunk += [
                     (tags | {'bold'}, msg.sender.short()),
-                    (tags | {'fill'}, msgy[mtype] + ' '),
-                    ] + irc_format(msg.body, frozenset(tags | {'fill'}))
+                    (tags, msgy[mtype] + ' '),
+                    ]
+                prefix_len = sum(len(s) for (t, s) in chunk)
+                chunk.extend(irc_format(msg.body, tags, prefix_len))
             elif mtype in (
                     'motd_response', 'server_luserconns',
                     'server_n_global', 'server_n_local', 'server_luserme',
@@ -668,8 +674,8 @@ class IRCCloudMessage(messages.SnipeMessage):
                     tags,
                     (msg.data['server'] +
                         ': ' if 'server' in msg.data else '')))
-                chunk.extend(irc_format(msg.body, frozenset(tags)))
-
+                prefix_len = sum(len(s) for (t, s) in chunk)
+                chunk.extend(irc_format(msg.body, tags, prefix_len))
             elif mtype == 'banned':
                 chunk.append(
                     (tags, msg.data['server'] + ': ' + msg.data['reason']))
@@ -806,7 +812,7 @@ class IRCCloudNonAddress(messages.SnipeAddress):
 
 
 @functools.lru_cache(1024)
-def irc_format(text, tags=frozenset()):
+def irc_format(s, tags=frozenset(), ti=-1):
     """
     translates text containing irc formatting code into a chunk
     color: 0x03fg[,bg]
@@ -835,6 +841,7 @@ def irc_format(text, tags=frozenset()):
     reset 0x0f
     """
 
+    s = text.wrap_hard(s, 72, ti)
     cur_tags = frozenset(tags)
     x_tags = tags
     chunk = chunks.Chunk()
@@ -872,7 +879,7 @@ def irc_format(text, tags=frozenset()):
             99: 'default',
             }.get(number)
 
-    for c in text:
+    for c in s:
         # kludge so we can go back the start state without consuming a
         # character:
         hold = True

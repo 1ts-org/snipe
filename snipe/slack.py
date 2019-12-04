@@ -49,6 +49,7 @@ from . import imbroglio
 from . import interactive
 from . import keymap
 from . import messages
+from . import text
 from . import util
 
 
@@ -664,15 +665,18 @@ class SlackMessage(messages.SnipeMessage):
                     ]
             else:
                 if '|' in s:
-                    chunk += [(tags | {'bold'}, s.split('|', 1)[-1])]
+                    obj_id, label = s.split('|', 1)
+                elif s[:2] in ('#C', '#U'):
+                    obj_id = s[1:]
+                    label = self.displayname(obj_id)
                 else:
-                    if s[:2] in ('#C', '@U'):
-                        nametext = self.displayname(s[1:])
-                        if s[1] == 'U':
-                            nametext = '@' + nametext
-                        chunk += [(tags | {'bold'}, nametext)]
-                    else:
-                        chunk += [(tags | {'bold'}, s)]
+                    obj_id = ''
+                    label = s
+
+                if obj_id[:2] in ('#C', '@U'):
+                    label = obj_id[0] + label
+
+                chunk.append((tags | {'bold'}, label))
 
         return chunk
 
@@ -783,7 +787,13 @@ class SlackMessage(messages.SnipeMessage):
                 else:
                     chunk += [(tags, ' ')]
 
-                chunk += msg.slackmarkup(msg.data.get('text', ''), tags)
+                prefix_len = sum(len(s) for (t, s) in chunk)
+
+                # width should maybe be min(72, width_from_redisplay)
+                chunk += msg.slackmarkup(
+                    text.wrap_paralines_hard(
+                        msg.data.get('text', ''), 72, prefix_len),
+                    tags)
 
                 # XXX some of this stuff should probably be in the body,
                 # format-wise
@@ -793,8 +803,10 @@ class SlackMessage(messages.SnipeMessage):
                             ':%s: %d' % (reaction['name'], reaction['count'])
                             for reaction in msg.data['reactions']))]
 
+                nl = [(tags, '\n')]
+
                 for attachment in msg.data.get('attachments', []):
-                    left = [(tags, '\n> ')]
+                    left = [(tags, '> ')]
                     color = attachment.get('color', '')
                     if color:
                         cmap = {
@@ -808,10 +820,11 @@ class SlackMessage(messages.SnipeMessage):
                             color = '#' + color
 
                         left = [
-                            (tags, '\n'),
                             (tags | {'bg:%s' % color}, ' '),
                             (tags, ' '),
                             ]
+
+                    prefix_len = sum(len(s) for (t, s) in left)
 
                     for (field, markup) in [
                             # ('fallback', ()),
@@ -822,19 +835,29 @@ class SlackMessage(messages.SnipeMessage):
                             ('title_link', set()),
                             ]:
                         if field in attachment:
-                            chunk += left + [
-                                ((tags | markup), attachment[field])]
+                            chunk += nl + left
+                            att_text = attachment[field]
+                            if not field.endswith('_link'):
+                                att_text = text.wrap_paralines_hard(
+                                    att_text, 72, prefix_len)
+                            chunk.append(((tags | markup), att_text))
+
 
                     if 'text' in attachment:
-                        chunk += left + msg.slackmarkup(
-                            attachment['text'], tags)
+                        att_text = text.wrap_paralines_hard(
+                            attachment['text'], 72, prefix_len)
+                        chunk += nl + left + msg.slackmarkup(att_text, tags)
 
                     for field in attachment.get('fields', []):
-                        chunk += left + [(tags | {'bold'}, field['title'])]
-                        chunk += left + [(tags, field['value'])]
+                        title = text.wrap_paralines_hard(
+                            field['title'], 72, prefix_len)
+                        value = text.wrap_paralines_hard(
+                            field['value'], 72, prefix_len)
+                        chunk += nl + left + [(tags | {'bold'}, title)]
+                        chunk += nl + left + [(tags, value)]
 
                 if 'file' in msg.data and 'url' in msg.data['file']:
-                    chunk += [(tags, ('\n' + msg.data['file']['url']))]
+                    chunk += nl + [(tags, (msg.data['file']['url']))]
 
                 chunk += [(tags | {'right'}, timestring)]
             elif t == 'presence_change':
