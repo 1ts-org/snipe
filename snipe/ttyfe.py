@@ -57,6 +57,23 @@ from . import ttycolor
 from . import util
 
 
+def makefunc(name: str):
+    def _(self, *args):
+        import inspect
+        self.curses_log.debug(
+            '%d:%s%s',
+            inspect.currentframe().f_back.f_lineno,
+            name,
+            repr(args))
+        try:
+            return getattr(self.w, name)(*args)
+        except Exception:
+            self.log.error(
+                '%s(%s) raised', name, ', '.join(repr(x) for x in args))
+            raise
+    return _
+
+
 class TTYRenderer:
     def __init__(self, ui, y, h, window, hints=None, whence=None):
         self.log = logging.getLogger('TTYRender.%x' % (id(self),))
@@ -393,25 +410,10 @@ class TTYRenderer:
     def check_redisplay_hint(self, hint):
         return self.window.check_redisplay_hint(hint)
 
-    def makefunc(name):
-        def _(self, *args):
-            import inspect
-            self.curses_log.debug(
-                '%d:%s%s',
-                inspect.currentframe().f_back.f_lineno,
-                name,
-                repr(args))
-            try:
-                return getattr(self.w, name)(*args)
-            except Exception:
-                self.log.error(
-                    '%s(%s) raised', name, ', '.join(repr(x) for x in args))
-                raise
-        return _
     for func in 'addstr', 'move', 'chgat', 'attrset', 'bkgdset', 'clrtoeol':
         locals()[func] = makefunc(func)
 
-    del func, makefunc
+    del func
 
     def reframe(self, target=None, action=None):
         self.log.debug(
@@ -515,6 +517,9 @@ class TTYRenderer:
         if self.head:
             return self.head.cursor, self.sill.cursor
         return None, None
+
+
+del makefunc
 
 
 unkey = dict(
