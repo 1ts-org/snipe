@@ -43,6 +43,7 @@ from . import chunks
 from . import editor
 from . import keymap
 from . import interactive
+from . import text
 
 
 class LongPrompt(editor.Editor):
@@ -151,7 +152,7 @@ class LongPrompt(editor.Editor):
                 yield chunks.View(mark, newchunk)
 
     def input(self):
-        return self.buf[self.divider:].replace(editor.SOFT_LINEBREAK, '\n')
+        return self.buf[self.divider:].replace(text.SOFT_LINEBREAK, '\n')
 
     @keymap.bind('Control-C Control-C')
     def runcallback(self):

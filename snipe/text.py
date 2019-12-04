@@ -496,3 +496,49 @@ class SnipeFencedCodeExtension(markdown.Extension):  # type:ignore
             'fenced_code_block',
             SnipeFBP(md),
             ">normalize_whitespace")
+
+
+# using \x0b (VT) as a soft newline
+SOFT_LINEBREAK = '\x0b'
+HARD_LINEBREAK = '\n'
+EOL = HARD_LINEBREAK + SOFT_LINEBREAK
+
+
+def wrap(s: str, width: int, ti: int = -1):
+    """
+    Wrap a paragraph in s to width.  If ti (temporary indent, as per
+    troff) is set, the width of the first line will be width - ti.
+    """
+
+    l = []
+    col = ti
+    bow = 0
+    space = True
+    for i, c in enumerate(s):
+        col += 1
+        if c in ' ' + SOFT_LINEBREAK:
+            l.append(' ')
+            space = True
+        else:
+            if space:
+                bow = i
+            if col >= width:
+                if bow - 1 >= 0 and l[bow - 1] != HARD_LINEBREAK:
+                    l[bow - 1] = SOFT_LINEBREAK
+                col = i - bow
+            l.append(c)
+            space = False
+    return ''.join(l)
+
+
+def wrap_hard(s: str, width: int, ti: int = -1):
+    return wrap(s, width, ti).replace(SOFT_LINEBREAK, HARD_LINEBREAK)
+
+
+def wrap_paralines_hard(s: str, width: int, ti: int = -1):
+    out = []
+    for t in s.split('\n'):
+        u = wrap_hard(t, width, ti)
+        ti = -1
+        out.append(u)
+    return '\n'.join(out)

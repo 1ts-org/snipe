@@ -45,6 +45,7 @@ from . import chunks
 from . import gap
 from . import interactive
 from . import keymap
+from . import text
 from . import util
 from . import window
 
@@ -300,12 +301,6 @@ class Buffer:
             yield props, self[start:end]
 
 
-# using \x0b (VT) as a soft newline
-SOFT_LINEBREAK = '\x0b'
-HARD_LINEBREAK = '\n'
-EOL = HARD_LINEBREAK + SOFT_LINEBREAK
-
-
 class Viewer(window.Window, window.PagingMixIn):
     def __init__(
             self,
@@ -495,7 +490,7 @@ class Viewer(window.Window, window.PagingMixIn):
             #     # indicate hard newlines
             #     s = s.replace('\n', '\N{return symbol}\n')
 
-            s = s.replace(SOFT_LINEBREAK, '\n')
+            s = s.replace(text.SOFT_LINEBREAK, '\n')
 
             chunk = chunks.Chunk([((), s)])
 
@@ -603,9 +598,9 @@ class Viewer(window.Window, window.PagingMixIn):
             done = False
             with self.save_excursion():
                 self.move(-1)
-                if self.character_at_point() in EOL:
+                if self.character_at_point() in text.EOL:
                     done = True
-            if not done and self.find_character(EOL, -1):
+            if not done and self.find_character(text.EOL, -1):
                 self.move(1)
         oldpoint = self.cursor.point
         self.cursor.point = self.movable(where.point, interactive)
@@ -624,8 +619,8 @@ class Viewer(window.Window, window.PagingMixIn):
         with self.save_excursion(where):
             if count is not None:
                 self.line_move(count - 1)
-            if not self.character_at_point() in EOL:
-                self.find_character(EOL)
+            if not self.character_at_point() in text.EOL:
+                self.find_character(text.EOL)
         oldpoint = self.cursor.point
         self.cursor.point = self.movable(where.point, interactive)
         return self.cursor.point - oldpoint
@@ -1072,10 +1067,10 @@ class Editor(Viewer):
             p0 = self.cursor.point
 
             with self.save_excursion():
-                self.find_character(HARD_LINEBREAK)
+                self.find_character(text.HARD_LINEBREAK)
                 p1 = self.cursor.point
 
-            s = wrap(self.buf[p0:p1], self.fill_column)
+            s = text.wrap(self.buf[p0:p1], self.fill_column)
             self.replace(p1 - p0, s)
 
         self.cursor.point = point
@@ -1331,28 +1326,6 @@ def isspace(x: interactive.keystroke):
         return x.isspace()
     else:
         return False
-
-
-def wrap(s: str, width: int):
-    l = []
-    col = -1
-    bow = 0
-    space = True
-    for i, c in enumerate(s):
-        col += 1
-        if c in ' ' + SOFT_LINEBREAK:
-            l.append(' ')
-            space = True
-        else:
-            if space:
-                bow = i
-            if col >= width:
-                if bow - 1 >= 0 and l[bow - 1] != HARD_LINEBREAK:
-                    l[bow - 1] = SOFT_LINEBREAK
-                col = i - bow
-            l.append(c)
-            space = False
-    return ''.join(l)
 
 
 # wherein we work out and write down a bunch of compose key sequences for

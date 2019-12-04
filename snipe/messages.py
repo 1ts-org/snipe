@@ -46,9 +46,9 @@ import time
 from typing import (List, Optional, Sequence, Union)
 
 from . import chunks
-from . import editor
 from . import filters
 from . import imbroglio
+from . import text
 from . import util
 
 
@@ -771,9 +771,9 @@ class AggregatorBackend(SnipeBackend):
         if len(backends) == 1:
             backend = backends[0]
             if backend.SOFT_NEWLINES:
-                msg = msg.replace(editor.SOFT_LINEBREAK, ' ')
+                msg = msg.replace(text.SOFT_LINEBREAK, ' ')
             else:
-                msg = msg.replace(editor.SOFT_LINEBREAK, '\n')
+                msg = msg.replace(text.SOFT_LINEBREAK, '\n')
             await backend.send(''.join(params[1:]), msg)
         elif len(backends) == 0:
             raise util.SnipeException(
