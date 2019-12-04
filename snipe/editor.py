@@ -1062,7 +1062,7 @@ class Editor(Viewer):
     def do_auto_fill(self):
         self.log.debug('autofilling %s', self.fill_column)
 
-        if not self.writable(0):
+        if not self.writable(1, 0):
             return  # don't wrap prompt lines :-p
 
         with self.save_excursion():

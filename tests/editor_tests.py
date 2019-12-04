@@ -515,6 +515,8 @@ class TestEditor(unittest.TestCase):
         for c in 'abc def ghi jik ':
             e.self_insert(c)
         self.assertEqual('>abc def ghi jik ', str(e.buf))
+        e.do_auto_fill()
+        self.assertEqual('>abc def ghi jik ', str(e.buf))
 
     @snipe.imbroglio.test
     async def test_do_auto_fill_long(self):

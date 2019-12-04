@@ -334,32 +334,40 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(synth.count(), 1)
         self.assertEqual(a.count(), 3)
         self.assertEqual(len(list(a.walk(a.latest(), False))), 3)
+        self.assertEqual(sink.count(), 0)
         await a.send('sink', 'a message')
+        self.assertEqual(sink.count(), 1)
+        self.assertEqual(sink.messages[0].body, 'a message')
+        await a.send('sink', 'a message\x0bwith a vt')
+        self.assertEqual(sink.messages[1].body, 'a message\nwith a vt')
+        sink.SOFT_NEWLINES = True
+        await a.send('sink', 'another message\x0bwith a vt')
+        self.assertEqual(sink.messages[2].body, 'another message with a vt')
         with self.assertRaises(util.SnipeException):
             await a.send('', 'a message')
         with self.assertRaises(util.SnipeException):
             await a.send('fnord', 'a message')
         with self.assertRaises(util.SnipeException):
             await a.send('s', 'a message')
-        self.assertEqual(a.count(), 4)
-        self.assertEqual(len(list(a.walk(a.latest(), False))), 4)
-        self.assertEqual(len(list(a.walk(a.earliest()))), 4)
-        self.assertEqual(len(list(a.walk(a.earliest(), search=True))), 3)
+        self.assertEqual(a.count(), 6)
+        self.assertEqual(len(list(a.walk(a.latest(), False))), 6)
+        self.assertEqual(len(list(a.walk(a.earliest()))), 6)
+        self.assertEqual(len(list(a.walk(a.earliest(), search=True))), 5)
         self.assertEqual(
             len(list(a.walk(a.earliest(), mfilter=filters.makefilter('yes')))),
-            4)
+            6)
         self.assertEqual(
             len(list(a.walk(
                 a.earliest(),
                 mfilter=filters.makefilter('backend == "sink"'),
                 search=True))),
-            1)
+            3)
         self.assertEqual(len(list(a.walk(
             float('Inf'),
             forward=False,
             backfill_to=0.0,
-            ))), 4)
-        self.assertEqual(len(list(a.walk(float('-Inf')))), 4)
+            ))), 6)
+        self.assertEqual(len(list(a.walk(float('-Inf')))), 6)
 
         for i in range(2):  # because caching?
             forward = list(a.walk(a.earliest(), True))
@@ -407,11 +415,11 @@ class TestAggregator(unittest.TestCase):
         self.assertEqual(a.destinations(), set())
         self.assertEqual(a.senders(), set())
 
-        self.assertEqual(a.count(), 4)
+        self.assertEqual(a.count(), 6)
         synth2 = SyntheticBackend(context)
         a.backends.append(synth2)
         await synth2.start()
-        self.assertEqual(a.count(), 5)
+        self.assertEqual(a.count(), 7)
 
         self.assertEqual(a.statusline(), '')
 
