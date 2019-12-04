@@ -518,7 +518,7 @@ class IRCCloud(messages.SnipeBackend, util.HTTP_JSONmixin):
                             or buf['have_eid'] > buf['min_eid'])):
                     break
         finally:
-            if len([t for t in self.backfillers if not t.is_done()]) < 2:
+            if len([t for (t, w) in self.backfillers if not t.is_done()]) < 2:
                 self.state_set(messages.BackendState.IDLE)
 
     @keymap.bind('I D')
