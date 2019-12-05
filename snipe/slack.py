@@ -666,9 +666,9 @@ class SlackMessage(messages.SnipeMessage):
             else:
                 if '|' in s:
                     obj_id, label = s.split('|', 1)
-                elif s[:2] in ('#C', '#U'):
-                    obj_id = s[1:]
-                    label = self.displayname(obj_id)
+                elif s[:2] in ('#C', '@U'):
+                    obj_id = s
+                    label = self.displayname(obj_id[1:])
                 else:
                     obj_id = ''
                     label = s
