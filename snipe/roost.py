@@ -675,6 +675,7 @@ class RoostMessage(messages.SnipeMessage):
                 ]
 
             sig = msg.data.get('signature', '').strip()
+            sig = sig.replace('\r\n', '\n')
             if sig and msg.backend.format_zsig != 'clear':
                 sigl = sig.split('\n')
                 sig = '\n'.join(sigl[:1] + ['    ' + s for s in sigl[1:]])
@@ -697,6 +698,7 @@ class RoostMessage(messages.SnipeMessage):
         @classmethod
         def format(self, msg, tags=set()):
             body = msg.body
+            body = body.replace('\r\n', '\n')
             if body and msg.backend.format_body != 'clear':
                 if not body.endswith('\n'):
                     body += '\n'
