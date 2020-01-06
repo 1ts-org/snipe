@@ -1057,14 +1057,14 @@ class Editor(Viewer):
     def do_auto_fill(self):
         self.log.debug('autofilling %s', self.fill_column)
 
-        if not self.writable(1, 0):
-            return  # don't wrap prompt lines :-p
-
         with self.save_excursion():
             point = self.cursor.point
 
             self.beginning_of_line()
             p0 = self.cursor.point
+
+            if not self.writable(1):
+                return  # don't wrap prompt lines :-p
 
             with self.save_excursion():
                 self.find_character(text.HARD_LINEBREAK)
