@@ -842,7 +842,6 @@ class SlackMessage(messages.SnipeMessage):
                                     att_text, 72, prefix_len)
                             chunk.append(((tags | markup), att_text))
 
-
                     if 'text' in attachment:
                         att_text = text.wrap_paralines_hard(
                             attachment['text'], 72, prefix_len)
