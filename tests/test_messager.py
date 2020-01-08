@@ -37,6 +37,7 @@ import datetime
 import io
 import math
 import os
+import re
 import unittest
 
 from unittest.mock import (patch)
@@ -79,10 +80,21 @@ class TestMessager(unittest.TestCase):
         f = mocks.FE()
         w = messager.Messager(f)
         f.context.backends._messages[0]._display = [()]  # malformed chunk
-        w.search_term = 'foo'
         self.assertEqual(
             ({'visible', 'bar'}, '[()]\n'),
             [chunk.tagsets() for (mark, chunk) in w.view(0)][0][0])
+
+    def test_view_search(self):
+        f = mocks.FE()
+        w = messager.Messager(f)
+        f.context.backends._messages[0]._display = chunks.Chunk(
+            [((), 'bar\nfoo\n')])
+        w.search_re = re.compile('foo')
+        self.assertEqual([
+            ({'visible', 'bar'}, 'bar\n'),
+            ({'reverse'}, 'foo'), ((), '\n'),
+            ],
+            [chunk.tagsets() for (mark, chunk) in w.view(0)][0])
 
     def test_find(self):
         f = mocks.FE()
@@ -97,7 +109,7 @@ class TestMessager(unittest.TestCase):
         self.assertEqual(
             [[({'visible', 'bar'}, '\n')], [((), 'foo\n')]],
             [chunk.tagsets() for (mark, chunk) in w.view(0)])
-        self.assertTrue(w.find('foo', True))
+        self.assertTrue(w.find(re.compile('foo'), True))
         self.assertEqual(
             [[((), '\n')], [({'visible', 'bar'}, 'foo\n')]],
             [chunk.tagsets() for (mark, chunk) in w.view(0)])
@@ -319,10 +331,10 @@ class TestMessager(unittest.TestCase):
     def test_match(self):
         f = mocks.FE()
         w = messager.Messager(f)
-        self.assertFalse(w.match('foo'))
+        self.assertFalse(w.match(re.compile('foo')))
         f.context.backends._messages[0]._display = chunks.Chunk(
             [((), 'foo\n')])
-        self.assertTrue(w.match('foo'))
+        self.assertTrue(w.match(re.compile('foo')))
 
     def test_pageup_backfill(self):
         f = mocks.FE()

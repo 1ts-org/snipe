@@ -39,7 +39,6 @@ import bisect
 import codecs
 import datetime
 import pprint
-import re
 import time
 import traceback
 
@@ -162,9 +161,8 @@ class Messager(window.Window, window.PagingMixIn):
                     # this is a bug so it will do the wrong thing sometimes
                     chunk = chunks.Chunk([((), '\n')])
 
-                if self.search_term is not None:
-                    chunk = chunk.mark_re(
-                        re.escape(self.search_term), chunk.tag_reverse)
+                if self.search_re is not None:
+                    chunk = chunk.mark_re(self.search_re, chunk.tag_reverse)
 
                 # unpack as a structure assertion
                 assert len(chunk) > 0
@@ -188,18 +186,18 @@ class Messager(window.Window, window.PagingMixIn):
 
             yield chunks.View(x, chunk)
 
-    def find(self, string, forward):
+    def find(self, regexp, forward):
         for msg in self.msg_walk(self.cursor, forward, search=True):
             if msg is self.cursor:
                 continue
             m = str(msg.display({}))
-            if string in m:
+            if regexp.search(m):
                 self.cursor = msg
                 return True
         return False
 
-    def match(self, string, forward=True):
-        return string in str(self.cursor.display({}))
+    def match(self, regexp, forward=True):
+        return bool(regexp.search(str(self.cursor.display({}))))
 
     def check_redisplay_hint(self, hint):
         if super().check_redisplay_hint(hint):

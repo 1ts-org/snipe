@@ -36,7 +36,6 @@ Chunk type
 
 
 import collections
-import re
 
 from . import util
 
@@ -56,7 +55,7 @@ class Chunk:
     Chunk() -> new empty chunk
     Chunk(iterable) -> new chunk initialized from iterable
 
-    (each item must be a typle with iterable and a string)
+    (each item must be a tuple with iterable and a string)
     """
 
     POINT_TAGS = {'cursor', 'visible', 'bar'}
@@ -157,7 +156,7 @@ class Chunk:
         chunk that match regexp.
         """
 
-        spans = [m.span() for m in re.finditer(regexp, str(self))]
+        spans = [m.span() for m in regexp.finditer(str(self))]
         new = []
         prev = 0
 

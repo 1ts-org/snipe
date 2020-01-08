@@ -32,6 +32,7 @@
 Unit tests for prompt windows
 '''
 
+import re
 import unittest
 
 import mocks
@@ -575,28 +576,29 @@ class TestPrompt(unittest.TestCase):
         self.assertIsNone(w.target.find_forward)
 
         w.insert('foo')
-        self.assertEqual(w.target.match_string, 'foo')
+        self.assertEqual(w.target.match_re.pattern, 'foo')
         self.assertEqual(w.target.match_forward, True)
-        self.assertEqual(w.target.find_string, 'foo')
+        self.assertEqual(w.target.find_re.pattern, 'foo')
         self.assertEqual(w.target.find_forward, True)
 
-        self.assertEqual(w.target.search_term, 'foo')
+        self.assertEqual(w.target.search_re.pattern, 'foo')
 
         w.target.match_ret = True
         w.insert('f')
-        self.assertEqual(w.target.match_string, 'foof')
+        self.assertEqual(w.target.match_re.pattern, 'foof')
 
         # sneak around w.replace
         w.buf.replace(w.divider, len(w.buf), 'bar', False)
+        w.target.search_re = re.compile('bar')
         do(w.search(None, True))
-        self.assertEqual(w.target.find_string, 'bar')
+        self.assertEqual(w.target.find_re.pattern, 'bar')
 
         w.delete_window()
         self.assertIn('set_active_input', w.fe.called)
         self.assertIn('delete_current_window', w.fe.called)
 
         w.destroy()
-        self.assertIsNone(w.target.search_term)
+        self.assertIsNone(w.target.search_re)
 
     def test_replace_cursor(self):
         w = prompt.Search(
@@ -679,10 +681,17 @@ class TestPrompt(unittest.TestCase):
             start=x.make_mark(x.cursor.point),
             )
 
+        old_re = x.search_re
         w.insert('bar')
+        self.assertIsNot(old_re, x.search_re)
+
         do(w.search_forward())
 
         self.assertEqual(x.cursor.point, 6)
+
+        old_re = x.search_re
+        w.insert('[')
+        self.assertIs(old_re, x.search_re)
 
 
 def do(x):

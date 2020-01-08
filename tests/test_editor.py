@@ -37,6 +37,7 @@ Unit tests for the Editor object
 import array
 import itertools
 import random
+import re
 import unittest
 
 from unittest.mock import (Mock, patch)
@@ -219,7 +220,7 @@ class TestEditor(unittest.TestCase):
     def test_view_search(self):
         e = snipe.editor.Editor(None)
         e.insert('abcdefghi')
-        e.search_term = 'def'
+        e.search_re = re.compile('def')
         self.assertEqual(
             [(int(m), l.tagsets()) for (m, l) in e.view(0)],
             [(0, [
@@ -454,22 +455,22 @@ class TestEditor(unittest.TestCase):
         w = snipe.editor.Editor(None)
         w.insert('abc.def.ghi')
         w.cursor.point = 0
-        self.assertIsNone(w.find('', True))
+        self.assertIsNone(w.find(re.compile(''), True))
         self.assertEqual(w.cursor.point, 0)
-        self.assertTrue(w.find('def', True))
+        self.assertTrue(w.find(re.compile('def'), True))
         self.assertEqual(w.cursor.point, 4)
-        self.assertTrue(w.find('ghi', True))
+        self.assertTrue(w.find(re.compile('ghi'), True))
         self.assertEqual(w.cursor.point, 8)
-        self.assertTrue(w.find('abc', False))
+        self.assertTrue(w.find(re.compile('abc'), False))
         self.assertEqual(w.cursor.point, 0)
-        self.assertFalse(w.find('jkl', True))
+        self.assertFalse(w.find(re.compile('jkl'), True))
 
     def test_match(self):
         w = snipe.editor.Editor(None)
         w.insert('abc.def.ghi')
         w.cursor.point = 0
-        self.assertFalse(w.match('foo'))
-        self.assertTrue(w.match('abc'))
+        self.assertFalse(w.match(re.compile('foo')))
+        self.assertTrue(w.match(re.compile('abc')))
 
     def test_writable(self):
         e = snipe.editor.Editor(None)

@@ -37,6 +37,8 @@ Editor subclasses for interacting with the user.
 '''
 
 
+import re
+
 from typing import (Dict, Optional, List, cast)
 
 from . import chunks
@@ -605,9 +607,13 @@ class Search(LongPrompt):
             count, len(string), self.cursor.point)
         result = super().replace(count, string, collapsible)
         if self.target is not None:
-            term = self.input()
-            self.target.search_term = term
-            if not self.target.match(term, self.forward):
+            try:
+                # XXX should be case insensitive if not mixed case
+                self.target.search_re = re.compile(
+                    self.input(), re.IGNORECASE)
+            except re.error as e:
+                self.whine(str(e))
+            if not self.target.match(self.target.search_re, self.forward):
                 self.log.debug('no match, finding')
                 self.do_find()
             else:  # match
@@ -634,7 +640,7 @@ class Search(LongPrompt):
 
     def do_find(self, wrap=False):
         self.fe.set_active_output(self.target)
-        if self.target.find(self.input(), self.forward):
+        if self.target.find(self.target.search_re, self.forward):
             self.fail = False
         else:
             if not self.fail:
@@ -662,4 +668,4 @@ class Search(LongPrompt):
 
     def destroy(self):
         super().destroy()
-        self.target.search_term = None
+        self.target.search_re = None

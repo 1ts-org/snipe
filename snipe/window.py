@@ -36,6 +36,7 @@ snipe.window
 import inspect
 import logging
 import math
+import re
 
 from typing import Any
 
@@ -53,6 +54,9 @@ Common commands in all windows
 
 .. interrogate_keymap:: Window
 """
+
+
+RE_EMPTY = re.compile('')
 
 
 class OperationAborted(util.SnipeException):
@@ -123,8 +127,8 @@ class Window:
         self._normal_cheatsheet = self.cheatsheet
         # : string describing the keystrokes that triggered the current command
         self.keyseq = ''
-        # : string that is currently being search for
-        self.search_term = None
+        # : RE that is currently being search for
+        self.search_re = None
         # : list of ongoing tasks, for cleanup and testing
         self.tasks = []
 
@@ -687,7 +691,8 @@ class Window:
         await self.search(string, forward=False)
 
     async def search(self, string=None, forward=True):
-        self.match('')  # probe to make sure this is supported here
+        # probe to make sure this is supported here
+        self.match(RE_EMPTY)
         if string is None:
             from .prompt import Search
             self.log.error('search: string is none')
@@ -702,12 +707,12 @@ class Window:
                 near=True,
                 )
         else:
-            self.find(string, forward)
+            self.find(re.compile(string, re.IGNORECASE), forward)
 
-    def find(self, string, forward=True):
+    def find(self, regexp, forward=True):
         raise NotImplementedError
 
-    def match(self, string, forward=True):
+    def match(self, regexp, forward=True):
         raise NotImplementedError
 
     def beginning(self):

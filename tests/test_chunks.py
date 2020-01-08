@@ -32,6 +32,7 @@
 Unit tests for stuff in chunks.py
 '''
 
+import re
 import unittest
 
 from snipe.chunks import Chunk
@@ -142,7 +143,7 @@ class TestChunk(unittest.TestCase):
                 ((), 'cxxx'),
                 ((), 'abcxxx'),
                 ((), 'xxxabc'),
-                ]).mark_re('abc', Chunk.tag_reverse)),
+                ]).mark_re(re.compile('abc'), Chunk.tag_reverse)),
             list(Chunk([
                 ((), 'xxx'),
                 (('reverse',), 'abc'),

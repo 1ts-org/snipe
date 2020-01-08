@@ -279,13 +279,13 @@ class Window:
         self.find_ret = True
         self.match_ret = False
 
-    def match(self, string, forward=True):
-        self.match_string = string
+    def match(self, regexp, forward=True):
+        self.match_re = regexp
         self.match_forward = forward
         return self.match_ret
 
-    def find(self, string, forward=True):
-        self.find_string = string
+    def find(self, regexp, forward=True):
+        self.find_re = regexp
         self.find_forward = forward
         return self.find_ret
 

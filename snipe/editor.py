@@ -555,9 +555,8 @@ class Viewer(window.Window, window.PagingMixIn):
 
             chunk = chunk.show_control()
 
-            if self.search_term is not None:
-                chunk = chunk.mark_re(
-                    re.escape(self.search_term), chunk.tag_reverse)
+            if self.search_re is not None:
+                chunk = chunk.mark_re(self.search_re, chunk.tag_reverse)
 
             yield chunks.View(self.buf.mark(p), chunk)
 
@@ -901,26 +900,26 @@ class Viewer(window.Window, window.PagingMixIn):
         else:
             self.show(out)
 
-    def find(self, string, forward=True):
-        if string == '':
+    def find(self, regexp, forward=True):
+        if regexp.pattern == '':
             return
+        match = None
         if forward:
-            span = range(
-                self.cursor.point + 1, len(self.buf) - len(string) + 1)
+            off = self.cursor.point + 1
+            match = regexp.search(self.buf[off:])
         else:
-            span = range(self.cursor.point - 1, -1, -1)
-        # XXX FTR this is algorithmically laughable.  It also turns out to be
-        # prefectly fine on the machines and buffers we're searching on and in
-        # at the moment, but replace it with something less embarrassing
-        # anyway.
-        for off in span:
-            if self.buf[off:off + len(string)] == string:
-                self.cursor.point = off
-                return True
+            off = 0
+            matches = list(regexp.finditer(self.buf[:self.cursor.point - 1]))
+            if matches:
+                match = matches[-1]
+
+        if match:
+            self.cursor.point = off + match.start()
+            return True
         return False
 
-    def match(self, string, forward=True):
-        return self.buf[self.cursor:self.cursor.point + len(string)] == string
+    def match(self, regexp, forward=True):
+        return regexp.match(self.buf[self.cursor:])
 
 
 class PopViewer(Viewer):
