@@ -551,7 +551,7 @@ class TestPrompt(unittest.TestCase):
         do(w.roll_or_search_backward('abc'))
         self.assertEqual(w.buf[w.cursor.point:w.cursor.point + 3], 'abc')
         do(w.roll_or_search_forward('ghi'))
-        self.assertEqual(w.buf[w.cursor.point:w.cursor.point + 3], 'ghi')
+        self.assertEqual(w.buf[w.cursor.point], '\n')
 
     def test_search(self):
         w = prompt.Search(
@@ -633,7 +633,7 @@ class TestPrompt(unittest.TestCase):
 
         do(w.search_forward())
 
-        self.assertEqual(x.cursor.point, 3)
+        self.assertEqual(x.cursor.point, 6)
 
         do(w.search_backward())
 
@@ -662,11 +662,11 @@ class TestPrompt(unittest.TestCase):
 
         w.insert('foo')
 
-        self.assertEqual(x.cursor.point, 3)
+        self.assertEqual(x.cursor.point, 6)
 
         w.callout('\n')
 
-        self.assertEqual(x.cursor.point, 3)
+        self.assertEqual(x.cursor.point, 6)
         self.assertEqual(x.the_mark.point, 0)
 
         del w

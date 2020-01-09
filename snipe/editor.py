@@ -905,17 +905,16 @@ class Viewer(window.Window, window.PagingMixIn):
             return
         match = None
         if forward:
-            off = self.cursor.point + 1
-            match = regexp.search(self.buf[off:])
+            match = regexp.search(self.buf[self.cursor.point + 1:])
+            if match:
+                self.cursor.point += 1 + match.end()
+                return True
         else:
-            off = 0
             matches = list(regexp.finditer(self.buf[:self.cursor.point - 1]))
             if matches:
                 match = matches[-1]
-
-        if match:
-            self.cursor.point = off + match.start()
-            return True
+                self.cursor.point = match.start()
+                return True
         return False
 
     def match(self, regexp, forward=True):
