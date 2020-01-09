@@ -41,7 +41,7 @@ import snipe.keymap
 
 
 class TestKeymap(unittest.TestCase):
-    def testkeyseq_re(self):
+    def test_keyseq_re(self):
         self.assertFalse(snipe.keymap.Keymap.keyseq_re.match('frob'))
         s = 'control-Shift-META-hyper-SUPER-aLT-ctl-[LATIN CAPITAL LETTER A]'
         m = snipe.keymap.Keymap.keyseq_re.match(s)
@@ -55,7 +55,7 @@ class TestKeymap(unittest.TestCase):
                 'rest': None,
                 })
 
-    def testsplit(self):
+    def test_split(self):
         split = snipe.keymap.Keymap.split
 
         with self.assertRaises(TypeError):
@@ -114,12 +114,12 @@ class TestKeymap(unittest.TestCase):
         with self.assertRaises(KeyError):
             k['\n']
 
-    def testsetmarkkey(self):
+    def test_set_mark_key(self):
         split = snipe.keymap.Keymap.split
         self.assertEqual(split('Control-@'), ('\0', None))
         self.assertEqual(split('Control-[space]'), ('\0', None))
 
-    def testcheatseat(self):
+    def test_cheatseat(self):
         k = snipe.keymap.Keymap()
         k.set_cheatsheet('foo')
         self.assertEqual(k.get_cheatsheet(), 'foo')

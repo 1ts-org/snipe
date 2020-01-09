@@ -59,7 +59,7 @@ import snipe.util
 
 
 class TestSafeWrite(unittest.TestCase):
-    def testSimple(self):
+    def test_simple(self):
 
         with tempfile.TemporaryDirectory() as directory:
             pathname = os.path.join(directory, 'file')
@@ -679,7 +679,7 @@ class TestSSLStream(unittest.TestCase):
 
 class TestHTTP(unittest.TestCase):
     @snipe.imbroglio.test
-    async def test0(self):
+    async def test_0(self):
         with patch('ssl.create_default_context', MockContext), \
                 patch('snipe.util.NetworkStream', MockStream):
             HTTP = await snipe.util.HTTP.request('https://foo/foo')
@@ -720,7 +720,7 @@ class TestHTTP(unittest.TestCase):
                 b''.join(HTTP.stream.wrote))
 
     @snipe.imbroglio.test
-    async def test1(self):
+    async def test_1(self):
         with patch('snipe.util.NetworkStream', MockStream):
             HTTP = await snipe.util.HTTP.request('http://foo/foo')
             self.assertIsInstance(HTTP.stream, MockStream)

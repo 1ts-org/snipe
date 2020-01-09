@@ -73,7 +73,7 @@ class TestEditor(unittest.TestCase):
         insert_a()
         self.assertEqual('a', str(e.buf))
 
-    def testEditorSimple(self):
+    def test_editor_simple(self):
         e = snipe.editor.Editor(None)
         e.insert('flam')
         self.assertEqual(e.cursor.point, 4)
@@ -84,7 +84,7 @@ class TestEditor(unittest.TestCase):
         e.insert('blam')
         self.assertEqual(str(e.buf), 'flimflamblam')
 
-    def testEditorExpansion(self):
+    def test_editor_expansion(self):
         e = snipe.editor.Editor(None, chunksize=1)
         e.insert('flam')
         self.assertEqual(e.cursor.point, 4)
@@ -106,7 +106,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(m2.point, 2)
         self.assertEqual(str(e.buf), 'abc')
 
-    def testEditorMore(self):
+    def test_editor_more(self):
         e = snipe.editor.Editor(None)
         e.insert('bar')
         self.assertEqual(str(e.buf), 'bar')
@@ -151,7 +151,7 @@ class TestEditor(unittest.TestCase):
         e.delete(3)
         self.assertEqual(str(e.buf), 'fooquuxbaz')
 
-    def testFindchar(self):
+    def test_find_character(self):
         e = snipe.editor.Editor(None)
         e.insert('abcdefghji')
         e.cursor.point = 0
@@ -166,7 +166,7 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(e.find_character('c'), 'c')
         self.assertEqual(e.cursor.point, 2)
 
-    def testIsPred(self):
+    def test_ispred(self):
         e = snipe.editor.Editor(None)
         e.insert('abcdefghji')
         e.cursor.point = 0
@@ -175,7 +175,7 @@ class TestEditor(unittest.TestCase):
         self.assertFalse(e.ispred(lambda c: c == 'a', 1))
         self.assertTrue(e.ispred(lambda c: c == 'b', 1))
 
-    def testview(self):
+    def test_view(self):
         e = snipe.editor.Editor(None)
         lines = [
             ''.join(itertools.islice(
@@ -210,7 +210,7 @@ class TestEditor(unittest.TestCase):
         next(it)
         self.assertEqual(e.cursor.point, c)
 
-    def testviewedge(self):
+    def test_view_edge(self):
         e = snipe.editor.Editor(None)
         e.insert('abc')
         self.assertEqual(
@@ -708,7 +708,7 @@ class TestEditor(unittest.TestCase):
 
 
 class TestBuffer(unittest.TestCase):
-    def testRegister(self):
+    def test_register(self):
         b = snipe.editor.Buffer(name='foo')
         self.assertEqual(b.name, 'foo')
         self.assertIs(snipe.editor.Buffer.registry['foo'], b)

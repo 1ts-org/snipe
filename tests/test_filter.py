@@ -48,7 +48,7 @@ from snipe.filters import (
 
 
 class TestFilters(unittest.TestCase):
-    def testLexer(self):
+    def test_Lexer(self):
         lexer = Lexer()
         self.assertEqual(
             list(lexeme.type for lexeme in lexer.test(
@@ -74,7 +74,7 @@ class TestFilters(unittest.TestCase):
             next(snipe.filters.lexer.test(r'"foo\\\"bar"')).value,
             'foo\\"bar')
 
-    def testParser(self):
+    def test_Parser(self):
         snipe.filters.parser = Parser(debug=True)
         self.assertEqual(
             makefilter('yes'),
