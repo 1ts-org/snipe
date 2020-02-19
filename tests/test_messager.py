@@ -408,12 +408,12 @@ class TestMessager(unittest.TestCase):
             f.context.conf['rule'],
             [('yes', {'background': 'green'})])
 
-        w.read_string = returning('messager_tests.TestMessager')
+        w.read_string = returning('test_messager.TestMessager')
         w.filter = filters.Yes()
         await w.filter_decor()
         self.assertEqual(
             f.context.conf['rule'],
-            [('yes', {'decor': 'messager_tests.TestMessager'})])
+            [('yes', {'decor': 'test_messager.TestMessager'})])
 
         w.read_string = returning('nonexistent.object')
         w.filter = filters.Yes()

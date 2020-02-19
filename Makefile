@@ -1,10 +1,10 @@
 VBIN=venv/bin
 FLAKE8=$(VBIN)/flake8
-NOSE=$(VBIN)/nosetests
+NOSE=$(VBIN)/nose2
 MYPY=$(VBIN)/mypy
 COVERAGE=$(VBIN)/coverage
 
-NOSETESTS=TZ=GMT $(NOSE) -v -w tests
+NOSETESTS=TZ=GMT $(NOSE) -v --log-level CRITICAL
 TEST=
 
 all check: flake8 mypy nosetests 
@@ -13,14 +13,14 @@ flake8: venv
 	$(FLAKE8) rooster.py setup.py snipe.py swearing.py snipe tests
 
 nosetests: venv
-	$(NOSETESTS) --processes=8 --process-timeout=300 $(TEST)
+	$(NOSETESTS) $(TEST)
 
 mypy: venv
 	$(MYPY) rooster.py setup.py swearing.py snipe tests
 
 coverage: venv
 	$(COVERAGE) erase
-	$(NOSETESTS) --with-coverage $(TEST)
+	$(NOSETESTS) -C $(TEST)
 	$(COVERAGE) html
 
 clean::
@@ -33,7 +33,7 @@ venv-stamp:
 	python3 -m venv venv
 	venv/bin/pip install -U pip
 	venv/bin/pip install -r ./requirements.txt
-	venv/bin/pip install mypy flake8 nose coverage
+	venv/bin/pip install mypy flake8 nose2 coverage
 	venv/bin/pip install -e .
 	touch venv-stamp
 

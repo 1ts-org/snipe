@@ -164,7 +164,7 @@ class TestEvalOutput(unittest.TestCase):
 
 class TestGetobj(unittest.TestCase):
     def test(self):
-        self.assertIs(snipe.util.getobj('util_tests.TestGetobj'), TestGetobj)
+        self.assertIs(snipe.util.getobj('test_util.TestGetobj'), TestGetobj)
 
 
 class TConfigurable(snipe.util.Configurable):

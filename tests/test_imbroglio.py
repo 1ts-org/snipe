@@ -452,8 +452,8 @@ class TestImbroglioCore(unittest.TestCase):
         print(repr(task))
         self.assertRegex(
             repr(task),
-            r'<Task GO #\d+@imbroglio_tests.py:\d+ CORO_SUSPENDED other'
-            r' sleep@imbroglio_tests.py:\d+>')
+            r'<Task GO #\d+@test_imbroglio.py:\d+ CORO_SUSPENDED other'
+            r' sleep@test_imbroglio.py:\d+>')
 
 
 class TestImbroglioTools(unittest.TestCase):

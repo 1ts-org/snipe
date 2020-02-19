@@ -33,6 +33,7 @@ Unit tests for interactive function infrastructure
 '''
 
 import inspect
+import os
 import unittest
 
 from unittest.mock import (Mock)
@@ -115,19 +116,24 @@ class TestCompleter(unittest.TestCase):
 
 class TestFileCompleter(unittest.TestCase):
     def test(self):
-        f = interactive.FileCompleter()
-        self.assertEqual(1, len(f.matches('interactive')))
-        self.assertEqual(
-            ('interactive_tests.py', 'interactive_tests.py'),
-            f.matches('interactive')[0][1:])
-        self.assertEqual('interactive_tests.py', f.expand('interactive'))
-        f.directory = '../tests'
-        self.assertEqual(
-            ('interactive_tests.py', 'interactive_tests.py'),
-            f.matches('interactive')[0][1:])
-        self.assertEqual(
-            '../tests/interactive_tests.py',
-            f.expand('../tests/interactive'))
+        cwd = os.getcwd()
+        try:
+            os.chdir(os.path.dirname(__file__))
+            f = interactive.FileCompleter()
+            self.assertEqual(1, len(f.matches('test_interactive')))
+            self.assertEqual(
+                ('test_interactive.py', 'test_interactive.py'),
+                f.matches('interactive')[0][1:])
+            self.assertEqual('test_interactive.py', f.expand('interactive'))
+            f.directory = '../tests'
+            self.assertEqual(
+                ('test_interactive.py', 'test_interactive.py'),
+                f.matches('interactive')[0][1:])
+            self.assertEqual(
+                '../tests/test_interactive.py',
+                f.expand('../tests/interactive'))
+        finally:
+            os.chdir(cwd)
 
 
 class TestDestCompleter(unittest.TestCase):

@@ -110,7 +110,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(m.body, 'bar')
 
         self.assertIs(
-            m.get_decor({'decor': 'messages_tests.TestMessage'}),
+            m.get_decor({'decor': 'test_messages.TestMessage'}),
             TestMessage)
 
         self.assertIs(
