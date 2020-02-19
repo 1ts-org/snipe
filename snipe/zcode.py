@@ -80,7 +80,6 @@ def tree(s):
     out = ['', '']
     cur = out
     for c in list(s) + ['']:
-        log.debug('processing %s in state %s', repr(c), state)
         for action in machine[state][c]:
             if action[0] == '>':
                 state = action[1:]
@@ -110,7 +109,6 @@ def tree(s):
             else:
                 raise AssertionError(
                     'unknown action in state table')  # pragma: nocover
-            log.debug(' %s %s %s %s', action, out, repr(saved), cur)
     return out
 
 
