@@ -656,9 +656,7 @@ class TestRoostRegistrationMessage(unittest.TestCase):
 class MockPromise:
     def __init__(self):
         self.set = False
-
-    def is_done(self):
-        return False
+        self.done = False
 
     def set_result(self, result):
         self.set = True

@@ -736,5 +736,5 @@ class RoostRegistrationMessage(messages.SnipeMessage):
 
     @keymap.bind('Y')
     def forward_the_future(self):
-        if not self.future.is_done():
+        if not self.future.done:
             self.future.set_result(None)
