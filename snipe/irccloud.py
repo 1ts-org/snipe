@@ -620,6 +620,12 @@ class IRCCloudMessage(messages.SnipeMessage):
             channel,
             )
 
+    def reply(self):
+        if self.channel and self.personal and self.outgoing:
+            server = self.backend.connections[self.data['cid']]['hostname']
+            return f'{self.backend.name}; {server} {self.channel}'
+        return self.sender.reply()
+
     def filter(self, specificity=0):
         if self.channel:
             nfilter = filters.And(
