@@ -31,7 +31,7 @@ roost (https://github.com/roost-im).""",
     install_requires=[
         'docutils',
         'h11',
-        'Markdown==2.6.7',
+        'Markdown==3.8.1',
         'parsedatetime',
         'ply',
         'wsproto',
